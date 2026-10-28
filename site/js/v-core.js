@@ -200,7 +200,7 @@
       <div class="hud-xp" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`)}"><span class="hud-t">${esc(G.title(s.lv))}</span>${V.bar(pct, 'gold')}<small>${L.num(s.cur)} / ${L.num(s.span)} XP</small></div>
       ${V.inboxUnread ? `<button class="ib hud-bell" data-act="inbox" aria-label="${L('الجديد ليك', 'For you')}">${icon('bell')}${V.inboxUnread() ? `<i class="nv-b">${L.num(Math.min(V.inboxUnread(), 99))}</i>` : ''}</button>` : ''}
       <span class="chip-flame ${flame}" title="${s.atRisk ? L('اقرأ النهارده عشان السلسلة متقطعش', 'Read today to keep your streak') : L('أيام القراءة المتتالية', 'Reading streak')}">${icon('flame')}<b>${L.num(s.streak)}</b>${s.freezes ? `<i class="fz" title="${L('حماية للسلسلة', 'Streak freeze')}">${icon('snow')}${s.freezes > 1 ? L.num(s.freezes) : ''}</i>` : ''}</span>
-      <button class="ib lang" data-act="lang" aria-label="${L('English', 'العربية')}">${L('EN', 'ع')}</button>`;
+      ${V.themeBtn ? V.themeBtn('data-act="theme-toggle"') : ''}<button class="ib lang" data-act="lang" aria-label="${L('English', 'العربية')}">${L('EN', 'ع')}</button>`;
     if (el.dataset.rtH !== html) {
       el.innerHTML = html;
       el.dataset.rtH = html;

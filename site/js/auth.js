@@ -10,7 +10,7 @@
 
   const shell = (inner) => `<div class="onboard"><div class="ob-art" aria-hidden="true"><span class="star8 gold big"></span><span class="star8 lapis"></span><span class="star8 jade sm"></span><span class="star8 rubric xs"></span></div>
     <div class="ob-card">${inner}</div></div>`;
-  const langBtn = `<button class="ib lang ob-lang" data-auth="lang" aria-label="${L('English', 'العربية')}">${L('EN', 'ع')}</button>`;
+  const topBtns = () => `<div class="ob-top">${A.V.themeBtn('data-auth="theme"')}<button class="ib lang" data-auth="lang" aria-label="${L('English', 'العربية')}">${L('EN', 'ع')}</button></div>`;
 
   /* Invite links look like …/#join-abc123def456 */
   Auth.readInvite = () => {
@@ -25,7 +25,7 @@
   /* ---------- sign in ---------- */
   Auth.signIn = (state = {}) => {
     const invited = !!U.store.get('pendingJoin', null);
-    app().innerHTML = shell(`${langBtn}
+    app().innerHTML = shell(`${topBtns()}
       <small class="eyebrow">${invited ? L('عندك دعوة لحلقة قراءة 🎉', 'You have an invitation to a reading circle 🎉') : L('حلقة قراءة لأصحابك وعيلتك', 'A reading circle for friends and family')}</small>
       <h1>${L('نقرأ سوا', 'Read Together')}</h1>
       <p class="lead">${L('ادخل بإيميلك. هنبعتلك كود من أرقام تكتبه هنا — من غير باسورد.', "Sign in with your email. We'll send you a short code to type here — no password.")}</p>
@@ -110,8 +110,9 @@
     const b = e.target.closest('[data-auth]');
     if (!b) return;
     const a = b.dataset.auth;
-    if (a === 'lang') {
-      L.set(L.isAr() ? 'en' : 'ar');
+    if (a === 'lang' || a === 'theme') {
+      if (a === 'lang') L.set(L.isAr() ? 'en' : 'ar');
+      else A.V.toggleTheme();
       if (document.getElementById('auth-email') || document.getElementById('auth-code')) Auth.signIn(authState);
       else if (document.querySelector('.circles-pick')) Auth.circlesScreen(Auth._circles || []);
     } else if (a === 'back') {
@@ -159,7 +160,7 @@
   /* ---------- circles ---------- */
   Auth.circlesScreen = (circles) => {
     Auth._circles = circles;
-    app().innerHTML = shell(`${langBtn}
+    app().innerHTML = shell(`${topBtns()}
       <div class="circles-pick">
       <small class="eyebrow">${L('أهلا بيك 👋', 'Welcome 👋')}</small>
       <h1>${L('الحلقات', 'Circles')}</h1>

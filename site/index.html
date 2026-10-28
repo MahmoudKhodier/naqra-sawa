@@ -265,7 +265,7 @@ textarea { resize: vertical; line-height: 1.55; }
 .chip-flame.risk .ic { animation: wobble 1.4s ease-in-out infinite; }
 @keyframes flicker { 50% { transform: scale(1.12) rotate(-3deg); } }
 @keyframes wobble { 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
-.hud .lang { font: 700 .82rem var(--f-ui); width: 38px; height: 38px; border: 1.5px solid var(--line); }
+.hud .lang, .hud .theme-t { font: 700 .82rem var(--f-ui); width: 38px; height: 38px; border: 1.5px solid var(--line); flex: none; }
 .ro-banner { display: flex; gap: 10px; align-items: flex-start; padding: 10px var(--gut-r) 10px var(--gut-l); background: var(--gold-s); color: var(--ink); font-size: .88rem; border-bottom: 1px solid var(--line); }
 
 .boot { min-height: 80vh; display: grid; place-content: center; justify-items: center; gap: 10px; text-align: center; padding: 20px; }
@@ -945,7 +945,8 @@ textarea { resize: vertical; line-height: 1.55; }
 img { max-width: 100%; }
 [hidden] { display: none !important; }
 .ob-card { position: relative; }
-.ob-lang { position: absolute; top: 14px; inset-inline-end: 14px; border: 1.5px solid var(--line); font: 700 .82rem var(--f-ui); }
+.ob-top { position: absolute; top: 14px; inset-inline-end: 14px; display: flex; gap: 8px; z-index: 2; }
+.ob-top .ib { border: 1.5px solid var(--line); font: 700 .82rem var(--f-ui); }
 .otp { font: 700 1.6rem/1 var(--f-ui) !important; letter-spacing: .35em; text-align: center; }
 .ob-form .row, .form .row { display: flex; gap: 8px; }
 .ob-form .row input { flex: 1; }

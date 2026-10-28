@@ -206,6 +206,19 @@
     const dark = t === 'dark' || (t === 'system' && !!(darkQ && darkQ.matches));
     for (const m of document.querySelectorAll('meta[name=theme-color]')) m.content = dark ? '#0a0e1c' : '#2441a3';
   };
+  V.isDark = () => {
+    const t = U.store.get('theme', 'light');
+    return t === 'dark' || (t === 'system' && !!(darkQ && darkQ.matches));
+  };
+  V.toggleTheme = () => {
+    U.store.set('theme', V.isDark() ? 'light' : 'dark');
+    V.applyTheme();
+  };
+  V.themeBtn = (attr) => `<button class="ib theme-t" ${attr} aria-label="${V.isDark() ? L('الوضع الفاتح', 'Light mode') : L('الوضع الغامق', 'Dark mode')}">${icon(V.isDark() ? 'sun' : 'moon')}</button>`;
+  V.actions['theme-toggle'] = () => {
+    V.toggleTheme();
+    V.render();
+  };
   if (darkQ && darkQ.addEventListener) darkQ.addEventListener('change', () => U.store.get('theme', 'light') === 'system' && V.applyTheme());
   document.addEventListener('change', (e) => {
     if (e.target.id === 'set-hijri') {
