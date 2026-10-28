@@ -319,6 +319,14 @@ textarea { resize: vertical; line-height: 1.55; }
 .home { display: flex; flex-direction: column; gap: 14px; max-width: 640px; margin: 0 auto; }
 .home-main, .home-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 @media (min-width: 1000px) { .home { max-width: 1040px; display: grid; grid-template-columns: minmax(0, 1fr) 320px; align-items: start; } .home-side { position: sticky; top: 24px; } }
+.upd-bar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; background: var(--gold-s); border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); }
+.upd-bar > .ic { color: var(--gold-t); }
+.upd-bar > span { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.upd-bar b { font-size: .9rem; }
+.upd-bar small { font-size: .78rem; color: var(--ink2); }
+.upd-prog { display: flex; flex-direction: column; gap: 10px; }
+.upd-prog small { color: var(--ink2); font-variant-numeric: tabular-nums; }
+.upd-prog .bar { flex: none; width: 100%; }
 .hero { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
 .hero.wcard::after { display: none; }
 .hero-top { display: flex; gap: 14px; align-items: stretch; }
@@ -1237,6 +1245,7 @@ img { max-width: 100%; }
 <script src="js/booksearch.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/reminders.js"></script>
+<script src="js/update.js"></script>
 <script src="js/reader.js"></script>
 <script src="js/main.js"></script>
 </body>

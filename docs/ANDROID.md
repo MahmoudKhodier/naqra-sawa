@@ -23,8 +23,12 @@ Every push to `main` that touches `site/`, `android/`, `capacitor.config.json` o
 
 ## ٢. التحديث — Updating
 
-مفيش تحديث تلقائي: نزّل نفس الرابط تاني وثبّته فوق القديم، وبياناتك بتفضل زي ما هي.
-There is no auto-update: download the same link again and install it over the old one; data is kept.
+التطبيق بيدوّر على تحديث لوحده (كل ٦ ساعات وكل ما تفتحه). لو في نسخة أحدث بيظهر شريط «في تحديث جديد» في «اليوم»، أو من «أنا» ← الإعدادات ← «نسخة التطبيق». دوس «حدّث»: التطبيق بينزّل الملف ويفتح شاشة التثبيت. أول مرة أندرويد هيطلب تسمح لـ«نقرأ سوا» بتثبيت التطبيقات. بياناتك بتفضل زي ما هي.
+The app checks the `android-latest` release (every 6 hours and whenever it comes to the front). When a newer build exists, Today shows an update bar and Settings shows «نسخة التطبيق» with an Update button: the app downloads the APK and opens Android's installer (the first time Android asks to allow installs from this app). Data is kept. You can still download the same link and install it over the old one.
+
+How it works: `site/js/update.js` reads the release title (`… (build N)`, written by `android.yml`) through the GitHub API and compares it with the app's `versionCode` (`App.getInfo().build`); `AppUpdatePlugin.java` downloads the APK into the app cache and opens it through the FileProvider (`REQUEST_INSTALL_PACKAGES`).
+
+Updates only install over the old app when both are signed with the same key. Without the release secrets below, builds use a debug key kept in the Actions cache; `.github/workflows/keep-signing-key.yml` touches it every 3 days so GitHub never drops it. Adding the release keystore (section ٣) is still the most robust setup.
 
 لو ظهر «لم يتم تثبيت التطبيق» أو «يتعارض مع حزمة موجودة»: معناه إن مفتاح التوقيع اتغيّر (مثلاً أول مرة بعد إضافة مفتاح الإصدار). امسح التطبيق القديم وثبّت الجديد؛ الكتب والحلقات محفوظة على الخادم.
 If Android says "App not installed" / "conflicts with an existing package", the signing key changed (e.g. the first build after adding the release keystore). Uninstall the old app once and install the new one; circles and books live on the server.

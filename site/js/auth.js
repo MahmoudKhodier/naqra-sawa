@@ -315,6 +315,7 @@
     const apk = P.cfg.apkUrl;
     return `<div class="set-row"><span>${icon('users')}${L('الحلقة', 'Circle')}: <b dir="auto">${esc((P.circle && P.circle().name) || c.name || '')}</b></span><div class="row-btns" style="margin:0"><button class="btn ghost sm" data-act="circle-menu">${L('بدّل', 'Switch')}</button>${role && role !== 'owner' ? `<button class="btn ghost sm" data-act="leave-circle">${L('اخرج منها', 'Leave')}</button>` : ''}</div></div>
       ${V.reminderSettings ? V.reminderSettings() : ''}
+      ${A.Upd ? A.Upd.settingsRow() : ''}
       ${installable ? `<div class="set-row"><span>${icon('download')}${L('ثبّت التطبيق على موبايلك', 'Install the app on this device')}</span><button class="btn sm gold" data-act="install">${L('ثبّت', 'Install')}</button></div>` : ''}
       ${apk && !P.native ? `<div class="set-row"><span>${icon('download')}${L('تطبيق أندرويد (APK)', 'Android app (APK)')}</span><a class="btn ghost sm" href="${esc(apk)}" target="_blank" rel="noopener">${L('نزّل', 'Download')}</a></div>` : ''}
       <div class="set-row"><span>${icon('user')}<span dir="ltr">${esc(Auth.email || '')}</span></span><button class="btn ghost sm" data-auth="signout">${L('خروج', 'Sign out')}</button></div>`;

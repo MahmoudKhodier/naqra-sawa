@@ -40,6 +40,7 @@
     const others = reading.filter((b) => b !== primary);
     return `<div class="home">
       <div class="home-main">
+        ${A.Upd ? A.Upd.banner() : ''}
         ${pokesBlock()}
         ${primary ? heroCard(primary) : noBooks()}
         ${primary ? raceCard(primary) : ''}
