@@ -111,7 +111,7 @@
         body.addEventListener('submit', async (e) => {
           e.preventDefault();
           api.close();
-          await D.set('meta/circle', Object.assign({}, V.clean(c), { name: body.querySelector('#ec-name').value.trim(), motto: body.querySelector('#ec-motto').value.trim(), weeklyGoal: +body.querySelector('#ec-goal').value || 300, by: c.by || S.me, createdAt: c.createdAt || U.nowIso() }));
+          await D.set('meta/circle', Object.assign({}, V.clean(c), { name: body.querySelector('#ec-name').value.trim(), motto: body.querySelector('#ec-motto').value.trim(), weeklyGoal: +body.querySelector('#ec-goal').value || 300, by: c.by || S.me, createdAt: c.createdAt || U.nowIso() })).catch(() => {});
         }),
     });
   };

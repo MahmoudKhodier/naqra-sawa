@@ -110,7 +110,7 @@
           <button class="btn big" data-act="read" data-b="${esc(b.id)}" data-p="${startAt}">${icon('play', 'flip-rtl')}${startAt > w.from ? L(`كمّل من ص ${L.num(startAt)}`, `Continue from p. ${startAt}`) : L('يلا نقرأ', 'Start reading')}</button>
           ${D.canWrite() ? `<button class="btn jade" data-act="mark-wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}">${icon('check')}${L('خلّصته', 'Done')}</button>` : ''}
         </div>
-        <div class="group-row"><div class="mavs">${avs}</div><small>${L(`${L.num(done.length)} من ${L.num(members.length)} خلّصوا`, `${done.length} of ${members.length} finished`)}${live.length ? ` · <span class="live-t">${L(`${L.num(live.length)} بيقرأوا دلوقتي`, `${live.length} reading now`)}</span>` : ''}</small></div>`;
+        <div class="group-row"><div class="mavs">${avs}</div><small>${L(`${L.num(done.length)} من ${L.num(members.length)} خلّصوا`, `${done.length} of ${members.length} finished`)}${live.length ? ` · <span class="live-t">${L(`في القراية دلوقتي: ${L.num(live.length)}`, `${live.length} reading now`)}</span>` : ''}</small></div>`;
     }
     return `<section class="card wcard">
       <header class="wc-head" data-go="book-${esc(b.id)}">${V.cover(b, 'sm')}<div><small class="eyebrow">${L('بنقرأ دلوقتي', 'Reading now')}</small><h2 dir="auto">${esc(b.title)}</h2>${b.author ? `<span class="muted" dir="auto">${esc(b.author)}</span>` : ''}</div>${icon('fwd', 'flip go')}</header>

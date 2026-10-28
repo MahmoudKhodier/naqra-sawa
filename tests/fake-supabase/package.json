@@ -1,0 +1,10 @@
+{
+  "name": "naqra-sawa-fake-supabase",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Local stand-in for Supabase (PostgREST subset, auth OTP, realtime, presence, storage) on a real Postgres 16 with the project's migration and RLS. Test-only.",
+  "dependencies": {
+    "pg": "8.13.1",
+    "ws": "8.18.0"
+  }
+}

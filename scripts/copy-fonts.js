@@ -14,7 +14,7 @@ const SUBSETS = ['arabic', 'latin']; // declaration order matters: same as Googl
 
 const FAMILIES = [
   { pkg: 'ibm-plex-sans-arabic', family: 'IBM Plex Sans Arabic', weights: [400, 500, 600, 700] },
-  { pkg: 'reem-kufi', family: 'Reem Kufi', weights: [500, 600, 700] },
+  { pkg: 'el-messiri', family: 'El Messiri', weights: [500, 600, 700] },
   { pkg: 'amiri', family: 'Amiri', weights: [400, 700] },
 ];
 

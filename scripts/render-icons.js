@@ -121,7 +121,7 @@ function splashMarkSVG(fontDataUrl) {
   const book = bookPaths(cx, cy, h * 0.68);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
 <defs>
-<style>@font-face{font-family:'Reem Kufi';font-weight:700;src:url(${fontDataUrl}) format('woff2');}</style>
+<style>@font-face{font-family:'El Messiri';font-weight:700;src:url(${fontDataUrl}) format('woff2');}</style>
 <linearGradient id="gold" x1="0" y1="0" x2=".7" y2="1"><stop offset="0" stop-color="${C.goldHi}"/><stop offset=".55" stop-color="${C.gold}"/><stop offset="1" stop-color="#d0911a"/></linearGradient>
 <linearGradient id="book" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.lapis}"/><stop offset="1" stop-color="${C.lapisD}"/></linearGradient>
 </defs>
@@ -129,7 +129,7 @@ function splashMarkSVG(fontDataUrl) {
 <g fill="none" stroke="${C.goldD}" stroke-width="1.8" stroke-linejoin="round"><path stroke-opacity=".5" d="${starPath(cx, cy, R)}"/><path stroke-opacity=".38" d="${starPath(cx, cy, R * 0.87)}"/></g>
 <path d="${book.base}" fill="none" stroke="${C.lapisD}" stroke-width="${f(book.stroke)}" stroke-linecap="round" stroke-linejoin="round"/>
 ${book.pages.map((d) => `<path d="${d}" fill="url(#book)"/>`).join('')}
-<text x="${cx}" y="${H - 18}" text-anchor="middle" direction="rtl" font-family="Reem Kufi" font-weight="700" font-size="38" word-spacing="10" fill="${C.cream}">نقرأ سوا</text>
+<text x="${cx}" y="${H - 18}" text-anchor="middle" direction="rtl" font-family="El Messiri" font-weight="700" font-size="38" word-spacing="10" fill="${C.cream}">نقرأ سوا</text>
 </svg>`;
 }
 
@@ -205,7 +205,7 @@ async function main() {
       await png(iconSVG({ size: 512, bg: 'circle', scale: 0.35 }), 48 * k, 48 * k, path.join(dir, 'ic_launcher_round.png'));
       await png(iconSVG({ size: 512, bg: 'none', scale: 0.26 }), 108 * k, 108 * k, path.join(dir, 'ic_launcher_foreground.png'));
     }
-    const fontFile = path.join(ROOT, 'site', 'fonts', 'reem-kufi-arabic-700-normal.woff2');
+    const fontFile = path.join(ROOT, 'site', 'fonts', 'el-messiri-arabic-700-normal.woff2');
     const fontUrl = 'data:font/woff2;base64,' + fs.readFileSync(fontFile).toString('base64');
     const mark = splashMarkSVG(fontUrl);
     for (const [d, k] of Object.entries(DENSITIES)) {

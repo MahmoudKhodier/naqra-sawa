@@ -150,6 +150,8 @@
         warnedRO = true;
         U.toast(L('مقدرتش أحفظ. يمكن اتشلت من الحلقة — جرّب تفتح التطبيق تاني.', "Couldn't save. You may have been removed from the circle — try reopening the app."), 'warn');
       }
+    } else if (code === 'invalid_argument') {
+      U.toast(L('مقدرتش أحفظ — يمكن التعديل ده مش مسموح لك.', "Couldn't save — you may not be allowed to make this change."), 'warn');
     } else if (code === 'quota_exceeded') {
       U.toast(L('المساحة المتاحة للحلقة خلصت. امسحوا حاجات قديمة وجرّبوا تاني', 'The circle is out of space. Delete some old items and try again'), 'warn');
     } else if (code === 'resource_exhausted') {

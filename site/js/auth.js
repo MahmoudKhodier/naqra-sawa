@@ -147,6 +147,15 @@
     }
   };
 
+  /* An invite link opened in a tab that's already open only changes the hash. */
+  window.addEventListener('hashchange', () => {
+    const m = (location.hash || '').match(/^#join-([a-z0-9]{6,32})$/i);
+    if (m && Auth.uid) {
+      history.replaceState(null, '', location.pathname + location.search);
+      Auth.join(m[1].toLowerCase());
+    }
+  });
+
   /* ---------- circles ---------- */
   Auth.circlesScreen = (circles) => {
     Auth._circles = circles;
@@ -178,18 +187,41 @@
       const ok = await Auth.join(pending);
       if (ok !== false) return;
     }
-    let circles;
-    try {
-      circles = await P.myCircles(uid);
-      U.store.set('circles:' + uid, circles);
-    } catch (e) {
-      circles = U.store.get('circles:' + uid, []);
-    }
+    // Use the remembered circle list right away; refresh it in the background.
+    let circles = U.store.get('circles:' + uid, null);
+    const fresh = P.myCircles(uid).then((list) => {
+      U.store.set('circles:' + uid, list);
+      return list;
+    });
+    if (!circles || !circles.length) {
+      try {
+        circles = await fresh;
+      } catch (e) {
+        circles = circles || [];
+      }
+    } else
+      fresh
+        .then((list) => {
+          A.CIRCLES = list;
+          const cur = A.CIRCLE && list.find((c) => c.id === A.CIRCLE.id);
+          if (A.CIRCLE && !cur && P.onKicked) P.onKicked();
+        })
+        .catch(() => {});
     A.CIRCLES = circles;
     if (!circles.length) return Auth.circlesScreen([]);
     const cur = circles.find((c) => c.id === U.store.get('circle', null)) || circles[0];
     U.store.set('circle', cur.id);
     A.CIRCLE = cur;
+    P.onRoleChange = (role) => {
+      S.isOwner = role === 'owner';
+      S.canEdit = role === 'owner' || role === 'admin';
+      D.bump();
+    };
+    P.onKicked = () => {
+      U.toast(L('اتشلت من الحلقة دي', 'You were removed from this circle'), 'warn');
+      U.store.set('circle', null);
+      setTimeout(() => location.reload(), 1800);
+    };
     app().innerHTML = `<div class="boot"><span class="star8 gold big spin"></span><b dir="auto">${esc(cur.name)}</b><small>${L('بنجهّز الحلقة…', 'Getting the circle ready…')}</small></div>`;
     try {
       await P.open(cur, uid);
@@ -202,11 +234,6 @@
       app().innerHTML = shell(`<h1>${L('مفيش نت', 'No connection')}</h1><p class="lead">${L('محتاجين نت أول مرة تفتح فيها الحلقة على الجهاز ده.', 'You need a connection the first time you open this circle on this device.')}</p><div class="row-btns"><button class="btn" onclick="location.reload()">${L('جرّب تاني', 'Try again')}</button></div>`);
       return;
     }
-    P.onKicked = () => {
-      U.toast(L('اتشلت من الحلقة دي', 'You were removed from this circle'), 'warn');
-      U.store.set('circle', null);
-      setTimeout(() => location.reload(), 1800);
-    };
     const jj = U.store.get('justJoined', null);
     if (jj) {
       U.store.set('justJoined', null);

@@ -46,9 +46,25 @@
   P.mapErr = mapErr;
 
   /* ---------- auth ---------- */
+  /* The stored session, for starting offline (supabase-js would wait ~30 s trying to refresh, then give up). */
+  const storedSession = () => {
+    try {
+      const s = JSON.parse(localStorage.getItem('qs-auth') || 'null');
+      return s && s.user && s.refresh_token ? s : null;
+    } catch (e) {
+      return null;
+    }
+  };
   P.session = async () => {
-    const { data } = await P.sb().auth.getSession();
-    return data.session || null;
+    if (!navigator.onLine) return storedSession();
+    try {
+      const { data, error } = await P.sb().auth.getSession();
+      if (data && data.session) return data.session;
+      if (error && (error.name === 'AuthRetryableFetchError' || error.status === 0)) return storedSession();
+      return null;
+    } catch (e) {
+      return storedSession();
+    }
   };
   P.sendCode = async (email) => {
     const { error } = await P.sb().auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.href.split('#')[0].split('?')[0] } });
@@ -60,17 +76,18 @@
     return data.session;
   };
   P.signOut = async () => {
+    window.__qsSigningOut = true; // stops late writes to localStorage (see U.store.set)
     try {
       await P.sb().auth.signOut();
     } catch (e) {}
     try {
-      for (const k of Object.keys(localStorage)) if (k.startsWith('qs:') && !/^qs:(lang|theme|sound)$/.test(k)) localStorage.removeItem(k);
+      for (const k of Object.keys(localStorage)) if ((k.startsWith('qs:') && !/^qs:(lang|theme|sound)$/.test(k)) || k === 'qs-auth') localStorage.removeItem(k);
     } catch (e) {}
     try {
       indexedDB.deleteDatabase('qs-sync');
+      indexedDB.deleteDatabase('qs-books');
     } catch (e) {}
-    location.hash = '';
-    location.reload();
+    location.replace(location.pathname + location.search);
   };
 
   /* ---------- circles ---------- */
@@ -388,7 +405,9 @@
           touch('shelf');
         } else if (p.new) {
           const isNew = !st.roles.has(p.new.user_id);
+          const changedMine = p.new.user_id === me && st.roles.get(me) !== p.new.role;
           st.roles.set(p.new.user_id, p.new.role);
+          if (changedMine && P.onRoleChange) P.onRoleChange(p.new.role);
           if (isNew) fetchPeople().catch(() => {});
           touch('members');
         }
@@ -413,13 +432,23 @@
     });
     window.addEventListener('online', () => ready && P.resync());
 
-    // First load: cached data shows immediately; fresh data follows.
-    try {
-      await Promise.all([fetchCircle(), fetchPeople(), deltaSync()]);
-    } catch (e) {
-      if (e && e.code === 'revoked') throw e;
-      if (!cached) throw mapErr(e);
-      console.warn('offline start', e);
+    // First load: with a cache we show it at once and refresh in the background; without one we wait.
+    const first = Promise.all([fetchCircle(), fetchPeople(), deltaSync()]);
+    const hasCache = !!(cached && cached.v === 1 && cached.me === me);
+    if (hasCache) {
+      first
+        .then(() => touch('*'))
+        .catch((e) => {
+          if (e && e.code === 'revoked' && P.onKicked) P.onKicked();
+          else console.warn('background refresh', e);
+        });
+    } else {
+      try {
+        await first;
+      } catch (e) {
+        if (e && e.code === 'revoked') throw e;
+        throw mapErr(e);
+      }
     }
     ready = true;
     touch('*');
@@ -445,7 +474,8 @@
         const prev = Object.assign({}, st.circle);
         st.circle = Object.assign({}, st.circle, { name: name || st.circle.name, settings });
         touch('meta');
-        const { error } = await client.from('circles').update({ name: name || prev.name, settings }).eq('id', C);
+        const { data: upd, error: e0 } = await client.from('circles').update({ name: name || prev.name, settings }).eq('id', C).select('id');
+        const error = e0 || (!upd || !upd.length ? { code: '42501', message: 'not allowed' } : null);
         if (error) {
           st.circle = prev;
           touch('meta');
@@ -641,7 +671,8 @@
     let peers = [];
     const peerFns = new Set();
     let joined = false;
-    const pr = client.channel('room-' + C, { config: { presence: { key: tabKey } } });
+    // Private channel: Realtime Authorization (see migrations/…_presence_auth.sql) admits members only.
+    const pr = client.channel(`room-${C}-${st.circle.invite_code || ''}`, { config: { private: true, presence: { key: tabKey } } });
     pr.on('presence', { event: 'sync' }, () => {
       const stt = pr.presenceState();
       const now = Date.now();

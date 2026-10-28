@@ -100,6 +100,7 @@
       }
     },
     set(k, v) {
+      if (window.__qsSigningOut) return;
       try {
         localStorage.setItem('qs:' + k, JSON.stringify(v));
       } catch (e) {}
