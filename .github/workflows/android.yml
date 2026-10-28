@@ -1,7 +1,7 @@
 # Builds the Android app (Capacitor shell around site/) and publishes it as
 #   https://github.com/<owner>/<repo>/releases/download/android-latest/naqra-sawa.apk
 # Signed with the release keystore when the four ANDROID_* secrets exist (see docs/ANDROID.md),
-# otherwise a debug build is published instead.
+# otherwise with an app key created once and kept in the Actions cache.
 name: android
 
 on:
@@ -60,44 +60,56 @@ jobs:
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
             printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
-            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
-            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "source=secrets" >> "$GITHUB_OUTPUT"
           else
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=Debug build::No release keystore secrets, so this APK is a debug build. Add ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD (docs/ANDROID.md) so every build can update the previous install."
+            echo "source=cache" >> "$GITHUB_OUTPUT"
           fi
 
-      # Debug builds are signed with ~/.android/debug.keystore, which Gradle creates fresh on every runner.
-      # Caching it keeps debug APKs installable as updates of each other (until the cache expires after ~7 idle days).
-      - name: Reuse the debug signing key
-        if: steps.signing.outputs.signed != 'true'
+      # Without the release secrets: one app signing key, created by the first build and kept in the Actions
+      # cache (keep-signing-key.yml touches it every 3 days so GitHub never drops it). Every APK is signed with
+      # it, so each build installs as an update of the last one, from the app or by hand.
+      - name: Restore the cached app signing key
+        if: steps.signing.outputs.source == 'cache'
         uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
-          key: android-debug-keystore-v1
+          path: ~/.naqra-signing
+          key: naqra-signing-v1
+
+      - name: Create the app signing key (first build only)
+        if: steps.signing.outputs.source == 'cache'
+        run: |
+          mkdir -p ~/.naqra-signing
+          if [ ! -f ~/.naqra-signing/app.p12 ]; then
+            keytool -genkeypair -keystore ~/.naqra-signing/app.p12 -storetype PKCS12 -alias naqra -keyalg RSA -keysize 2048 -validity 20000 \
+              -storepass naqra-sawa-app -keypass naqra-sawa-app -dname "CN=Naqra Sawa, O=Naqra Sawa, C=EG"
+            echo "::notice title=New app signing key::Created the app signing key. Phones with an APK signed by an older key must reinstall once."
+          fi
 
       - name: Build APK
         working-directory: android
         env:
-          SIGNED: ${{ steps.signing.outputs.signed }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          SOURCE: ${{ steps.signing.outputs.source }}
+          SECRET_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          SECRET_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          SECRET_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_VERSION_CODE: ${{ github.run_number }}
           ANDROID_VERSION_NAME: 1.0.${{ github.run_number }}
         run: |
           chmod +x gradlew
-          if [ "$SIGNED" = "true" ]; then
-            ./gradlew --no-daemon assembleRelease
-            apk=app/build/outputs/apk/release/app-release.apk
+          if [ "$SOURCE" = "secrets" ]; then
+            export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.jks" ANDROID_KEYSTORE_PASSWORD="$SECRET_STORE_PASSWORD" ANDROID_KEY_ALIAS="$SECRET_KEY_ALIAS" ANDROID_KEY_PASSWORD="$SECRET_KEY_PASSWORD"
           else
-            ./gradlew --no-daemon assembleDebug
-            apk=app/build/outputs/apk/debug/app-debug.apk
+            export ANDROID_KEYSTORE_FILE="$HOME/.naqra-signing/app.p12" ANDROID_KEYSTORE_PASSWORD=naqra-sawa-app ANDROID_KEY_ALIAS=naqra ANDROID_KEY_PASSWORD=naqra-sawa-app
           fi
+          ./gradlew --no-daemon assembleRelease
+          apk=app/build/outputs/apk/release/app-release.apk
           test -f "$apk"
           mkdir -p "$RUNNER_TEMP/out"
           cp "$apk" "$RUNNER_TEMP/out/naqra-sawa.apk"
-          ls -l "$RUNNER_TEMP/out"
+          # The signing certificate's fingerprint goes into the release notes: it must stay the same from build to build.
+          keytool -list -v -keystore "$ANDROID_KEYSTORE_FILE" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" \
+            | grep -m1 'SHA256:' | sed 's/.*SHA256: *//' > "$RUNNER_TEMP/cert-sha256.txt"
+          ls -l "$RUNNER_TEMP/out"; cat "$RUNNER_TEMP/cert-sha256.txt"
 
       - name: Remove the decoded keystore
         if: always()
@@ -113,13 +125,14 @@ jobs:
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
-          SIGNED: ${{ steps.signing.outputs.signed }}
+          SOURCE: ${{ steps.signing.outputs.source }}
           BUILD: ${{ github.run_number }}
         run: |
           set -euo pipefail
           tag=android-latest
           apk="$RUNNER_TEMP/out/naqra-sawa.apk"
-          kind=$([ "$SIGNED" = "true" ] && echo "release (signed)" || echo "debug")
+          kind=$([ "$SOURCE" = "secrets" ] && echo "release keystore" || echo "app key from the build cache")
+          cert=$(cat "$RUNNER_TEMP/cert-sha256.txt" 2>/dev/null || true)
           notes="$RUNNER_TEMP/notes.md"
           {
             echo "## نقرأ سوا لأندرويد — نسخة رقم $BUILD"
@@ -128,6 +141,7 @@ jobs:
             echo "للتحديث: نزّل نفس الملف تاني وثبّته فوق القديم."
             echo
             echo "Android build $BUILD ($kind) from commit ${GITHUB_SHA::7}."
+            echo "Signing certificate SHA-256: $cert"
             echo "Direct link: https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/naqra-sawa.apk"
           } > "$notes"
           # Keep the tag on the commit this APK was built from.

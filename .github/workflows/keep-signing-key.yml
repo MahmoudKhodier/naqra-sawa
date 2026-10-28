@@ -1,6 +1,6 @@
-# Keeps the Android debug signing key alive.
-# Without the ANDROID_* release secrets, android.yml signs with ~/.android/debug.keystore saved in the
-# Actions cache. GitHub drops caches nobody touched for 7 days, and a new key would make the next APK
+# Keeps the Android app signing key alive.
+# Without the ANDROID_* release secrets, android.yml signs with a key it created once and saved in the
+# Actions cache (~/.naqra-signing). GitHub drops caches nobody touched for 7 days, and a new key would make the next APK
 # refuse to install over the old one (and break in-app updates). Restoring it every 3 days keeps it.
 # With the release secrets set (docs/ANDROID.md) this job is harmless and can be deleted.
 name: keep-signing-key
@@ -18,16 +18,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Restore the debug keystore (counts as a use)
+      - name: Restore the app signing key (counts as a use)
         id: key
         uses: actions/cache/restore@v4
         with:
-          path: ~/.android/debug.keystore
-          key: android-debug-keystore-v1
+          path: ~/.naqra-signing
+          key: naqra-signing-v1
       - name: Report
         run: |
           if [ "${{ steps.key.outputs.cache-hit }}" = "true" ]; then
             echo "Signing key cache is alive."
           else
-            echo "::warning title=Signing key cache missing::The next Android build will create a new debug key; people must reinstall the APK once. Add the release keystore secrets (docs/ANDROID.md) to avoid this for good."
+            echo "::warning title=Signing key cache missing::The next Android build will create a new app key; people must reinstall the APK once. Add the release keystore secrets (docs/ANDROID.md) to avoid this for good."
           fi

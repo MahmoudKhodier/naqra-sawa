@@ -28,7 +28,7 @@ The app checks the `android-latest` release (every 6 hours and whenever it comes
 
 How it works: `site/js/update.js` reads the release title (`… (build N)`, written by `android.yml`) through the GitHub API and compares it with the app's `versionCode` (`App.getInfo().build`); `AppUpdatePlugin.java` downloads the APK into the app cache and opens it through the FileProvider (`REQUEST_INSTALL_PACKAGES`).
 
-Updates only install over the old app when both are signed with the same key. Without the release secrets below, builds use a debug key kept in the Actions cache; `.github/workflows/keep-signing-key.yml` touches it every 3 days so GitHub never drops it. Adding the release keystore (section ٣) is still the most robust setup.
+Updates only install over the old app when both are signed with the same key. Without the release secrets below, the first build creates an app key and keeps it in the Actions cache (`~/.naqra-signing`); `.github/workflows/keep-signing-key.yml` touches it every 3 days so GitHub never drops it. Each release's notes show the signing certificate's SHA-256, which must stay the same between builds. Adding the release keystore (section ٣) is still the most robust setup.
 
 لو ظهر «لم يتم تثبيت التطبيق» أو «يتعارض مع حزمة موجودة»: معناه إن مفتاح التوقيع اتغيّر (مثلاً أول مرة بعد إضافة مفتاح الإصدار). امسح التطبيق القديم وثبّت الجديد؛ الكتب والحلقات محفوظة على الخادم.
 If Android says "App not installed" / "conflicts with an existing package", the signing key changed (e.g. the first build after adding the release keystore). Uninstall the old app once and install the new one; circles and books live on the server.
