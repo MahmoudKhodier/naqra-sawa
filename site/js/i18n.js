@@ -4,7 +4,7 @@
   const A = (window.A = window.A || {});
   const U = A.U;
 
-  let lang = U.store.get('lang', null) || ((navigator.language || 'ar').toLowerCase().startsWith('en') ? 'en' : 'ar');
+  let lang = U.store.get('lang', null) || 'ar'; // Arabic unless the person switched to English
   if (lang !== 'ar' && lang !== 'en') lang = 'ar';
 
   const L = (ar, en) => (lang === 'ar' ? ar : en);

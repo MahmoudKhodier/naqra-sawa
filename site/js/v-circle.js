@@ -182,7 +182,7 @@
 
   function settings() {
     const m = S.members.get(S.me) || {};
-    const theme = U.store.get('theme', 'system');
+    const theme = U.store.get('theme', 'light');
     return `<section class="card settings">
       <header class="sec-h"><h2>${icon('gear')}${L('الإعدادات', 'Settings')}</h2></header>
       ${D.canWrite() ? `<form id="me-form" class="form inline"><label for="me-nick">${L('اسمك في الحلقة', 'Your name in the circle')}</label><div class="row"><input id="me-nick" maxlength="40" dir="auto" value="${esc(m.nick || '')}"><button class="btn sm">${L('احفظ', 'Save')}</button></div></form>` : ''}
@@ -198,11 +198,15 @@
     V.applyTheme();
     V.render();
   };
+  const darkQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
   V.applyTheme = () => {
-    const t = U.store.get('theme', 'system');
+    const t = U.store.get('theme', 'light');
     if (t === 'system') document.documentElement.removeAttribute('data-theme');
     else document.documentElement.setAttribute('data-theme', t);
+    const dark = t === 'dark' || (t === 'system' && !!(darkQ && darkQ.matches));
+    for (const m of document.querySelectorAll('meta[name=theme-color]')) m.content = dark ? '#0a0e1c' : '#2441a3';
   };
+  if (darkQ && darkQ.addEventListener) darkQ.addEventListener('change', () => U.store.get('theme', 'light') === 'system' && V.applyTheme());
   document.addEventListener('change', (e) => {
     if (e.target.id === 'set-hijri') {
       U.store.set('hijri', e.target.checked);

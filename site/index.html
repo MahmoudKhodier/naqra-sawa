@@ -3,11 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<script>if (window.androidBridge) document.querySelector('meta[name=viewport]').content = 'width=device-width,initial-scale=1';</script>
+<script>if (window.androidBridge) document.querySelector('meta[name=viewport]').content = 'width=device-width,initial-scale=1';
+/* Defaults: Arabic and light mode, unless this person picked something else in Settings. Set before first paint. */
+(function () { var h = document.documentElement, g = function (k) { try { return JSON.parse(localStorage.getItem('qs:' + k)); } catch (e) { return null; } };
+  var t = g('theme') || 'light'; if (t !== 'system') h.setAttribute('data-theme', t);
+  if (g('lang') === 'en') { h.lang = 'en'; h.dir = 'ltr'; } })();</script>
 <title>نقرأ سوا</title>
 <meta name="description" content="حلقة قراءة لأصحابك وعيلتك: كتاب PDF واحد، أوراد متقسمة، ملاحظات على الصفحات، ونقاش — مع نقاط وسلاسل ومهام يومية.">
-<meta name="theme-color" content="#2441a3" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0a0e1c" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#2441a3">
 <meta name="color-scheme" content="light dark">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -73,6 +76,7 @@
     color-scheme: dark;
   }
 }
+:root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] {
   --bg: #0a0e1c; --bg2: #11172e; --card: #141a31; --card2: #19203b; --ink: #eceffb; --ink2: #aab2d3; --ink3: #6f789c; --line: #242d4d;
   --lapis: #7d96ff; --lapis-d: #4b64d1; --lapis-s: #1a2450; --gold: #f2bd45; --gold-d: #b98912; --gold-s: #33280e; --gold-ink: #2a1d00;
