@@ -11,6 +11,8 @@
   const esc = U.esc;
   const icon = U.icon;
   const MAXPART = 19900000;
+  // PDF "Author" values that are really the name of a computer or a default, not a writer.
+  const JUNK_AUTHOR = /^(anonymous|unknown|user|admin(istrator)?|owner|author|default|test|guest|[\w.-]*-?pc|microsoft.*|adobe.*|\d+)$/i;
 
   const bookPct = (b, uid = S.me) => {
     const p = D.prog(b.id, uid);
@@ -454,12 +456,24 @@
           if (p % 25 === 0) progress(L('بقيس الصفحات…', 'Measuring pages…'), p / N, `${L.num(p)} / ${L.num(N)}`);
         }
         const fp = (pdf.fingerprints && pdf.fingerprints[0]) || '';
+        let toc = [];
+        let script = null;
+        try {
+          toc = await A.R.outlineOf(pdf);
+        } catch (e) {}
+        try {
+          script = await scriptOf(pdf, N);
+        } catch (e) {}
         pdf.destroy().catch(() => {});
         const same = sizes.every((s) => s[0] === sizes[0][0] && s[1] === sizes[0][1]);
         const t = (meta && meta.info && meta.info.Title) || '';
         const au = (meta && meta.info && meta.info.Author) || '';
-        const title = pre.title || (t && t.length > 2 && !/^untitled|microsoft|\.(docx?|indd)/i.test(t) ? t : file.name.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' '));
-        Object.assign(info, { buf, N, sizes: same ? null : sizes, size: sizes[0], fp, title: title.trim(), author: (pre.author || au || '').trim() });
+        const metaTitle = t && t.length > 2 && !/^untitled|microsoft|\.(docx?|indd)/i.test(t) ? t : '';
+        const title = pre.title || metaTitle || file.name.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ');
+        // Direction: the PDF's own text decides; scanned books (no text) count as Arabic unless the real title is English.
+        const lang = script || (U.isArabic(title) || !metaTitle || !/[a-z]/i.test(title) ? 'ar' : 'en');
+        const author = pre.author || (JUNK_AUTHOR.test(au.trim()) ? '' : au);
+        Object.assign(info, { buf, N, sizes: same ? null : sizes, size: sizes[0], fp, title: title.trim(), author: (author || '').trim(), lang, toc });
         step(formHtml());
         if (A.B)
           A.B.bind(api.body, 'ab-bs', (b) => {
@@ -470,6 +484,22 @@
         console.warn(e);
         step(`${pickHtml()}<p class="err-t">${e && e.name === 'PasswordException' ? L('الملف ده عليه باسورد. افتحه واحفظه من غير باسورد وجرّب تاني.', 'This PDF is password protected. Save a copy without a password and try again.') : L('مش قادر أقرأ الملف ده. اتأكد إنه PDF سليم.', "Couldn't read this file. Make sure it's a valid PDF.")}</p>`);
       }
+    }
+    /* 'ar' or 'en' from the text of the first pages; null for scanned books without a text layer. */
+    async function scriptOf(pdf, N) {
+      let ar = 0, la = 0;
+      for (let p = 1; p <= Math.min(N, 8) && ar + la < 3000; p++) {
+        const page = await pdf.getPage(p);
+        const tc = await page.getTextContent();
+        for (const it of tc.items) {
+          const str = it.str || '';
+          ar += (str.match(/[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/g) || []).length;
+          la += (str.match(/[A-Za-z]/g) || []).length;
+        }
+        page.cleanup();
+      }
+      if (ar + la < 80) return null;
+      return la > ar * 3 ? 'en' : 'ar';
     }
     async function coverOf(page) {
       const vp1 = page.getViewport({ scale: 1 });
@@ -488,7 +518,7 @@
     }
     function formHtml() {
       const big = info.buf.byteLength > MAXPART;
-      const ar = U.isArabic(info.title) || !/[a-z]/i.test(info.title);
+      const ar = (info.lang || 'ar') === 'ar';
       return `<form id="ab-form" class="ab-form">
         <div class="ab-cover">${info.cover ? `<span class="cover lg"><img src="${esc(info.cover)}" alt=""></span>` : V.genCover(info.title, info.author, 'lg')}<small>${L.count(info.N, 'page')} • ${L.num(Math.round(info.buf.byteLength / 1048576))} MB${big && canUpload ? ' • ' + L('هيتقسّم أجزاء', 'will be split into parts') : ''}</small></div>
         <div class="form">
@@ -530,6 +560,7 @@
       progress(L('بنحفظ الكتاب…', 'Saving the book…'), 1);
       const doc = { title, author, lang, pages: info.N, size: info.size, parts, bytes: info.buf.byteLength, cover: info.cover || null, addedBy: S.me, addedAt: U.nowIso(), status, wirds: [], fp: info.fp || '' };
       if (info.sizes) doc.sizes = info.sizes;
+      if (info.toc && info.toc.length) doc.toc = info.toc;
       await D.set(`books/${id}`, doc);
       if (pre.proposal) D.update(`proposals/${pre.proposal}`, { chosen: id }).catch(() => {});
       api.close();

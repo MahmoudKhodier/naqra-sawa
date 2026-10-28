@@ -25,6 +25,7 @@ Supabase project `ecptsvagvauqpxtapwst` (eu-central-1) has both migrations appli
 ## Testing
 - `bash tests/sql/run.sh` — database rules.
 - `node tests/e2e/smoke.js` — full UI flow against the fake Supabase (see tests/e2e for details).
+- `node tests/e2e/reader.js` — the PDF reader on a phone (touch, 2× screen): scrolling, zoom, book mode, notes, contents, keep-awake.
 - Supabase and most of the internet are not reachable from the cloud sandbox; test against the fakes, then verify live with the user.
 
 ## Conventions

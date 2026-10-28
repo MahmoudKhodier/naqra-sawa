@@ -233,7 +233,10 @@
       api.onClose && api.onClose();
       if (prevFocus && prevFocus.focus) try { prevFocus.focus({ preventScroll: true }); } catch (e) {}
     };
+    const openedAt = Date.now();
     wrap.addEventListener('click', (e) => {
+      // A tap that opened this sheet can send a late "ghost" click onto the backdrop: ignore it.
+      if (e.target.classList.contains('sheet-bg') && Date.now() - openedAt < 450) return;
       if (e.target.closest('[data-close]')) api.close();
     });
     wrap.addEventListener('keydown', (e) => {

@@ -62,7 +62,7 @@
       sizeFix: {}, els: new Map(), want: [], busy: false, gen: 0, cur: start, lastSaved: start,
       pending: new Set(), dwellP: 0, dwellN: 0, sessionPages: 0, flash: opts.flash || null, uiHidden: false,
       notesVer: -1, panel: null, filter: 'wird', lastTop: 0,
-      paged: !!prefs.paged, startedAt: Date.now(), activeSecs: 0, secsPending: 0, userAt: 0, activeAt: Date.now(),
+      pagedPref: !!prefs.paged, paged: !!prefs.paged && !((prefs.zoom || 1) > 1.01), startedAt: Date.now(), activeSecs: 0, secsPending: 0, userAt: 0, activeAt: Date.now(),
     };
     root.hidden = false;
     document.body.classList.add('reading');
@@ -78,10 +78,11 @@
     D.presence({ b: bookId, p: start });
     st.tick = setInterval(tick, 1000);
     st.flushT = setInterval(() => flush(), 12000);
-    st.onVis = () => document.hidden && flush();
+    st.onVis = () => (document.hidden ? flush() : keepAwake(true));
     document.addEventListener('visibilitychange', st.onVis);
     st.onResize = U.debounce(() => st && relayout(), 150);
     window.addEventListener('resize', st.onResize);
+    keepAwake(true);
     try {
       await prepareSource();
       if (!st) return;
@@ -98,6 +99,8 @@
     flush();
     clearInterval(st.tick);
     clearInterval(st.flushT);
+    clearTimeout(st.tapT);
+    keepAwake(false);
     document.removeEventListener('visibilitychange', st.onVis);
     window.removeEventListener('resize', st.onResize);
     document.removeEventListener('keydown', onKey);
@@ -240,7 +243,7 @@
     if (st.paged) {
       const p = st.cur;
       geom();
-      st.sc.scrollTop = (p - 1) * st.slotH;
+      jumpTo((p - 1) * st.slotH);
       st.gen++;
       update();
       return;
@@ -252,23 +255,28 @@
     update();
   }
   function setZoom(z, ax, ay) {
-    if (st.paged) setPaged(false);
     z = U.clamp(Math.round(z * 100) / 100, 0.5, 4);
     if (Math.abs(z - st.zoom) < 0.01) return;
     const a = anchorAt(ax == null ? st.sc.clientWidth / 2 : ax, ay == null ? st.sc.clientHeight * 0.33 : ay);
     st.zoom = z;
+    // Page-by-page mode shows whole pages; zooming in switches to free scrolling until the zoom is back to fit.
+    const paged = st.pagedPref && z <= 1.01;
+    if (paged !== st.paged) {
+      st.paged = paged;
+      st.root.querySelector('.rd').classList.toggle('paged', paged);
+    }
     savePrefs();
-    relayout(a);
+    relayout(paged ? null : a);
     const zl = st.root.querySelector('#rd-zoom');
     if (zl) zl.textContent = L.num(Math.round(z * 100)) + (L.isAr() ? '٪' : '%');
   }
   function savePrefs() {
-    U.store.set('readerPrefs', { zoom: st.zoom, theme: st.theme, paged: st.paged });
+    U.store.set('readerPrefs', { zoom: st.zoom, theme: st.theme, paged: st.pagedPref });
   }
   function setPaged(on) {
-    if (!st || st.paged === on) return;
+    if (!st || (st.paged === on && st.pagedPref === on)) return;
     const p = st.cur;
-    st.paged = on;
+    st.paged = st.pagedPref = on;
     if (on) st.zoom = 1;
     st.root.querySelector('.rd').classList.toggle('paged', on);
     savePrefs();
@@ -277,10 +285,18 @@
     st.gen++;
     update();
   }
-  /* +1 = next page in reading order. */
+  /* +1 = next page in reading order. In page-by-page mode the new page slides in from the side, like a book. */
   function turn(dir) {
     if (!st) return;
-    goTo(st.cur + dir, true);
+    const to = U.clamp(st.cur + dir, 1, st.N);
+    if (to === st.cur) return;
+    if (!st.paged) return goTo(to, true);
+    goTo(to, false);
+    const el = st.els.get(to);
+    if (el && el.animate && !reduced()) {
+      const from = (dir > 0) === bookRTL() ? -1 : 1;
+      el.animate([{ transform: `translateX(${from * 56}px)`, opacity: 0.2 }, { transform: 'none', opacity: 1 }], { duration: 240, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    }
   }
   const bookRTL = () => st.book.lang !== 'en';
 
@@ -319,8 +335,9 @@
     const lo = Math.max(1, Math.min(first, cur - 1));
     const hi = Math.min(st.N, Math.max(last, cur + 2));
     for (let p = lo; p <= hi; p++) if (!st.els.has(p)) st.els.set(p, makeEl(p));
+    const keep = st.zoom >= 2.5 ? 1 : st.zoom >= 1.6 ? 2 : st.zoom > 1.15 ? 4 : KEEP;
     for (const [p, el] of st.els) {
-      if (p < cur - KEEP || p > cur + KEEP) {
+      if (p < cur - keep || p > cur + keep) {
         if (p < lo - 1 || p > hi + 1) {
           freeEl(el);
           st.els.delete(p);
@@ -415,10 +432,20 @@
   function goTo(p, smooth = true, flashNid) {
     if (!st) return;
     p = U.clamp(p | 0, 1, st.N);
-    const y = st.paged ? (p - 1) * st.slotH : st.tops[p] - TOP_PAD + 8;
-    st.sc.scrollTo({ top: y, behavior: smooth && !reduced() ? 'smooth' : 'auto' });
+    if (st.paged) {
+      jumpTo((p - 1) * st.slotH);
+      smooth = false;
+    } else st.sc.scrollTo({ top: st.tops[p] - TOP_PAD + 8, behavior: smooth && !reduced() ? 'smooth' : 'auto' });
     if (flashNid) setTimeout(() => flash(flashNid), smooth ? 500 : 80);
     if (!smooth) update();
+  }
+  /* Page-by-page mode snaps with scroll-snap-stop: always, which in Chrome also stops jumps made from code
+     at the next page. Switch snapping off for the jump itself. */
+  function jumpTo(y) {
+    const sc = st.sc;
+    sc.style.scrollSnapType = 'none';
+    sc.scrollTop = y;
+    requestAnimationFrame(() => (sc.style.scrollSnapType = ''));
   }
   R.goTo = (p, nid) => goTo(p, true, nid);
   const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -446,6 +473,7 @@
   /* A page counts as read after ~3 seconds as the current page. */
   function tick() {
     if (!st || document.hidden) return;
+    if (Date.now() - st.activeAt > 300000) keepAwake(false);
     if (Date.now() - st.activeAt < 180000) {
       st.activeSecs++;
       st.secsPending++;
@@ -590,6 +618,7 @@
         }
       }
       const crop = rect.w ? cropOf(d.p, rect) : null;
+      if (st.mode === 'pin' && e.pointerType !== 'mouse') swallowGhostClick(e.clientX, e.clientY);
       A.V.composeNote({ bookId: st.bookId, page: d.p, rect, crop }, () => {
         if (d.el) d.el.remove();
         if (st && st.mode !== 'none') setMode(st.mode);
@@ -602,6 +631,17 @@
     });
   }
   const r4 = (v) => Math.round(v * 10000) / 10000;
+  /* After a tap opens the note sheet, the browser still sends a click to the same spot: drop that one click. */
+  function swallowGhostClick(x, y) {
+    const f = (ev) => {
+      if (Math.hypot(ev.clientX - x, ev.clientY - y) > 30) return;
+      ev.stopPropagation();
+      ev.preventDefault();
+      document.removeEventListener('click', f, true);
+    };
+    document.addEventListener('click', f, true);
+    setTimeout(() => document.removeEventListener('click', f, true), 450);
+  }
 
   function cropOf(p, r) {
     const el = st.els.get(p);
@@ -683,14 +723,18 @@
     const w = G.myCurrent(b);
     const wEl = st.root.querySelector('#rd-wird');
     const curW = G.wirds(b).find((x) => st.cur >= x.from && st.cur <= x.to);
+    const prog = D.prog(st.bookId);
     if (wEl) {
-      wEl.textContent = curW
-        ? L(`الورد ${L.num(curW.n)} • ص ${L.num(curW.from)}–${L.num(curW.to)}`, `Portion ${curW.n} • p. ${curW.from}–${curW.to}`)
-        : L(`صفحة ${L.num(st.cur)} من ${L.num(st.N)}`, `Page ${st.cur} of ${st.N}`);
+      let left = 0;
+      if (curW) for (let p = curW.from; p <= curW.to; p++) if (!st.pending.has(p) && !(prog && U.rangesHas(prog.seen, p))) left++;
+      wEl.textContent = !curW
+        ? L(`صفحة ${L.num(st.cur)} من ${L.num(st.N)}`, `Page ${st.cur} of ${st.N}`)
+        : left
+          ? L(`الورد ${L.num(curW.n)} • فاضل ${L.count(left, 'page')}`, `Portion ${curW.n} • ${left} pages left`)
+          : L(`الورد ${L.num(curW.n)} • ص ${L.num(curW.from)}–${L.num(curW.to)} ✓`, `Portion ${curW.n} • p. ${curW.from}–${curW.to} ✓`);
     }
     // finish prompt
     const pr = st.root.querySelector('#rd-prompt');
-    const prog = D.prog(st.bookId);
     let html = '';
     if (D.canWrite() && D.joined()) {
       if (w && st.cur >= w.to && st.dismissed !== w.id) {
@@ -821,7 +865,11 @@
           }
         });
     }, { passive: true });
-    const touched = () => st && (st.userAt = st.activeAt = Date.now());
+    const touched = () => {
+      if (!st) return;
+      st.userAt = st.activeAt = Date.now();
+      keepAwake(true);
+    };
     sc.addEventListener('wheel', touched, { passive: true });
     sc.addEventListener('touchmove', touched, { passive: true });
     sc.addEventListener('pointerdown', touched, { passive: true });
@@ -851,20 +899,30 @@
       }
       const t = e.target.closest('[data-act]');
       if (!t) {
-        if (st.paged && e.target.closest('.rd-scroll') && st.mode === 'none' && !e.target.closest('button') && Date.now() - (st.swiped || 0) > 400) {
+        if (!e.target.closest('.rd-scroll') || st.mode !== 'none' || e.target.closest('button') || Date.now() - (st.swiped || 0) < 400) return;
+        const r = st.sc.getBoundingClientRect();
+        const fx = (e.clientX - r.left) / r.width;
+        if (st.paged && (fx < 0.25 || fx > 0.75)) {
           // Tap the outer quarter of the screen to turn the page, like a book.
-          const r = st.sc.getBoundingClientRect();
-          const fx = (e.clientX - r.left) / r.width;
-          if (fx < 0.25 || fx > 0.75) {
-            const towardsLeft = fx < 0.25;
-            turn(towardsLeft === bookRTL() ? 1 : -1);
-            return;
-          }
+          turn((fx < 0.25) === bookRTL() ? 1 : -1);
+          return;
         }
-        if (e.target.closest('.rd-scroll') && st.mode === 'none' && !e.target.closest('button')) {
+        const now = Date.now();
+        const lt = st.lastTap;
+        if (lt && now - lt.t < 300 && Math.hypot(e.clientX - lt.x, e.clientY - lt.y) < 40) {
+          // Double tap: zoom in on that spot, or back to fit.
+          clearTimeout(st.tapT);
+          st.lastTap = null;
+          setZoom(st.zoom > 1.05 ? 1 : 2, e.clientX - r.left, e.clientY - r.top);
+          return;
+        }
+        st.lastTap = { t: now, x: e.clientX, y: e.clientY };
+        clearTimeout(st.tapT);
+        st.tapT = setTimeout(() => {
+          if (!st) return;
           st.uiHidden = !st.uiHidden;
           root.classList.toggle('ui-off', st.uiHidden);
-        }
+        }, 300);
         return;
       }
       const act = t.dataset.act;
@@ -978,6 +1036,7 @@
     const sc = st.sc;
     const k = e.key;
     st.userAt = st.activeAt = Date.now();
+    keepAwake(true);
     if (k === 'Escape') {
       if (st.mode !== 'none') setMode(st.mode);
       else if (st.panel) togglePanel(false);
@@ -1044,8 +1103,9 @@
     const marks = (S.priv && S.priv.marks && S.priv.marks[st.bookId]) || {};
     const marked = !!marks[st.cur];
     A.V.menu([
+      (b.toc && b.toc.length) || st.parts.length === 1 ? { ic: 'list', t: L('الفهرس', 'Contents'), fn: showToc } : null,
       { ic: 'bookmark', t: marked ? L('شيل العلامة من الصفحة دي', 'Remove bookmark here') : L('علّم الصفحة دي', 'Bookmark this page'), fn: () => A.V.toggleMark(st.bookId, st.cur) },
-      st.paged
+      st.pagedPref
         ? { ic: 'scroll', t: L('تمرير متواصل', 'Continuous scrolling'), fn: () => setPaged(false) }
         : { ic: 'book', t: L('صفحة صفحة (زي الكتاب)', 'Page by page (like a book)'), fn: () => setPaged(true) },
       S.sample ? { ic: 'claude', t: L('اسأل Claude عن الصفحة دي', 'Ask Claude about this page'), fn: () => A.V.askPage(st.bookId, st.cur) } : null,
@@ -1056,6 +1116,104 @@
       { ic: 'fit', t: L('ملء العرض', 'Fit width'), fn: () => setZoom(1), cls: 'show-sm' },
     ].filter(Boolean));
   }
+
+  /* ---------- table of contents (the PDF's own outline) ---------- */
+  R.outlineOf = async (pdf, offset = 0) => {
+    const out = [];
+    let items = null;
+    try {
+      items = await pdf.getOutline();
+    } catch (e) {
+      return out;
+    }
+    const walk = async (list, d) => {
+      for (const it of list || []) {
+        if (out.length >= 300) return;
+        let p = null;
+        try {
+          let dest = it.dest;
+          if (typeof dest === 'string') dest = await pdf.getDestination(dest);
+          if (Array.isArray(dest) && dest[0] != null) p = typeof dest[0] === 'number' ? dest[0] + 1 : (await pdf.getPageIndex(dest[0])) + 1;
+        } catch (e) {}
+        const t = String(it.title || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+        if (t && p) out.push({ t, p: p + offset, d });
+        if (d < 2 && it.items && it.items.length) await walk(it.items, d + 1);
+      }
+    };
+    await walk(items, 0);
+    return out;
+  };
+  async function tocList() {
+    if (st.book.toc && st.book.toc.length) return st.book.toc;
+    if (st.toc) return st.toc;
+    if (st.parts.length !== 1) return [];
+    const s0 = st;
+    let list = [];
+    try {
+      list = await R.outlineOf(await loadPart(st.parts[0]), st.parts[0].from - 1);
+    } catch (e) {}
+    if (s0 !== st) return [];
+    st.toc = list;
+    if (list.length && st.parts[0].id !== 'local' && D.canWrite()) D.update(`books/${st.bookId}`, { toc: list }).catch(() => {});
+    return list;
+  }
+  async function showToc() {
+    const list = await tocList();
+    if (!st) return;
+    if (!list.length) return U.toast(L('الملف ده مالوش فهرس جواه. علّم الأماكن المهمة بـ«علّم الصفحة دي» من نفس القائمة.', 'This PDF has no table of contents. Bookmark important pages from this menu instead.'));
+    let on = -1;
+    list.forEach((x, i) => x.p <= st.cur && (on = i));
+    A.V.sheet({
+      title: L('الفهرس', 'Contents'),
+      html: `<div class="toc-list">${list.map((x, i) => `<button class="toc-it d${x.d}${i === on ? ' on' : ''}" data-i="${i}"><span dir="auto">${U.esc(x.t)}</span><small>${L.num(x.p)}</small></button>`).join('')}</div>`,
+      onMount: (body, api) => {
+        body.addEventListener('click', (e) => {
+          const b = e.target.closest('[data-i]');
+          if (!b || !st) return;
+          api.close();
+          goTo(list[+b.dataset.i].p, false);
+        });
+        const cur = body.querySelector('.toc-it.on');
+        if (cur) setTimeout(() => cur.scrollIntoView({ block: 'center' }), 50);
+      },
+    });
+  }
+
+  /* ---------- keep the screen on while reading (sleeps again after 5 idle minutes) ---------- */
+  let wakeLock = null;
+  let nativeAwake = false;
+  async function keepAwake(on) {
+    if (on && st) st.awakeTried = true;
+    try {
+      const KA = A.P && A.P.native ? A.P.plugin('KeepAwake') : null;
+      if (KA) {
+        if (on !== nativeAwake) {
+          nativeAwake = on;
+          await (on ? KA.keepAwake() : KA.allowSleep());
+        }
+        return;
+      }
+      if (on) {
+        if (wakeLock || !navigator.wakeLock || document.hidden) return;
+        wakeLock = 'pending';
+        const l = await navigator.wakeLock.request('screen');
+        if (wakeLock !== 'pending' || !st) {
+          l.release().catch(() => {});
+          if (wakeLock === 'pending') wakeLock = null;
+          return;
+        }
+        wakeLock = l;
+        l.addEventListener('release', () => wakeLock === l && (wakeLock = null));
+      } else if (wakeLock) {
+        const l = wakeLock;
+        wakeLock = null;
+        if (l !== 'pending') l.release().catch(() => {});
+      }
+    } catch (e) {
+      if (wakeLock === 'pending') wakeLock = null;
+    }
+  }
+  R._awake = () => !!st && (nativeAwake || (!!wakeLock && wakeLock !== 'pending') || !!st.awakeTried);
 
   /* ---------- live data ---------- */
   R.onData = () => {
