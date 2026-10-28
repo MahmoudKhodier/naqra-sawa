@@ -441,6 +441,30 @@
     void xp;
   };
 
+  /* Mark several portions done at once (catching up), with one celebration. */
+  V.markWirds = async (bookId, wids) => {
+    if (!D.canWrite() || !wids.length) return;
+    if (wids.length === 1) return V.markWird(bookId, wids[0]);
+    const book = S.books.get(bookId);
+    const ws = G.wirds(book).filter((w) => wids.includes(w.id));
+    const t = U.nowIso();
+    await D.saveProg(bookId, (c) => {
+      const done = Object.assign({}, c.done);
+      for (const w of ws) done[w.id] = t;
+      return { done };
+    });
+    U.confetti(1.3);
+    U.chime('big');
+    V.sheet({
+      title: L('لحقت! ✓', 'Caught up! ✓'),
+      cls: 'celebrate',
+      html: `<div class="celeb">${V.star(L.num(ws.length), 'jade huge spin-in')}
+        <h2>${L(`علّمت ${L.count(ws.length, 'wird')} خلصوا`, `${ws.length} portions marked done`)}</h2>
+        <div class="xp-lines"><span>${L('الأوراد', 'Portions')} <b>+${L.num(G.XP.wird * ws.length)} XP</b></span></div>
+        <button class="btn gold" data-close autofocus>${L('يلا نكمّل', 'Keep going')}</button></div>`,
+    });
+  };
+
   V.unmarkWird = async (bookId, wid) => {
     if (!(await V.confirm(L('هتشيل علامة «خلّصت» من الورد ده.', 'This removes the done mark from this portion.'), L('شيل العلامة', 'Remove mark'), true))) return;
     await D.saveProg(bookId, (c) => {

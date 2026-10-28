@@ -15,10 +15,27 @@
   R.webPushReady = () => !!(P.cfg.vapidPublicKey && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window);
   R.available = () => (P.native ? !!P.plugin('LocalNotifications') : R.webPushReady());
 
-  const text = () => ({
-    title: L('وردك مستنيك 📖', 'Your reading is waiting 📖'),
-    body: L('صفحات قليلة النهارده بتحافظ على سلسلتك 🔥 وبتقرّب الحلقة من هدفها.', 'A few pages today keep your streak alive 🔥 and move the circle closer to its goal.'),
-  });
+  const text = () => {
+    // Behind on a book? Say so gently, with how much is left.
+    let late = 0, pages = 0;
+    try {
+      for (const b of A.S.books.values()) {
+        if ((b.status || 'reading') !== 'reading') continue;
+        const bh = A.G.behind(b);
+        late += bh.late.length;
+        pages += bh.pages;
+      }
+    } catch (e) {}
+    if (late)
+      return {
+        title: L('يلا نلحق الحلقة 📖', "Let's catch up with the circle 📖"),
+        body: L(`فاضلك ${L.count(late, 'wird')} (${L.count(pages, 'page')}). شوية كل يوم وهتلحقهم.`, `${late} portion${late > 1 ? 's' : ''} (${pages} pages) to go. A little every day and you'll catch up.`),
+      };
+    return {
+      title: L('وردك مستنيك 📖', 'Your reading is waiting 📖'),
+      body: L('صفحات قليلة النهارده بتحافظ على سلسلتك 🔥 وبتقرّب الحلقة من هدفها.', 'A few pages today keep your streak alive 🔥 and move the circle closer to its goal.'),
+    };
+  };
 
   async function scheduleNative(hour) {
     const LN = P.plugin('LocalNotifications');

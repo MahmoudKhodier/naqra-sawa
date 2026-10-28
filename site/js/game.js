@@ -127,6 +127,38 @@
     const done = (p && p.done) || {};
     return ws.find((w) => !done[w.id]) || null;
   };
+  /* Behind on a book: late, unfinished portions (in order), their unread pages, and those already read
+     (all but ~10% of their pages seen) that only need marking. */
+  G.behind = (book, uid = S.me) => {
+    const ws = G.wirds(book);
+    const t = U.today();
+    const p = A.D.prog(book.id, uid);
+    const done = (p && p.done) || {};
+    const seen = p && p.seen;
+    const late = ws.filter((w) => !done[w.id] && w.due < t);
+    let pages = 0;
+    const readyToMark = [];
+    for (const w of late) {
+      const total = w.to - w.from + 1;
+      const left = total - U.rangesCountIn(seen, w.from, w.to);
+      pages += left;
+      if (left <= Math.max(1, Math.round(total * 0.1))) readyToMark.push(w);
+    }
+    return { late, pages, readyToMark, group: G.groupCurrent(book) };
+  };
+  /* Pages a day to catch up within `days` days: the late pages plus portions falling due in that window. */
+  G.catchUpPerDay = (book, days, uid = S.me) => {
+    const b = G.behind(book, uid);
+    const t = U.today();
+    const end = U.addDays(t, days - 1);
+    const p = A.D.prog(book.id, uid);
+    let pages = b.pages;
+    for (const w of G.wirds(book)) {
+      if (w.due < t || w.due > end || (p && p.done && p.done[w.id])) continue;
+      pages += w.to - w.from + 1 - U.rangesCountIn(p && p.seen, w.from, w.to);
+    }
+    return Math.ceil(pages / days);
+  };
   G.wirdStatus = (book, w, uid = S.me) => {
     const p = A.D.prog(book.id, uid);
     const t = U.today();

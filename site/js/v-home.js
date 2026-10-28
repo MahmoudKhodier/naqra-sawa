@@ -99,11 +99,28 @@
     const left = Math.max(0, total - seen);
     const startAt = last >= w.from && last <= w.to ? last : w.from;
     const st = G.wirdStatus(b, w);
-    const mins = Math.max(1, Math.round((left * secsPerPage()) / 60));
-    return `<section class="card wcard hero">
-      ${head(`<p class="hi-w">${L(`الورد ${L.num(w.n)} • ص ${L.num(w.from)}–${L.num(w.to)}`, `Portion ${w.n} • p. ${w.from}–${w.to}`)}</p>
-        <p class="hi-sub">${left ? L(`فاضل ${L.count(left, 'page')} • حوالي ${L.count(mins, 'minute')}`, `${left} pages left • about ${mins} min`) : L('قريت صفحاته كلها — علّم إنك خلّصته', 'You read every page — mark it done')}</p>
+    const bh = G.behind(b);
+    const behind = bh.late.length > 0;
+    const mins = Math.max(1, Math.round(((behind ? bh.pages : left) * secsPerPage()) / 60));
+    const sub = behind
+      ? L(`فاضل ${L.count(bh.pages, 'page')} عشان تلحق الحلقة • حوالي ${L.duration(mins * 60)}`, `${bh.pages} pages to catch up • about ${L.duration(mins * 60)}`)
+      : left
+        ? L(`فاضل ${L.count(left, 'page')} • حوالي ${L.count(mins, 'minute')}`, `${left} pages left • about ${mins} min`)
+        : L('قريت صفحاته كلها — علّم إنك خلّصته', 'You read every page — mark it done');
+    const ready = bh.readyToMark;
+    const catchRow = behind
+      ? `<div class="catchup">
+          ${ready.length > 1
+            ? `<button class="btn jade sm" data-act="mark-wirds" data-b="${esc(b.id)}" data-ws="${esc(ready.map((x) => x.id).join(','))}">${icon('check')}${L(`علّم الأوراد ${L.num(ready[0].n)}–${L.num(ready[ready.length - 1].n)} خلصوا`, `Mark portions ${ready[0].n}–${ready[ready.length - 1].n} done`)}</button>`
+            : `<span>${icon('bolt')}${L(`عشان تلحق في ٣ أيام: ~${L.count(G.catchUpPerDay(b, 3), 'page')} في اليوم`, `To catch up in 3 days: ~${G.catchUpPerDay(b, 3)} pages a day`)}</span>`}
+          <button class="lnk" data-act="catch-up" data-b="${esc(b.id)}">${L('خطة اللحاق', 'Catch-up plan')}</button>
+        </div>`
+      : '';
+    return `<section class="card wcard hero${behind ? ' behind' : ''}">
+      ${head(`${behind ? `<span class="tag late">${L(`متأخر ${L.count(bh.late.length, 'wird')}`, `${bh.late.length} portion${bh.late.length > 1 ? 's' : ''} behind`)}</span>` : ''}<p class="hi-w">${L(`الورد ${L.num(w.n)} • ص ${L.num(w.from)}–${L.num(w.to)}`, `Portion ${w.n} • p. ${w.from}–${w.to}`)}</p>
+        <p class="hi-sub">${sub}</p>
         <p class="due ${st}">${L.due(w.due)}</p>`)}
+      ${catchRow}
       ${pathStrip(b, ws, w)}
       <div class="hero-acts">
         <button class="btn big cta" data-act="read" data-b="${esc(b.id)}" data-p="${startAt}">${startAt > w.from ? L(`كمّل من ص ${L.num(startAt)}`, `Continue from p. ${startAt}`) : L('يلا نقرأ', 'Start reading')}${icon('play', 'flip-rtl')}</button>
@@ -139,7 +156,10 @@
 
   /* Where everyone is inside the current portion: a track from its first page to its last. */
   function raceCard(b) {
-    const w = G.myCurrent(b) || G.groupCurrent(b);
+    const mine = G.myCurrent(b);
+    const grp = G.groupCurrent(b);
+    const iAmBehind = !!(mine && grp && mine.n < grp.n);
+    const w = iAmBehind ? grp : mine || grp;
     if (!w) return '';
     const members = D.memberIds();
     if (members.length < 2) {
@@ -181,6 +201,7 @@
       <header><h3>${L(`مين وصل فين في الورد ${L.num(w.n)}`, `Who is where in portion ${w.n}`)}</h3>${action}</header>
       <div class="rc-track"><i class="rc-line"><i style="width:${me ? Math.round(me.f * 100) : 0}%"></i></i>${avs}</div>
       <div class="rc-labels"><span>${L('ص', 'p.')} ${L.num(w.from)}</span><span>${L(`${L.num(doneRows.length)} من ${L.num(members.length)} خلّصوا`, `${doneRows.length} of ${members.length} done`)}</span><span>${icon('flag')}${L('ص', 'p.')} ${L.num(w.to)}</span></div>
+      ${iAmBehind ? `<p class="rc-behind">${L(`الحلقة في الورد ${L.num(grp.n)} وإنت لسه في الورد ${L.num(mine.n)} — شد حيلك وهتلحقهم`, `The circle is on portion ${grp.n}, you're on ${mine.n} — you can catch up`)}</p>` : ''}
     </section>`;
   }
 
@@ -235,6 +256,47 @@
       </button>
     </div>`;
   }
+  V.actions['mark-wirds'] = (a) => V.markWirds(a.dataset.b, a.dataset.ws.split(',').filter(Boolean));
+
+  /* Catch-up plan: pages a day for a few choices of days, read the late portions in order, or mark the ones read elsewhere. */
+  V.actions['catch-up'] = (a) => {
+    const b = S.books.get(a.dataset.b);
+    if (!b) return;
+    const bh = G.behind(b);
+    if (!bh.late.length) return;
+    // Longer options only while they still lighten the load (stop once a day is already easy).
+    const opts = [];
+    for (const d of [2, 3, 5, 7, 14]) {
+      const n = G.catchUpPerDay(b, d);
+      opts.push({ d, n });
+      if (n <= 12 && opts.length >= 2) break;
+    }
+    const first = bh.late[0];
+    const prog = D.prog(b.id);
+    const last = (prog && prog.last) || 0;
+    const startAt = last >= first.from && last < first.to ? last : first.from;
+    V.sheet({
+      title: L('خطة اللحاق', 'Catch-up plan'),
+      html: `<div class="cu">
+        <p>${L(`إنت متأخر ${L.count(bh.late.length, 'wird')} (${L.count(bh.pages, 'page')})${bh.group ? ` والحلقة دلوقتي في الورد ${L.num(bh.group.n)}` : ''}. اختار هتلحق في قد إيه:`, `You are ${bh.late.length} portion${bh.late.length > 1 ? 's' : ''} (${bh.pages} pages) behind${bh.group ? ` and the circle is on portion ${bh.group.n}` : ''}. Pick how fast to catch up:`)}</p>
+        <ul class="cu-opts">${opts.map((o) => `<li><b>${o.d === 7 ? L('أسبوع', 'A week') : o.d === 14 ? L('أسبوعين', 'Two weeks') : L.count(o.d, 'day')}</b><span>${L(`~${L.count(o.n, 'page')} في اليوم`, `~${o.n} pages a day`)}</span></li>`).join('')}</ul>
+        <p class="muted sm">${L('ده بيحسب الصفحات اللي فاتتك + الأوراد الجاية في نفس المدة. اقرأ الأوراد بالترتيب، وكل ما تخلّص واحد علّمه.', 'This counts the pages you missed plus the portions due in that time. Read the portions in order and mark each one done.')}</p>
+        <div class="row-btns"><button class="btn big" data-act="read" data-b="${esc(b.id)}" data-p="${startAt}" data-close>${icon('play', 'flip-rtl')}${L(`ابدأ من الورد ${L.num(first.n)}`, `Start with portion ${first.n}`)}</button></div>
+        <details class="cu-mark"><summary>${L('قريتهم برّه البرنامج؟ علّمهم خلصوا', 'Read them elsewhere? Mark them done')}</summary>
+          <form id="cu-form">${bh.late.map((w) => `<label class="check"><input type="checkbox" value="${esc(w.id)}" ${bh.readyToMark.includes(w) ? 'checked' : ''}><span>${L(`الورد ${L.num(w.n)} • ص ${L.num(w.from)}–${L.num(w.to)}`, `Portion ${w.n} • p. ${w.from}–${w.to}`)}</span></label>`).join('')}
+          <button class="btn jade full">${icon('check')}${L('علّم اللي اخترته', 'Mark selected')}</button></form>
+        </details></div>`,
+      onMount: (body, api) =>
+        body.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const ids = [...body.querySelectorAll('#cu-form input:checked')].map((x) => x.value);
+          if (!ids.length) return;
+          api.close();
+          V.markWirds(b.id, ids);
+        }),
+    });
+  };
+
   V.actions.quests = () => V.sheet({ title: L('مهام النهارده', "Today's quests"), html: questsBlock(), onData: (body) => (body.innerHTML = questsBlock()) });
 
   V.actions.who = (a) => {

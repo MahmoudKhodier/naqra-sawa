@@ -391,6 +391,47 @@ async function menu(p, text) {
       return `zoom ${z0} → ${z1} → ${z2}`;
     }, ['open', 'cdp']);
 
+    await step('Landscape: bars become side rails, vertical slider works, page uses the width; back to portrait', async () => {
+      await showBars(p);
+      await p.setViewportSize({ width: 844, height: 390 });
+      await T(1200);
+      const info = await p.evaluate(() => {
+        const r = (sel) => {
+          const b = document.querySelector(sel).getBoundingClientRect();
+          return { l: Math.round(b.left), r: Math.round(b.right), t: Math.round(b.top), b: Math.round(b.bottom), w: Math.round(b.width), h: Math.round(b.height) };
+        };
+        return { land: document.querySelector('.rd').classList.contains('land'), top: r('.rd-top'), bot: r('.rd-bot'), scrub: r('#rd-scrub'), page: r(`.pg[data-p="${window.A.R.current().page}"]`) };
+      });
+      await H.shot(p, 'r09-landscape');
+      assert(info.land, 'no landscape layout');
+      assert(info.top.w < 100 && info.top.h > 300 && info.top.r >= 840, 'top rail not on the right side: ' + JSON.stringify(info.top));
+      assert(info.bot.w < 100 && info.bot.l <= 4, 'bottom rail not on the left side: ' + JSON.stringify(info.bot));
+      assert(info.scrub.h > info.scrub.w * 2, 'slider is not vertical: ' + JSON.stringify(info.scrub));
+      assert(info.page.w > 700, 'page does not use the width: ' + JSON.stringify(info.page));
+      // drag the vertical slider to ~80% of the book
+      const sc = info.scrub;
+      await p.mouse.move(sc.l + sc.w / 2, sc.t + 4);
+      await p.mouse.down();
+      await p.mouse.move(sc.l + sc.w / 2, sc.t + sc.h * 0.8, { steps: 6 });
+      await p.mouse.up();
+      await T(900);
+      const c = await cur(p);
+      assert(c > 85 && c < 110, 'slider landed on page ' + c);
+      await tap(ctx.cdp, 420, 200);
+      await T(700);
+      const hidden = await p.evaluate(() => {
+        const t = document.querySelector('.rd-top').getBoundingClientRect();
+        return document.querySelector('.rd').classList.contains('ui-off') && t.left >= 840;
+      });
+      assert(hidden, 'rails did not slide away on tap');
+      await H.shot(p, 'r10-landscape-reading');
+      await p.setViewportSize({ width: 390, height: 844 });
+      await T(1000);
+      const back = await p.evaluate(() => !document.querySelector('.rd').classList.contains('land'));
+      assert(back, 'still in landscape layout after rotating back');
+      return `slider → page ${c}; rails ${info.top.w}px / ${info.bot.w}px`;
+    }, ['open', 'cdp']);
+
     await step('Screen stays awake while reading', async () => {
       const s = await p.evaluate(() => window.A.R._awake && window.A.R._awake());
       assert(s === true, 'keep-awake not requested: ' + s);

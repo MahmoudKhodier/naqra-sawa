@@ -13,6 +13,10 @@
   const GAP = 14;
   const TOP_PAD = 72;
   const BOT_PAD = 150;
+  /* Phones held sideways: the bars become side rails so the page gets the whole height. */
+  const isLand = () => window.innerWidth > window.innerHeight && window.innerHeight <= 560;
+  const topPad = () => (st && st.land ? 12 : TOP_PAD);
+  const botPad = () => (st && st.land ? 40 : BOT_PAD);
   const KEEP = 7; // pages kept rendered on each side of the current one
   const COLORS = ['#f5c542', '#4fc59a', '#6f9cff', '#ff7aa2', '#b98bff'];
   R.COLORS = COLORS;
@@ -68,6 +72,8 @@
     document.body.classList.add('reading');
     root.innerHTML = shell();
     root.querySelector('.rd').classList.toggle('paged', st.paged);
+    st.land = isLand();
+    root.querySelector('.rd').classList.toggle('land', st.land);
     st.root = root;
     st.sc = root.querySelector('#rd-scroll');
     st.pagesEl = root.querySelector('#rd-pages');
@@ -80,7 +86,16 @@
     st.flushT = setInterval(() => flush(), 12000);
     st.onVis = () => (document.hidden ? flush() : keepAwake(true));
     document.addEventListener('visibilitychange', st.onVis);
-    st.onResize = U.debounce(() => st && relayout(), 150);
+    st.onResize = U.debounce(() => {
+      if (!st) return;
+      const land = isLand();
+      if (land !== st.land) {
+        st.land = land;
+        st.root.querySelector('.rd').classList.toggle('land', land);
+      }
+      relayout();
+      chrome();
+    }, 150);
     window.addEventListener('resize', st.onResize);
     keepAwake(true);
     try {
@@ -173,7 +188,7 @@
     st.tops = new Float64Array(N + 2);
     st.ws = new Float64Array(N + 2);
     st.hs = new Float64Array(N + 2);
-    let y = TOP_PAD;
+    let y = topPad();
     let maxW = 0;
     if (st.paged) {
       // One page per screen-high slot, centred, fitted to the screen like a printed page.
@@ -201,7 +216,7 @@
         if (w > maxW) maxW = w;
       }
       st.tops[N + 1] = y;
-      st.totalH = y + BOT_PAD;
+      st.totalH = y + botPad();
     }
     st.innerW = Math.max(avail, maxW + gutter * 2);
     st.pagesEl.style.height = st.totalH + 'px';
@@ -435,7 +450,7 @@
     if (st.paged) {
       jumpTo((p - 1) * st.slotH);
       smooth = false;
-    } else st.sc.scrollTo({ top: st.tops[p] - TOP_PAD + 8, behavior: smooth && !reduced() ? 'smooth' : 'auto' });
+    } else st.sc.scrollTo({ top: st.tops[p] - topPad() + 8, behavior: smooth && !reduced() ? 'smooth' : 'auto' });
     if (flashNid) setTimeout(() => flash(flashNid), smooth ? 500 : 80);
     if (!smooth) update();
   }
@@ -759,16 +774,19 @@
     if (!el) return;
     const b = st.book;
     const N = st.N;
-    const side = el.dir === 'rtl' ? 'right' : 'left';
+    const vert = st.land;
+    const side = vert ? 'top' : el.dir === 'rtl' ? 'right' : 'left';
+    const dim = vert ? 'height' : 'width';
+    el.setAttribute('aria-orientation', vert ? 'vertical' : 'horizontal');
     const pos = (p) => (N <= 1 ? 0 : ((p - 1) / (N - 1)) * 100);
     let segs = '';
     for (const w of G.wirds(b)) {
       const s = G.wirdStatus(b, w);
-      segs += `<i class="seg s-${s}" style="${side}:${pos(w.from)}%;width:${Math.max(0.6, pos(w.to) - pos(w.from))}%"></i>`;
+      segs += `<i class="seg s-${s}" style="${side}:${pos(w.from)}%;${dim}:${Math.max(0.6, pos(w.to) - pos(w.from))}%"></i>`;
     }
     const prog = D.prog(st.bookId);
     let seenBar = '';
-    if (prog && prog.seen) for (const r of prog.seen) seenBar += `<i class="seen" style="${side}:${pos(r[0])}%;width:${Math.max(0.4, pos(r[1]) - pos(r[0]))}%"></i>`;
+    if (prog && prog.seen) for (const r of prog.seen) seenBar += `<i class="seen" style="${side}:${pos(r[0])}%;${dim}:${Math.max(0.4, pos(r[1]) - pos(r[0]))}%"></i>`;
     const live = new Map(D.readingNow(st.bookId).map((x) => [x.uid, x.p]));
     let others = '';
     let k = 0;
@@ -974,23 +992,29 @@
     // scrubber
     const scr = root.querySelector('#rd-scrub');
     let scrubbing = false;
-    const pageFromX = (x) => {
+    const pageAtPoint = (e) => {
       const r = scr.getBoundingClientRect();
-      let f = (x - r.left) / r.width;
-      if (scr.dir === 'rtl') f = 1 - f;
+      let f;
+      if (st.land) f = (e.clientY - r.top) / r.height;
+      else {
+        f = (e.clientX - r.left) / r.width;
+        if (scr.dir === 'rtl') f = 1 - f;
+      }
       return U.clamp(Math.round(f * (st.N - 1)) + 1, 1, st.N);
     };
     scr.addEventListener('pointerdown', (e) => {
       scrubbing = true;
       try { scr.setPointerCapture(e.pointerId); } catch (er) {}
-      goTo(pageFromX(e.clientX), false);
+      goTo(pageAtPoint(e), false);
     });
-    scr.addEventListener('pointermove', (e) => scrubbing && goTo(pageFromX(e.clientX), false));
+    scr.addEventListener('pointermove', (e) => scrubbing && goTo(pageAtPoint(e), false));
     scr.addEventListener('pointerup', () => (scrubbing = false));
     scr.addEventListener('keydown', (e) => {
       const rtl = scr.dir === 'rtl';
       if (e.key === 'ArrowLeft') goTo(st.cur + (rtl ? 1 : -1), false);
       if (e.key === 'ArrowRight') goTo(st.cur + (rtl ? -1 : 1), false);
+      if (st.land && e.key === 'ArrowDown') goTo(st.cur + 1, false);
+      if (st.land && e.key === 'ArrowUp') goTo(st.cur - 1, false);
     });
 
     // zoom: ctrl/cmd + wheel, and two-finger pinch

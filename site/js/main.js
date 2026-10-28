@@ -56,6 +56,8 @@
         }
         await A.Auth.enter(session);
         A.Remind && A.Remind.boot();
+        // again once the circle's books have synced, so the reminder text knows if you are behind
+        setTimeout(() => A.Remind && A.Remind.boot(), 8000);
       } else if (window.claude) {
         await D.init(); // local development with the mock runtime
       } else {
