@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(KeepAwakePlugin.class);
         registerPlugin(AppUpdatePlugin.class);
+        registerPlugin(SystemUiPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

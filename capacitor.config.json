@@ -2,23 +2,23 @@
   "appId": "app.naqrasawa.reader",
   "appName": "نقرأ سوا",
   "webDir": "site",
-  "backgroundColor": "#f1f3f9",
+  "backgroundColor": "#f6f4ef",
   "server": {
     "androidScheme": "https"
   },
   "android": {
     "allowMixedContent": false,
-    "backgroundColor": "#f1f3f9"
+    "backgroundColor": "#f6f4ef"
   },
   "plugins": {
     "SystemBars": {
       "insetsHandling": "css",
-      "style": "DARK"
+      "style": "LIGHT"
     },
     "StatusBar": {
       "overlaysWebView": false,
-      "style": "DARK",
-      "backgroundColor": "#2441a3"
+      "style": "LIGHT",
+      "backgroundColor": "#f6f4ef"
     },
     "LocalNotifications": {
       "smallIcon": "ic_stat_naqra",

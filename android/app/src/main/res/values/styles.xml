@@ -13,11 +13,11 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
-        <!-- Lapis system bars. Capacitor's SystemBars pads the WebView inside the bars (unless the page asks for
-             viewport-fit=cover on WebView 140+) and paints the padding with this windowBackground colour; it must stay
-             a plain colour. On Android 14 and older the StatusBar plugin also colours the status bar (capacitor.config.json). -->
-        <item name="android:windowBackground">@color/naqra_lapis</item>
-        <item name="android:navigationBarColor">@color/naqra_lapis</item>
+        <!-- Capacitor's SystemBars pads the WebView inside the system bars and paints that padding with this
+             windowBackground colour (a plain colour, the app's light background). Once the page has loaded,
+             SystemUiPlugin paints the strips with the colours on screen (dark mode, the reader). -->
+        <item name="android:windowBackground">@color/naqra_bg</item>
+        <item name="android:navigationBarColor">@color/naqra_bg</item>
         <item name="colorPrimary">@color/naqra_lapis</item>
         <item name="colorPrimaryDark">@color/naqra_lapis_dark</item>
         <item name="colorAccent">@color/naqra_gold</item>

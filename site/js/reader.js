@@ -33,6 +33,20 @@
     U.store.set('rdTools', side === 'right' ? 'right' : 'left');
     if (st) st.root.querySelector('.rd').classList.toggle('swap', swapNow());
   };
+  R.fullPref = () => U.store.get('rdFull', true) !== false;
+  /* Colours for the strips around the page in the Android app (see sysui.js): the bars' colour while they
+     show, the page background while they are hidden. */
+  const SYS = {
+    day: { bar: '#fcfcfd', bg: '#e6e8ef', light: true },
+    sepia: { bar: '#f5ecdb', bg: '#e3d6bd', light: true },
+    night: { bar: '#151821', bg: '#0d0f15', light: false },
+  };
+  R.sysColours = () => {
+    const c = SYS[st && st.theme] || SYS.day;
+    const col = st && st.uiHidden ? c.bg : c.bar;
+    return { top: col, bottom: col, side: col, light: c.light };
+  };
+  const sysRefresh = () => A.Sys && A.Sys.refresh();
   R.setMarks = (v, quiet) => {
     if (!MARKS.includes(v)) return;
     U.store.set('rdMarks', v);
@@ -131,6 +145,8 @@
     }, 150);
     window.addEventListener('resize', st.onResize);
     keepAwake(true);
+    sysRefresh();
+    if (A.Sys && R.fullPref()) A.Sys.fullscreen(true);
     try {
       await prepareSource();
       if (!st) return;
@@ -159,6 +175,8 @@
     root.hidden = true;
     document.body.classList.remove('reading');
     st = null;
+    if (A.Sys) A.Sys.fullscreen(false);
+    sysRefresh();
     D.presence({ b: null, p: null });
     if (!silent) A.V && A.V.render();
     if (summary && A.V && A.V.sessionSummary) setTimeout(() => A.V.sessionSummary(summary), 250);
@@ -934,6 +952,7 @@
             if (hide !== st.uiHidden) {
               st.uiHidden = hide;
               root.classList.toggle('ui-off', hide);
+              sysRefresh();
             }
             st.lastTop = t;
           }
@@ -996,6 +1015,7 @@
           if (!st) return;
           st.uiHidden = !st.uiHidden;
           root.classList.toggle('ui-off', st.uiHidden);
+          sysRefresh();
         }, 300);
         return;
       }
@@ -1009,6 +1029,7 @@
         root.dataset.theme = st.theme;
         t.innerHTML = U.icon(st.theme === 'night' ? 'moon' : st.theme === 'sepia' ? 'scroll' : 'sun');
         savePrefs();
+        sysRefresh();
       } else if (act === 'tool') setMode(t.dataset.tool);
       else if (act === 'mode-off') setMode(st.mode);
       else if (act === 'panel') togglePanel();

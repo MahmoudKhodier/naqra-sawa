@@ -248,7 +248,8 @@
     return `<h3 class="set-h">${icon('book')}${L('القراءة', 'Reading')}</h3>
       <div class="set-row"><span>${icon('swap')}<span>${L('مكان الأدوات لما الموبايل بالعرض', 'Tools side when the phone is sideways')}<small class="muted">${L('القلم والملاحظة وشريط الصفحات', 'Highlight, note and the page slider')}</small></span></span>${seg('rd-tools', R.toolsSide(), [['right', L('يمين', 'Right')], ['left', L('شمال', 'Left')]])}</div>
       <div class="set-row"><span>${icon('eye')}<span>${L('الإضافات على الصفحات', 'Highlights and notes on pages')}<small class="muted">${L('تقدر تغيّرها كمان من زرار العين في القارئ', 'Also from the eye button in the reader')}</small></span></span>${seg('rd-marks', R.marksPref(), [['all', L('الكل', 'Everyone')], ['mine', L('بتاعتي', 'Mine')], ['none', L('ولا حاجة', 'None')]])}</div>
-      <div class="set-row"><span>${icon('scroll')}${L('التقليب', 'Page turning')}</span>${seg('rd-paged', paged ? 'page' : 'scroll', [['page', L('صفحة صفحة', 'Page by page')], ['scroll', L('متواصل', 'Continuous')]])}</div>`;
+      <div class="set-row"><span>${icon('scroll')}${L('التقليب', 'Page turning')}</span>${seg('rd-paged', paged ? 'page' : 'scroll', [['page', L('صفحة صفحة', 'Page by page')], ['scroll', L('متواصل', 'Continuous')]])}</div>
+      ${A.P && A.P.native ? `<div class="set-row"><span>${icon('fit')}<span>${L('ملء الشاشة وقت القراية', 'Fullscreen while reading')}<small class="muted">${L('يخفي شريط الساعة والبطارية؛ اسحب من طرف الشاشة تظهرهم', 'Hides the clock and battery bar; swipe from the edge to see them')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdfull" ${R.fullPref() ? 'checked' : ''}><i></i></label></div>` : ''}`;
   }
   V.actions['set-emoji'] = async (a) => {
     const emoji = a.dataset.emo || '';
@@ -284,6 +285,7 @@
     else document.documentElement.setAttribute('data-theme', t);
     const dark = t === 'dark' || (t === 'system' && !!(darkQ && darkQ.matches));
     for (const m of document.querySelectorAll('meta[name=theme-color]')) m.content = dark ? '#0f1115' : '#f6f4ef';
+    if (A.Sys) A.Sys.refresh();
   };
   V.isDark = () => {
     const t = U.store.get('theme', 'light');
@@ -304,6 +306,7 @@
       U.store.set('hijri', e.target.checked);
       V.render();
     }
+    if (e.target.id === 'set-rdfull') U.store.set('rdFull', e.target.checked);
     if (e.target.id === 'set-sound') {
       U.store.set('sound', e.target.checked);
       if (e.target.checked) U.chime('ok');
