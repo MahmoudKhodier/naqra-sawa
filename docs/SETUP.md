@@ -9,8 +9,8 @@ You only do this once. With the Supabase connector in Claude Code, Claude can do
 
 1. **مشروع جديد · New project:** على supabase.com اعمل مشروع مجاني. اختار أقرب منطقة ليكم (مثلا Frankfurt لمصر). احفظ باسورد قاعدة البيانات في مكان آمن.
    Create a free project at supabase.com, in the region closest to your readers (e.g. Frankfurt for Egypt).
-2. **قاعدة البيانات · Database:** من **SQL Editor** الصق محتوى `supabase/migrations/20261028000000_init.sql` ودوس **Run**.
-   In **SQL Editor**, paste `supabase/migrations/20261028000000_init.sql` and run it. It creates the tables, security rules and the `books` / `covers` storage buckets.
+2. **قاعدة البيانات · Database:** من **SQL Editor** الصق محتوى كل ملف في `supabase/migrations/` بالترتيب (`…000000_init.sql` وبعده `…000100_presence_auth.sql`) ودوس **Run** لكل واحد.
+   In **SQL Editor**, run each file in `supabase/migrations/` in order (`…000000_init.sql`, then `…000100_presence_auth.sql`). They create the tables, security rules, the `books` / `covers` storage buckets and the private presence channel rules.
 3. **إيميل الدخول · Sign-in email:** من **Authentication → Emails**، في قالبي **Magic Link** و **Confirm signup** حط الكود:
    In **Authentication → Emails**, edit both the **Magic Link** and **Confirm signup** templates so they include the code:
    ```html
@@ -19,7 +19,24 @@ You only do this once. With the Supabase connector in Claude Code, Claude can do
    <p dir="ltr">Your sign-in code: <b>{{ .Token }}</b></p>
    ```
 4. **⚠️ إرسال الإيميلات · Email sending:** سيرفر الإيميل المجاني الافتراضي في Supabase بيبعت عدد صغير جدا من الإيميلات في الساعة ومعمول للتجربة بس. عشان صحابك يقدروا يدخلوا، فعّل **Custom SMTP** من **Authentication → Emails → SMTP Settings** بأي خدمة مجانية (مثلا Brevo أو Resend، أو Gmail بـ App Password).
-   Supabase's built-in email service only sends a handful of emails per hour and is meant for testing. Turn on **Custom SMTP** (Authentication → Emails → SMTP Settings) with a free provider such as Brevo, Resend or Gmail with an app password, or sign-ins will fail once a few people try.
+   Supabase's built-in email service only sends a handful of emails per hour (and only to your own team's addresses) and is meant for testing. Turn on **Custom SMTP** (Authentication → Emails → SMTP Settings) with a free provider such as Brevo, Resend or Gmail with an app password, or your friends won't receive their codes.
+
+   **أسهل طريقة: Gmail · Easiest: Gmail**
+   1. فعّل التحقق بخطوتين على حساب Gmail، وبعدين افتح `myaccount.google.com/apppasswords` واعمل App Password باسم «نقرأ سوا» (هيديك ١٦ حرف).
+      Turn on 2-Step Verification, then create an App Password at `myaccount.google.com/apppasswords`.
+   2. في Supabase حط القيم دي · Fill in:
+
+      | الخانة · Field | القيمة · Value |
+      |---|---|
+      | Sender email | إيميل الـGmail بتاعك · your Gmail address |
+      | Sender name | `نقرأ سوا` |
+      | Host | `smtp.gmail.com` |
+      | Port | `465` |
+      | Username | إيميل الـGmail بتاعك · your Gmail address |
+      | Password | الـApp Password (من غير مسافات · without spaces) |
+
+   وبعد ما تحفظ، من **Authentication → Rate Limits** ارفع «emails per hour» لـ 30 مثلا.
+   After saving, raise **Authentication → Rate Limits → emails per hour** to about 30.
 5. **الروابط · URLs:** من **Authentication → URL Configuration**: خلّي **Site URL** هو رابط التطبيق (مثلا `https://USER.github.io/naqra-sawa/`) وضيف نفس الرابط و `https://localhost` في **Redirect URLs**.
    Set **Site URL** to the app's address and add it plus `https://localhost` (the Android app) to **Redirect URLs**.
 6. **المفاتيح · Keys:** من **Project Settings → API** انسخ **Project URL** و **anon public key** وحطهم في `site/config.js`. المفتاح ده معمول عشان يكون عام؛ قواعد الأمان (RLS) هي اللي بتحمي البيانات.
