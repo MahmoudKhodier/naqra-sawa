@@ -1,0 +1,721 @@
+/* Platform layer for the standalone app.
+   It exposes the same small API the app was written against (window.claude.use('db' | 'user' | 'assets' | 'room' | 'downloads'))
+   but backed by Supabase: Postgres tables with Row Level Security, Realtime for live updates and presence,
+   and Storage for the PDF files. Documents are cached in IndexedDB and synced incrementally by updated_at,
+   so the app opens instantly and keeps working through flaky connections. */
+(function () {
+  'use strict';
+  const A = (window.A = window.A || {});
+  const P = (A.P = {});
+  const cfg = window.QS_CONFIG || {};
+
+  P.cfg = cfg;
+  P.configured = !!(cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase);
+  P.native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  P.plugin = (name) => {
+    const C = window.Capacitor;
+    if (!C) return null;
+    if (C.Plugins && C.Plugins[name]) return C.Plugins[name];
+    try {
+      return C.registerPlugin ? C.registerPlugin(name) : null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  let sb = null;
+  P.sb = () => {
+    if (!sb && P.configured) {
+      sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce', storageKey: 'qs-auth' },
+        realtime: { params: { eventsPerSecond: 20 } },
+      });
+    }
+    return sb;
+  };
+
+  const err = (code, message) => Object.assign(new Error(message || code), { code });
+  const mapErr = (e) => {
+    if (!e) return err('unavailable');
+    if (e.code && /^(invalid_argument|unavailable|quota_exceeded|too_large|declined)$/.test(e.code)) return e;
+    const c = String(e.code || '');
+    if (c === '42501' || c === 'PGRST301' || c === '23514' || c === '22P02' || c === 'P0002' || c === '23503') return err('invalid_argument', e.message);
+    if (c === '54000' || /too large|payload/i.test(e.message || '')) return err('invalid_argument', e.message);
+    return err('unavailable', e.message);
+  };
+  P.mapErr = mapErr;
+
+  /* ---------- auth ---------- */
+  P.session = async () => {
+    const { data } = await P.sb().auth.getSession();
+    return data.session || null;
+  };
+  P.sendCode = async (email) => {
+    const { error } = await P.sb().auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.href.split('#')[0].split('?')[0] } });
+    if (error) throw error;
+  };
+  P.verifyCode = async (email, token) => {
+    const { data, error } = await P.sb().auth.verifyOtp({ email, token, type: 'email' });
+    if (error) throw error;
+    return data.session;
+  };
+  P.signOut = async () => {
+    try {
+      await P.sb().auth.signOut();
+    } catch (e) {}
+    try {
+      for (const k of Object.keys(localStorage)) if (k.startsWith('qs:') && !/^qs:(lang|theme|sound)$/.test(k)) localStorage.removeItem(k);
+    } catch (e) {}
+    try {
+      indexedDB.deleteDatabase('qs-sync');
+    } catch (e) {}
+    location.hash = '';
+    location.reload();
+  };
+
+  /* ---------- circles ---------- */
+  P.myCircles = async (uid) => {
+    const { data, error } = await P.sb().from('circle_members').select('role, joined_at, circles(id, name, settings, invite_code)').eq('user_id', uid);
+    if (error) throw error;
+    return (data || []).filter((r) => r.circles).map((r) => Object.assign({ role: r.role }, r.circles));
+  };
+  P.createCircle = async (name) => {
+    const { data, error } = await P.sb().rpc('create_circle', { p_name: name });
+    if (error) throw error;
+    return data;
+  };
+  P.joinCircle = async (code) => {
+    const { data, error } = await P.sb().rpc('join_circle', { p_code: code });
+    if (error) throw error;
+    return data;
+  };
+  P.resetInvite = async (circleId) => {
+    const { data, error } = await P.sb().rpc('reset_invite_code', { p_circle: circleId });
+    if (error) throw error;
+    return data;
+  };
+  P.removeMember = async (circleId, uid) => {
+    const { error } = await P.sb().rpc('remove_member', { p_circle: circleId, p_user: uid });
+    if (error) throw error;
+  };
+  P.setRole = async (circleId, uid, role) => {
+    const { error } = await P.sb().rpc('set_member_role', { p_circle: circleId, p_user: uid, p_role: role });
+    if (error) throw error;
+  };
+  P.leaveCircle = async (circleId) => {
+    const { error } = await P.sb().rpc('leave_circle', { p_circle: circleId });
+    if (error) throw error;
+  };
+  P.inviteLink = (code) => `${location.href.split('#')[0].split('?')[0]}#join-${code}`;
+
+  /* ---------- tiny IndexedDB cache for synced documents ---------- */
+  const idb = (() => {
+    let dbp = null;
+    const open = () =>
+      (dbp =
+        dbp ||
+        new Promise((res, rej) => {
+          try {
+            const r = indexedDB.open('qs-sync', 1);
+            r.onupgradeneeded = () => r.result.createObjectStore('kv');
+            r.onsuccess = () => res(r.result);
+            r.onerror = () => rej(r.error);
+          } catch (e) {
+            rej(e);
+          }
+        }));
+    const run = (mode, fn) =>
+      open().then(
+        (db) =>
+          new Promise((res) => {
+            try {
+              const t = db.transaction('kv', mode);
+              const q = fn(t.objectStore('kv'));
+              t.oncomplete = () => res(q && 'result' in q ? q.result : null);
+              t.onerror = t.onabort = () => res(null);
+            } catch (e) {
+              res(null);
+            }
+          })
+      );
+    return {
+      get: (k) => run('readonly', (s) => s.get(k)).catch(() => null),
+      put: (k, v) => run('readwrite', (s) => s.put(v, k)).catch(() => null),
+    };
+  })();
+
+  /* ---------- the circle-scoped document store ---------- */
+  const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)));
+  const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+  const deepMerge = (a, b) => {
+    if (!isObj(a) || !isObj(b)) return clone(b);
+    const out = Object.assign({}, a);
+    for (const k of Object.keys(b)) out[k] = isObj(a[k]) && isObj(b[k]) ? deepMerge(a[k], b[k]) : clone(b[k]);
+    return out;
+  };
+  const freeze = (o) => {
+    if (o && typeof o === 'object' && !Object.isFrozen(o)) {
+      Object.freeze(o);
+      for (const v of Object.values(o)) freeze(v);
+    }
+    return o;
+  };
+  const getField = (o, f) => f.split('.').reduce((x, k) => (x == null ? undefined : x[k]), o);
+
+  P.open = async (circle, me) => {
+    const client = P.sb();
+    const C = circle.id;
+    const cacheKey = 'sync:' + C;
+    const st = {
+      docs: new Map(), // "col|id" -> {col, id, data, at}
+      roles: new Map(), // uid -> role
+      profiles: new Map(), // uid -> {data, at}
+      shelves: new Map(), // uid -> {data, at}
+      circle: Object.assign({}, circle),
+      since: '1970-01-01T00:00:00Z',
+    };
+    const listeners = new Set();
+    let ready = false;
+
+    /* Path routing: some collections live in their own tables. */
+    const route = (path) => {
+      const segs = path.split('/');
+      if (path === 'meta/circle') return { kind: 'circle' };
+      if (segs.length === 2 && segs[0] === 'members') return { kind: 'profile', uid: segs[1] };
+      if (segs.length === 2 && segs[0] === 'shelf') return { kind: 'shelf', uid: segs[1] };
+      return { kind: 'doc', col: segs.slice(0, -1).join('/'), id: segs[segs.length - 1] };
+    };
+    const checkPath = (path, even) => {
+      const segs = String(path).split('/');
+      if (!segs.every((s) => /^[A-Za-z0-9_.~:@+-]{1,200}$/.test(s) && s !== '.' && s !== '..')) throw new TypeError('bad path segment: ' + path);
+      if ((segs.length % 2 === 0) !== even) throw new TypeError(`path "${path}" has ${segs.length} segments`);
+    };
+
+    let circleView = null, circleSrc = null;
+    const readDoc = (path) => {
+      const r = route(path);
+      if (r.kind === 'circle') {
+        if (circleSrc !== st.circle) {
+          circleSrc = st.circle;
+          circleView = freeze(Object.assign({}, clone(st.circle.settings) || {}, { name: st.circle.name }));
+        }
+        return circleView;
+      }
+      if (r.kind === 'profile') return st.roles.has(r.uid) && st.profiles.has(r.uid) ? st.profiles.get(r.uid).data : undefined;
+      if (r.kind === 'shelf') return st.roles.has(r.uid) && st.shelves.has(r.uid) ? st.shelves.get(r.uid).data : undefined;
+      const d = st.docs.get(r.col + '|' + r.id);
+      return d ? d.data : undefined;
+    };
+    const readCol = (col) => {
+      const out = [];
+      if (col === 'members') {
+        for (const uid of st.roles.keys()) if (st.profiles.has(uid)) out.push([uid, st.profiles.get(uid).data]);
+      } else if (col === 'shelf') {
+        for (const uid of st.roles.keys()) if (st.shelves.has(uid)) out.push([uid, st.shelves.get(uid).data]);
+      } else {
+        for (const d of st.docs.values()) if (d.col === col) out.push([d.id, d.data]);
+      }
+      return out;
+    };
+
+    /* ---------- listeners ---------- */
+    let pending = false;
+    const dirty = new Set();
+    const touch = (col) => {
+      dirty.add(col);
+      if (pending) return;
+      pending = true;
+      queueMicrotask(() => {
+        pending = false;
+        const cols = new Set(dirty);
+        dirty.clear();
+        for (const l of listeners) if (cols.has('*') || cols.has(l.col)) deliver(l);
+        saveCache();
+      });
+    };
+    // Stored bodies are frozen once when they enter the store, so snapshots hand them out without copying.
+    const docSnap = (path, data) => ({ id: path.split('/').pop(), exists: data !== undefined, data: () => data, metadata: { fromCache: !ready, hasPendingWrites: false } });
+    function deliver(l) {
+      try {
+        if (l.kind === 'doc') {
+          const data = readDoc(l.path);
+          if (l.seen && data === l.last) return;
+          l.seen = true;
+          l.last = data;
+          l.cb(docSnap(l.path, data));
+        } else {
+          let rows = readCol(l.col);
+          for (const [f, op, v] of l.q.where) rows = rows.filter(([, d]) => cmp(getField(d, f), op, v));
+          if (l.q.order) {
+            const [f, dir] = l.q.order;
+            rows.sort((a, b) => {
+              const x = getField(a[1], f), y = getField(b[1], f);
+              if (x === undefined) return 1;
+              if (y === undefined) return -1;
+              return (x < y ? -1 : x > y ? 1 : 0) * (dir === 'desc' ? -1 : 1);
+            });
+          } else rows.sort((a, b) => (a[0] < b[0] ? -1 : 1));
+          if (l.q.limit) rows = rows.slice(0, l.q.limit);
+          // Delivered only when this collection changed; skip if the visible rows are the very same objects.
+          if (l.lastRows && l.lastRows.length === rows.length && rows.every((r, i) => r[0] === l.lastRows[i][0] && r[1] === l.lastRows[i][1])) return;
+          l.lastRows = rows;
+          const docs = rows.map(([id, d]) => ({ id, exists: true, data: () => d, metadata: {} }));
+          l.cb({ docs, size: docs.length, empty: !docs.length, docChanges: () => [], metadata: { fromCache: !ready, hasPendingWrites: false } });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    function cmp(a, op, b) {
+      switch (op) {
+        case '==': return a === b;
+        case '!=': return a !== b;
+        case '<': return a < b;
+        case '<=': return a <= b;
+        case '>': return a > b;
+        case '>=': return a >= b;
+        case 'in': return Array.isArray(b) && b.includes(a);
+        case 'not-in': return Array.isArray(b) && !b.includes(a);
+        case 'array-contains': return Array.isArray(a) && a.includes(b);
+      }
+      return false;
+    }
+
+    /* ---------- applying server rows ---------- */
+    const applyDoc = (row) => {
+      if (!row || row.circle_id !== C) return;
+      const k = row.col + '|' + row.id;
+      const cur = st.docs.get(k);
+      if (cur && cur.at && row.updated_at && cur.at > row.updated_at) return; // older echo
+      if (row.deleted) st.docs.delete(k);
+      else st.docs.set(k, { col: row.col, id: row.id, data: freeze(row.data || {}), at: row.updated_at });
+      if (row.updated_at && row.updated_at > st.since) st.since = row.updated_at;
+      touch(row.col);
+    };
+    const applyProfile = (row, map, col) => {
+      if (!row || !row.user_id) return;
+      const cur = map.get(row.user_id);
+      if (cur && cur.at && row.updated_at && cur.at > row.updated_at) return;
+      map.set(row.user_id, { data: freeze(row.data || {}), at: row.updated_at });
+      touch(col);
+    };
+
+    /* ---------- cache ---------- */
+    let saveT = 0;
+    function saveCache() {
+      if (!ready) return;
+      clearTimeout(saveT);
+      saveT = setTimeout(() => {
+        idb.put(cacheKey, { v: 1, me, since: st.since, docs: [...st.docs.values()], profiles: [...st.profiles], shelves: [...st.shelves], roles: [...st.roles], circle: st.circle });
+      }, 1500);
+    }
+    const cached = await idb.get(cacheKey);
+    if (cached && cached.v === 1 && cached.me === me) {
+      for (const d of cached.docs || []) st.docs.set(d.col + '|' + d.id, Object.assign(d, { data: freeze(d.data || {}) }));
+      st.profiles = new Map(cached.profiles || []);
+      st.shelves = new Map(cached.shelves || []);
+      st.roles = new Map(cached.roles || []);
+      st.since = cached.since || st.since;
+      if (cached.circle) st.circle = Object.assign({}, cached.circle, circle);
+    }
+
+    /* ---------- fetching ---------- */
+    async function fetchPeople() {
+      const { data: mem, error } = await client.from('circle_members').select('user_id, role').eq('circle_id', C);
+      if (error) throw error;
+      st.roles = new Map(mem.map((m) => [m.user_id, m.role]));
+      const ids = [...st.roles.keys()];
+      if (ids.length) {
+        const [p, s] = await Promise.all([client.from('profiles').select('user_id, data, updated_at').in('user_id', ids), client.from('shelves').select('user_id, data, updated_at').in('user_id', ids)]);
+        if (p.error) throw p.error;
+        if (s.error) throw s.error;
+        for (const r of p.data) applyProfile(r, st.profiles, 'members');
+        for (const r of s.data) applyProfile(r, st.shelves, 'shelf');
+      }
+      touch('members');
+      touch('shelf');
+    }
+    async function fetchCircle() {
+      const { data, error } = await client.from('circles').select('id, name, settings, invite_code').eq('id', C).maybeSingle();
+      if (error) throw error;
+      if (!data) throw err('revoked', 'not a member');
+      st.circle = Object.assign({}, st.circle, data);
+      touch('meta');
+    }
+    let syncing = null;
+    async function deltaSync() {
+      if (syncing) return syncing;
+      syncing = (async () => {
+        // Re-read a small window before the newest row we have, to tolerate clock skew between writers.
+        // Keyset paging by updated_at (offset paging can skip a row that changes between pages).
+        let cursor = new Date(new Date(st.since).getTime() - 5000).toISOString();
+        let skip = 0;
+        for (let guard = 0; guard < 400; guard++) {
+          const { data, error } = await client.from('docs').select('circle_id, col, id, data, deleted, updated_at').eq('circle_id', C).gte('updated_at', cursor).order('updated_at', { ascending: true }).range(skip, skip + 499);
+          if (error) throw error;
+          for (const r of data) applyDoc(r);
+          if (data.length < 500) break;
+          const last = data[data.length - 1].updated_at;
+          // Rows sharing one timestamp across a full page: step through them by offset.
+          if (last === cursor) skip += 500;
+          else {
+            cursor = last;
+            skip = 0;
+          }
+        }
+      })().finally(() => (syncing = null));
+      return syncing;
+    }
+    P.resync = () => Promise.all([fetchCircle(), fetchPeople(), deltaSync()]).catch((e) => console.warn('resync', e));
+
+    /* ---------- realtime ---------- */
+    let kicked = false;
+    const rt = client
+      .channel('db-' + C)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'docs', filter: `circle_id=eq.${C}` }, (p) => p.new && applyDoc(p.new))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'circle_members', filter: `circle_id=eq.${C}` }, (p) => {
+        if (p.new && p.new.circle_id && p.new.circle_id !== C) return;
+        if (p.eventType === 'DELETE') {
+          if (p.old && p.old.circle_id && p.old.circle_id !== C) return;
+          const uid = p.old && p.old.user_id;
+          if (uid === me && !kicked) {
+            kicked = true;
+            P.onKicked && P.onKicked();
+            return;
+          }
+          if (uid) st.roles.delete(uid);
+          touch('members');
+          touch('shelf');
+        } else if (p.new) {
+          const isNew = !st.roles.has(p.new.user_id);
+          st.roles.set(p.new.user_id, p.new.role);
+          if (isNew) fetchPeople().catch(() => {});
+          touch('members');
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (p) => p.new && applyProfile(p.new, st.profiles, 'members'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shelves' }, (p) => p.new && applyProfile(p.new, st.shelves, 'shelf'))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'circles', filter: `id=eq.${C}` }, (p) => {
+        if (p.new) {
+          st.circle = Object.assign({}, st.circle, p.new);
+          touch('meta');
+        }
+      });
+    let rtFirst = true;
+    rt.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        if (!rtFirst) P.resync();
+        rtFirst = false;
+      }
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && ready) deltaSync().catch(() => {});
+    });
+    window.addEventListener('online', () => ready && P.resync());
+
+    // First load: cached data shows immediately; fresh data follows.
+    try {
+      await Promise.all([fetchCircle(), fetchPeople(), deltaSync()]);
+    } catch (e) {
+      if (e && e.code === 'revoked') throw e;
+      if (!cached) throw mapErr(e);
+      console.warn('offline start', e);
+    }
+    ready = true;
+    touch('*');
+
+    /* ---------- writes (optimistic, one at a time per document) ---------- */
+    const chains = new Map();
+    const serial = (key, fn) => {
+      const prev = chains.get(key) || Promise.resolve();
+      const next = prev.catch(() => {}).then(fn);
+      chains.set(key, next);
+      next.finally(() => chains.get(key) === next && chains.delete(key)).catch(() => {});
+      return next;
+    };
+    const role = () => st.roles.get(me);
+
+    async function writeSet(path, body) {
+      if (!isObj(body)) throw err('invalid_argument', 'body must be an object');
+      const r = route(path);
+      const data = freeze(clone(body));
+      if (r.kind === 'circle') {
+        if (!['owner', 'admin'].includes(role())) throw err('invalid_argument', 'only owners and admins');
+        const { name, ...settings } = clone(data);
+        const prev = Object.assign({}, st.circle);
+        st.circle = Object.assign({}, st.circle, { name: name || st.circle.name, settings });
+        touch('meta');
+        const { error } = await client.from('circles').update({ name: name || prev.name, settings }).eq('id', C);
+        if (error) {
+          st.circle = prev;
+          touch('meta');
+          throw mapErr(error);
+        }
+        return;
+      }
+      if (r.kind === 'profile' || r.kind === 'shelf') {
+        if (r.uid !== me) throw err('invalid_argument', 'not yours');
+        const map = r.kind === 'profile' ? st.profiles : st.shelves;
+        const col = r.kind === 'profile' ? 'members' : 'shelf';
+        const prev = map.get(me);
+        map.set(me, { data, at: prev && prev.at });
+        touch(col);
+        const { data: row, error } = await client.from(r.kind === 'profile' ? 'profiles' : 'shelves').upsert({ user_id: me, data }).select('user_id, data, updated_at').single();
+        if (error) {
+          if (prev) map.set(me, prev);
+          else map.delete(me);
+          touch(col);
+          throw mapErr(error);
+        }
+        applyProfile(row, map, col);
+        return;
+      }
+      const k = r.col + '|' + r.id;
+      const prev = st.docs.get(k);
+      st.docs.set(k, { col: r.col, id: r.id, data, at: prev && prev.at });
+      touch(r.col);
+      const { data: row, error } = await client.from('docs').upsert({ circle_id: C, col: r.col, id: r.id, data, deleted: false }).select('circle_id, col, id, data, deleted, updated_at').single();
+      if (error) {
+        if (prev) st.docs.set(k, prev);
+        else st.docs.delete(k);
+        touch(r.col);
+        throw mapErr(error);
+      }
+      applyDoc(row);
+    }
+    async function writeUpdate(path, patch) {
+      if (!isObj(patch)) throw err('invalid_argument', 'patch must be an object');
+      const r = route(path);
+      const cur = readDoc(path);
+      if (cur === undefined) throw err('invalid_argument', 'document does not exist');
+      if (r.kind !== 'doc') return writeSet(path, deepMerge(cur, patch));
+      const k = r.col + '|' + r.id;
+      const prev = st.docs.get(k);
+      st.docs.set(k, { col: r.col, id: r.id, data: freeze(deepMerge(prev.data, patch)), at: prev.at });
+      touch(r.col);
+      const { data: row, error } = await client.rpc('doc_merge', { p_circle: C, p_col: r.col, p_id: r.id, p_patch: patch });
+      if (error) {
+        st.docs.set(k, prev);
+        touch(r.col);
+        throw mapErr(error);
+      }
+      applyDoc(Array.isArray(row) ? row[0] : row);
+    }
+    async function writeDelete(path) {
+      const r = route(path);
+      if (r.kind !== 'doc') throw err('invalid_argument', 'cannot delete this document');
+      const k = r.col + '|' + r.id;
+      const prev = st.docs.get(k);
+      st.docs.delete(k);
+      touch(r.col);
+      const { data: row, error } = await client.from('docs').upsert({ circle_id: C, col: r.col, id: r.id, data: {}, deleted: true }).select('circle_id, col, id, data, deleted, updated_at').single();
+      if (error) {
+        if (prev) st.docs.set(k, prev);
+        touch(r.col);
+        throw mapErr(error);
+      }
+      applyDoc(row);
+    }
+
+    function docRef(path) {
+      checkPath(path, true);
+      return {
+        id: path.split('/').pop(),
+        path,
+        get: async () => docSnap(path, readDoc(path)),
+        set: (body) => serial(path, () => writeSet(path, body)),
+        update: (patch) => serial(path, () => writeUpdate(path, patch)),
+        delete: () => serial(path, () => writeDelete(path)),
+        onSnapshot(next) {
+          const l = { kind: 'doc', path, col: route(path).kind === 'circle' ? 'meta' : route(path).kind === 'doc' ? route(path).col : route(path).kind === 'profile' ? 'members' : 'shelf', cb: next, last: undefined };
+          listeners.add(l);
+          queueMicrotask(() => listeners.has(l) && deliver(l));
+          return () => listeners.delete(l);
+        },
+        collection: (sub) => colRef(path + '/' + sub),
+      };
+    }
+    function query(col, q) {
+      const self = {
+        where: (f, op, v) => query(col, Object.assign({}, q, { where: q.where.concat([[f, op, v]]) })),
+        orderBy: (f, dir = 'asc') => query(col, Object.assign({}, q, { order: [f, dir] })),
+        limit: (n) => query(col, Object.assign({}, q, { limit: n })),
+        get: async () => {
+          let out;
+          const l = { kind: 'col', col, q, cb: (s) => (out = s) };
+          deliver(l);
+          return out;
+        },
+        onSnapshot(next) {
+          const l = { kind: 'col', col, q, cb: next, last: undefined };
+          listeners.add(l);
+          queueMicrotask(() => listeners.has(l) && deliver(l));
+          return () => listeners.delete(l);
+        },
+      };
+      return self;
+    }
+    function colRef(col) {
+      checkPath(col, false);
+      return Object.assign(query(col, { where: [], order: null, limit: 0 }), {
+        path: col,
+        doc: (id) => docRef(col + '/' + (id || A.U.rid(20))),
+        add: async (body) => {
+          const ref = docRef(col + '/' + A.U.rid(20));
+          await ref.set(body);
+          return ref;
+        },
+      });
+    }
+    const db = Object.freeze({ doc: docRef, collection: colRef });
+
+    /* ---------- people ---------- */
+    const color = (uid) => A.U.SPINES[A.U.hash(uid || '') % A.U.SPINES.length][0];
+    const nameOf = (uid) => {
+      const p = st.profiles.get(uid);
+      return (p && p.data && p.data.nick) || '';
+    };
+    const sess = await P.session();
+    const email = sess && sess.user ? sess.user.email : null;
+    const user = Object.freeze({
+      isOwner: async () => role() === 'owner',
+      canEdit: async () => ['owner', 'admin'].includes(role()),
+      can: async (name) => (name === 'data.write' || name === 'assets.write' ? st.roles.has(me) : name === 'people.add' ? true : false),
+      id: async () => me,
+      me: async () => ({ id: me, name: nameOf(me), avatarUrl: '', color: color(me), email, isOwner: role() === 'owner', canEdit: ['owner', 'admin'].includes(role()) }),
+      name: async () => nameOf(me),
+      avatarUrl: async () => null,
+      email: async () => email,
+      profiles: async (ids) => {
+        const out = {};
+        for (const id of [].concat(ids)) out[id] = { id, name: nameOf(id), avatarUrl: '', color: color(id), email: null, isMe: id === me, guest: false };
+        return out;
+      },
+      search: async () => [],
+    });
+    P.role = (uid) => st.roles.get(uid || me);
+    P.circle = () => st.circle;
+
+    /* ---------- files (PDF books) ---------- */
+    const bucket = client.storage.from('books');
+    const assets = Object.freeze({
+      upload: async (blob, opts = {}) => {
+        if (!(blob instanceof Blob) || !blob.size) throw err('invalid_request');
+        if (blob.size > 50 * 1024 * 1024) throw err('too_large');
+        const id = `${C}/${(crypto.randomUUID ? crypto.randomUUID() : A.U.rid(24)).replace(/-/g, '')}.pdf`;
+        const { error } = await bucket.upload(id, blob, { contentType: opts.type || blob.type || 'application/pdf', upsert: false, cacheControl: '31536000' });
+        if (error) {
+          const m = String(error.message || '') + ' ' + String(error.statusCode || '');
+          if (/413|too large|exceeded the maximum/i.test(m)) throw err('too_large', error.message);
+          if (/quota|storage.*limit/i.test(m)) throw err('quota_or_state', error.message);
+          throw err('upstream_error', error.message);
+        }
+        return { id, url: id, sizeBytes: blob.size, contentType: 'application/pdf' };
+      },
+      list: async () => {
+        const { data } = await client.rpc('circle_storage_bytes', { p_circle: C });
+        return { assets: [], usage: { files: 0, bytes: +data || 0, maxFiles: 0, maxBytes: (cfg.storageLimitMB || 1024) * 1048576 } };
+      },
+      delete: async (id) => {
+        const { error } = await bucket.remove([id]);
+        if (error) throw err('upstream_error', error.message);
+        return { deleted: true };
+      },
+    });
+    P.uploadCover = async (blob) => {
+      const path = `${me}/${A.U.rid(16)}.jpg`;
+      const covers = client.storage.from('covers');
+      const { error } = await covers.upload(path, blob, { contentType: 'image/jpeg', upsert: false, cacheControl: '31536000' });
+      if (error) throw err('upstream_error', error.message);
+      return covers.getPublicUrl(path).data.publicUrl;
+    };
+    P.fetchAsset = async (id, onProg) => {
+      const { data, error } = await bucket.createSignedUrl(id, 3600);
+      if (error || !data) throw Object.assign(new Error('signed url'), { status: 403 });
+      return A.U.fetchBuf(data.signedUrl, onProg);
+    };
+
+    /* ---------- presence: who is reading right now ---------- */
+    const tabKey = me + ':' + A.U.rid(6);
+    let mine = { uid: me };
+    let peers = [];
+    const peerFns = new Set();
+    let joined = false;
+    const pr = client.channel('room-' + C, { config: { presence: { key: tabKey } } });
+    pr.on('presence', { event: 'sync' }, () => {
+      const stt = pr.presenceState();
+      const now = Date.now();
+      peers = Object.entries(stt).map(([key, metas]) => {
+        const m = metas[metas.length - 1] || {};
+        const { presence_ref, ...presence } = m;
+        void presence_ref;
+        return Object.freeze({ peer: key, by: m.uid || null, isMe: m.uid === me, sameTab: key === tabKey, kind: 'viewer', guest: false, presence: Object.freeze(presence), updatedAt: now });
+      });
+      for (const fn of peerFns) fn({ peers, joined: [], left: [], updated: [] });
+    });
+    pr.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        joined = true;
+        pr.track(mine).catch(() => {});
+      }
+    });
+    let trackT = 0;
+    const room = Object.freeze({
+      presence: async (patch) => {
+        const next = Object.assign({}, mine);
+        for (const [k, v] of Object.entries(patch || {})) {
+          if (v === null) delete next[k];
+          else next[k] = v;
+        }
+        mine = next;
+        clearTimeout(trackT);
+        trackT = setTimeout(() => joined && pr.track(mine).catch(() => {}), 250);
+      },
+      peers: () => peers,
+      onPeers: (fn) => {
+        peerFns.add(fn);
+        queueMicrotask(() => fn({ peers, joined: peers, left: [], updated: [] }));
+        return () => peerFns.delete(fn);
+      },
+      connected: () => joined,
+      onConnection: () => () => {},
+      emit: async () => {},
+      on: () => () => {},
+    });
+
+    /* ---------- downloads ---------- */
+    const downloads = Object.freeze({
+      save: async ({ filename, data }) => {
+        const blob = data instanceof Blob ? data : new Blob([data]);
+        if (P.native) {
+          const FS = P.plugin('Filesystem');
+          const Share = P.plugin('Share');
+          if (FS && Share) {
+            const b64 = await new Promise((res, rej) => {
+              const r = new FileReader();
+              r.onload = () => res(String(r.result).split(',')[1]);
+              r.onerror = () => rej(r.error);
+              r.readAsDataURL(blob);
+            });
+            const w = await FS.writeFile({ path: filename, data: b64, directory: 'CACHE' });
+            await Share.share({ title: filename, url: w.uri, dialogTitle: filename });
+            return { status: 'saved' };
+          }
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        return { status: 'saved' };
+      },
+    });
+
+    const caps = { db, user, assets, room, downloads };
+    window.claude = Object.freeze({ use: (name) => Promise.resolve(caps[name] || null) });
+    return st.circle;
+  };
+})();

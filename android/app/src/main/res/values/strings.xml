@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">نقرأ سوا</string>
+    <string name="title_activity_main">نقرأ سوا</string>
+    <string name="package_name">app.naqrasawa.reader</string>
+    <string name="custom_url_scheme">app.naqrasawa.reader</string>
+</resources>

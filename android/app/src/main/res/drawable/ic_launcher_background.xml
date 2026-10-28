@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive icon background: the lapis tile of the نقرأ سوا icon (full bleed, the launcher applies its own mask). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="315"
+        android:startColor="@color/naqra_lapis"
+        android:endColor="@color/naqra_lapis_dark"
+        android:type="linear" />
+</shape>

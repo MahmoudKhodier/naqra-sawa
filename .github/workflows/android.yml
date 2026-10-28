@@ -1,0 +1,142 @@
+# Builds the Android app (Capacitor shell around site/) and publishes it as
+#   https://github.com/<owner>/<repo>/releases/download/android-latest/naqra-sawa.apk
+# Signed with the release keystore when the four ANDROID_* secrets exist (see docs/ANDROID.md),
+# otherwise a debug build is published instead.
+name: android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'android/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/build-sw.js'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write # create/update the android-latest release
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21 # Capacitor 8 / AGP 8.13 compile with Java 21
+          cache: gradle
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build service worker precache list
+        run: npm run build:sw
+
+      - name: Copy the web app and plugins into the Android project
+        run: npx cap sync android
+
+      - name: Prepare signing
+        id: signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Debug build::No release keystore secrets, so this APK is a debug build. Add ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD (docs/ANDROID.md) so every build can update the previous install."
+          fi
+
+      # Debug builds are signed with ~/.android/debug.keystore, which Gradle creates fresh on every runner.
+      # Caching it keeps debug APKs installable as updates of each other (until the cache expires after ~7 idle days).
+      - name: Reuse the debug signing key
+        if: steps.signing.outputs.signed != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v1
+
+      - name: Build APK
+        working-directory: android
+        env:
+          SIGNED: ${{ steps.signing.outputs.signed }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+          ANDROID_VERSION_NAME: 1.0.${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          if [ "$SIGNED" = "true" ]; then
+            ./gradlew --no-daemon assembleRelease
+            apk=app/build/outputs/apk/release/app-release.apk
+          else
+            ./gradlew --no-daemon assembleDebug
+            apk=app/build/outputs/apk/debug/app-debug.apk
+          fi
+          test -f "$apk"
+          mkdir -p "$RUNNER_TEMP/out"
+          cp "$apk" "$RUNNER_TEMP/out/naqra-sawa.apk"
+          ls -l "$RUNNER_TEMP/out"
+
+      - name: Remove the decoded keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: naqra-sawa-apk
+          path: ${{ runner.temp }}/out/naqra-sawa.apk
+          if-no-files-found: error
+
+      - name: Publish to the android-latest release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SIGNED: ${{ steps.signing.outputs.signed }}
+          BUILD: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          tag=android-latest
+          apk="$RUNNER_TEMP/out/naqra-sawa.apk"
+          kind=$([ "$SIGNED" = "true" ] && echo "release (signed)" || echo "debug")
+          notes="$RUNNER_TEMP/notes.md"
+          {
+            echo "## نقرأ سوا لأندرويد — نسخة رقم $BUILD"
+            echo
+            echo "نزّل الملف **naqra-sawa.apk** من تحت وافتحه على موبايلك. لو أول مرة، اسمح بتثبيت التطبيقات من المصدر ده."
+            echo "للتحديث: نزّل نفس الملف تاني وثبّته فوق القديم."
+            echo
+            echo "Android build $BUILD ($kind) from commit ${GITHUB_SHA::7}."
+            echo "Direct link: https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/naqra-sawa.apk"
+          } > "$notes"
+          # Keep the tag on the commit this APK was built from.
+          git tag -f "$tag" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$tag"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" --clobber
+            gh release edit "$tag" --title "نقرأ سوا — Android (build $BUILD)" --notes-file "$notes"
+          else
+            gh release create "$tag" "$apk" --title "نقرأ سوا — Android (build $BUILD)" --notes-file "$notes" --latest
+          fi
+          echo "APK: https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/naqra-sawa.apk" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- نقرأ سوا palette, same values as the web app's lapis, lapis-d, gold and bg CSS tokens. -->
+    <color name="naqra_lapis">#2441A3</color>
+    <color name="naqra_lapis_dark">#172E7A</color>
+    <color name="naqra_gold">#E0A526</color>
+    <color name="splash_background">#2441A3</color>
+</resources>

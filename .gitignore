@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Logs and local env
+*.log
+npm-debug.log*
+.env
+.env.*
+
+# Android build outputs and machine-local files (the android/ sources themselves are committed;
+# android/.gitignore also ignores the web assets and config that `npx cap sync` copies in)
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/local.properties
+android/.idea/
+android/captures/
+android/app/release/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.hprof
+
+# Signing material never goes in git (CI rebuilds it from secrets)
+*.jks
+*.keystore
+keystore.properties
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# Test screenshots
+tests/e2e/shots/
