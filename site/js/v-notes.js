@@ -124,7 +124,7 @@
       const likers = Object.entries(n.likes || {}).filter(([, v]) => v).map(([u]) => u);
       const rs = replies(n);
       return `<div class="nt">
-        <div class="nt-head">${D.avatar(n.by, 'md')}<div><b>${esc(D.name(n.by))}</b><small>${L.ago(n.at)} · ${n.page ? `${L('ص', 'p.')} ${L.num(n.page)}` : ''}</small></div><span class="kind k-${esc(n.kind)}">${V.kindLabel(n.kind)}</span>${n.priv ? `<span class="kind">${icon('lock')}${L('خاصة', 'Private')}</span>` : ''}</div>
+        <div class="nt-head">${D.avatar(n.by, 'md')}<div><b>${esc(D.name(n.by))}</b><small>${L.ago(n.at)} • ${n.page ? `${L('ص', 'p.')} ${L.num(n.page)}` : ''}</small></div><span class="kind k-${esc(n.kind)}">${V.kindLabel(n.kind)}</span>${n.priv ? `<span class="kind">${icon('lock')}${L('خاصة', 'Private')}</span>` : ''}</div>
         ${n.crop ? `<figure class="nt-crop" style="--c:${U.col(n.color)}"><img src="${esc(n.crop)}" alt=""></figure>` : ''}
         ${n.text ? `<p class="nt-text" dir="auto">${esc(n.text)}</p>` : ''}
         <div class="nt-acts">
@@ -198,7 +198,7 @@
     const isTake = n.kind === 'take';
     const w = book && n.wid ? G.wirds(book).find((x) => x.id === n.wid) : null;
     return `<article class="ncard k-${esc(n.kind)}${isTake ? ' take' : ''}">
-      <header>${D.avatar(n.by, 'sm')}<div class="nc-who"><b data-act="member" data-uid="${esc(n.by)}">${esc(D.name(n.by))}</b><small>${V.kindLabel(n.kind)}${opts.showBook && book ? ` · <span dir="auto">${esc(book.title)}</span>` : ''}${n.page && !isTake ? ` · ${L('ص', 'p.')} ${L.num(n.page)}` : ''}${isTake && w ? ` · ${L('الورد', 'Portion')} ${L.num(w.n)}` : ''} · ${L.ago(n.at)}</small></div></header>
+      <header>${D.avatar(n.by, 'sm')}<div class="nc-who"><b data-act="member" data-uid="${esc(n.by)}">${esc(D.name(n.by))}</b><small>${V.kindLabel(n.kind)}${opts.showBook && book ? ` • <span dir="auto">${esc(book.title)}</span>` : ''}${n.page && !isTake ? ` • ${L('ص', 'p.')} ${L.num(n.page)}` : ''}${isTake && w ? ` • ${L('الورد', 'Portion')} ${L.num(w.n)}` : ''} • ${L.ago(n.at)}</small></div></header>
       ${n.crop ? `<button class="nc-crop" data-act="open-note" data-nid="${esc(n.id)}" style="--c:${U.col(n.color)}"><img src="${esc(n.crop)}" alt="${esc(L('الجزء المظلّل', 'Highlighted passage'))}" loading="lazy"></button>` : ''}
       ${n.text ? `<p class="nc-text${n.kind === 'quote' ? ' quote' : ''}" dir="auto">${esc(n.text.length > 420 ? n.text.slice(0, 420) + '…' : n.text)}</p>` : ''}
       <footer>

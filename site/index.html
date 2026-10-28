@@ -896,6 +896,48 @@ textarea { resize: vertical; line-height: 1.55; }
 }
 
 /* ---------- standalone app additions ---------- */
+.hijri { display: block; color: var(--gold-d); font-weight: 600; font-size: .86rem; margin-top: 2px; }
+.chip-flame .fz { display: inline-flex; align-items: center; gap: 1px; font-style: normal; color: #3b8fd6; font-size: .8rem; margin-inline-start: 4px; }
+.chip-flame .fz .ic { width: 15px; height: 15px; animation: none; fill: none; stroke: currentColor; }
+.ss, .recap { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; }
+.ss-book { font: 700 1.1rem var(--f-disp); }
+.ss-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 420px; }
+.ss-stats > div { background: var(--card2); border-radius: 14px; padding: 10px 6px; display: flex; flex-direction: column; }
+.ss-stats b { font: 700 1.6rem/1.1 var(--f-disp); font-variant-numeric: tabular-nums; }
+.ss-stats small { color: var(--ink3); font-size: .74rem; }
+.ss-streak { display: flex; align-items: center; gap: 6px; color: var(--rubric); font-weight: 700; }
+.ss-streak .ic { width: 18px; height: 18px; }
+.ss-wird { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 420px; text-align: start; background: var(--gold-s); padding: 10px 12px; border-radius: 14px; }
+.ss-wird > div { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ss-wird small { color: var(--ink2); }
+.ss-wird .bar { flex: none; width: 100%; }
+.recap-best { width: 100%; max-width: 460px; text-align: start; display: flex; flex-direction: column; gap: 6px; }
+.start header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.start header h3 { flex: 1; color: var(--jade); }
+.start-list { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 4px; }
+.start-list button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: start; padding: 6px; border-radius: 12px; font-weight: 600; }
+.start-list button:not(:disabled):hover { background: var(--bg2); }
+.start-list .q-ic { width: 30px; height: 30px; background: var(--jade-s); color: var(--jade); }
+.start-list li.done button { color: var(--ink3); text-decoration: line-through; }
+.start-list li.done .q-ic { background: var(--jade); color: var(--on-jade); }
+.home-grid .start { order: 1; }
+.pl-presets { margin-bottom: 6px; }
+.rd.paged .rd-scroll { scroll-snap-type: y mandatory; }
+.rd.paged .pg { scroll-snap-align: center; scroll-snap-stop: always; }
+.hud-bell { margin-inline-start: auto; }
+.hud-bell + .chip-flame { margin-inline-start: 0; }
+.hud-bell .nv-b { position: absolute; top: 2px; inset-inline-end: 0; }
+.inbox { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.inbox button { display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: start; padding: 10px; border-radius: 14px; }
+.inbox button:hover { background: var(--bg2); }
+.inbox li.new button { background: var(--lapis-s); }
+.ib-ic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--bg2); color: var(--ink2); flex: none; }
+.ib-ic.k-like { background: var(--rubric-s); color: var(--rubric); }
+.ib-ic.k-cheer, .ib-ic.k-book { background: var(--gold-s); color: var(--gold-d); }
+.ib-ic.k-reply, .ib-ic.k-thread, .ib-ic.k-msgreply { background: var(--lapis-s); color: var(--lapis); }
+.ib-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: .92rem; }
+.ib-t small { color: var(--ink3); font-size: .76rem; }
+.ib-q { color: var(--ink2) !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 img { max-width: 100%; }
 [hidden] { display: none !important; }
 .ob-card { position: relative; }
@@ -950,6 +992,8 @@ img { max-width: 100%; }
 <script src="js/v-books.js"></script>
 <script src="js/v-shelf.js"></script>
 <script src="js/v-circle.js"></script>
+<script src="js/v-inbox.js"></script>
+<script src="js/v-extra.js"></script>
 <script src="js/booksearch.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/reminders.js"></script>

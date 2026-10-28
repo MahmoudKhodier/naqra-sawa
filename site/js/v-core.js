@@ -198,7 +198,8 @@
     const pct = s.span ? s.cur / s.span : 0;
     const html = `<button class="hud-me" data-go="me" aria-label="${L('ملفي', 'My profile')}">${D.avatar(S.me, 'sm')}${V.star(L.num(s.lv), 'gold lvl')}</button>
       <div class="hud-xp" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`)}"><span class="hud-t">${esc(G.title(s.lv))}</span>${V.bar(pct, 'gold')}<small>${L.num(s.cur)} / ${L.num(s.span)} XP</small></div>
-      <span class="chip-flame ${flame}" title="${s.atRisk ? L('اقرأ النهارده عشان السلسلة متقطعش', 'Read today to keep your streak') : L('أيام القراءة المتتالية', 'Reading streak')}">${icon('flame')}<b>${L.num(s.streak)}</b></span>
+      ${V.inboxUnread ? `<button class="ib hud-bell" data-act="inbox" aria-label="${L('الجديد ليك', 'For you')}">${icon('bell')}${V.inboxUnread() ? `<i class="nv-b">${L.num(Math.min(V.inboxUnread(), 99))}</i>` : ''}</button>` : ''}
+      <span class="chip-flame ${flame}" title="${s.atRisk ? L('اقرأ النهارده عشان السلسلة متقطعش', 'Read today to keep your streak') : L('أيام القراءة المتتالية', 'Reading streak')}">${icon('flame')}<b>${L.num(s.streak)}</b>${s.freezes ? `<i class="fz" title="${L('حماية للسلسلة', 'Streak freeze')}">${icon('snow')}${s.freezes > 1 ? L.num(s.freezes) : ''}</i>` : ''}</span>
       <button class="ib lang" data-act="lang" aria-label="${L('English', 'العربية')}">${L('EN', 'ع')}</button>`;
     if (el.dataset.rtH !== html) {
       el.innerHTML = html;
@@ -333,14 +334,20 @@
   V.celebrate = () => {
     const keys = ['members', 'books', 'prog', 'notes', 'shelf', 'pokes'];
     if (!keys.every((k) => S.loaded[k]) || !D.joined()) return;
+    V.inboxInit && V.inboxInit();
     const s = G.of(S.me);
     const q = G.myQuests();
-    const now = { lv: s.lv, badges: s.badges.filter((b) => b.got).map((b) => b.b.id), qday: U.today(), qdone: q.every((x) => x.done) };
+    const now = { lv: s.lv, badges: s.badges.filter((b) => b.got).map((b) => b.b.id), qday: U.today(), qdone: q.every((x) => x.done), fz: s.freezes, frozen: s.frozen || [] };
+    if (!V._recapChecked && V.checkRecap) {
+      V._recapChecked = true;
+      V.checkRecap();
+    }
     const key = 'celeb:' + S.me;
     const prev = celebBase || U.store.get(key, null);
     celebBase = now;
     U.store.set(key, now);
     if (!prev) return;
+    if (V.freezeNotices) V.freezeNotices(prev, now);
     if (now.lv > prev.lv) setTimeout(() => V.levelUp(now.lv), 400);
     const newB = now.badges.filter((id) => !prev.badges.includes(id));
     newB.forEach((id, i) => {
@@ -422,7 +429,7 @@
     const book = S.books.get(bookId);
     const w = G.wirds(book).find((x) => x.id === wid);
     V.sheet({
-      title: L(`خلاصتي في الورد ${L.num(w ? w.n : '')}`, `My takeaway · portion ${w ? w.n : ''}`),
+      title: L(`خلاصتي في الورد ${L.num(w ? w.n : '')}`, `My takeaway • portion ${w ? w.n : ''}`),
       html: `<p class="muted">${L('إيه أكتر فكرة عجبتك أو فرقت معاك في الورد ده؟', 'What idea stood out or stayed with you in this portion?')}</p>
         <textarea id="take-text" rows="5" dir="auto" maxlength="1500" autofocus placeholder="${L('اكتب هنا…', 'Write here…')}">${esc(existing ? existing.text : '')}</textarea>
         <div class="row-btns end"><button class="btn gold" data-save>${icon('sparkle')}${L('انشر الخلاصة', 'Share takeaway')}</button></div>`,

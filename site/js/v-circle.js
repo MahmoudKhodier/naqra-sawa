@@ -22,7 +22,7 @@
     return `<div class="circle">
       <header class="circle-hero">
         <div class="ch-art" aria-hidden="true"><span class="star8 gold"></span><span class="star8 lapis"></span><span class="star8 jade"></span></div>
-        <div><small class="eyebrow">${L.count(S.members.size, 'member')}${online.size ? ` · <span class="live-t">${L(`${L.num(online.size)} أونلاين`, `${online.size} online`)}</span>` : ''}</small>
+        <div><small class="eyebrow">${L.count(S.members.size, 'member')}${online.size ? ` • <span class="live-t">${L(`${L.num(online.size)} أونلاين`, `${online.size} online`)}</span>` : ''}</small>
           <h1 dir="auto">${esc(c.name || L('حلقة القراءة', 'Reading Circle'))}</h1>${c.motto ? `<p dir="auto">${esc(c.motto)}</p>` : ''}</div>
         <div class="row-btns">${canAdmin && D.canWrite() ? `<button class="btn ghost sm" data-act="edit-circle">${icon('edit')}${L('عدّل', 'Edit')}</button>` : ''}${V.circleMenu ? `<button class="btn ghost sm" data-act="circle-menu">${icon('users')}${L('الحلقات', 'Circles')}</button>` : ''}<button class="btn sm gold" data-act="invite">${icon('share')}${L('ادعُ أصحابك', 'Invite friends')}</button></div>
       </header>
@@ -33,7 +33,7 @@
             ${board.length >= 3 ? podium(board.slice(0, 3), mode) : ''}
             <ol class="lb">${board
               .map((s, i) => `<li class="${s.uid === S.me ? 'me' : ''}"><button data-act="member" data-uid="${esc(s.uid)}"><span class="rank ${medal[i] || ''}">${L.num(i + 1)}</span>${D.avatar(s.uid, 'md')}${online.has(s.uid) ? '<i class="on-dot"></i>' : ''}
-                <span class="lb-n"><b>${esc(D.name(s.uid))}</b><small>${V.star(L.num(s.lv), 'xs gold')} ${esc(G.title(s.lv))}${s.streak ? ` · <span class="flame-t">${icon('flame')}${L.num(s.streak)}</span>` : ''}</small></span>
+                <span class="lb-n"><b>${esc(D.name(s.uid))}</b><small>${V.star(L.num(s.lv), 'xs gold')} ${esc(G.title(s.lv))}${s.streak ? ` • <span class="flame-t">${icon('flame')}${L.num(s.streak)}</span>` : ''}</small></span>
                 <span class="lb-xp"><b>${L.num(mode === 'week' ? s.week : s.xp)}</b><small>XP</small></span></button></li>`)
               .join('')}</ol>
             <p class="muted sm">${L('الأسبوع بيبدأ السبت. الـXP بييجي من الصفحات، الأوراد، الملاحظات، الردود والإعجابات.', 'Weeks start on Saturday. XP comes from pages, portions, notes, replies and likes.')} <button class="lnk" data-act="xp-help">${L('إزاي أكسب XP؟', 'How do I earn XP?')}</button></p>
@@ -56,7 +56,7 @@
                 const s = G.of(u);
                 const reading = D.readingNow().find((x) => x.uid === u);
                 const b = reading && S.books.get(reading.b);
-                return `<li><button data-act="${V.memberMenu ? 'member-menu' : 'member'}" data-uid="${esc(u)}">${D.avatar(u, 'sm')}${online.has(u) ? '<i class="on-dot"></i>' : ''}<span><b>${esc(D.name(u))}${A.P && A.P.role && A.P.role(u) !== 'member' ? ` <i class="role-tag">${A.P.role(u) === 'owner' ? L('صاحب الحلقة', 'owner') : L('مشرف', 'admin')}</i>` : ''}</b><small>${reading ? `<span class="live-t">${L('في القراية:', 'Reading')}</span> <span dir="auto">${b ? esc(b.title) : ''}</span>` : `${L('مستوى', 'Level')} ${L.num(s.lv)} · ${L.count(s.badgeCount || 0, 'badge')}`}</small></span></button></li>`;
+                return `<li><button data-act="${V.memberMenu ? 'member-menu' : 'member'}" data-uid="${esc(u)}">${D.avatar(u, 'sm')}${online.has(u) ? '<i class="on-dot"></i>' : ''}<span><b>${esc(D.name(u))}${A.P && A.P.role && A.P.role(u) !== 'member' ? ` <i class="role-tag">${A.P.role(u) === 'owner' ? L('صاحب الحلقة', 'owner') : L('مشرف', 'admin')}</i>` : ''}</b><small>${reading ? `<span class="live-t">${L('في القراية:', 'Reading')}</span> <span dir="auto">${b ? esc(b.title) : ''}</span>` : `${L('مستوى', 'Level')} ${L.num(s.lv)} • ${L.count(s.badgeCount || 0, 'badge')}`}</small></span></button></li>`;
               })
               .join('')}</ul>
           </section>
@@ -128,15 +128,16 @@
       ${!mine ? `<button class="back" data-go="circle">${icon('back', 'flip')}<span>${L('الحلقة', 'Circle')}</span></button>` : ''}
       <header class="pf-hero">
         <div class="pf-av">${D.avatar(uid, 'xl')}${V.star(L.num(s.lv), 'gold lvl-big')}</div>
-        <div class="pf-t"><h1 dir="auto">${esc(D.name(uid))}</h1><p class="pf-title">${esc(G.title(s.lv))}${rank ? ` · ${L(`المركز ${L.num(rank)} في الحلقة`, `#${rank} in the circle`)}` : ''}</p>
-          <div class="pf-xp">${V.bar(s.span ? s.cur / s.span : 0, 'gold big')}<small>${L.num(s.cur)} / ${L.num(s.span)} XP · ${L(`فاضل ${L.num(s.toNext)} للمستوى ${L.num(s.lv + 1)}`, `${s.toNext} to level ${s.lv + 1}`)}</small></div>
+        <div class="pf-t"><h1 dir="auto">${esc(D.name(uid))}</h1><p class="pf-title">${esc(G.title(s.lv))}${rank ? ` • ${L(`المركز ${L.num(rank)} في الحلقة`, `#${rank} in the circle`)}` : ''}</p>
+          <div class="pf-xp">${V.bar(s.span ? s.cur / s.span : 0, 'gold big')}<small>${L.num(s.cur)} / ${L.num(s.span)} XP • ${L(`فاضل ${L.num(s.toNext)} للمستوى ${L.num(s.lv + 1)}`, `${s.toNext} to level ${s.lv + 1}`)}</small></div>
           ${live ? `<p class="live-t"><span class="pulse"></span>${L('في القراية دلوقتي', 'Reading right now')}</p>` : ''}
           ${!mine && D.canWrite() ? `<div class="row-btns"><button class="btn sm" data-act="poke" data-to="${esc(uid)}" data-kind="cheer">${icon('clap')}${L('ابعت تشجيع', 'Cheer')}</button><button class="btn ghost sm" data-go="shelf" data-uid="${esc(uid)}">${icon('shelf')}${L('المكتبة', 'Shelf')}</button></div>` : ''}
         </div>
       </header>
       <section class="stat-tiles">
-        <div class="stile flame ${s.streak ? (s.atRisk ? 'risk' : 'hot') : ''}">${icon('flame')}<b>${L.num(s.streak)}</b><small>${L('أيام ورا بعض', 'day streak')} · ${L('الأحسن', 'best')} ${L.num(s.best)}</small></div>
-        <div class="stile">${icon('bolt')}<b>${L.num(s.xp)}</b><small>XP · ${L('الأسبوع ده', 'this week')} ${L.num(s.week)}</small></div>
+        <div class="stile flame ${s.streak ? (s.atRisk ? 'risk' : 'hot') : ''}">${icon('flame')}<b>${L.num(s.streak)}</b><small>${L('أيام ورا بعض', 'day streak')} • ${L('الأحسن', 'best')} ${L.num(s.best)}${s.freezes ? ` • ${L(`حماية ×${L.num(s.freezes)}`, `${s.freezes} freeze`)}` : ''}</small></div>
+        <div class="stile">${icon('clock')}<b>${L.duration ? esc(L.duration(s.secs)) : ''}</b><small>${L('وقت القراية', 'time reading')}${s.secsWeek ? ` • ${L('الأسبوع ده', 'this week')} ${esc(L.duration(s.secsWeek))}` : ''}</small></div>
+        <div class="stile">${icon('bolt')}<b>${L.num(s.xp)}</b><small>XP • ${L('الأسبوع ده', 'this week')} ${L.num(s.week)}</small></div>
         <div class="stile">${icon('scroll')}<b>${L.num(s.pages)}</b><small>${L('صفحة', 'pages')}</small></div>
         <div class="stile">${icon('shelf')}<b>${L.num(shelf.length)}</b><small>${L('كتب في المكتبة', 'books on shelf')}</small></div>
         <div class="stile">${icon('check')}<b>${L.num(s.wirdsDone)}</b><small>${L('ورد خلّصه', 'portions done')}</small></div>
@@ -187,6 +188,7 @@
       ${D.canWrite() ? `<form id="me-form" class="form inline"><label for="me-nick">${L('اسمك في الحلقة', 'Your name in the circle')}</label><div class="row"><input id="me-nick" maxlength="40" dir="auto" value="${esc(m.nick || '')}"><button class="btn sm">${L('احفظ', 'Save')}</button></div></form>` : ''}
       <div class="set-row"><span>${icon('lang')}${L('اللغة', 'Language')}</span><div class="seg sm"><button class="${L.isAr() ? 'on' : ''}" data-act="${L.isAr() ? '' : 'lang'}">العربية</button><button class="${L.isAr() ? '' : 'on'}" data-act="${L.isAr() ? 'lang' : ''}">English</button></div></div>
       <div class="set-row"><span>${icon('moon')}${L('المظهر', 'Appearance')}</span><div class="seg sm">${[['system', L('تلقائي', 'Auto')], ['light', L('فاتح', 'Light')], ['dark', L('غامق', 'Dark')]].map(([k, t]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-t="${k}">${t}</button>`).join('')}</div></div>
+      <div class="set-row"><span>${icon('calendar')}${L('التاريخ الهجري', 'Hijri date')}</span><label class="switch"><input type="checkbox" id="set-hijri" ${U.store.get('hijri', true) ? 'checked' : ''}><i></i></label></div>
       <div class="set-row"><span>${icon('sparkle')}${L('أصوات الاحتفال', 'Celebration sounds')}</span><label class="switch"><input type="checkbox" id="set-sound" ${U.store.get('sound', true) ? 'checked' : ''}><i></i></label></div>
       ${V.extraSettings ? V.extraSettings() : ''}
     </section>`;
@@ -202,6 +204,10 @@
     else document.documentElement.setAttribute('data-theme', t);
   };
   document.addEventListener('change', (e) => {
+    if (e.target.id === 'set-hijri') {
+      U.store.set('hijri', e.target.checked);
+      V.render();
+    }
     if (e.target.id === 'set-sound') {
       U.store.set('sound', e.target.checked);
       if (e.target.checked) U.chime('ok');

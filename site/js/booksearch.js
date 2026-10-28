@@ -113,7 +113,7 @@
         out.innerHTML = results.length
           ? results
               .map(
-                (b, i) => `<button type="button" class="bs-it" data-i="${i}">${b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : V.genCover(b.title, b.author, 'xs')}<span><b dir="auto">${esc(b.title)}</b><small dir="auto">${esc([b.author, b.publisher, b.year].filter(Boolean).join(' · '))}${b.pages ? ` · ${L.count(b.pages, 'page')}` : ''}</small></span></button>`
+                (b, i) => `<button type="button" class="bs-it" data-i="${i}">${b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : V.genCover(b.title, b.author, 'xs')}<span><b dir="auto">${esc(b.title)}</b><small dir="auto">${esc([b.author, b.publisher, b.year].filter(Boolean).join(' • '))}${b.pages ? ` • ${L.count(b.pages, 'page')}` : ''}</small></span></button>`
               )
               .join('')
           : `<p class="muted sm">${L('ملقيتش حاجة. اكتب البيانات بإيدك، وممكن تصوّر الغلاف.', 'Nothing found. Type the details yourself — you can photograph the cover too.')}</p>`;

@@ -57,7 +57,7 @@
       ${list.length ? `<ul class="plist">${list.map((p, i) => {
         const mine = p.votes && p.votes[S.me];
         const n = votes(p);
-        return `<li>${V.coverOf ? V.coverOf(p, 'xs') : V.genCover(p.title, p.author, 'xs')}<div class="pl-t"><b dir="auto">${esc(p.title)}</b><small>${p.author ? `<span dir="auto">${esc(p.author)}</span> · ` : ''}${L('اقتراح', 'by')} ${esc(D.name(p.by))}</small>${p.note ? `<p dir="auto">${esc(p.note)}</p>` : ''}</div>
+        return `<li>${V.coverOf ? V.coverOf(p, 'xs') : V.genCover(p.title, p.author, 'xs')}<div class="pl-t"><b dir="auto">${esc(p.title)}</b><small>${p.author ? `<span dir="auto">${esc(p.author)}</span> • ` : ''}${L('اقتراح', 'by')} ${esc(D.name(p.by))}</small>${p.note ? `<p dir="auto">${esc(p.note)}</p>` : ''}</div>
           <div class="pl-v">${i === 0 && n ? `<span class="lead-tag">${L('في المقدمة', 'Leading')}</span>` : ''}<button class="vote${mine ? ' on' : ''}" data-act="vote" data-id="${esc(p.id)}" ${D.canWrite() ? '' : 'disabled'}>${icon('vote')}<b>${L.num(n)}</b></button>
           ${S.canEdit || p.by === S.me ? `<button class="ib sm" data-act="prop-menu" data-id="${esc(p.id)}" aria-label="${L('اختيارات', 'Options')}">${icon('more')}</button>` : ''}</div></li>`;
       }).join('')}</ul>` : `<p class="muted sm">${L('مفيش اقتراحات لسه. ممكن تقترح من مكتبتك كمان.', 'No suggestions yet. You can also suggest from your shelf.')}</p>`}
@@ -164,7 +164,7 @@
     const gcur = G.groupCurrent(b);
     const per = ws[0].to - ws[0].from + 1;
     const every = U.diffDays(ws[0].start, ws[0].due) + 1;
-    return `<div class="plan-head"><p>${L(`${L.count(per, 'page')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} · من ${L.dayShort(ws[0].start)} لـ ${L.dayShort(ws[ws.length - 1].due)}`, `${per} pages ${every === 1 ? 'a day' : every === 7 ? 'a week' : `every ${every} days`} · ${L.dayShort(ws[0].start)} – ${L.dayShort(ws[ws.length - 1].due)}`)}</p>${D.canWrite() ? `<button class="btn ghost sm" data-act="plan" data-b="${esc(b.id)}">${icon('edit')}${L('عدّل الخطة', 'Edit plan')}</button>` : ''}</div>
+    return `<div class="plan-head"><p>${L(`${L.count(per, 'page')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} لـ ${L.dayShort(ws[ws.length - 1].due)}`, `${per} pages ${every === 1 ? 'a day' : every === 7 ? 'a week' : `every ${every} days`} • ${L.dayShort(ws[0].start)} – ${L.dayShort(ws[ws.length - 1].due)}`)}</p>${D.canWrite() ? `<button class="btn ghost sm" data-act="plan" data-b="${esc(b.id)}">${icon('edit')}${L('عدّل الخطة', 'Edit plan')}</button>` : ''}</div>
       <ol class="wlist">${ws
         .map((w) => {
           const st = G.wirdStatus(b, w);
@@ -174,7 +174,7 @@
           const mine = st === 'done' || st === 'late-done';
           return `<li class="wrow s-${st}${gcur && gcur.id === w.id ? ' cur' : ''}">
             ${V.star(L.num(w.n), mine ? 'jade' : st === 'late' ? 'rubric' : st === 'now' ? 'gold' : 'faint')}
-            <div class="wr-main"><b>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</b><small>${L.day(w.start)}${w.due !== w.start ? ' → ' + L.day(w.due) : ''}${!mine ? ` · <span class="due ${st}">${st === 'soon' ? L('لسه', 'Upcoming') : L.due(w.due)}</span>` : ''}</small>
+            <div class="wr-main"><b>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</b><small>${L.day(w.start)}${w.due !== w.start ? ' → ' + L.day(w.due) : ''}${!mine ? ` • <span class="due ${st}">${st === 'soon' ? L('لسه', 'Upcoming') : L.due(w.due)}</span>` : ''}</small>
               <div class="wr-fins">${fins.map((x, i) => `<span class="fin${i === 0 ? ' first' : ''}" title="${esc(D.name(x.u))}">${D.avatar(x.u, 'xs')}</span>`).join('')}${fins.length ? `<small>${L.num(fins.length)}/${L.num(members.length)}</small>` : ''}</div></div>
             <div class="wr-acts">
               <button class="pill" data-act="book-tab" data-b="${esc(b.id)}" data-tab="talk" data-ch="${esc(w.id)}" aria-label="${L('نقاش الورد', 'Portion discussion')}">${icon('chat')}${takes + unread ? `<span>${L.num(takes + unread)}</span>` : ''}</button>
@@ -287,7 +287,7 @@
         return `<button class="chip${k === ch ? ' on' : ''}${gcur && gcur.id === k ? ' cur' : ''}" data-act="book-tab" data-b="${esc(b.id)}" data-tab="talk" data-ch="${esc(k)}">${t}${u ? `<i class="nv-b">${L.num(u)}</i>` : ''}</button>`;
       })
       .join('')}</div>
-      ${w ? `<section class="takes"><header><h3>${icon('sparkle')}${L(`خلاصات الورد ${L.num(w.n)}`, `Takeaways · portion ${w.n}`)}</h3><small class="muted">${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</small>${D.canWrite() ? `<button class="btn sm ${myTake ? 'ghost' : 'gold'}" data-act="write-take" data-b="${esc(b.id)}" data-w="${esc(w.id)}" ${myTake ? `data-nid="${esc(myTake.id)}"` : ''}>${myTake ? L('عدّل خلاصتي', 'Edit mine') : L('اكتب خلاصتك', 'Write yours')}</button>` : ''}</header>
+      ${w ? `<section class="takes"><header><h3>${icon('sparkle')}${L(`خلاصات الورد ${L.num(w.n)}`, `Takeaways • portion ${w.n}`)}</h3><small class="muted">${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</small>${D.canWrite() ? `<button class="btn sm ${myTake ? 'ghost' : 'gold'}" data-act="write-take" data-b="${esc(b.id)}" data-w="${esc(w.id)}" ${myTake ? `data-nid="${esc(myTake.id)}"` : ''}>${myTake ? L('عدّل خلاصتي', 'Edit mine') : L('اكتب خلاصتك', 'Write yours')}</button>` : ''}</header>
         ${takes.length ? `<div class="take-list">${takes.map((n) => V.noteCard(n)).join('')}</div>` : `<p class="muted sm">${L('لما تخلّص الورد اكتب أهم فكرة خرجت بيها.', 'When you finish the portion, share the main idea you took away.')}</p>`}</section>` : ''}
       ${V.thread(b.id, ch, { placeholder: w ? L(`اكتب رأيك في الورد ${L.num(w.n)}…`, `Your thoughts on portion ${w.n}…`) : L('اكتب للحلقة عن الكتاب…', 'Write to the circle about this book…') })}`;
   }
@@ -322,7 +322,7 @@
         })
         .join('');
       const behind = ws.some((w) => G.wirdStatus(b, w, u) === 'late');
-      return `<tr><th scope="row"><button class="who" data-act="member" data-uid="${esc(u)}">${D.avatar(u, 'sm')}<span><b>${esc(D.name(u))}</b><small>${p && p.finished ? '🏆 ' + L('الكتاب خلص', 'Finished') : `${L.num(Math.round((seen / (b.pages || 1)) * 100))}٪ · ${L('ص', 'p.')} ${L.num((p && p.last) || 1)}`}${live.has(u) ? ` · <span class="live-t">${L('في القراية دلوقتي', 'reading now')}</span>` : ''}</small></span></button>
+      return `<tr><th scope="row"><button class="who" data-act="member" data-uid="${esc(u)}">${D.avatar(u, 'sm')}<span><b>${esc(D.name(u))}</b><small>${p && p.finished ? '🏆 ' + L('الكتاب خلص', 'Finished') : `${L.num(Math.round((seen / (b.pages || 1)) * 100))}٪ • ${L('ص', 'p.')} ${L.num((p && p.last) || 1)}`}${live.has(u) ? ` • <span class="live-t">${L('في القراية دلوقتي', 'reading now')}</span>` : ''}</small></span></button>
         ${u !== S.me && D.canWrite() ? `<span class="who-acts">${behind ? `<button class="ib sm" data-act="poke" data-to="${esc(u)}" data-kind="poke" data-b="${esc(b.id)}" aria-label="${L('تذكير', 'Nudge')}">${icon('hand')}</button>` : ''}<button class="ib sm" data-act="poke" data-to="${esc(u)}" data-kind="cheer" data-b="${esc(b.id)}" aria-label="${L('تشجيع', 'Cheer')}">${icon('clap')}</button></span>` : ''}</th>${cells}</tr>`;
     });
     return `${ws.length ? '' : `<p class="muted">${L('لما تعملوا خطة هتشوفوا هنا مين خلّص أنهي ورد.', 'Once you have a plan you will see who finished which portion here.')}</p>`}
@@ -490,7 +490,7 @@
       const big = info.buf.byteLength > MAXPART;
       const ar = U.isArabic(info.title) || !/[a-z]/i.test(info.title);
       return `<form id="ab-form" class="ab-form">
-        <div class="ab-cover">${info.cover ? `<span class="cover lg"><img src="${esc(info.cover)}" alt=""></span>` : V.genCover(info.title, info.author, 'lg')}<small>${L.count(info.N, 'page')} · ${L.num(Math.round(info.buf.byteLength / 1048576))} MB${big && canUpload ? ' · ' + L('هيتقسّم أجزاء', 'will be split into parts') : ''}</small></div>
+        <div class="ab-cover">${info.cover ? `<span class="cover lg"><img src="${esc(info.cover)}" alt=""></span>` : V.genCover(info.title, info.author, 'lg')}<small>${L.count(info.N, 'page')} • ${L.num(Math.round(info.buf.byteLength / 1048576))} MB${big && canUpload ? ' • ' + L('هيتقسّم أجزاء', 'will be split into parts') : ''}</small></div>
         <div class="form">
           ${A.B ? A.B.box('ab-bs') : ''}
           <label for="ab-title">${L('اسم الكتاب', 'Title')}</label><input id="ab-title" required maxlength="140" dir="auto" value="${esc(info.title)}">
@@ -579,7 +579,7 @@
           cnt = Math.max(1, Math.floor(cnt * (MAXPART / bytes.byteLength) * 0.92));
         }
         if (bytes.byteLength > MAXPART) throw { code: 'too_large' };
-        const label = L(`الجزء ${L.num(parts.length + 1)} · ص ${L.num(start + 1)}–${L.num(start + cnt)}`, `Part ${parts.length + 1} · p. ${start + 1}–${start + cnt}`);
+        const label = L(`الجزء ${L.num(parts.length + 1)} • ص ${L.num(start + 1)}–${L.num(start + cnt)}`, `Part ${parts.length + 1} • p. ${start + 1}–${start + cnt}`);
         parts.push(await one(bytes, start + 1, start + cnt, label));
         progress(L('برفع الكتاب…', 'Uploading…'), (start + cnt) / N, label);
         start += cnt;
@@ -620,13 +620,14 @@
       const { out, per } = gen();
       if (!out.length) return '';
       const show = out.length > 5 ? [...out.slice(0, 3), null, out[out.length - 1]] : out;
-      return `<div class="pv-sum">${V.star(L.num(out.length), 'gold')}<div><b>${L.count(out.length, 'wird')} · ${L.count(per, 'page')} ${L('للورد', 'each')}</b><small>${L(`آخر ورد: ${L.day(out[out.length - 1].due)}`, `Last one due ${L.day(out[out.length - 1].due)}`)} · ${L(`حوالي ${L.count(Math.ceil(per / Math.max(1, st.every)), 'page')} في اليوم`, `about ${Math.ceil(per / Math.max(1, st.every))} pages a day`)}</small></div></div>
+      return `<div class="pv-sum">${V.star(L.num(out.length), 'gold')}<div><b>${L.count(out.length, 'wird')} • ${L.count(per, 'page')} ${L('للورد', 'each')}</b><small>${L(`آخر ورد: ${L.day(out[out.length - 1].due)}`, `Last one due ${L.day(out[out.length - 1].due)}`)}${V.showHijri && V.showHijri() && L.hijri ? ` (${L.hijri(out[out.length - 1].due)})` : ''} • ${L(`حوالي ${L.count(Math.ceil(per / Math.max(1, st.every)), 'page')} في اليوم`, `about ${Math.ceil(per / Math.max(1, st.every))} pages a day`)}</small></div></div>
         <ol class="pv-list">${show.map((w) => (w ? `<li><span class="star8 xs faint"><b>${L.num(w.n)}</b></span><span>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</span><small>${L.day(w.start)}${w.due !== w.start ? ' → ' + L.day(w.due) : ''}</small></li>` : '<li class="gap">⋯</li>')).join('')}</ol>`;
     };
     V.sheet({
       title: L('خطة القراءة', 'Reading plan'),
       wide: true,
       html: `<form id="pl-form" class="plan-form">
+        ${V.planPresets ? `<div class="chips wrap pl-presets">${V.planPresets(b.pages).map((p) => `<button type="button" class="chip" data-preset="${p.id}">${p.t}</button>`).join('')}</div>` : ''}
         <div class="form grid2">
           <div><label for="pl-from">${L('من صفحة', 'From page')}</label><input id="pl-from" type="number" min="1" max="${b.pages}" value="${st.from}"></div>
           <div><label for="pl-to">${L('لحد صفحة', 'To page')}</label><input id="pl-to" type="number" min="1" max="${b.pages}" value="${st.to}"></div>
@@ -655,6 +656,19 @@
         };
         body.addEventListener('input', read);
         body.addEventListener('change', read);
+        body.addEventListener('click', (e) => {
+          const pb = e.target.closest('[data-preset]');
+          if (!pb) return;
+          read();
+          const preset = V.planPresets(b.pages).find((x) => x.id === pb.dataset.preset);
+          preset.apply(st);
+          body.querySelector('#pl-every').value = String(st.every);
+          body.querySelector('#pl-per').value = st.per;
+          body.querySelector('#pl-end').value = st.end;
+          body.querySelectorAll('input[name=pl-mode]').forEach((r) => (r.checked = r.value === st.mode));
+          body.querySelectorAll('[data-preset]').forEach((x) => x.classList.toggle('on', x === pb));
+          read();
+        });
         body.addEventListener('submit', async (e) => {
           e.preventDefault();
           read();
@@ -704,7 +718,7 @@
       title: L('حمّل الكتاب', 'Download the book'),
       html: `<p class="muted">${L(`الكتاب مترفع ${L.num(parts.length)} أجزاء. ممكن نجمّعهم ملف واحد أو تحمّل كل جزء لوحده.`, `This book is stored in ${parts.length} parts. Merge them into one file, or download each part.`)}</p>
         <button class="btn gold full" data-merge>${icon('layers')}${L('ملف واحد كامل', 'One complete file')}</button><div id="dl-prog"></div>
-        <ul class="dl-parts">${parts.map((p, i) => `<li><span>${L(`الجزء ${L.num(i + 1)} · ص ${L.num(p.from)}–${L.num(p.to)}`, `Part ${i + 1} · p. ${p.from}–${p.to}`)}</span><button class="btn ghost sm" data-part="${i}">${icon('download')}</button></li>`).join('')}</ul>`,
+        <ul class="dl-parts">${parts.map((p, i) => `<li><span>${L(`الجزء ${L.num(i + 1)} • ص ${L.num(p.from)}–${L.num(p.to)}`, `Part ${i + 1} • p. ${p.from}–${p.to}`)}</span><button class="btn ghost sm" data-part="${i}">${icon('download')}</button></li>`).join('')}</ul>`,
       onMount: (body) =>
         body.addEventListener('click', async (e) => {
           const pr = (f) => (body.querySelector('#dl-prog').innerHTML = V.bar(f, 'gold'));

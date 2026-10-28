@@ -60,7 +60,7 @@
 
   function blank(uid) {
     return {
-      uid, xp: 0, week: 0, todayXp: 0, pages: 0, pagesWeek: 0, pagesToday: 0,
+      uid, xp: 0, week: 0, prevWeek: 0, todayXp: 0, pages: 0, pagesWeek: 0, pagesPrevWeek: 0, pagesToday: 0, secs: 0, secsWeek: 0, freezes: 0, frozen: [],
       wirdsDone: 0, onTime: 0, firsts: 0, notes: 0, quotes: 0, questions: 0, takes: 0,
       replies: 0, msgs: 0, likesRecv: 0, likesGiven: 0, shelfRead: 0, reviews: 0,
       booksDone: 0, cheers: 0, votes: 0, questDays: 0,
@@ -156,9 +156,15 @@
     };
     for (const id of S.members.keys()) get(id);
 
-    // pages per day
+    // pages per day (+ reading time)
     for (const m of S.members.values()) {
       const s = get(m.id);
+      const wk0 = U.weekStart(U.today());
+      for (const [day, n] of Object.entries(m.secs || {})) {
+        const v = Math.max(0, Math.min(86400, +n || 0));
+        s.secs += v;
+        if (day >= wk0) s.secsWeek += v;
+      }
       for (const [day, n] of Object.entries(m.days || {})) {
         const v = Math.max(0, Math.min(2000, +n || 0));
         if (!v) continue;
@@ -305,38 +311,44 @@
           ev(s, day, G.XP.quests, 'quests');
         }
       }
+      const pwk = U.addDays(wk, -7);
       for (const e of s.events) {
         s.xp += e.xp;
         if (e.day >= wk) s.week += e.xp;
+        else if (e.day >= pwk) s.prevWeek += e.xp;
         if (e.day === today) s.todayXp += e.xp;
       }
       for (const [d, n] of Object.entries(s.days)) {
         if (d >= wk) s.pagesWeek += n;
+        else if (d >= pwk) s.pagesPrevWeek += n;
         if (d === today) s.pagesToday += n;
       }
       for (const [d, v] of Object.entries(s.byDay)) if (v.notes || v.talk || v.wirds) s.active.add(d);
       // streak
+      // Streak with protection: every 7 reading days in a row earn one "freeze" (max 2),
+      // which automatically covers a missed day so the streak survives.
       const act = (d) => s.active.has(d);
-      let d = today;
-      s.atRisk = false;
-      if (!act(d)) {
-        d = U.addDays(today, -1);
-        s.atRisk = act(d);
-      }
-      let cur = 0;
-      while (act(d)) {
-        cur++;
-        d = U.addDays(d, -1);
-      }
-      s.streak = cur;
       const sorted = [...s.active].sort();
-      let best = 0, run = 0, prev = null;
-      for (const day of sorted) {
-        run = prev && U.diffDays(prev, day) === 1 ? run + 1 : 1;
-        best = Math.max(best, run);
-        prev = day;
+      let run = 0, fz = 0, best = 0;
+      s.frozen = [];
+      if (sorted.length) {
+        for (let d = sorted[0], i = 0; d <= today && i < 4000; d = U.addDays(d, 1), i++) {
+          if (act(d)) {
+            run++;
+            if (run % 7 === 0) fz = Math.min(2, fz + 1);
+          } else if (d === today) {
+            // today isn't over yet
+          } else if (run > 0 && fz > 0) {
+            fz--;
+            s.frozen.push(d);
+          } else run = 0;
+          best = Math.max(best, run);
+        }
       }
-      s.best = Math.max(best, cur);
+      s.streak = run;
+      s.freezes = fz;
+      s.atRisk = run > 0 && !act(today);
+      s.best = best;
       Object.assign(s, G.levelOf(s.xp));
       s.badges = G.BADGES.map((b) => {
         const v = b.v(s);

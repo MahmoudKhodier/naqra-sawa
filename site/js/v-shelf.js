@@ -86,7 +86,7 @@
       .join('')}</div>
       <ul class="shelf-list">${list
         .map(
-          (it) => `<li><button data-act="shelf-item" data-id="${esc(it.id)}">${V.coverOf ? V.coverOf(it, 'xs') : V.genCover(it.title, it.author, 'xs')}<span class="sl-t"><b dir="auto">${esc(it.title)}</b><small>${it.author ? `<span dir="auto">${esc(it.author)}</span>` : ''}${it.finished ? ` · ${it.finished.length === 4 ? L.num(+it.finished, { useGrouping: false }) : L.monthYear(it.finished)}` : ''}${it.together ? ` · <span class="gold-t">${L('قرأناه سوا', 'Read together')}</span>` : ''}</small></span>${it.rating ? V.stars(it.rating) : ''}</button></li>`
+          (it) => `<li><button data-act="shelf-item" data-id="${esc(it.id)}">${V.coverOf ? V.coverOf(it, 'xs') : V.genCover(it.title, it.author, 'xs')}<span class="sl-t"><b dir="auto">${esc(it.title)}</b><small>${it.author ? `<span dir="auto">${esc(it.author)}</span>` : ''}${it.finished ? ` • ${it.finished.length === 4 ? L.num(+it.finished, { useGrouping: false }) : L.monthYear(it.finished)}` : ''}${it.together ? ` • <span class="gold-t">${L('قرأناه سوا', 'Read together')}</span>` : ''}</small></span>${it.rating ? V.stars(it.rating) : ''}</button></li>`
         )
         .join('')}</ul>`;
   }
@@ -201,7 +201,7 @@
         body.addEventListener('input', () => {
           const n = parse().length;
           const st = body.querySelector('#bulk-status').value;
-          body.querySelector('#bulk-count').textContent = n ? L(`${L.count(n, 'book')}${st === 'read' ? ` · +${L.num(n * G.XP.shelf)} XP` : ''}`, `${n} books${st === 'read' ? ` · +${n * G.XP.shelf} XP` : ''}`) : '';
+          body.querySelector('#bulk-count').textContent = n ? L(`${L.count(n, 'book')}${st === 'read' ? ` • +${L.num(n * G.XP.shelf)} XP` : ''}`, `${n} books${st === 'read' ? ` • +${n * G.XP.shelf} XP` : ''}`) : '';
         });
         body.addEventListener('click', async (e) => {
           if (!e.target.closest('[data-bulk]')) return;

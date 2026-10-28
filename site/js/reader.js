@@ -52,7 +52,7 @@
     if (!book) return;
     if (st) R.close(true);
     const root = document.getElementById('reader');
-    const prefs = U.store.get('readerPrefs', { zoom: 1, theme: 'day' });
+    const prefs = U.store.get('readerPrefs', { zoom: 1, theme: 'day', paged: false });
     const prog = D.prog(bookId);
     let start = opts.page || (prog && prog.last) || U.store.get('last:' + bookId, 1) || 1;
     start = U.clamp(start | 0, 1, book.pages || 1);
@@ -62,10 +62,12 @@
       sizeFix: {}, els: new Map(), want: [], busy: false, gen: 0, cur: start, lastSaved: start,
       pending: new Set(), dwellP: 0, dwellN: 0, sessionPages: 0, flash: opts.flash || null, uiHidden: false,
       notesVer: -1, panel: null, filter: 'wird', lastTop: 0,
+      paged: !!prefs.paged, startedAt: Date.now(), activeSecs: 0, secsPending: 0, userAt: 0, activeAt: Date.now(),
     };
     root.hidden = false;
     document.body.classList.add('reading');
     root.innerHTML = shell();
+    root.querySelector('.rd').classList.toggle('paged', st.paged);
     st.root = root;
     st.sc = root.querySelector('#rd-scroll');
     st.pagesEl = root.querySelector('#rd-pages');
@@ -92,6 +94,7 @@
 
   R.close = (silent) => {
     if (!st) return;
+    const summary = !silent && (st.sessionPages >= 3 || st.activeSecs >= 60) ? { bookId: st.bookId, pages: st.sessionPages, secs: st.activeSecs } : null;
     flush();
     clearInterval(st.tick);
     clearInterval(st.flushT);
@@ -107,6 +110,7 @@
     st = null;
     D.presence({ b: null, p: null });
     if (!silent) A.V && A.V.render();
+    if (summary && A.V && A.V.sessionSummary) setTimeout(() => A.V.sessionSummary(summary), 250);
   };
 
   /* Local copy previously opened from this device replaces the network parts. */
@@ -168,18 +172,34 @@
     st.hs = new Float64Array(N + 2);
     let y = TOP_PAD;
     let maxW = 0;
-    for (let p = 1; p <= N; p++) {
-      const [w0, h0] = size(p);
-      const w = Math.round(st.baseW * st.zoom * Math.min(1, Math.max(0.6, w0 / (size(1)[0] || w0))));
-      const h = Math.round((w * h0) / w0);
-      st.tops[p] = y;
-      st.ws[p] = w;
-      st.hs[p] = h;
-      y += h + GAP;
-      if (w > maxW) maxW = w;
+    if (st.paged) {
+      // One page per screen-high slot, centred, fitted to the screen like a printed page.
+      const H = (st.slotH = st.sc.clientHeight || window.innerHeight);
+      for (let p = 1; p <= N; p++) {
+        const [w0, h0] = size(p);
+        const w = Math.round(Math.min(st.baseW, ((H - 12) * w0) / h0));
+        const h = Math.round((w * h0) / w0);
+        st.tops[p] = (p - 1) * H + Math.round((H - h) / 2);
+        st.ws[p] = w;
+        st.hs[p] = h;
+        if (w > maxW) maxW = w;
+      }
+      st.tops[N + 1] = N * H;
+      st.totalH = N * H;
+    } else {
+      for (let p = 1; p <= N; p++) {
+        const [w0, h0] = size(p);
+        const w = Math.round(st.baseW * st.zoom * Math.min(1, Math.max(0.6, w0 / (size(1)[0] || w0))));
+        const h = Math.round((w * h0) / w0);
+        st.tops[p] = y;
+        st.ws[p] = w;
+        st.hs[p] = h;
+        y += h + GAP;
+        if (w > maxW) maxW = w;
+      }
+      st.tops[N + 1] = y;
+      st.totalH = y + BOT_PAD;
     }
-    st.tops[N + 1] = y;
-    st.totalH = y + BOT_PAD;
     st.innerW = Math.max(avail, maxW + gutter * 2);
     st.pagesEl.style.height = st.totalH + 'px';
     st.pagesEl.style.width = st.innerW + 'px';
@@ -192,6 +212,7 @@
     el.style.height = st.hs[p] + 'px';
   }
   function pageAt(y) {
+    if (st.paged) return U.clamp(Math.floor(y / st.slotH) + 1, 1, st.N);
     let lo = 1, hi = st.N;
     while (lo < hi) {
       const mid = (lo + hi + 1) >> 1;
@@ -216,6 +237,14 @@
     sc.scrollLeft = left + a.fx * st.ws[a.p] - a.ax;
   }
   function relayout(anchor) {
+    if (st.paged) {
+      const p = st.cur;
+      geom();
+      st.sc.scrollTop = (p - 1) * st.slotH;
+      st.gen++;
+      update();
+      return;
+    }
     const a = anchor || anchorAt(st.sc.clientWidth / 2, st.sc.clientHeight * 0.33);
     geom();
     restoreAnchor(a);
@@ -223,6 +252,7 @@
     update();
   }
   function setZoom(z, ax, ay) {
+    if (st.paged) setPaged(false);
     z = U.clamp(Math.round(z * 100) / 100, 0.5, 4);
     if (Math.abs(z - st.zoom) < 0.01) return;
     const a = anchorAt(ax == null ? st.sc.clientWidth / 2 : ax, ay == null ? st.sc.clientHeight * 0.33 : ay);
@@ -233,8 +263,26 @@
     if (zl) zl.textContent = L.num(Math.round(z * 100)) + (L.isAr() ? '٪' : '%');
   }
   function savePrefs() {
-    U.store.set('readerPrefs', { zoom: st.zoom, theme: st.theme });
+    U.store.set('readerPrefs', { zoom: st.zoom, theme: st.theme, paged: st.paged });
   }
+  function setPaged(on) {
+    if (!st || st.paged === on) return;
+    const p = st.cur;
+    st.paged = on;
+    if (on) st.zoom = 1;
+    st.root.querySelector('.rd').classList.toggle('paged', on);
+    savePrefs();
+    geom();
+    goTo(p, false);
+    st.gen++;
+    update();
+  }
+  /* +1 = next page in reading order. */
+  function turn(dir) {
+    if (!st) return;
+    goTo(st.cur + dir, true);
+  }
+  const bookRTL = () => st.book.lang !== 'en';
 
   /* ---------- virtualised pages ---------- */
   function makeEl(p) {
@@ -367,7 +415,7 @@
   function goTo(p, smooth = true, flashNid) {
     if (!st) return;
     p = U.clamp(p | 0, 1, st.N);
-    const y = st.tops[p] - TOP_PAD + 8;
+    const y = st.paged ? (p - 1) * st.slotH : st.tops[p] - TOP_PAD + 8;
     st.sc.scrollTo({ top: y, behavior: smooth && !reduced() ? 'smooth' : 'auto' });
     if (flashNid) setTimeout(() => flash(flashNid), smooth ? 500 : 80);
     if (!smooth) update();
@@ -398,6 +446,10 @@
   /* A page counts as read after ~3 seconds as the current page. */
   function tick() {
     if (!st || document.hidden) return;
+    if (Date.now() - st.activeAt < 180000) {
+      st.activeSecs++;
+      st.secsPending++;
+    }
     if (st.cur === st.dwellP) {
       st.dwellN++;
       if (st.dwellN === 3) markSeen(st.cur);
@@ -427,16 +479,21 @@
     const cur = st.cur;
     const prog = D.prog(bookId);
     const fresh = pages.filter((p) => !(prog && U.rangesHas(prog.seen, p)));
-    if (!fresh.length && prog && prog.last === cur) return;
-    if (!fresh.length && Math.abs((st.lastSaved || 0) - cur) < 1) return;
+    const secs = st.secsPending >= 30 ? st.secsPending : 0;
+    if (secs) st.secsPending = 0;
+    if (!fresh.length && !secs && prog && prog.last === cur) return;
+    if (!fresh.length && !secs && Math.abs((st.lastSaved || 0) - cur) < 1) return;
     st.lastSaved = cur;
     try {
-      await D.saveProg(bookId, (c) => ({ seen: U.rangesAdd(c.seen, fresh), last: cur }));
-      if (fresh.length) await D.addPagesToday(fresh.length);
+      if (fresh.length || !prog || prog.last !== cur) await D.saveProg(bookId, (c) => ({ seen: U.rangesAdd(c.seen, fresh), last: cur }));
+      if (fresh.length || secs) await D.addPagesToday(fresh.length, secs);
     } catch (e) {
       // Offline or a failed save: keep the pages so the next flush retries them.
       if (st && st.bookId === bookId) for (const p of fresh) st.pending.add(p);
-      st && (st.lastSaved = 0);
+      if (st) {
+        st.lastSaved = 0;
+        st.secsPending += secs;
+      }
     }
   }
   R.flush = flush;
@@ -628,7 +685,7 @@
     const curW = G.wirds(b).find((x) => st.cur >= x.from && st.cur <= x.to);
     if (wEl) {
       wEl.textContent = curW
-        ? L(`الورد ${L.num(curW.n)} · ص ${L.num(curW.from)}–${L.num(curW.to)}`, `Portion ${curW.n} · p. ${curW.from}–${curW.to}`)
+        ? L(`الورد ${L.num(curW.n)} • ص ${L.num(curW.from)}–${L.num(curW.to)}`, `Portion ${curW.n} • p. ${curW.from}–${curW.to}`)
         : L(`صفحة ${L.num(st.cur)} من ${L.num(st.N)}`, `Page ${st.cur} of ${st.N}`);
     }
     // finish prompt
@@ -674,7 +731,7 @@
     for (const p of D.bookProgs(st.bookId)) {
       if (p.u === S.me || k > 10) continue;
       const at = live.has(p.u) ? live.get(p.u) : p.last || 1;
-      others += `<span class="sm-av${live.has(p.u) ? ' live' : ''}" style="${side}:${pos(at)}%" title="${U.esc(D.name(p.u))} · ${L.num(at)}">${D.avatar(p.u, 'xs')}</span>`;
+      others += `<span class="sm-av${live.has(p.u) ? ' live' : ''}" style="${side}:${pos(at)}%" title="${U.esc(D.name(p.u))} • ${L.num(at)}">${D.avatar(p.u, 'xs')}</span>`;
       live.delete(p.u);
       k++;
     }
@@ -696,7 +753,7 @@
     const s = el.querySelector('#rd-load-s');
     const multi = st.parts.length > 1 && part && part.id !== 'local';
     s.textContent = multi
-      ? L(`الجزء ص ${L.num(part.from)}–${L.num(part.to)} · ${L.num(Math.round(f * 100))}٪`, `Part p. ${part.from}–${part.to} · ${Math.round(f * 100)}%`)
+      ? L(`الجزء ص ${L.num(part.from)}–${L.num(part.to)} • ${L.num(Math.round(f * 100))}٪`, `Part p. ${part.from}–${part.to} • ${Math.round(f * 100)}%`)
       : f
         ? L(`${L.num(Math.round(f * 100))}٪ — بعد كده هيفتح على طول من جهازك`, `${Math.round(f * 100)}% — next time it opens instantly from this device`)
         : '';
@@ -741,7 +798,8 @@
 
   /* ---------- events ---------- */
   function bind() {
-    const root = st.root;
+    // Listeners go on the per-open .rd element (rebuilt on every open), never on the persistent #reader root.
+    const root = st.root.firstElementChild; // the .rd element
     const sc = st.sc;
     sc.addEventListener('scroll', () => {
       if (!st) return;
@@ -757,15 +815,32 @@
             const hide = byUser && dy > 0 && t > 120 && st.mode === 'none';
             if (hide !== st.uiHidden) {
               st.uiHidden = hide;
-              root.querySelector('.rd').classList.toggle('ui-off', hide);
+              root.classList.toggle('ui-off', hide);
             }
             st.lastTop = t;
           }
         });
     }, { passive: true });
-    const touched = () => st && (st.userAt = Date.now());
+    const touched = () => st && (st.userAt = st.activeAt = Date.now());
     sc.addEventListener('wheel', touched, { passive: true });
     sc.addEventListener('touchmove', touched, { passive: true });
+    sc.addEventListener('pointerdown', touched, { passive: true });
+    // Page-by-page mode: horizontal swipe turns the page in the book's direction.
+    let sw = null;
+    sc.addEventListener('touchstart', (e) => {
+      sw = st && st.paged && st.mode === 'none' && e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null;
+    }, { passive: true });
+    sc.addEventListener('touchend', (e) => {
+      if (!sw || !st) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - sw.x, dy = t.clientY - sw.y;
+      const quick = Date.now() - sw.t < 700;
+      sw = null;
+      if (quick && Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        st.swiped = Date.now();
+        turn((dx > 0) === bookRTL() ? 1 : -1);
+      }
+    }, { passive: true });
 
     root.addEventListener('click', (e) => {
       if (!st) return;
@@ -776,9 +851,19 @@
       }
       const t = e.target.closest('[data-act]');
       if (!t) {
+        if (st.paged && e.target.closest('.rd-scroll') && st.mode === 'none' && !e.target.closest('button') && Date.now() - (st.swiped || 0) > 400) {
+          // Tap the outer quarter of the screen to turn the page, like a book.
+          const r = st.sc.getBoundingClientRect();
+          const fx = (e.clientX - r.left) / r.width;
+          if (fx < 0.25 || fx > 0.75) {
+            const towardsLeft = fx < 0.25;
+            turn(towardsLeft === bookRTL() ? 1 : -1);
+            return;
+          }
+        }
         if (e.target.closest('.rd-scroll') && st.mode === 'none' && !e.target.closest('button')) {
           st.uiHidden = !st.uiHidden;
-          root.querySelector('.rd').classList.toggle('ui-off', st.uiHidden);
+          root.classList.toggle('ui-off', st.uiHidden);
         }
         return;
       }
@@ -789,7 +874,7 @@
       else if (act === 'fit') setZoom(1);
       else if (act === 'theme') {
         st.theme = { day: 'sepia', sepia: 'night', night: 'day' }[st.theme] || 'day';
-        root.querySelector('.rd').dataset.theme = st.theme;
+        root.dataset.theme = st.theme;
         t.innerHTML = U.icon(st.theme === 'night' ? 'moon' : st.theme === 'sepia' ? 'scroll' : 'sun');
         savePrefs();
       } else if (act === 'tool') setMode(t.dataset.tool);
@@ -892,11 +977,15 @@
     if (document.querySelector('.sheet-wrap')) return;
     const sc = st.sc;
     const k = e.key;
-    st.userAt = Date.now();
+    st.userAt = st.activeAt = Date.now();
     if (k === 'Escape') {
       if (st.mode !== 'none') setMode(st.mode);
       else if (st.panel) togglePanel(false);
       else R.close();
+    } else if (st.paged && (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'PageDown' || k === 'PageUp' || k === ' ' || k === 'ArrowDown' || k === 'ArrowUp')) {
+      e.preventDefault();
+      const fwd = k === 'PageDown' || k === ' ' || k === 'ArrowDown' || (k === 'ArrowLeft' ? bookRTL() : k === 'ArrowRight' ? !bookRTL() : false);
+      turn(fwd ? 1 : -1);
     } else if (k === 'PageDown' || k === ' ' || k === 'ArrowDown') {
       e.preventDefault();
       sc.scrollBy({ top: k === 'ArrowDown' ? 60 : sc.clientHeight * 0.88, behavior: reduced() ? 'auto' : 'smooth' });
@@ -956,6 +1045,9 @@
     const marked = !!marks[st.cur];
     A.V.menu([
       { ic: 'bookmark', t: marked ? L('شيل العلامة من الصفحة دي', 'Remove bookmark here') : L('علّم الصفحة دي', 'Bookmark this page'), fn: () => A.V.toggleMark(st.bookId, st.cur) },
+      st.paged
+        ? { ic: 'scroll', t: L('تمرير متواصل', 'Continuous scrolling'), fn: () => setPaged(false) }
+        : { ic: 'book', t: L('صفحة صفحة (زي الكتاب)', 'Page by page (like a book)'), fn: () => setPaged(true) },
       S.sample ? { ic: 'claude', t: L('اسأل Claude عن الصفحة دي', 'Ask Claude about this page'), fn: () => A.V.askPage(st.bookId, st.cur) } : null,
       { ic: 'chat', t: L('نقاش الكتاب', 'Book discussion'), fn: () => { R.close(); A.V.go('book-' + b.id, { tab: 'talk' }); } },
       (b.parts || []).length ? { ic: 'download', t: L('حمّل الكتاب على جهازك', 'Download the book'), fn: () => A.V.download(b.id) } : null,

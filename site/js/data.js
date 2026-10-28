@@ -293,14 +293,17 @@
       return S.db.doc(path).set(body);
     });
 
-  D.addPagesToday = async (n) => {
-    if (!n || !S.members.has(S.me) || !D.canWrite()) return;
+  /* New pages read today, and seconds spent reading. */
+  D.addPagesToday = async (n, secs = 0) => {
+    if ((!n && !secs) || !S.members.has(S.me) || !D.canWrite()) return;
     const path = `members/${S.me}`;
     await D.mutate(path, () => {
       const m = S.members.get(S.me);
       if (!m) return null;
       const k = U.today();
-      const body = Object.assign({}, m, { days: Object.assign({}, m.days, { [k]: ((m.days && m.days[k]) || 0) + n }), lastActive: k });
+      const body = Object.assign({}, m, { lastActive: k });
+      if (n) body.days = Object.assign({}, m.days, { [k]: ((m.days && m.days[k]) || 0) + n });
+      if (secs) body.secs = Object.assign({}, m.secs, { [k]: ((m.secs && m.secs[k]) || 0) + Math.round(secs) });
       delete body.id;
       return body;
     });

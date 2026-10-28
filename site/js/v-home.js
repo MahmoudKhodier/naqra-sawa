@@ -41,7 +41,7 @@
           : L(`${L.count(s.streak, 'day')} قراية ورا بعض. عاش!`, `${L.count(s.streak, 'day')} in a row. Brilliant!`);
     return `<div class="home">
       <section class="greet">
-        <div><h1>${greet()}، <span dir="auto">${esc(D.name(S.me))}</span></h1><p class="${s.atRisk ? 'risk' : ''}">${icon('flame')}${streakLine}</p></div>
+        <div><h1>${greet()}، <span dir="auto">${esc(D.name(S.me))}</span></h1>${V.showHijri && V.showHijri() && L.hijri ? `<small class="hijri">${esc(L.day(U.today()))} • ${esc(L.hijri())}</small>` : ''}<p class="${s.atRisk ? 'risk' : ''}">${icon('flame')}${streakLine}</p></div>
       </section>
       ${pokesBlock()}
       <div class="home-grid">
@@ -51,6 +51,7 @@
           ${feedBlock()}
         </div>
         <div class="col-side">
+          ${V.startChecklist ? V.startChecklist() : ''}
           ${D.canWrite() ? questsBlock() : ''}
           ${groupBlock()}
         </div>
@@ -103,14 +104,14 @@
       body = `<div class="wird-line">
           ${V.star(L.num(w.n), st === 'late' ? 'rubric' : 'gold')}
           <div class="wl-t"><b>${L(`الورد ${L.num(w.n)} من ${L.num(ws.length)}`, `Portion ${w.n} of ${ws.length}`)}</b>
-          <span>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)} · <span class="due ${st}">${L.due(w.due)}</span></span></div>
+          <span>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)} • <span class="due ${st}">${L.due(w.due)}</span></span></div>
         </div>
         <div class="wl-prog">${V.bar(seen / total, st === 'late' ? 'rubric' : 'lapis')}<small>${L(`قريت ${L.num(seen)} من ${L.count(total, 'page')}`, `${seen} of ${total} pages read`)}</small></div>
         <div class="row-btns">
           <button class="btn big" data-act="read" data-b="${esc(b.id)}" data-p="${startAt}">${icon('play', 'flip-rtl')}${startAt > w.from ? L(`كمّل من ص ${L.num(startAt)}`, `Continue from p. ${startAt}`) : L('يلا نقرأ', 'Start reading')}</button>
           ${D.canWrite() ? `<button class="btn jade" data-act="mark-wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}">${icon('check')}${L('خلّصته', 'Done')}</button>` : ''}
         </div>
-        <div class="group-row"><div class="mavs">${avs}</div><small>${L(`${L.num(done.length)} من ${L.num(members.length)} خلّصوا`, `${done.length} of ${members.length} finished`)}${live.length ? ` · <span class="live-t">${L(`في القراية دلوقتي: ${L.num(live.length)}`, `${live.length} reading now`)}</span>` : ''}</small></div>`;
+        <div class="group-row"><div class="mavs">${avs}</div><small>${L(`${L.num(done.length)} من ${L.num(members.length)} خلّصوا`, `${done.length} of ${members.length} finished`)}${live.length ? ` • <span class="live-t">${L(`في القراية دلوقتي: ${L.num(live.length)}`, `${live.length} reading now`)}</span>` : ''}</small></div>`;
     }
     return `<section class="card wcard">
       <header class="wc-head" data-go="book-${esc(b.id)}">${V.cover(b, 'sm')}<div><small class="eyebrow">${L('بنقرأ دلوقتي', 'Reading now')}</small><h2 dir="auto">${esc(b.title)}</h2>${b.author ? `<span class="muted" dir="auto">${esc(b.author)}</span>` : ''}</div>${icon('fwd', 'flip go')}</header>
@@ -165,7 +166,7 @@
         .join('')}</ul>
       <button class="chest${all ? ' ready' : ''}${opened ? ' opened' : ''}" data-act="chest" ${all && !opened ? '' : 'disabled'} aria-label="${L('صندوق المكافأة', 'Reward chest')}">
         <span class="chest-ic">${icon('chest')}</span>
-        <span>${opened ? L(`اتفتح النهارده · +${L.num(G.XP.quests)} XP`, `Opened today · +${G.XP.quests} XP`) : all ? L('افتح الصندوق!', 'Open the chest!') : L(`خلّص التلاتة وافتح الصندوق (+${L.num(G.XP.quests)} XP)`, `Finish all three to open the chest (+${G.XP.quests} XP)`)}</span>
+        <span>${opened ? L(`اتفتح النهارده • +${L.num(G.XP.quests)} XP`, `Opened today • +${G.XP.quests} XP`) : all ? L('افتح الصندوق!', 'Open the chest!') : L(`خلّص التلاتة وافتح الصندوق (+${L.num(G.XP.quests)} XP)`, `Finish all three to open the chest (+${G.XP.quests} XP)`)}</span>
       </button>
     </section>`;
   }
@@ -194,7 +195,7 @@
       <div class="live-list">${live
         .map((x) => {
           const b = S.books.get(x.b);
-          return `<button class="live-it" data-act="read" data-b="${esc(x.b)}" ${x.p ? `data-p="${x.p}"` : ''}>${D.avatar(x.uid, 'sm')}<span><b>${esc(D.name(x.uid))}</b><small dir="auto">${b ? esc(b.title) : ''}${x.p ? ` · ${L('ص', 'p.')} ${L.num(x.p)}` : ''}</small></span><span class="join">${L('انضم', 'Join in')}</span></button>`;
+          return `<button class="live-it" data-act="read" data-b="${esc(x.b)}" ${x.p ? `data-p="${x.p}"` : ''}>${D.avatar(x.uid, 'sm')}<span><b>${esc(D.name(x.uid))}</b><small dir="auto">${b ? esc(b.title) : ''}${x.p ? ` • ${L('ص', 'p.')} ${L.num(x.p)}` : ''}</small></span><span class="join">${L('انضم', 'Join in')}</span></button>`;
         })
         .join('')}</div>
     </section>`;
@@ -251,22 +252,22 @@
     let txt = '', ic = 'sparkle', cls = '';
     if (x.kind === 'wird') {
       const first = G.firstFinisher(x.b.id, x.w.id) === x.u;
-      txt = L(`· الورد ${L.num(x.w.n)} من «${esc(x.b.title)}» خلص ✓${first ? ' — أول من خلّصه!' : ''}`, `finished portion ${x.w.n} of “${esc(x.b.title)}”${first ? ' — first!' : ''}`);
+      txt = L(`• الورد ${L.num(x.w.n)} من «${esc(x.b.title)}» خلص ✓${first ? ' — أول من خلّصه!' : ''}`, `finished portion ${x.w.n} of “${esc(x.b.title)}”${first ? ' — first!' : ''}`);
       ic = 'check';
       cls = first ? 'gold' : 'jade';
     } else if (x.kind === 'book') {
-      txt = L(`· كتاب «${esc(x.b.title)}» خلص 🏆`, `finished “${esc(x.b.title)}” 🏆`);
+      txt = L(`• كتاب «${esc(x.b.title)}» خلص 🏆`, `finished “${esc(x.b.title)}” 🏆`);
       ic = 'trophy';
       cls = 'gold';
     } else if (x.kind === 'shelf') {
       const names = x.list.slice(0, 3).map((it) => `«${esc(it.title)}»`).join(L('، ', ', '));
       const more = x.list.length - 3;
       txt = x.list.length === 1
-        ? L(`· كتاب جديد في المكتبة: ${names}`, `added ${names} to their shelf`) + (x.list[0].rating ? ' ' + V.stars(x.list[0].rating) : '')
-        : L(`· ${L.count(x.list.length, 'book')} جداد في المكتبة: ${names}${more > 0 ? ` و${L.num(more)} كمان` : ''}`, `added ${x.list.length} books to their shelf: ${names}${more > 0 ? ` and ${more} more` : ''}`);
+        ? L(`• كتاب جديد في المكتبة: ${names}`, `added ${names} to their shelf`) + (x.list[0].rating ? ' ' + V.stars(x.list[0].rating) : '')
+        : L(`• ${L.count(x.list.length, 'book')} جداد في المكتبة: ${names}${more > 0 ? ` و${L.num(more)} كمان` : ''}`, `added ${x.list.length} books to their shelf: ${names}${more > 0 ? ` and ${more} more` : ''}`);
       ic = 'shelf';
     } else if (x.kind === 'newbook') {
-      txt = L(`· كتاب جديد للحلقة: «${esc(x.b.title)}»`, `added a new book: “${esc(x.b.title)}”`);
+      txt = L(`• كتاب جديد للحلقة: «${esc(x.b.title)}»`, `added a new book: “${esc(x.b.title)}”`);
       ic = 'books';
       cls = 'lapis';
     }
@@ -284,7 +285,7 @@
     return `<div class="onboard">
       <div class="ob-art" aria-hidden="true"><span class="star8 gold big"></span><span class="star8 lapis"></span><span class="star8 jade sm"></span><span class="star8 rubric xs"></span></div>
       <div class="ob-card">
-        <small class="eyebrow">${circle ? esc(circle) : L('حلقة قراءة', 'A reading circle')}${n ? ' · ' + L.count(n, 'member') : ''}</small>
+        <small class="eyebrow">${circle ? esc(circle) : L('حلقة قراءة', 'A reading circle')}${n ? ' • ' + L.count(n, 'member') : ''}</small>
         <h1>${L('نقرأ سوا', 'Read Together')}</h1>
         <p class="lead">${L('كتاب واحد، أوراد متقسمة، تعليقات على الصفحات، ونقاش مع أصحابك وعيلتك. وكل صفحة بتقراها بتكسبك XP.', 'One book, daily portions, notes in the margins and conversations with friends and family. Every page you read earns XP.')}</p>
         <ul class="ob-feats">
