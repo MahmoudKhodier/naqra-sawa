@@ -11,7 +11,8 @@ Arabic-first reading-circle app (PWA + Android via Capacitor) backed by Supabase
 - `tests/sql/` — RLS tests on a throwaway local Postgres 16. `tests/fake-supabase/` + `tests/e2e/` — fake Supabase on local Postgres for Playwright end-to-end tests.
 
 ## Status (2026-10-28)
-Supabase project `ecptsvagvauqpxtapwst` (eu-central-1) has both migrations applied (run by the owner in SQL Editor, so `list_migrations` is empty). `config.js` points at it. GitHub Pages is live at https://mahmoudkhodier.github.io/naqra-sawa/. Security advisor only flags the intended SECURITY DEFINER RPCs (they check permissions themselves). Pending: auth email template, SMTP, URL config (dashboard), then a live smoke test. Web push not set up.
+Supabase project `ecptsvagvauqpxtapwst` (eu-central-1) has both migrations applied (run by the owner in SQL Editor, so `list_migrations` is empty). `config.js` points at it. GitHub Pages is live at https://mahmoudkhodier.github.io/naqra-sawa/. The owner did the dashboard auth setup (code email template, Gmail SMTP, URLs) and signed in live. Security advisor only flags the intended SECURITY DEFINER RPCs. Web push not set up.
+Android: no release-keystore secrets; `android.yml` signs with an app key it created once and keeps in the Actions cache (`~/.naqra-signing`, kept alive by `keep-signing-key.yml`; cert SHA-256 `2C:4A:86:…:67:7C`, printed in each release's notes — it must not change). The app updates itself from the `android-latest` release (`site/js/update.js` + `AppUpdatePlugin.java`). GitHub's Actions secrets/logs/cache APIs are blocked from this sandbox; workflow dispatch and check-run annotations work via `gh api`.
 
 ## Provisioning checklist (do this when the Supabase connector is available)
 1. List orgs/projects; create a project named `naqra-sawa` on the FREE plan (confirm the cost is $0 with the user before creating), region closest to Egypt (eu-central-1).
