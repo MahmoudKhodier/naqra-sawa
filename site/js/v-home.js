@@ -442,7 +442,6 @@
   }
 
   /* ---------- onboarding ---------- */
-  const EMOJI = ['📚', '🦉', '🌙', '🌿', '☕', '🐢', '🦊', '⭐'];
   V.screens.onboard = () => {
     const pname = (S.meInfo && S.meInfo.name) || '';
     const canJoin = D.canWrite();
@@ -463,8 +462,8 @@
           ? `<form id="join-form" class="ob-form">
           <label for="join-name">${L('اسمك اللي أصحابك هيشوفوه', 'The name your friends will see')}</label>
           <input id="join-name" maxlength="40" required autocomplete="nickname" dir="auto" value="${esc(pname)}" placeholder="${L('مثلا: محمود', 'e.g. Sam')}">
-          <span class="lbl">${L('اختار علامة (اختياري)', 'Pick a mark (optional)')}</span>
-          <div class="emo" role="radiogroup">${EMOJI.map((e) => `<button type="button" class="emo-b" data-emo="${e}" aria-label="${e}">${e}</button>`).join('')}</div>
+          <span class="lbl">${L('اختار علامة (اختياري — تقدر تغيّرها بعدين من الإعدادات)', 'Pick a mark (optional — you can change it later in Settings)')}</span>
+          <div class="emo" role="radiogroup">${V.EMOJI.slice(0, 16).map((e) => `<button type="button" class="emo-b" data-emo="${e}" aria-label="${e}">${e}</button>`).join('')}</div>
           <button class="btn gold big full" type="submit">${L('انضم للحلقة', 'Join the circle')}</button>
         </form>`
           : `<div class="ro-note">${icon('eye')}<p>${L('مش قادر تكتب في الحلقة دي دلوقتي. اطلب لينك دعوة جديد من صاحب الحلقة.', 'You cannot write in this circle right now. Ask the owner for a new invite link.')}</p><button class="btn ghost" data-act="view-only">${L('اتفرّج بس', 'Just look around')}</button></div>`}

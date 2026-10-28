@@ -239,7 +239,7 @@ textarea { resize: vertical; line-height: 1.55; }
 .screen { width: 100%; max-width: 1180px; margin: 0 auto; padding-block: 18px 110px; padding-left: var(--gut-l); padding-right: var(--gut-r); }
 .nav { position: fixed; inset: auto 0 0; z-index: 25; display: flex; justify-content: space-around; background: var(--glass); backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4); border-top: 1px solid var(--line); padding: 6px var(--gut-r) calc(6px + env(safe-area-inset-bottom, 0px)) var(--gut-l); }
 .nav .brand { display: none; }
-.nv { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; min-width: 56px; border-radius: 12px; color: var(--ink3); text-decoration: none; font-size: .7rem; font-weight: 600; flex: 1; max-width: 96px; }
+.nv { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; min-width: 48px; border-radius: 12px; color: var(--ink3); text-decoration: none; font-size: .7rem; font-weight: 600; flex: 1; max-width: 96px; }
 .nv .ic { width: 24px; height: 24px; }
 .nv { color: var(--ink2); font-size: .74rem; }
 .nv .ic { width: 22px; height: 22px; padding: 0; box-sizing: content-box; }
@@ -974,6 +974,13 @@ textarea { resize: vertical; line-height: 1.55; }
 .emo { display: flex; gap: 6px; flex-wrap: wrap; }
 .emo-b { width: 42px; height: 42px; border-radius: 12px; border: 2px solid var(--line); font-size: 1.3rem; background: var(--card2); }
 .emo-b.on { border-color: var(--lapis); background: var(--lapis-s); transform: scale(1.08); }
+.emo-all { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 5px; margin: 6px 0 4px; }
+.emo-all .emo-b { width: auto; aspect-ratio: 1; height: auto; max-height: 46px; font-size: 1.15rem; border-radius: 10px; border-width: 1.5px; }
+.emo-b.letter { font: 700 1.15rem var(--f-ui); color: var(--ink2); }
+.set-me { display: flex; align-items: center; gap: 14px; margin: 4px 0 10px; }
+.set-me-av { flex: none; border-radius: 50%; }
+.set-me .form { flex: 1; min-width: 0; margin: 0; }
+.set-lbl { display: block; margin-top: 4px; }
 .ro-note { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 14px; background: var(--gold-s); }
 .ro-note .ic { color: var(--gold-t); }
 

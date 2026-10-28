@@ -38,7 +38,15 @@
     `<div class="empty"><span class="star8 faint"></span><b>${title}</b>${text ? `<p>${text}</p>` : ''}${action}</div>`;
 
   /* ---------- routing ---------- */
-  const ROUTES = ['home', 'books', 'shelf', 'circle', 'me'];
+  const ROUTES = ['home', 'books', 'shelf', 'circle', 'me', 'settings'];
+  /* Avatar marks people can pick (onboarding shows the first 16; Settings shows all). */
+  V.EMOJI = [
+    '📚', '🦉', '🌙', '🌿', '☕', '🐢', '🦊', '⭐',
+    '🐱', '🐶', '🐼', '🦁', '🐰', '🐧', '🦋', '🌸',
+    '🐨', '🐯', '🐻', '🐝', '🐬', '🐳', '🦄', '🐪',
+    '☀️', '🌻', '🌵', '🍀', '🌊', '🔥', '🌈', '🏔️',
+    '📖', '✏️', '🍵', '🎨', '🎧', '🚀', '💡', '🧩',
+  ];
   V.go = (route, opts = {}) => {
     V.state = { route, opts };
     const h = '#' + route;
@@ -187,7 +195,8 @@
       ${item('books', 'books', L('كتبنا', 'Our books'))}
       ${item('shelf', 'shelf', L('مكتبتي', 'My shelf'))}
       ${item('circle', 'users', L('الحلقة', 'Circle'), unreadCircle)}
-      ${item('me', 'user', L('أنا', 'Me'))}`;
+      ${item('me', 'user', L('أنا', 'Me'))}
+      ${item('settings', 'gear', L('إعدادات', 'Settings'))}`;
   }
 
   function greeting() {

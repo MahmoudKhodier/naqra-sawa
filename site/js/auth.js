@@ -307,7 +307,7 @@
     V.menu(items);
   };
 
-  /* Extra settings shown on my profile. */
+  /* Extra settings shown on the Settings tab. */
   V.extraSettings = () => {
     const c = A.CIRCLE || {};
     const role = P.role ? P.role() : '';

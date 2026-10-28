@@ -142,7 +142,7 @@
     if (b) V.planWizard(b.id);
   };
   V.actions['go-settings'] = () => {
-    V.go('me');
+    V.go('settings');
     setTimeout(() => {
       const el = document.getElementById('set-remind');
       if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });

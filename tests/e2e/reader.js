@@ -553,7 +553,7 @@ async function menu(p, text) {
       const h1 = await p.$eval('.bp-info h1', (e) => e.textContent.trim());
       assert(h1.startsWith('كتاب باسم جديد'), 'page still shows ' + h1);
       // Settings → Reading
-      await p.evaluate(() => window.A.V.go('me'));
+      await p.click('[data-go="settings"]');
       await T(600);
       await p.click('[data-act="rd-tools"][data-v="right"]');
       await p.click('[data-act="rd-marks"][data-v="mine"]');

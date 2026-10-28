@@ -664,7 +664,7 @@ const appState = (page) =>
     await step('A signs out: back to sign-in, session and synced cache cleared', async () => {
       const p = pages.A;
       await p.keyboard.press('Escape');
-      await p.click('[data-go="me"]');
+      await p.click('[data-go="settings"]');
       await p.click('[data-auth="signout"]');
       await p.waitForSelector('#auth-mail', { timeout: 15000 });
       const left = await p.evaluate(async () => ({ keys: Object.keys(localStorage), dbs: indexedDB.databases ? (await indexedDB.databases()).map((d) => d.name) : null }));

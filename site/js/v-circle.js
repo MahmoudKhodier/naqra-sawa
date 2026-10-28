@@ -188,9 +188,11 @@
         <header class="sec-h"><h2>${L('خريطة القراية', 'Reading map')}</h2><small class="muted">${L('آخر ١٨ أسبوع', 'Last 18 weeks')}</small></header>
         ${heatmap(s)}
       </section>
-      ${mine ? settings() : ''}
     </div>`;
   };
+
+  /* ---------- settings (its own tab) ---------- */
+  V.screens.settings = () => `<div class="settings-page">${settings()}</div>`;
 
   function heatmap(s) {
     const weeks = 18;
@@ -220,7 +222,15 @@
     const theme = U.store.get('theme', 'light');
     return `<section class="card settings">
       <header class="sec-h"><h2>${icon('gear')}${L('الإعدادات', 'Settings')}</h2></header>
-      ${D.canWrite() ? `<form id="me-form" class="form inline"><label for="me-nick">${L('اسمك في الحلقة', 'Your name in the circle')}</label><div class="row"><input id="me-nick" maxlength="40" dir="auto" value="${esc(m.nick || '')}"><button class="btn sm">${L('احفظ', 'Save')}</button></div></form>` : ''}
+      ${D.canWrite() && S.members.has(S.me) ? `<div class="set-me">
+        <button class="set-me-av" data-go="me" aria-label="${L('ملفي', 'My profile')}">${D.avatar(S.me, 'xl')}</button>
+        <form id="me-form" class="form inline"><label for="me-nick">${L('اسمك في الحلقة', 'Your name in the circle')}</label><div class="row"><input id="me-nick" maxlength="40" dir="auto" value="${esc(m.nick || '')}"><button class="btn sm">${L('احفظ', 'Save')}</button></div></form>
+      </div>
+      <span class="lbl set-lbl">${L('علامتك (الصورة اللي بتظهر جنب اسمك)', 'Your mark (shown next to your name)')}</span>
+      <div class="emo emo-all" role="radiogroup" aria-label="${L('علامتك', 'Your mark')}">
+        <button type="button" class="emo-b letter${m.emoji ? '' : ' on'}" data-act="set-emoji" data-emo="" role="radio" aria-checked="${!m.emoji}" aria-label="${L('أول حرف من اسمي', 'First letter of my name')}">${esc(Array.from(D.name(S.me).trim())[0] || '؟')}</button>
+        ${V.EMOJI.map((e) => `<button type="button" class="emo-b${m.emoji === e ? ' on' : ''}" data-act="set-emoji" data-emo="${e}" role="radio" aria-checked="${m.emoji === e}" aria-label="${e}">${e}</button>`).join('')}
+      </div>` : ''}
       <div class="set-row"><span>${icon('lang')}${L('اللغة', 'Language')}</span><div class="seg sm"><button class="${L.isAr() ? 'on' : ''}" data-act="${L.isAr() ? '' : 'lang'}">العربية</button><button class="${L.isAr() ? '' : 'on'}" data-act="${L.isAr() ? 'lang' : ''}">English</button></div></div>
       <div class="set-row"><span>${icon('moon')}${L('المظهر', 'Appearance')}</span><div class="seg sm">${[['system', L('تلقائي', 'Auto')], ['light', L('فاتح', 'Light')], ['dark', L('غامق', 'Dark')]].map(([k, t]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-t="${k}">${t}</button>`).join('')}</div></div>
       <div class="set-row"><span>${icon('calendar')}${L('التاريخ الهجري', 'Hijri date')}</span><label class="switch"><input type="checkbox" id="set-hijri" ${U.store.get('hijri', true) ? 'checked' : ''}><i></i></label></div>
@@ -240,6 +250,13 @@
       <div class="set-row"><span>${icon('eye')}<span>${L('الإضافات على الصفحات', 'Highlights and notes on pages')}<small class="muted">${L('تقدر تغيّرها كمان من زرار العين في القارئ', 'Also from the eye button in the reader')}</small></span></span>${seg('rd-marks', R.marksPref(), [['all', L('الكل', 'Everyone')], ['mine', L('بتاعتي', 'Mine')], ['none', L('ولا حاجة', 'None')]])}</div>
       <div class="set-row"><span>${icon('scroll')}${L('التقليب', 'Page turning')}</span>${seg('rd-paged', paged ? 'page' : 'scroll', [['page', L('صفحة صفحة', 'Page by page')], ['scroll', L('متواصل', 'Continuous')]])}</div>`;
   }
+  V.actions['set-emoji'] = async (a) => {
+    const emoji = a.dataset.emo || '';
+    const m = S.members.get(S.me) || {};
+    if ((m.emoji || '') === emoji) return;
+    await D.updateMe(() => ({ emoji }));
+    U.toast(emoji ? L(`علامتك بقت ${emoji}`, `Your mark is now ${emoji}`) : L('هيظهر أول حرف من اسمك', 'Showing the first letter of your name'));
+  };
   V.actions['rd-tools'] = (a) => {
     A.R.setToolsSide(a.dataset.v);
     V.render();
