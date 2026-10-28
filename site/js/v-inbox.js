@@ -80,7 +80,7 @@
           const x = items[+b.dataset.i];
           api.close();
           if (x.nid) V.openNote(x.nid);
-          else if (x.kind === 'msgreply') x.b === '_c' ? V.go('circle') : V.go('book-' + x.b, { tab: 'talk', ch: x.ch });
+          else if (x.kind === 'msgreply') x.b === '_c' ? V.go('circle', { seg: 'chat' }) : V.go('book-' + x.b, { tab: 'talk', ch: x.ch });
           else if (x.kind === 'poke' && x.b && S.books.has(x.b)) A.R.open(x.b);
           else if (x.b && S.books.has(x.b)) V.go('book-' + x.b);
           else V.go('home');

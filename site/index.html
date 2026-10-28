@@ -635,6 +635,8 @@ textarea { resize: vertical; line-height: 1.55; }
 .bp-hero .cover.lg { width: 140px; }
 .bp-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .bp-info h1 { font: 700 clamp(1.7rem, 6.4vw, 2.4rem)/1.3 var(--f-book); }
+.ib.bp-edit { display: inline-grid; vertical-align: middle; width: 34px; height: 34px; margin-inline-start: 4px; color: var(--ink3); background: var(--bg2); border-radius: 50%; }
+.ib.bp-edit svg { width: 17px; height: 17px; }
 .meta-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 .meta-chips span { display: inline-flex; align-items: center; gap: 4px; font-size: .8rem; color: var(--ink2); background: var(--bg2); padding: 3px 10px; border-radius: 99px; }
 .meta-chips .ic { width: 15px; height: 15px; }
@@ -939,6 +941,10 @@ textarea { resize: vertical; line-height: 1.55; }
 .hm-legend span { margin-inline: 4px; }
 .settings .set-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
 .settings .set-row > span { display: flex; gap: 8px; align-items: center; font-weight: 600; }
+.settings .set-row > span > span { display: flex; flex-direction: column; gap: 1px; }
+.settings .set-row > span small { font-weight: 400; font-size: .76rem; }
+.settings .set-h { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 1rem; color: var(--lapis); }
+.settings .set-h + .set-row { border-top: 0; }
 .form.inline .row { display: flex; gap: 8px; margin-bottom: 8px; }
 .switch { position: relative; width: 50px; height: 30px; flex: none; }
 .switch input { position: absolute; opacity: 0; inset: 0; cursor: pointer; z-index: 1; margin: 0; }
@@ -1079,6 +1085,10 @@ textarea { resize: vertical; line-height: 1.55; }
 .rd-tools { display: flex; gap: 6px; }
 .tool { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 12px; font-weight: 700; font-size: .85rem; background: color-mix(in srgb, var(--rd-ink) 7%, transparent); color: var(--rd-ink); min-height: 40px; }
 .tool.on { background: var(--lapis); color: var(--on-lapis); }
+.tool.tool-eye { padding: 8px 10px; justify-content: center; }
+.tool.tool-eye { position: relative; }
+.eye-n { position: absolute; top: -6px; inset-inline-end: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--gold); color: #2a1a00; font: 700 10px/18px var(--f-ui); font-style: normal; text-align: center; }
+.tool.tool-eye.on { background: color-mix(in srgb, var(--gold) 30%, transparent); color: var(--rd-ink); box-shadow: inset 0 0 0 1.5px var(--gold); }
 @media (max-width: 420px) { .tool span { display: none; } .tool { padding: 8px 10px; } }
 .rd-scrub { position: relative; flex: 1; height: 44px; cursor: pointer; touch-action: none; min-width: 80px; }
 .rd-scrub .trk { position: absolute; inset: 19px 0 auto; height: 6px; border-radius: 99px; background: color-mix(in srgb, var(--rd-ink) 12%, transparent); overflow: hidden; }
@@ -1171,6 +1181,14 @@ textarea { resize: vertical; line-height: 1.55; }
 [dir="rtl"] .rd.land.ui-off .rd-top, [dir="ltr"] .rd.land.ui-off .rd-bot { transform: translateX(110%); }
 [dir="ltr"] .rd.land.ui-off .rd-top, [dir="rtl"] .rd.land.ui-off .rd-bot { transform: translateX(-110%); }
 .rd.land .rd-hint { top: 10px; }
+/* Tools rail on the other side (Settings → Reading, or ⋯ in the reader). */
+.rd.land.swap .rd-top { inset: 0; inset-inline-start: auto; border-inline-end: 0; border-inline-start: 1px solid var(--rd-line); }
+.rd.land.swap .rd-bot { inset: 0; inset-inline-end: auto; border-inline-start: 0; border-inline-end: 1px solid var(--rd-line); }
+[dir="rtl"] .rd.land.swap.ui-off .rd-top, [dir="ltr"] .rd.land.swap.ui-off .rd-bot { transform: translateX(-110%); }
+[dir="ltr"] .rd.land.swap.ui-off .rd-top, [dir="rtl"] .rd.land.swap.ui-off .rd-bot { transform: translateX(110%); }
+.rd.land.swap .rd-panel { inset-inline-start: 0; inset-inline-end: auto; }
+.rd.land.swap .sm-av { left: auto; right: -6px; }
+@media (min-width: 900px) { .rd.land.swap.has-panel .rd-scroll { inset-inline-end: 0; inset-inline-start: 380px; } }
 .rd.land .rd-panel { inset: 0; inset-inline-start: auto; width: min(380px, 55vw); height: auto; border-radius: 0; }
 .rd.paged .rd-scroll { scroll-snap-type: y mandatory; }
 .rd.paged .pg { scroll-snap-align: center; scroll-snap-stop: always; }

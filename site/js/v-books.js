@@ -12,6 +12,33 @@
   const icon = U.icon;
   const MAXPART = 19900000;
   // PDF "Author" values that are really the name of a computer or a default, not a writer.
+  /* "Book name - Copy (2).pdf", "book_compressed.pdf", "نسخة من كتاب.pdf" → a readable title. */
+  function cleanFileName(name) {
+    let t = String(name || '').replace(/\.pdf$/i, '').replace(/[_]+/g, ' ').replace(/\s+-\s+/g, ' - ');
+    for (let i = 0; i < 4; i++) {
+      const before = t;
+      t = t
+        .replace(/[\s-]*(\(\d+\)|\[\d+\])\s*$/, '')
+        .replace(/[\s-]*\b(copy|compressed|optimi[sz]ed|reduced|final|ocr|edited|scan(ned)?)\b\s*$/i, '')
+        .replace(/[\s-]*(نسخة|نسخه|مضغوط)\s*$/, '')
+        .replace(/^(copy of|نسخة من|نسخه من)\s+/i, '')
+        .trim();
+      if (t === before) break;
+    }
+    t = t.replace(/(^|\s)-+(\s|$)/g, ' ').replace(/-{2,}/g, ' ').replace(/\s+/g, ' ').trim();
+    return t || String(name || '').replace(/\.pdf$/i, '');
+  }
+  /* Arabic-insensitive comparison key: no spaces, punctuation, diacritics or hamza/taa-marbuta spelling differences. */
+  const arNorm = (s) =>
+    String(s)
+      .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+      .replace(/[\u0622\u0623\u0625\u0671]/g, '\u0627')
+      .replace(/\u0629/g, '\u0647')
+      .replace(/\u0649/g, '\u064A')
+      .replace(/[^\p{L}\p{N}]/gu, '')
+      .toLowerCase();
+  V._cleanFileName = cleanFileName;
+  V._arNorm = arNorm;
   const JUNK_AUTHOR = /^(anonymous|unknown|user|admin(istrator)?|owner|author|default|test|guest|[\w.-]*-?pc|microsoft.*|adobe.*|\d+)$/i;
 
   const bookPct = (b, uid = S.me) => {
@@ -155,7 +182,7 @@
         ${V.cover(b, 'lg')}
         <div class="bp-info">
           <small class="eyebrow">${{ reading: L('بنقرأه دلوقتي', 'Reading now'), planned: L('الجاي', 'Up next'), done: L('خلّصناه', 'Finished') }[b.status || 'reading']}</small>
-          <h1 dir="auto">${esc(b.title)}</h1>
+          <h1 dir="auto">${esc(b.title)}${D.canWrite() ? ` <button class="ib sm bp-edit" data-act="edit-book" data-b="${esc(b.id)}" aria-label="${L('عدّل اسم الكتاب', 'Edit the title')}">${icon('edit')}</button>` : ''}</h1>
           ${b.author ? `<p class="muted" dir="auto">${esc(b.author)}</p>` : ''}
           <div class="meta-chips"><span>${icon('scroll')}${L.count(b.pages || 0, 'page')}</span>${ws.length ? `<span>${icon('calendar')}${L.count(ws.length, 'wird')}</span>` : ''}<span>${icon('user')}${L('بواسطة', 'Added by')} ${esc(D.name(b.addedBy))}</span>${(b.parts || []).length ? '' : `<span class="warn">${icon('info')}${L('كل واحد بيفتح نسخته', 'Everyone opens their own copy')}</span>`}</div>
           <div class="bp-prog">${V.bar(pct, pct >= 1 ? 'jade' : 'lapis')}<small>${L(`قريت ${L.num(Math.round(pct * 100))}٪`, `${Math.round(pct * 100)}% read`)}</small></div>
@@ -172,7 +199,21 @@
       <section class="tabpane">${tab === 'plan' ? planTab(b) : tab === 'talk' ? talkTab(b, opts.ch) : tab === 'notes' ? notesTab(b, opts) : peopleTab(b)}</section>
     </div>`;
   };
-  V.actions['book-tab'] = (a) => V.go('book-' + a.dataset.b, { tab: a.dataset.tab });
+  // Keep the chosen portion's chip in view in the scrolling row (once per choice, so it doesn't fight the finger).
+  let shownChip = '';
+  V.after = V.after || [];
+  V.after.push((scr) => {
+    const row = scr.querySelector('.talk-chips');
+    const on = row && row.querySelector('.chip.on');
+    if (!on) return;
+    const key = location.hash + '|' + on.dataset.ch;
+    if (key === shownChip) return;
+    shownChip = key;
+    const r = on.getBoundingClientRect();
+    const c = row.getBoundingClientRect();
+    row.scrollLeft += r.left + r.width / 2 - (c.left + c.width / 2);
+  });
+  V.actions['book-tab'] = (a) => V.go('book-' + a.dataset.b, a.dataset.ch ? { tab: a.dataset.tab, ch: a.dataset.ch } : { tab: a.dataset.tab });
 
   function planTab(b) {
     const ws = G.wirds(b);
@@ -357,7 +398,7 @@
     const chips = [['gen', L('عام', 'General')], ...ws.map((x) => [x.id, L(`الورد ${L.num(x.n)}`, `Portion ${x.n}`)])];
     const takes = w ? [...S.notes.values()].filter((n) => n.b === b.id && n.kind === 'take' && n.wid === w.id).sort((x, y) => String(x.at).localeCompare(String(y.at))) : [];
     const myTake = takes.find((n) => n.by === S.me);
-    return `<div class="chips scroll" role="tablist">${chips
+    return `<div class="chips scroll talk-chips" role="tablist">${chips
       .map(([k, t]) => {
         const u = V.unread(b.id, k);
         return `<button class="chip${k === ch ? ' on' : ''}${gcur && gcur.id === k ? ' cur' : ''}" data-act="book-tab" data-b="${esc(b.id)}" data-tab="talk" data-ch="${esc(k)}">${t}${u ? `<i class="nv-b">${L.num(u)}</i>` : ''}</button>`;
@@ -425,22 +466,45 @@
 
   V.editBook = (id) => {
     const b = S.books.get(id);
+    if (!b) return;
     V.sheet({
       title: L('بيانات الكتاب', 'Book details'),
       html: `<form class="form" id="eb-form">
-        <label for="eb-title">${L('العنوان', 'Title')}</label><input id="eb-title" required maxlength="140" dir="auto" value="${esc(b.title)}">
-        <label for="eb-author">${L('المؤلف', 'Author')}</label><input id="eb-author" maxlength="100" dir="auto" value="${esc(b.author || '')}">
+        <label for="eb-title">${L('اسم الكتاب', 'Title')}</label><input id="eb-title" required maxlength="140" dir="auto" enterkeyhint="done" value="${esc(b.title)}">
+        <label for="eb-author">${L('المؤلف', 'Author')}</label><input id="eb-author" maxlength="100" dir="auto" enterkeyhint="done" value="${esc(b.author || '')}">
         <label for="eb-lang">${L('اتجاه الكتاب', 'Book direction')}</label><select id="eb-lang"><option value="ar" ${b.lang !== 'en' ? 'selected' : ''}>${L('عربي (يمين لشمال)', 'Arabic (right to left)')}</option><option value="en" ${b.lang === 'en' ? 'selected' : ''}>${L('إنجليزي (شمال ليمين)', 'English (left to right)')}</option></select>
         <label for="eb-status">${L('الحالة', 'Status')}</label><select id="eb-status">${['reading', 'planned', 'done'].map((s) => `<option value="${s}" ${(b.status || 'reading') === s ? 'selected' : ''}>${{ reading: L('بنقرأه دلوقتي', 'Reading now'), planned: L('الجاي', 'Up next'), done: L('خلّصناه', 'Finished') }[s]}</option>`).join('')}</select>
-        <div class="row-btns end"><button class="btn">${L('احفظ', 'Save')}</button></div></form>`,
-      onMount: (body, api) =>
-        body.addEventListener('submit', async (e) => {
+        <p class="err-t" id="eb-err" hidden></p>
+        <div class="row-btns end"><button class="btn gold">${icon('check')}${L('احفظ', 'Save')}</button></div></form>`,
+      onMount: (body, api) => {
+        const f = body.querySelector('#eb-form');
+        f.addEventListener('submit', async (e) => {
           e.preventDefault();
-          api.close();
-          await D.update(`books/${id}`, { title: body.querySelector('#eb-title').value.trim() || b.title, author: body.querySelector('#eb-author').value.trim(), lang: body.querySelector('#eb-lang').value, status: body.querySelector('#eb-status').value });
-        }),
+          // Read everything before anything closes, then close only once it is saved.
+          const patch = {
+            title: f.querySelector('#eb-title').value.replace(/\s+/g, ' ').trim() || b.title,
+            author: f.querySelector('#eb-author').value.replace(/\s+/g, ' ').trim(),
+            lang: f.querySelector('#eb-lang').value,
+            status: f.querySelector('#eb-status').value,
+          };
+          const btn = f.querySelector('button.btn');
+          const err = f.querySelector('#eb-err');
+          btn.disabled = true;
+          err.hidden = true;
+          try {
+            await D.update(`books/${id}`, patch);
+            api.close();
+            U.toast(L('اتحفظ ✓', 'Saved ✓'));
+          } catch (x) {
+            btn.disabled = false;
+            err.textContent = L('ماتحفظش. اتأكد من النت وجرّب تاني.', "Not saved. Check your connection and try again.");
+            err.hidden = false;
+          }
+        });
+      },
     });
   };
+  V.actions['edit-book'] = (a) => V.editBook(a.dataset.b);
 
   V.deleteBook = async (id) => {
     const b = S.books.get(id);
@@ -543,10 +607,25 @@
         const t = (meta && meta.info && meta.info.Title) || '';
         const au = (meta && meta.info && meta.info.Author) || '';
         const metaTitle = t && t.length > 2 && !/^untitled|microsoft|\.(docx?|indd)/i.test(t) ? t : '';
-        const title = pre.title || metaTitle || file.name.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ');
+        let title = pre.title || metaTitle || cleanFileName(file.name);
+        let guessAuthor = '';
+        // A file named "<title> <author> Copy.pdf" whose outline starts with the title: take the outline's spelling,
+        // and what follows it in the name as the author.
+        if (!pre.title && !metaTitle && toc[0] && toc[0].p <= 3) {
+          const k = toc[0].t.trim();
+          const n = arNorm(k).length;
+          if (n >= 4 && arNorm(title).startsWith(arNorm(k))) {
+            let i = 0, seen = 0;
+            while (i < title.length && seen < n) if (arNorm(title[i++])) seen++;
+            const rest = title.slice(i).trim().replace(/^[أا]\s*\.?\s*د\s*\.?\s+/, 'أ.د. ').replace(/^د\s*\.\s*/, 'د. ');
+            title = k;
+            const words = rest.split(/\s+/).filter(Boolean);
+            if (words.length >= 2 && words.length <= 7) guessAuthor = rest;
+          }
+        }
         // Direction: the PDF's own text decides; scanned books (no text) count as Arabic unless the real title is English.
         const lang = script || (U.isArabic(title) || !metaTitle || !/[a-z]/i.test(title) ? 'ar' : 'en');
-        const author = pre.author || (JUNK_AUTHOR.test(au.trim()) ? '' : au);
+        const author = pre.author || (JUNK_AUTHOR.test(au.trim()) ? '' : au) || guessAuthor;
         Object.assign(info, { buf, N, sizes: same ? null : sizes, size: sizes[0], fp, title: title.trim(), author: (author || '').trim(), lang, toc });
         step(formHtml());
         if (A.B)

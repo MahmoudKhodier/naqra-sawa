@@ -225,9 +225,36 @@
       <div class="set-row"><span>${icon('moon')}${L('المظهر', 'Appearance')}</span><div class="seg sm">${[['system', L('تلقائي', 'Auto')], ['light', L('فاتح', 'Light')], ['dark', L('غامق', 'Dark')]].map(([k, t]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-t="${k}">${t}</button>`).join('')}</div></div>
       <div class="set-row"><span>${icon('calendar')}${L('التاريخ الهجري', 'Hijri date')}</span><label class="switch"><input type="checkbox" id="set-hijri" ${U.store.get('hijri', true) ? 'checked' : ''}><i></i></label></div>
       <div class="set-row"><span>${icon('sparkle')}${L('أصوات الاحتفال', 'Celebration sounds')}</span><label class="switch"><input type="checkbox" id="set-sound" ${U.store.get('sound', true) ? 'checked' : ''}><i></i></label></div>
+      ${readingSettings()}
       ${V.extraSettings ? V.extraSettings() : ''}
     </section>`;
   }
+  /* Reader preferences (this device): tools side when sideways, whose marks show, page turning. */
+  function readingSettings() {
+    const R = A.R;
+    if (!R || !R.marksPref) return '';
+    const seg = (act, cur, opts) => `<div class="seg sm">${opts.map(([k, t]) => `<button class="${cur === k ? 'on' : ''}" data-act="${act}" data-v="${k}" aria-pressed="${cur === k}">${t}</button>`).join('')}</div>`;
+    const paged = !!U.store.get('readerPrefs', {}).paged;
+    return `<h3 class="set-h">${icon('book')}${L('القراءة', 'Reading')}</h3>
+      <div class="set-row"><span>${icon('swap')}<span>${L('مكان الأدوات لما الموبايل بالعرض', 'Tools side when the phone is sideways')}<small class="muted">${L('القلم والملاحظة وشريط الصفحات', 'Highlight, note and the page slider')}</small></span></span>${seg('rd-tools', R.toolsSide(), [['right', L('يمين', 'Right')], ['left', L('شمال', 'Left')]])}</div>
+      <div class="set-row"><span>${icon('eye')}<span>${L('الإضافات على الصفحات', 'Highlights and notes on pages')}<small class="muted">${L('تقدر تغيّرها كمان من زرار العين في القارئ', 'Also from the eye button in the reader')}</small></span></span>${seg('rd-marks', R.marksPref(), [['all', L('الكل', 'Everyone')], ['mine', L('بتاعتي', 'Mine')], ['none', L('ولا حاجة', 'None')]])}</div>
+      <div class="set-row"><span>${icon('scroll')}${L('التقليب', 'Page turning')}</span>${seg('rd-paged', paged ? 'page' : 'scroll', [['page', L('صفحة صفحة', 'Page by page')], ['scroll', L('متواصل', 'Continuous')]])}</div>`;
+  }
+  V.actions['rd-tools'] = (a) => {
+    A.R.setToolsSide(a.dataset.v);
+    V.render();
+  };
+  V.actions['rd-marks'] = (a) => {
+    A.R.setMarks(a.dataset.v, true);
+    V.render();
+  };
+  V.actions['rd-paged'] = (a) => {
+    const p = Object.assign({ zoom: 1, theme: 'day' }, U.store.get('readerPrefs', {}));
+    p.paged = a.dataset.v === 'page';
+    if (p.paged) p.zoom = 1;
+    U.store.set('readerPrefs', p);
+    V.render();
+  };
   V.actions.theme = (a) => {
     U.store.set('theme', a.dataset.t);
     V.applyTheme();

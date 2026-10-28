@@ -41,7 +41,7 @@ async function step(name, fn, needs = []) {
     console.log(`PASS  ${name}  (${Date.now() - t0} ms)${d ? '  — ' + d : ''}`);
   } catch (e) {
     results.push({ name, status: 'FAIL' });
-    console.log(`FAIL  ${name}  (${Date.now() - t0} ms)\n      ${String((e && e.message) || e).split('\n').slice(0, 5).join('\n      ')}`);
+    console.log(`FAIL  ${name}  (${Date.now() - t0} ms)\n      ${String((e && e.message) || e).split('\n').slice(0, process.env.LONGERR ? 25 : 5).join('\n      ')}`);
   }
 }
 async function until(page, what, fn, arg, timeout = 15000) {
@@ -91,7 +91,8 @@ async function tap(cdp, x, y) {
 async function showBars(p) {
   if (await p.$('.rd.ui-off')) {
     const cdp = await p.context().newCDPSession(p);
-    await tap(cdp, 195, 430);
+    const vp = p.viewportSize();
+    await tap(cdp, vp.width / 2, vp.height / 2); // the middle of the page toggles the bars (portrait or landscape)
     await T(450);
     await cdp.detach();
   }
@@ -319,6 +320,39 @@ async function menu(p, text) {
       return `${items} notes, bookmarks ${marks.join(' ')} (page ${c})`;
     }, ['open', 'cdp']);
 
+    await step("Eye button hides other people's marks; the menu gives a clean page; your own stay", async () => {
+      const c = await cur(p);
+      const bid = ctx.book.id;
+      // someone else's highlight on this page
+      await p.evaluate(async ({ bid, c }) => {
+        const { D, U } = window.A;
+        await D.set('notes/other-hl-1', { b: bid, page: c, kind: 'hl', rect: { x: 0.2, y: 0.5, w: 0.5, h: 0.04 }, color: '', text: 'من حد تاني', by: 'someone-else', at: U.nowIso(), wid: '', likes: {}, replies: {} });
+      }, { bid, c });
+      await until(p, "the other person's highlight drawn", (pg) => !!document.querySelector(`.pg[data-p="${pg}"] .hlb[data-nid="other-hl-1"]`), c, 6000);
+      const count = () => p.evaluate((pg) => ({ all: document.querySelectorAll(`.pg[data-p="${pg}"] .hlb, .pg[data-p="${pg}"] .pinb`).length, other: document.querySelectorAll(`.pg[data-p="${pg}"] [data-nid="other-hl-1"]`).length }), c);
+      const before = await count();
+      await showBars(p);
+      await p.click('#rd-eye');
+      await T(400);
+      const mine = await count();
+      assert(mine.other === 0, "others' highlight still showing after the eye button");
+      assert(mine.all === before.all - 1, `your own marks should stay: ${before.all} → ${mine.all}`);
+      assert(await p.$eval('#rd-eye', (e) => e.classList.contains('on')), 'eye button does not show the filter is on');
+      await H.shot(p, 'r08-others-hidden');
+      await menu(p, 'صفحة نضيفة');
+      const none = await count();
+      assert(none.all === 0, 'clean page still shows ' + none.all + ' marks');
+      await showBars(p);
+      await p.click('#rd-eye');
+      await T(400);
+      const back = await count();
+      assert(back.all === before.all, `eye did not bring everything back: ${back.all}/${before.all}`);
+      const kept = await p.evaluate(() => window.A.U.store.get('rdMarks'));
+      assert(kept === 'all', 'preference not saved: ' + kept);
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      return `${before.all} marks → ${mine.all} (mine only) → 0 (clean) → ${back.all}`;
+    }, ['open', 'cdp']);
+
     await step('Close and reopen: resumes on the same page, opens from the device cache', async () => {
       const c = await cur(p);
       await showBars(p);
@@ -417,6 +451,24 @@ async function menu(p, text) {
       await T(900);
       const c = await cur(p);
       assert(c > 85 && c < 110, 'slider landed on page ' + c);
+      // tools to the other side from ⋯, and back
+      await menu(p, 'انقل الأدوات لليمين');
+      await T(500);
+      const sw = await p.evaluate(() => {
+        const t = document.querySelector('.rd-top').getBoundingClientRect();
+        const b = document.querySelector('.rd-bot').getBoundingClientRect();
+        return { topL: Math.round(t.left), botR: Math.round(b.right), store: window.A.U.store.get('rdTools') };
+      });
+      await H.shot(p, 'r09b-landscape-swapped');
+      assert(sw.topL <= 4 && sw.botR >= 840 && sw.store === 'right', 'rails did not swap: ' + JSON.stringify(sw));
+      await tap(ctx.cdp, 420, 200);
+      await T(700);
+      const swHidden = await p.evaluate(() => document.querySelector('.rd-bot').getBoundingClientRect().left >= 840 && document.querySelector('.rd-top').getBoundingClientRect().right <= 4);
+      assert(swHidden, 'swapped rails did not slide off their own edges');
+      await menu(p, 'انقل الأدوات للشمال');
+      await T(500);
+      const unsw = await p.evaluate(() => document.querySelector('.rd-top').getBoundingClientRect().right >= 840);
+      assert(unsw, 'rails did not go back');
       await tap(ctx.cdp, 420, 200);
       await T(700);
       const hidden = await p.evaluate(() => {
@@ -436,6 +488,83 @@ async function menu(p, text) {
       const s = await p.evaluate(() => window.A.R._awake && window.A.R._awake());
       assert(s === true, 'keep-awake not requested: ' + s);
     }, ['open', 'cdp']);
+
+    await step('Book discussion: every portion button opens that portion (also from the path), threads stay separate', async () => {
+      if (await p.evaluate(() => window.A.R.isOpen())) {
+        await showBars(p);
+        await p.click('.rd [data-act="close"]');
+        await T(600);
+      }
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      const bid = ctx.book.id;
+      await p.evaluate((id) => window.A.V.go('book-' + id, { tab: 'talk' }), bid);
+      await T(500);
+      const on = () => p.$eval('.talk-chips .chip.on', (e) => e.dataset.ch);
+      const ws = ctx.book.wirds;
+      const first = await on();
+      await p.click(`.talk-chips .chip[data-ch="${ws[0].id}"]`);
+      await T(400);
+      assert((await on()) === ws[0].id, `tapping portion 1 left ${await on()} selected (was ${first})`);
+      await p.fill('textarea[id^="in-"]', 'رسالة في الورد الأول');
+      await p.click('.composer button.btn'); // on a phone Enter makes a new line; the button sends
+      await T(600);
+      await p.click(`.talk-chips .chip[data-ch="${ws[1].id}"]`);
+      await T(400);
+      assert((await on()) === ws[1].id, 'tapping portion 2 did not select it');
+      const leak = await p.evaluate(() => /رسالة في الورد الأول/.test(document.querySelector('.tabpane').textContent));
+      assert(!leak, "portion 1's message shows in portion 2");
+      await p.click(`.talk-chips .chip[data-ch="${ws[0].id}"]`);
+      await T(400);
+      const back = await p.evaluate(() => /رسالة في الورد الأول/.test(document.querySelector('.tabpane').textContent));
+      assert(back, "portion 1's message is missing when going back");
+      await p.click(`.talk-chips .chip[data-ch="gen"]`);
+      await T(300);
+      assert((await on()) === 'gen', 'the General chip did not select');
+      // from the portions path: portion 5 → sheet → its discussion
+      await p.evaluate((id) => window.A.V.go('book-' + id, { tab: 'plan' }), bid);
+      await T(400);
+      await p.click(`.wpv-n[data-w="${ws[4].id}"]`);
+      await p.waitForSelector('.wsheet', { timeout: 4000 });
+      await p.click('.wsheet [data-act="book-tab"]');
+      await T(600);
+      assert((await on()) === ws[4].id, 'the portion sheet opened the wrong discussion: ' + (await on()));
+      const inView = await p.evaluate(() => {
+        const row = document.querySelector('.talk-chips').getBoundingClientRect();
+        const c = document.querySelector('.talk-chips .chip.on').getBoundingClientRect();
+        return c.left >= row.left - 1 && c.right <= row.right + 1;
+      });
+      assert(inView, 'the selected portion chip is scrolled out of view');
+      await H.shot(p, 'r11-portion-talk');
+      return `${ws.length} portions; chips and the path open the right thread`;
+    }, ['open']);
+
+    await step('Rename a book from the pencil by its title; the Reading settings change the reader', async () => {
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      const bid = ctx.book.id;
+      await p.evaluate((id) => window.A.V.go('book-' + id), bid);
+      await T(500);
+      await p.click('.bp-edit');
+      await p.waitForSelector('#eb-form');
+      await p.fill('#eb-title', 'كتاب باسم جديد');
+      await p.fill('#eb-author', 'مؤلف معروف');
+      await p.click('#eb-form button.btn');
+      await until(p, 'title saved', () => [...window.A.S.books.values()].some((b) => b.title === 'كتاب باسم جديد' && b.author === 'مؤلف معروف'), null, 6000);
+      await until(p, 'sheet closed after saving', () => !document.querySelector('#eb-form'), null, 4000);
+      const h1 = await p.$eval('.bp-info h1', (e) => e.textContent.trim());
+      assert(h1.startsWith('كتاب باسم جديد'), 'page still shows ' + h1);
+      // Settings → Reading
+      await p.evaluate(() => window.A.V.go('me'));
+      await T(600);
+      await p.click('[data-act="rd-tools"][data-v="right"]');
+      await p.click('[data-act="rd-marks"][data-v="mine"]');
+      await T(300);
+      await H.shot(p, 'r12-reading-settings');
+      const prefs = await p.evaluate(() => ({ tools: window.A.U.store.get('rdTools'), marks: window.A.U.store.get('rdMarks') }));
+      assert(prefs.tools === 'right' && prefs.marks === 'mine', JSON.stringify(prefs));
+      await p.click('[data-act="rd-tools"][data-v="left"]');
+      await p.click('[data-act="rd-marks"][data-v="all"]');
+      return `renamed to «${h1}»; settings saved`;
+    }, ['open']);
 
     await step('No errors in the console', async () => {
       const errs = p.__errors.filter((e) => !/favicon|fonts|404/.test(e));

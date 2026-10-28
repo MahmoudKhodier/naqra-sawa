@@ -15,6 +15,37 @@
   const BOT_PAD = 150;
   /* Phones held sideways: the bars become side rails so the page gets the whole height. */
   const isLand = () => window.innerWidth > window.innerHeight && window.innerHeight <= 560;
+  /* Reader preferences kept on this device.
+     rdTools: which physical side the tools rail (highlight, note, page slider) sits on when the phone is sideways.
+     rdMarks: whose highlights and notes show on the pages — everyone's, only mine, or none (a clean page). */
+  const MARKS = ['all', 'mine', 'none'];
+  R.marksPref = () => {
+    const v = U.store.get('rdMarks', 'all');
+    return MARKS.includes(v) ? v : 'all';
+  };
+  R.toolsSide = () => {
+    const v = U.store.get('rdTools', '');
+    return v === 'left' || v === 'right' ? v : document.documentElement.dir === 'rtl' ? 'left' : 'right';
+  };
+  // The layout puts tools at the inline end by default (left in Arabic, right in English); "swap" mirrors the rails.
+  const swapNow = () => (R.toolsSide() === 'right') === (document.documentElement.dir === 'rtl');
+  R.setToolsSide = (side) => {
+    U.store.set('rdTools', side === 'right' ? 'right' : 'left');
+    if (st) st.root.querySelector('.rd').classList.toggle('swap', swapNow());
+  };
+  R.setMarks = (v, quiet) => {
+    if (!MARKS.includes(v)) return;
+    U.store.set('rdMarks', v);
+    if (!st) return;
+    marksUi();
+    redrawOverlays();
+    if (!quiet)
+      U.toast(
+        v === 'all' ? L('إضافات الكل ظاهرة على الصفحات', "Everyone's highlights and notes are showing")
+          : v === 'mine' ? L('خبّينا إضافات الباقيين — إضافاتك بس اللي ظاهرة', "Others' highlights and notes are hidden — only yours show")
+            : L('صفحة نضيفة: كل الإضافات مخفية', 'Clean page: all highlights and notes are hidden'),
+      );
+  };
   const topPad = () => (st && st.land ? 12 : TOP_PAD);
   const botPad = () => (st && st.land ? 40 : BOT_PAD);
   const KEEP = 7; // pages kept rendered on each side of the current one
@@ -74,10 +105,12 @@
     root.querySelector('.rd').classList.toggle('paged', st.paged);
     st.land = isLand();
     root.querySelector('.rd').classList.toggle('land', st.land);
+    root.querySelector('.rd').classList.toggle('swap', swapNow());
     st.root = root;
     st.sc = root.querySelector('#rd-scroll');
     st.pagesEl = root.querySelector('#rd-pages');
     bind();
+    marksUi();
     geom();
     goTo(start, false);
     chrome();
@@ -555,7 +588,9 @@
     const ns = notesOn(p);
     const marks = S.priv && S.priv.marks && S.priv.marks[st.bookId];
     let html = marks && marks[p] ? `<span class="pg-mark" title="${U.esc(L('علامة', 'Bookmark'))}">${U.icon('bookmark')}</span>` : '';
+    const show = R.marksPref();
     for (const n of ns) {
+      if (show === 'none' || (show === 'mine' && n.by !== S.me)) continue;
       const r = n.rect;
       const col = U.col(n.color, COLORS[0]);
       const rc = n.replies ? Object.values(n.replies).filter(Boolean).length : 0;
@@ -579,6 +614,7 @@
   function setMode(m) {
     if (!st) return;
     st.mode = st.mode === m ? 'none' : m;
+    if (st.mode !== 'none' && R.marksPref() === 'none') R.setMarks('mine', true);
     st.root.querySelector('.rd').dataset.mode = st.mode;
     const hint = st.root.querySelector('#rd-hint');
     hint.hidden = st.mode === 'none';
@@ -724,6 +760,7 @@
           <div class="rd-tools">
             <button class="tool" data-tool="hl" data-act="tool">${U.icon('hl')}<span>${L('ظلّل', 'Highlight')}</span></button>
             <button class="tool" data-tool="pin" data-act="tool">${U.icon('pin')}<span>${L('ملاحظة', 'Note')}</span></button>
+            <button class="tool tool-eye" data-act="marks" id="rd-eye"></button>
           </div>
           <div class="rd-scrub" id="rd-scrub" dir="${dirBook}" role="slider" tabindex="0" aria-label="${L('مكانك في الكتاب', 'Position in book')}" aria-valuemin="1" aria-valuemax="${st.N}"></div>
         </div>
@@ -732,8 +769,27 @@
     </div>`;
   }
 
+  /* The eye button: shows whether other people's marks are on the pages. */
+  function marksUi() {
+    const b = st && st.root.querySelector('#rd-eye');
+    if (!b) return;
+    const v = R.marksPref();
+    b.classList.toggle('on', v !== 'all');
+    b.setAttribute('aria-pressed', String(v !== 'all'));
+    const t = v === 'all' ? L('اخفي إضافات الباقيين', "Hide others' marks") : L('اظهر إضافات الكل', "Show everyone's marks");
+    b.setAttribute('aria-label', t);
+    b.title = t;
+    // While some marks are hidden, show how many are on this page so nothing is missed.
+    const hidden = v === 'all' ? 0 : notesOn(st.cur).filter((n) => v === 'none' || n.by !== S.me).length;
+    if (b.dataset.v !== v || b.dataset.h !== String(hidden)) {
+      b.dataset.v = v;
+      b.dataset.h = String(hidden);
+      b.innerHTML = U.icon(v === 'all' ? 'eye' : 'eyeoff') + (hidden ? `<i class="eye-n">${L.num(hidden)}</i>` : '');
+    }
+  }
   function chrome() {
     if (!st) return;
+    marksUi();
     const b = st.book;
     const w = G.myCurrent(b);
     const wEl = st.root.querySelector('#rd-wird');
@@ -957,6 +1013,7 @@
       else if (act === 'mode-off') setMode(st.mode);
       else if (act === 'panel') togglePanel();
       else if (act === 'more') moreMenu();
+      else if (act === 'marks') R.setMarks(R.marksPref() === 'all' ? 'mine' : 'all');
       else if (act === 'retry') {
         const id = st.bookId, p = st.cur;
         R.close(true);
@@ -1135,6 +1192,16 @@
       S.sample ? { ic: 'claude', t: L('اسأل Claude عن الصفحة دي', 'Ask Claude about this page'), fn: () => A.V.askPage(st.bookId, st.cur) } : null,
       { ic: 'chat', t: L('نقاش الكتاب', 'Book discussion'), fn: () => { R.close(); A.V.go('book-' + b.id, { tab: 'talk' }); } },
       (b.parts || []).length ? { ic: 'download', t: L('حمّل الكتاب على جهازك', 'Download the book'), fn: () => A.V.download(b.id) } : null,
+      ...(() => {
+        const v = R.marksPref();
+        const o = {
+          all: { ic: 'eye', t: L('اظهر إضافات الكل', "Show everyone's highlights and notes"), fn: () => R.setMarks('all') },
+          mine: { ic: v === 'all' ? 'eyeoff' : 'eye', t: v === 'all' ? L('اخفي إضافات الباقيين', "Hide others' highlights and notes") : L('اظهر إضافاتي بس', 'Show only mine'), fn: () => R.setMarks('mine') },
+          none: { ic: 'eyeoff', t: L('صفحة نضيفة (اخفي كل الإضافات)', 'Clean page (hide all highlights and notes)'), fn: () => R.setMarks('none') },
+        };
+        return MARKS.filter((k) => k !== v).map((k) => o[k]);
+      })(),
+      st.land ? { ic: 'swap', t: R.toolsSide() === 'left' ? L('انقل الأدوات لليمين', 'Move the tools to the right') : L('انقل الأدوات للشمال', 'Move the tools to the left'), fn: () => R.setToolsSide(R.toolsSide() === 'left' ? 'right' : 'left') } : null,
       { ic: 'zin', t: L('تكبير', 'Zoom in'), fn: () => setZoom(st.zoom * 1.25), cls: 'show-sm' },
       { ic: 'zout', t: L('تصغير', 'Zoom out'), fn: () => setZoom(st.zoom / 1.25), cls: 'show-sm' },
       { ic: 'fit', t: L('ملء العرض', 'Fit width'), fn: () => setZoom(1), cls: 'show-sm' },
