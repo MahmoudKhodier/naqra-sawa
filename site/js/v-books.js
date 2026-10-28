@@ -25,17 +25,33 @@
   V.screens.books = () => {
     const all = [...S.books.values()].sort((a, b) => String(b.addedAt).localeCompare(String(a.addedAt)));
     const by = (st) => all.filter((b) => (b.status || 'reading') === st);
-    const sec = (title, list, empty) =>
-      `<section class="lib-sec"><h2>${title} <small class="muted">${L.num(list.length)}</small></h2>${list.length ? `<div class="tiles">${list.map(tile).join('')}</div>` : `<p class="muted sm">${empty}</p>`}</section>`;
+    const sec = (title, list, empty, rows) =>
+      `<section class="lib-sec"><h2>${title} <small class="muted">${L.num(list.length)}</small></h2>${list.length ? (rows ? `<div class="rcards">${list.map(rcard).join('')}</div>` : `<div class="tiles">${list.map(tile).join('')}</div>`) : `<p class="muted sm">${empty}</p>`}</section>`;
     return `<div class="books">
       <header class="page-head"><div><h1>${L('كتبنا', 'Our books')}</h1><p class="muted">${L('الكتب اللي الحلقة بتقرأها أو هتقرأها', 'What the circle is reading and will read')}</p></div>
         ${D.canWrite() ? `<button class="btn gold" data-act="add-book">${icon('upload')}${L('ضيف كتاب', 'Add a book')}</button>` : ''}</header>
-      ${sec(L('بنقرأ دلوقتي', 'Reading now'), by('reading'), L('مفيش كتاب شغال دلوقتي.', 'Nothing in progress right now.'))}
+      ${sec(L('بنقرأ دلوقتي', 'Reading now'), by('reading'), L('مفيش كتاب شغال دلوقتي.', 'Nothing in progress right now.'), true)}
       ${sec(L('الجاي', 'Up next'), by('planned'), L('ضيف كتاب واختار «بعدين».', 'Add a book and choose “Later”.'))}
       ${by('done').length ? sec(L('خلّصناها', 'Finished together'), by('done'), '') : ''}
       ${proposalsBlock()}
     </div>`;
   };
+
+  /* A book being read: cover, title, my current portion and progress. */
+  function rcard(b) {
+    const pct = bookPct(b);
+    const w = G.myCurrent(b);
+    const ws = G.wirds(b);
+    const st = w ? G.wirdStatus(b, w) : '';
+    const readers = D.readingNow(b.id).length;
+    return `<button class="rcard" data-go="book-${esc(b.id)}">
+      ${V.cover(b, 'sm')}
+      <span class="rc-b"><b class="t-title" dir="auto">${esc(b.title)}</b>${b.author ? `<small dir="auto">${esc(b.author)}</small>` : ''}
+        <small class="rc-w">${ws.length ? (w ? `${L(`الورد ${L.num(w.n)} من ${L.num(ws.length)}`, `Portion ${w.n} of ${ws.length}`)} • <span class="due ${st}">${L.due(w.due)}</span>` : L('خلّصت الأوراد', 'All portions done')) : L('من غير خطة لسه', 'No plan yet')}</small>
+        <span class="rc-p">${V.bar(pct, pct >= 1 ? 'jade' : 'lapis')}<small>${L.num(Math.round(pct * 100))}${L.isAr() ? '٪' : '%'}</small></span></span>
+      ${readers ? `<span class="t-live"><span class="pulse"></span>${L.num(readers)}</span>` : ''}
+    </button>`;
+  }
 
   function tile(b) {
     const pct = bookPct(b);
@@ -163,29 +179,87 @@
     if (!ws.length)
       return V.empty(L('مفيش خطة لسه', 'No reading plan yet'), L('قسّموا الكتاب أوراد بعدد صفحات ومواعيد، وكل واحد يعلّم لما يخلّص.', 'Split the book into portions with page ranges and dates; everyone marks theirs when done.'), D.canWrite() ? `<button class="btn gold" data-act="plan" data-b="${esc(b.id)}">${icon('calendar')}${L('اعمل خطة', 'Make a plan')}</button>` : '');
     const members = D.memberIds();
-    const gcur = G.groupCurrent(b);
     const per = ws[0].to - ws[0].from + 1;
     const every = U.diffDays(ws[0].start, ws[0].due) + 1;
     return `<div class="plan-head"><p>${L(`${L.count(per, 'page')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} لـ ${L.dayShort(ws[ws.length - 1].due)}`, `${per} pages ${every === 1 ? 'a day' : every === 7 ? 'a week' : `every ${every} days`} • ${L.dayShort(ws[0].start)} – ${L.dayShort(ws[ws.length - 1].due)}`)}</p>${D.canWrite() ? `<button class="btn ghost sm" data-act="plan" data-b="${esc(b.id)}">${icon('edit')}${L('عدّل الخطة', 'Edit plan')}</button>` : ''}</div>
-      <ol class="wlist">${ws
-        .map((w) => {
-          const st = G.wirdStatus(b, w);
-          const fins = members.map((u) => ({ u, p: D.prog(b.id, u) })).filter((x) => x.p && x.p.done && x.p.done[w.id]).sort((x, y) => String(x.p.done[w.id]).localeCompare(String(y.p.done[w.id])));
-          const takes = [...S.notes.values()].filter((n) => n.b === b.id && n.kind === 'take' && n.wid === w.id).length;
-          const unread = V.unread(b.id, w.id);
-          const mine = st === 'done' || st === 'late-done';
-          return `<li class="wrow s-${st}${gcur && gcur.id === w.id ? ' cur' : ''}">
-            ${V.star(L.num(w.n), mine ? 'jade' : st === 'late' ? 'rubric' : st === 'now' ? 'gold' : 'faint')}
-            <div class="wr-main"><b>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</b><small>${L.day(w.start)}${w.due !== w.start ? ' → ' + L.day(w.due) : ''}${!mine ? ` • <span class="due ${st}">${st === 'soon' ? L('لسه', 'Upcoming') : L.due(w.due)}</span>` : ''}</small>
-              <div class="wr-fins">${fins.map((x, i) => `<span class="fin${i === 0 ? ' first' : ''}" title="${esc(D.name(x.u))}">${D.avatar(x.u, 'xs')}</span>`).join('')}${fins.length ? `<small>${L.num(fins.length)}/${L.num(members.length)}</small>` : ''}</div></div>
-            <div class="wr-acts">
-              <button class="pill" data-act="book-tab" data-b="${esc(b.id)}" data-tab="talk" data-ch="${esc(w.id)}" aria-label="${L('نقاش الورد', 'Portion discussion')}">${icon('chat')}${takes + unread ? `<span>${L.num(takes + unread)}</span>` : ''}</button>
-              ${D.canWrite() ? (mine ? `<button class="pill on jade" data-act="unmark-wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" aria-label="${L('خلّصته', 'Done')}">${icon('check')}</button>` : `<button class="pill" data-act="mark-wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}">${icon('check')}<span>${L('خلّصته', 'Done')}</span></button>`) : ''}
-            </div>
-          </li>`;
-        })
-        .join('')}</ol>`;
+      ${wirdPath(b, ws, members)}`;
   }
+
+  /* The plan as a path: done ✓, the current one ★ with friends on it, a section header every 7 portions. */
+  function wirdPath(b, ws, members) {
+    const myCur = G.myCurrent(b);
+    const at = new Map();
+    for (const u of members) {
+      if (u === S.me) continue;
+      const cw = G.myCurrent(b, u);
+      if (!cw) continue;
+      if (!at.has(cw.id)) at.set(cw.id, []);
+      at.get(cw.id).push(u);
+    }
+    const X = [0, 56, 84, 56, 0, -56, -84, -56];
+    let html = '';
+    ws.forEach((w, i) => {
+      if (i % 7 === 0 && ws.length > 7) {
+        const end = ws[Math.min(ws.length - 1, i + 6)];
+        html += `<li class="wpv-sec"><b>${L(`الأوراد ${L.num(w.n)}–${L.num(end.n)}`, `Portions ${w.n}–${end.n}`)}</b><small>${L.dayShort(w.start)} – ${L.dayShort(end.due)}</small></li>`;
+      }
+      const st = G.wirdStatus(b, w);
+      const done = st === 'done' || st === 'late-done';
+      const cur = !!(myCur && myCur.id === w.id);
+      const lastOne = i === ws.length - 1;
+      const x = X[i % X.length];
+      const side = x > 0 || (x === 0 && i % 8 === 0) ? 'lbl-l' : 'lbl-r';
+      const fins = members.filter((u) => {
+        const p = D.prog(b.id, u);
+        return p && p.done && p.done[w.id];
+      }).length;
+      const others = (at.get(w.id) || []).slice(0, 3);
+      const unread = V.unread(b.id, w.id);
+      const state = done ? `✓ ${L(`${L.num(fins)} من ${L.num(members.length)}`, `${fins} of ${members.length}`)}` : st === 'soon' ? L.dayShort(w.start) : L.due(w.due);
+      const node = done ? icon('check') : cur ? '<span class="star8 sm"></span>' : lastOne ? icon('trophy') : L.num(w.n);
+      html += `<li class="wpv s-${st}${cur ? ' cur' : ''} ${side}" style="--x:${x}px"><div class="wpv-in">
+        ${cur ? `<span class="wpv-bub">${st === 'late' ? L('متأخر', 'Late') : L('دلوقتي', 'Now')}</span>` : ''}
+        <button class="wpv-n" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" aria-label="${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)}: ${state}">${node}</button>
+        ${others.length ? `<span class="wpv-avs" aria-hidden="true">${others.map((u) => D.avatar(u, 'xs')).join('')}</span>` : ''}
+        ${unread ? `<i class="wpv-dot" title="${L('رسايل جديدة في نقاش الورد', 'New messages in this portion')}"></i>` : ''}
+        <span class="wpv-l"><b>${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)}</b><small>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</small><small class="due ${done ? 'done' : st}">${state}</small></span>
+      </div></li>`;
+    });
+    return `<ol class="wpv-list">${html}</ol>`;
+  }
+
+  /* One portion: progress, who finished, read / discuss / mark done. */
+  V.actions.wird = (a) => {
+    const b = S.books.get(a.dataset.b);
+    const w = b && G.wirds(b).find((x) => x.id === a.dataset.w);
+    if (!w) return;
+    const st = G.wirdStatus(b, w);
+    const done = st === 'done' || st === 'late-done';
+    const members = D.memberIds();
+    const fins = members
+      .map((u) => ({ u, p: D.prog(b.id, u) }))
+      .filter((x) => x.p && x.p.done && x.p.done[w.id])
+      .sort((x, y) => String(x.p.done[w.id]).localeCompare(String(y.p.done[w.id])));
+    const prog = D.prog(b.id);
+    const total = w.to - w.from + 1;
+    const seen = U.rangesCountIn(prog && prog.seen, w.from, w.to);
+    const last = (prog && prog.last) || 0;
+    const startAt = last >= w.from && last < w.to ? last : w.from;
+    const takes = [...S.notes.values()].filter((n) => n.b === b.id && n.kind === 'take' && n.wid === w.id).length;
+    const talk = takes + V.unread(b.id, w.id);
+    V.sheet({
+      title: L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`),
+      html: `<div class="wsheet">
+        <p class="ws-meta">${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)} • ${L.day(w.start)}${w.due !== w.start ? ' → ' + L.day(w.due) : ''} • <span class="due ${done ? 'done' : st}">${done ? L('خلّصته ✓', 'Done ✓') : st === 'soon' ? L('لسه', 'Upcoming') : L.due(w.due)}</span></p>
+        <div class="ws-prog">${V.bar(seen / total, done ? 'jade' : 'lapis')}<small>${L(`قريت ${L.num(seen)} من ${L.count(total, 'page')}`, `${seen} of ${total} pages read`)}</small></div>
+        <div class="ws-fins"><b>${L('خلّصوه', 'Finished')}</b>${fins.length ? `<span class="mavs">${fins.map((x, i) => `<span class="fin${i === 0 ? ' first' : ''}" title="${esc(D.name(x.u))}">${D.avatar(x.u, 'sm')}</span>`).join('')}</span><small>${L.num(fins.length)}/${L.num(members.length)}</small>` : `<small>${L('لسه محدش', 'Nobody yet')}</small>`}</div>
+        <div class="row-btns">
+          <button class="btn big" data-act="read" data-b="${esc(b.id)}" data-p="${startAt}" data-close>${icon('play', 'flip-rtl')}${startAt > w.from ? L(`كمّل من ص ${L.num(startAt)}`, `Continue from p. ${startAt}`) : L('اقرأ الورد', 'Read it')}</button>
+          <button class="btn ghost" data-act="book-tab" data-b="${esc(b.id)}" data-tab="talk" data-ch="${esc(w.id)}" data-close>${icon('chat')}${L('نقاش الورد', 'Discussion')}${talk ? ` (${L.num(talk)})` : ''}</button>
+          ${D.canWrite() ? (done ? `<button class="btn ghost" data-act="unmark-wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-close>${icon('close')}${L('شيل علامة خلّصته', 'Unmark done')}</button>` : `<button class="btn jade" data-act="mark-wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-close>${icon('check')}${L('خلّصته', 'Done')}</button>`) : ''}
+        </div></div>`,
+    });
+  };
 
   /* ---------- discussions (book channels and the circle chat) ---------- */
   const REACTS = { heart: '❤️', fire: '🔥', clap: '👏', idea: '💡', laugh: '😂' };

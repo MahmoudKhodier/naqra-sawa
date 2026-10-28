@@ -22,39 +22,32 @@
     ['الكتب حدائق العلماء', 'مثل عربي', 'Books are the gardens of the learned', 'Arabic proverb'],
   ];
 
-  function greet() {
-    const h = new Date().getHours();
-    if (h >= 4 && h < 12) return L('صباح الخير', 'Good morning');
-    if (h >= 12 && h < 17) return L('يومك سعيد', 'Good afternoon');
-    return L('مساء الخير', 'Good evening');
-  }
-
+  /* «اليوم»: one phone screen — today's portion, who is where in it, and a swipeable row of small cards.
+     The circle's news, notes and leaderboard live in the «الحلقة» tab. */
   V.screens.home = () => {
-    const s = G.of(S.me);
     const reading = [...S.books.values()].filter((b) => (b.status || 'reading') === 'reading').sort((a, b) => String(b.addedAt).localeCompare(String(a.addedAt)));
-    const streakLine = !s.streak
-      ? L('ابدأ سلسلة قراءة النهارده — كل يوم تقرأ فيه بيزوّد النار', 'Start a reading streak today — every day you read feeds the flame')
-      : s.atRisk
-        ? L(`سلسلتك ${L.count(s.streak, 'day')} — اقرأ صفحة النهارده عشان متقطعهاش`, `Your streak is ${L.count(s.streak, 'day')} — read a page today to keep it`)
-        : s.streak === 1
-          ? L('أول يوم في سلسلتك. ارجع بكرة عشان تكبر!', 'Day one of your streak. Come back tomorrow to grow it!')
-          : L(`${L.count(s.streak, 'day')} قراية ورا بعض. عاش!`, `${L.count(s.streak, 'day')} in a row. Brilliant!`);
+    // The main book: the one whose next portion of mine is due first.
+    let primary = null;
+    let best = '';
+    for (const b of reading) {
+      const w = G.myCurrent(b);
+      const due = w ? w.due : '9999';
+      if (!primary || due < best) {
+        primary = b;
+        best = due;
+      }
+    }
+    const others = reading.filter((b) => b !== primary);
     return `<div class="home">
-      <section class="greet">
-        <div><h1>${greet()}، <span dir="auto">${esc(D.name(S.me))}</span></h1>${V.showHijri && V.showHijri() && L.hijri ? `<small class="hijri">${esc(L.day(U.today()))} • ${esc(L.hijri())}</small>` : ''}<p class="${s.atRisk ? 'risk' : ''}">${icon('flame')}${streakLine}</p></div>
-      </section>
-      ${pokesBlock()}
-      <div class="home-grid">
-        <div class="col-main">
-          ${reading.length ? reading.map(wirdCard).join('') : noBooks()}
-          ${liveBlock()}
-          ${feedBlock()}
-        </div>
-        <div class="col-side">
-          ${V.startChecklist ? V.startChecklist() : ''}
-          ${D.canWrite() ? questsBlock() : ''}
-          ${groupBlock()}
-        </div>
+      <div class="home-main">
+        ${pokesBlock()}
+        ${primary ? heroCard(primary) : noBooks()}
+        ${primary ? raceCard(primary) : ''}
+        ${others.length ? otherBooks(others) : ''}
+      </div>
+      <div class="home-side">
+        ${V.startChecklist ? V.startChecklist() : ''}
+        ${D.canWrite() ? homeCards() : ''}
       </div>
     </div>`;
   };
@@ -69,55 +62,180 @@
     </section>`;
   }
 
-  function wirdCard(b) {
+  /* Seconds per page for this reader (from their own reading time), for "about N minutes" hints. */
+  function secsPerPage() {
+    const s = G.of(S.me);
+    return s.pages >= 10 && s.secs > 0 ? U.clamp(s.secs / s.pages, 20, 240) : 75;
+  }
+
+  function heroCard(b) {
     const ws = G.wirds(b);
     const prog = D.prog(b.id);
     const w = G.myCurrent(b);
     const last = (prog && prog.last) || 1;
-    const live = D.readingNow(b.id);
-    const members = D.memberIds();
-    let body;
+    const pct = Math.round(Math.min(1, U.rangesCountIn(prog && prog.seen, 1, b.pages || 1) / (b.pages || 1)) * 100);
+    const head = (lines) => `<div class="hero-top">
+        <button class="hero-cover" data-go="book-${esc(b.id)}" aria-label="${L('صفحة الكتاب', 'Book page')}">${V.cover(b, 'hero')}</button>
+        <div class="hero-info">
+          <span class="tag">${L('بنقراه سوا', 'Reading together')}${pct ? ` • ${L.num(pct)}${L.isAr() ? '٪' : '%'}` : ''}</span>
+          <h2 class="book-t" dir="auto"><button data-go="book-${esc(b.id)}">${esc(b.title)}</button></h2>
+          ${lines}
+        </div>
+      </div>`;
     if (!ws.length) {
-      body = `<p class="muted">${L('لسه مفيش خطة قراءة للكتاب ده. قسّموه أوراد عشان كل واحد يعرف هيقرأ إيه وإمتى.', 'No reading plan yet. Split it into portions so everyone knows what to read and when.')}</p>
-        <div class="row-btns">${D.canWrite() ? `<button class="btn gold" data-act="plan" data-b="${esc(b.id)}">${icon('calendar')}${L('اعمل خطة', 'Make a plan')}</button>` : ''}<button class="btn" data-act="read" data-b="${esc(b.id)}">${icon('play', 'flip-rtl')}${last > 1 ? L(`كمّل من ص ${L.num(last)}`, `Continue from p. ${last}`) : L('ابدأ القراية', 'Start reading')}</button></div>`;
-    } else if (!w) {
-      const fin = prog && prog.finished;
-      body = `<div class="alldone">${V.star('', 'jade')}<div><b>${L('خلّصت كل الأوراد!', 'All portions done!')}</b><p class="muted">${fin ? L('وخلّصت الكتاب كمان. شجّع الباقيين 👏', 'And you finished the book. Cheer the others on 👏') : L('فاضل تعلّم إنك خلّصت الكتاب', 'Mark the book as finished')}</p></div></div>
-        <div class="row-btns">${!fin && D.canWrite() ? `<button class="btn gold" data-act="finish-book" data-b="${esc(b.id)}">${icon('trophy')}${L('خلّصت الكتاب', 'I finished the book')}</button>` : ''}<button class="btn ghost" data-go="book-${esc(b.id)}">${L('صفحة الكتاب', 'Book page')}</button></div>`;
-    } else {
-      const total = w.to - w.from + 1;
-      const seen = U.rangesCountIn(prog && prog.seen, w.from, w.to);
-      const startAt = last >= w.from && last <= w.to ? last : w.from;
-      const st = G.wirdStatus(b, w);
-      const done = [];
-      const notDone = [];
-      for (const uid of members) {
-        const p = D.prog(b.id, uid);
-        if (p && p.done && p.done[w.id]) done.push({ uid, t: p.done[w.id] });
-        else notDone.push(uid);
-      }
-      done.sort((a, b2) => String(a.t).localeCompare(String(b2.t)));
-      const liveIds = new Set(live.map((x) => x.uid));
-      const avs =
-        done.map((d, i) => `<button class="mav done${i === 0 ? ' first' : ''}" data-act="who" data-uid="${esc(d.uid)}" data-b="${esc(b.id)}" data-w="${esc(w.id)}" title="${esc(D.name(d.uid))}">${D.avatar(d.uid, 'sm')}<i>${icon('check')}</i></button>`).join('') +
-        notDone.map((uid) => `<button class="mav${liveIds.has(uid) ? ' live' : ''}${uid === S.me ? ' me' : ''}" data-act="who" data-uid="${esc(uid)}" data-b="${esc(b.id)}" data-w="${esc(w.id)}" title="${esc(D.name(uid))}">${D.avatar(uid, 'sm')}</button>`).join('');
-      body = `<div class="wird-line">
-          ${V.star(L.num(w.n), st === 'late' ? 'rubric' : 'gold')}
-          <div class="wl-t"><b>${L(`الورد ${L.num(w.n)} من ${L.num(ws.length)}`, `Portion ${w.n} of ${ws.length}`)}</b>
-          <span>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)} • <span class="due ${st}">${L.due(w.due)}</span></span></div>
-        </div>
-        <div class="wl-prog">${V.bar(seen / total, st === 'late' ? 'rubric' : 'lapis')}<small>${L(`قريت ${L.num(seen)} من ${L.count(total, 'page')}`, `${seen} of ${total} pages read`)}</small></div>
-        <div class="row-btns">
-          <button class="btn big" data-act="read" data-b="${esc(b.id)}" data-p="${startAt}">${icon('play', 'flip-rtl')}${startAt > w.from ? L(`كمّل من ص ${L.num(startAt)}`, `Continue from p. ${startAt}`) : L('يلا نقرأ', 'Start reading')}</button>
-          ${D.canWrite() ? `<button class="btn jade" data-act="mark-wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}">${icon('check')}${L('خلّصته', 'Done')}</button>` : ''}
-        </div>
-        <div class="group-row"><div class="mavs">${avs}</div><small>${L(`${L.num(done.length)} من ${L.num(members.length)} خلّصوا`, `${done.length} of ${members.length} finished`)}${live.length ? ` • <span class="live-t">${L(`في القراية دلوقتي: ${L.num(live.length)}`, `${live.length} reading now`)}</span>` : ''}</small></div>`;
+      return `<section class="card wcard hero">${head(`${b.author ? `<p class="muted" dir="auto">${esc(b.author)}</p>` : ''}<p class="hi-sub">${L('لسه مفيش خطة. قسّموه أوراد عشان كل واحد يعرف هيقرأ إيه وإمتى.', 'No plan yet. Split it into portions so everyone knows what to read and when.')}</p>`)}
+        <div class="hero-acts">${D.canWrite() ? `<button class="btn gold big" data-act="plan" data-b="${esc(b.id)}">${icon('calendar')}${L('اعمل خطة', 'Make a plan')}</button>` : ''}<button class="btn big${D.canWrite() ? ' ghost' : ''}" data-act="read" data-b="${esc(b.id)}">${icon('play', 'flip-rtl')}${last > 1 ? L(`كمّل من ص ${L.num(last)}`, `Continue from p. ${last}`) : L('ابدأ القراية', 'Start reading')}</button></div>
+      </section>`;
     }
-    return `<section class="card wcard">
-      <header class="wc-head" data-go="book-${esc(b.id)}">${V.cover(b, 'sm')}<div><small class="eyebrow">${L('بنقرأ دلوقتي', 'Reading now')}</small><h2 dir="auto">${esc(b.title)}</h2>${b.author ? `<span class="muted" dir="auto">${esc(b.author)}</span>` : ''}</div>${icon('fwd', 'flip go')}</header>
-      ${body}
+    if (!w) {
+      const fin = prog && prog.finished;
+      return `<section class="card wcard hero">${head(`<p class="hi-w">${L('خلّصت كل الأوراد!', 'All portions done!')}</p><p class="hi-sub">${fin ? L('وخلّصت الكتاب كمان. شجّع الباقيين 👏', 'And you finished the book. Cheer the others on 👏') : L('فاضل تعلّم إنك خلّصت الكتاب', 'Mark the book as finished')}</p>`)}
+        ${pathStrip(b, ws, null)}
+        <div class="hero-acts">${!fin && D.canWrite() ? `<button class="btn gold big" data-act="finish-book" data-b="${esc(b.id)}">${icon('trophy')}${L('خلّصت الكتاب', 'I finished the book')}</button>` : ''}<button class="btn ghost big" data-go="book-${esc(b.id)}">${L('صفحة الكتاب', 'Book page')}</button></div>
+      </section>`;
+    }
+    const total = w.to - w.from + 1;
+    const seen = U.rangesCountIn(prog && prog.seen, w.from, w.to);
+    const left = Math.max(0, total - seen);
+    const startAt = last >= w.from && last <= w.to ? last : w.from;
+    const st = G.wirdStatus(b, w);
+    const mins = Math.max(1, Math.round((left * secsPerPage()) / 60));
+    return `<section class="card wcard hero">
+      ${head(`<p class="hi-w">${L(`الورد ${L.num(w.n)} • ص ${L.num(w.from)}–${L.num(w.to)}`, `Portion ${w.n} • p. ${w.from}–${w.to}`)}</p>
+        <p class="hi-sub">${left ? L(`فاضل ${L.count(left, 'page')} • حوالي ${L.count(mins, 'minute')}`, `${left} pages left • about ${mins} min`) : L('قريت صفحاته كلها — علّم إنك خلّصته', 'You read every page — mark it done')}</p>
+        <p class="due ${st}">${L.due(w.due)}</p>`)}
+      ${pathStrip(b, ws, w)}
+      <div class="hero-acts">
+        <button class="btn big cta" data-act="read" data-b="${esc(b.id)}" data-p="${startAt}">${startAt > w.from ? L(`كمّل من ص ${L.num(startAt)}`, `Continue from p. ${startAt}`) : L('يلا نقرأ', 'Start reading')}${icon('play', 'flip-rtl')}</button>
+        ${D.canWrite() ? `<button class="btn jade big" data-act="mark-wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" aria-label="${L('خلّصته', 'Done')}">${icon('check')}<span>${L('خلّصته', 'Done')}</span></button>` : ''}
+      </div>
     </section>`;
   }
+
+  /* A short path of portions around the current one: done ✓, today ★, the rest numbered, the last one a trophy. */
+  function pathStrip(b, ws, w) {
+    if (ws.length < 2) return '';
+    const ci = w ? ws.indexOf(w) : ws.length - 1;
+    const n = Math.min(7, ws.length);
+    let from = Math.max(0, Math.min(ci - 2, ws.length - n));
+    const slice = ws.slice(from, from + n);
+    let doneN = 0;
+    const nodes = slice
+      .map((x) => {
+        const st = G.wirdStatus(b, x);
+        const done = st === 'done' || st === 'late-done';
+        if (done) doneN++;
+        const cur = w && x.id === w.id;
+        const lastOne = x === ws[ws.length - 1];
+        const cls = done ? 'done' : cur ? 'cur' : st === 'late' ? 'late' : '';
+        const inner = done ? icon('check') : cur ? '<span class="star8 xs"></span>' : lastOne ? icon('trophy') : L.num(x.n);
+        return `<span class="wp-n ${cls}" title="${L(`الورد ${L.num(x.n)}`, `Portion ${x.n}`)}">${inner}</span>`;
+      })
+      .join('');
+    const fill = slice.length > 1 ? Math.min(1, Math.max(0, (doneN - 0.5) / (slice.length - 1))) : 0;
+    return `<button class="wpath" data-go="book-${esc(b.id)}" aria-label="${L(`الأوراد: ${L.num(G.wirds(b).filter((x) => /done/.test(G.wirdStatus(b, x))).length)} من ${L.num(ws.length)} خلصوا`, `Portions: ${ws.filter((x) => /done/.test(G.wirdStatus(b, x))).length} of ${ws.length} done`)}">
+      <i class="wp-line"><i style="width:${Math.round(fill * 100)}%"></i></i>${nodes}</button>`;
+  }
+
+  /* Where everyone is inside the current portion: a track from its first page to its last. */
+  function raceCard(b) {
+    const w = G.myCurrent(b) || G.groupCurrent(b);
+    if (!w) return '';
+    const members = D.memberIds();
+    if (members.length < 2) {
+      return `<section class="card race solo">${icon('users')}<div><b>${L('القراية أحلى مع حد', 'Reading is better together')}</b><p class="muted sm">${L('ادعُ أصحابك أو عيلتك، وشوفوا مين وصل فين في الورد.', 'Invite friends or family and see who is where in each portion.')}</p></div><button class="btn sm gold" data-act="invite">${icon('share')}${L('ادعُ', 'Invite')}</button></section>`;
+    }
+    const total = w.to - w.from + 1;
+    const live = new Map(D.readingNow(b.id).map((x) => [x.uid, x.p]));
+    const rows = members.map((uid) => {
+      const p = D.prog(b.id, uid);
+      const done = !!(p && p.done && p.done[w.id]);
+      const at = live.has(uid) ? live.get(uid) : (p && p.last) || 0;
+      const f = done ? 1 : at < w.from ? 0 : U.clamp((at - w.from + 1) / total, 0, 0.94);
+      return { uid, done, at, f, live: live.has(uid), t: done ? p.done[w.id] : '' };
+    });
+    rows.sort((a, b2) => a.f - b2.f);
+    // People at (nearly) the same page fan out sideways instead of covering each other.
+    let groupF = -1, k = 0;
+    for (const r of rows) {
+      if (r.f - groupF < 0.08) k++;
+      else {
+        groupF = r.f;
+        k = 0;
+      }
+      r.shift = k * 22;
+    }
+    const me = rows.find((r) => r.uid === S.me);
+    const doneRows = rows.filter((r) => r.done).sort((a, b2) => String(a.t).localeCompare(String(b2.t)));
+    const first = doneRows[0];
+    const liveOther = rows.find((r) => r.live && r.uid !== S.me);
+    let action = '';
+    if (D.canWrite() && first && first.uid !== S.me)
+      action = `<button class="pill gold" data-act="poke" data-to="${esc(first.uid)}" data-kind="cheer" data-b="${esc(b.id)}" data-w="${esc(w.id)}">${icon('clap')}${L(`شجّع ${esc(D.name(first.uid))}`, `Cheer ${esc(D.name(first.uid))}`)}</button>`;
+    else if (liveOther) action = `<button class="pill jade" data-act="read" data-b="${esc(b.id)}" ${liveOther.at ? `data-p="${liveOther.at}"` : ''}><span class="pulse"></span>${L(`اقرا مع ${esc(D.name(liveOther.uid))}`, `Read with ${esc(D.name(liveOther.uid))}`)}</button>`;
+    const avs = rows
+      .slice(0, 14)
+      .map((r) => `<button class="rc-av${r.uid === S.me ? ' me' : ''}${r.live ? ' live' : ''}${r.done ? ' done' : ''}" style="inset-inline-start:clamp(0px, calc(${(r.f * 100).toFixed(1)}% - 17px + ${r.shift}px), calc(100% - 34px));top:4px" data-act="who" data-uid="${esc(r.uid)}" data-b="${esc(b.id)}" data-w="${esc(w.id)}" title="${esc(D.name(r.uid))} • ${r.done ? L('خلص', 'done') : r.at >= w.from ? `${L('ص', 'p.')} ${L.num(r.at)}` : L('لسه', 'not yet')}">${D.avatar(r.uid, 'sm')}</button>`)
+      .join('');
+    return `<section class="card race">
+      <header><h3>${L(`مين وصل فين في الورد ${L.num(w.n)}`, `Who is where in portion ${w.n}`)}</h3>${action}</header>
+      <div class="rc-track"><i class="rc-line"><i style="width:${me ? Math.round(me.f * 100) : 0}%"></i></i>${avs}</div>
+      <div class="rc-labels"><span>${L('ص', 'p.')} ${L.num(w.from)}</span><span>${L(`${L.num(doneRows.length)} من ${L.num(members.length)} خلّصوا`, `${doneRows.length} of ${members.length} done`)}</span><span>${icon('flag')}${L('ص', 'p.')} ${L.num(w.to)}</span></div>
+    </section>`;
+  }
+
+  function otherBooks(list) {
+    return `<section class="obooks"><h3>${L('كتب تانية بنقراها', 'Also reading')}</h3>${list
+      .map((b) => {
+        const w = G.myCurrent(b);
+        const st = w ? G.wirdStatus(b, w) : '';
+        return `<button class="obook" data-go="book-${esc(b.id)}">${V.cover(b, 'xs')}<span><b dir="auto">${esc(b.title)}</b><small>${w ? `${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)} • <span class="due ${st}">${L.due(w.due)}</span>` : G.wirds(b).length ? L('كل الأوراد خلصت', 'All portions done') : L('من غير خطة', 'No plan yet')}</small></span>${icon('fwd', 'flip')}</button>`;
+      })
+      .join('')}</section>`;
+  }
+
+  /* Small cards: today's quests, this week's reading days, the circle's weekly challenge. */
+  function homeCards() {
+    const q = G.myQuests();
+    const nDone = q.filter((x) => x.done).length;
+    const next = q.find((x) => !x.done);
+    const opened = U.store.get('chest:' + S.me, '') === U.today();
+    const chestReady = !next && !opened;
+    const s = G.of(S.me);
+    const ws = U.weekStart();
+    const today = U.today();
+    const DAYS = L.isAr() ? ['س', 'ح', 'ن', 'ث', 'ر', 'خ', 'ج'] : ['S', 'S', 'M', 'T', 'W', 'T', 'F'];
+    let readDays = 0;
+    const days = DAYS.map((d, i) => {
+      const k = U.addDays(ws, i);
+      const on = s.active.has(k);
+      if (on && k <= today) readDays++;
+      const cls = on ? 'on' : k === today ? 'today' : k > today ? 'later' : 'miss';
+      return `<li class="${cls}${k === today ? ' is-today' : ''}"><span>${d}</span><i></i></li>`;
+    }).join('');
+    const { pages, goal } = G.groupWeek();
+    const daysLeft = Math.max(1, U.diffDays(today, U.addDays(ws, 6)) + 1);
+    return `<div class="hcards" aria-label="${L('مهام وتحديات', 'Quests and challenges')}">
+      <button class="hcard quest${chestReady ? ' ready' : ''}" data-act="${chestReady ? 'chest' : 'quests'}">
+        <span class="hc-h"><span class="hc-ic">${icon(chestReady ? 'chest' : 'target')}</span><b>${L('مهام اليوم', "Today's quests")}</b><small>${L.num(nDone)}/${L.num(q.length)}</small></span>
+        <span class="hc-t">${next ? G.questText(next) : opened ? L('خلّصت مهام النهارده ✓', 'All done for today ✓') : L('افتح الصندوق!', 'Open the chest!')}</span>
+        ${V.bar(next ? next.have / next.need : 1, next ? 'gold' : 'jade')}
+        <small>${next ? `${L.num(Math.min(next.have, next.need))} / ${L.num(next.need)}` : ''}${!opened ? ` • ${L('الصندوق', 'Chest')} +${L.num(G.XP.quests)} XP` : ''}</small>
+      </button>
+      <button class="hcard week" data-go="me">
+        <span class="hc-h"><b>${L('الأسبوع ده', 'This week')}</b><small>${L.num(readDays)}/${L.num(7)}</small></span>
+        <span class="hc-t">${s.streak ? L(`${L.count(s.streak, 'day')} ورا بعض`, `${s.streak}-day streak`) : L('ابدأ سلسلة النهارده', 'Start a streak today')}</span>
+        <ol class="wk">${days}</ol>
+      </button>
+      <button class="hcard goal" data-go="circle">
+        <span class="hc-h"><b>${L('تحدي الحلقة', 'Circle challenge')}</b></span>
+        <span class="hc-t">${L(`${L.num(pages)} من ${L.count(goal, 'page')}`, `${pages} of ${goal} pages`)}</span>
+        ${V.bar(pages / goal, pages >= goal ? 'jade' : 'gold')}
+        <small>${pages >= goal ? L('الحلقة كسرت الهدف!', 'The circle hit the goal!') : L(`فاضل ${L.count(daysLeft, 'day')}`, `${daysLeft} days left`)}</small>
+      </button>
+    </div>`;
+  }
+  V.actions.quests = () => V.sheet({ title: L('مهام النهارده', "Today's quests"), html: questsBlock(), onData: (body) => (body.innerHTML = questsBlock()) });
 
   V.actions.who = (a) => {
     const uid = a.dataset.uid;
@@ -187,6 +305,8 @@
     V.render();
   };
 
+  V.liveBlock = () => liveBlock();
+  V.feedBlock = () => feedBlock();
   function liveBlock() {
     const live = D.readingNow();
     if (!live.length) return '';
@@ -198,23 +318,6 @@
           return `<button class="live-it" data-act="read" data-b="${esc(x.b)}" ${x.p ? `data-p="${x.p}"` : ''}>${D.avatar(x.uid, 'sm')}<span><b>${esc(D.name(x.uid))}</b><small dir="auto">${b ? esc(b.title) : ''}${x.p ? ` • ${L('ص', 'p.')} ${L.num(x.p)}` : ''}</small></span><span class="join">${L('انضم', 'Join in')}</span></button>`;
         })
         .join('')}</div>
-    </section>`;
-  }
-
-  function groupBlock() {
-    const { pages, goal } = G.groupWeek();
-    const board = G.board('week').slice(0, 5);
-    const medal = ['gold', 'silver', 'bronze'];
-    return `<section class="card group">
-      <h3>${L('هدف الحلقة الأسبوع ده', "This week's circle goal")}</h3>
-      <div class="goal">${V.ring(pages / goal, `<b>${L.num(Math.round(Math.min(1, pages / goal) * 100))}${L.isAr() ? '٪' : '%'}</b>`, pages >= goal ? 'jade' : 'lapis', 76)}<div><b>${L(`${L.num(pages)} من ${L.count(goal, 'page')}`, `${pages} of ${goal} pages`)}</b><p class="muted sm">${pages >= goal ? L('الحلقة كسرت الهدف! 🎉', 'The circle smashed the goal! 🎉') : L('كل صفحة بتقراها بتقرّبنا كلنا', 'Every page you read moves everyone closer')}</p></div></div>
-      <h4>${L('الصدارة الأسبوع ده', 'Leaders this week')}</h4>
-      <ol class="mini-board">${board
-        .map(
-          (s, i) => `<li class="${s.uid === S.me ? 'me' : ''}" data-act="member" data-uid="${esc(s.uid)}"><span class="rank ${medal[i] || ''}">${L.num(i + 1)}</span>${D.avatar(s.uid, 'sm')}<b>${esc(D.name(s.uid))}</b><span class="xp">${L.num(s.week)} XP</span></li>`
-        )
-        .join('')}</ol>
-      <button class="btn ghost sm full" data-go="circle">${L('شوف الحلقة', 'Open the circle')}</button>
     </section>`;
   }
 

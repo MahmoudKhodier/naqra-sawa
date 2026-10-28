@@ -13,8 +13,7 @@ const OUT = path.join(ROOT, 'site', 'fonts');
 const SUBSETS = ['arabic', 'latin']; // declaration order matters: same as Google Fonts / fontsource
 
 const FAMILIES = [
-  { pkg: 'ibm-plex-sans-arabic', family: 'IBM Plex Sans Arabic', weights: [400, 500, 600, 700] },
-  { pkg: 'el-messiri', family: 'El Messiri', weights: [500, 600, 700] },
+  { pkg: 'readex-pro', family: 'Readex Pro', weights: [400, 500, 600, 700] },
   { pkg: 'amiri', family: 'Amiri', weights: [400, 700] },
 ];
 

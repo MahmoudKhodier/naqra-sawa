@@ -11,59 +11,94 @@
   const esc = U.esc;
   const icon = U.icon;
 
+  /* «الحلقة»: news (who is reading, the weekly challenge, activity), the circle chat, the leaderboard and members. */
   V.screens.circle = (opts = {}) => {
     const c = S.circle || {};
-    const mode = opts.board || 'week';
-    const board = G.board(mode);
+    const seg = ['news', 'chat', 'board', 'members'].includes(opts.seg) ? opts.seg : 'news';
     const online = D.onlineIds();
-    const { pages, goal } = G.groupWeek();
     const canAdmin = S.isOwner || S.canEdit;
-    const medal = ['gold', 'silver', 'bronze'];
+    const ids = D.memberIds();
+    const chatUnread = V.unread('_c', 'gen');
+    const segs = [
+      ['news', L('الأخبار', 'News')],
+      ['chat', L('النقاش', 'Chat'), chatUnread],
+      ['board', L('الترتيب', 'Ranking')],
+      ['members', L('الأعضاء', 'Members')],
+    ];
+    let body = '';
+    if (seg === 'news') body = newsSeg();
+    else if (seg === 'chat') body = `<section class="card chat">${V.thread('_c', 'gen', { cls: 'tall', placeholder: L('اكتب للحلقة…', 'Write to the circle…') })}</section>`;
+    else if (seg === 'board') body = boardSeg(opts.board || 'week', online);
+    else body = membersSeg(online);
     return `<div class="circle">
-      <header class="circle-hero">
-        <div class="ch-art" aria-hidden="true"><span class="star8 gold"></span><span class="star8 lapis"></span><span class="star8 jade"></span></div>
-        <div><small class="eyebrow">${L.count(S.members.size, 'member')}${online.size ? ` • <span class="live-t">${L(`${L.num(online.size)} أونلاين`, `${online.size} online`)}</span>` : ''}</small>
-          <h1 dir="auto">${esc(c.name || L('حلقة القراءة', 'Reading Circle'))}</h1>${c.motto ? `<p dir="auto">${esc(c.motto)}</p>` : ''}</div>
-        <div class="row-btns">${canAdmin && D.canWrite() ? `<button class="btn ghost sm" data-act="edit-circle">${icon('edit')}${L('عدّل', 'Edit')}</button>` : ''}${V.circleMenu ? `<button class="btn ghost sm" data-act="circle-menu">${icon('users')}${L('الحلقات', 'Circles')}</button>` : ''}<button class="btn sm gold" data-act="invite">${icon('share')}${L('ادعُ أصحابك', 'Invite friends')}</button></div>
+      <header class="circle-head">
+        <div class="ch-t"><h1 dir="auto">${esc(c.name || L('حلقة القراءة', 'Reading Circle'))}</h1>
+          <p>${L.count(S.members.size, 'member')}${online.size ? ` • <span class="live-t">${L(`${L.num(online.size)} أونلاين`, `${online.size} online`)}</span>` : ''}${c.motto ? ` • <span dir="auto">${esc(c.motto)}</span>` : ''}</p></div>
+        <div class="ch-avs" aria-hidden="true">${ids.slice(0, 4).map((u) => D.avatar(u, 'sm')).join('')}</div>
+        <button class="btn sm gold" data-act="invite">${icon('share')}${L('ادعُ', 'Invite')}</button>
+        ${canAdmin && D.canWrite() ? `<button class="ib round" data-act="edit-circle" aria-label="${L('بيانات الحلقة والهدف الأسبوعي', 'Circle details & weekly goal')}">${icon('edit')}</button>` : ''}
+        <button class="ib round" data-act="circle-more" aria-label="${L('اختيارات الحلقة', 'Circle options')}">${icon('more')}</button>
       </header>
-      <div class="circle-grid">
-        <div class="col-main">
-          <section class="card board">
-            <header><h2>${icon('trophy')}${L('الصدارة', 'Leaderboard')}</h2><div class="seg sm"><button class="${mode === 'week' ? 'on' : ''}" data-act="board" data-m="week">${L('الأسبوع ده', 'This week')}</button><button class="${mode === 'all' ? 'on' : ''}" data-act="board" data-m="all">${L('كل الوقت', 'All time')}</button></div></header>
-            ${board.length >= 3 ? podium(board.slice(0, 3), mode) : ''}
-            <ol class="lb">${board
-              .map((s, i) => `<li class="${s.uid === S.me ? 'me' : ''}"><button data-act="member" data-uid="${esc(s.uid)}"><span class="rank ${medal[i] || ''}">${L.num(i + 1)}</span>${D.avatar(s.uid, 'md')}${online.has(s.uid) ? '<i class="on-dot"></i>' : ''}
-                <span class="lb-n"><b>${esc(D.name(s.uid))}</b><small>${V.star(L.num(s.lv), 'xs gold')} ${esc(G.title(s.lv))}${s.streak ? ` • <span class="flame-t">${icon('flame')}${L.num(s.streak)}</span>` : ''}</small></span>
-                <span class="lb-xp"><b>${L.num(mode === 'week' ? s.week : s.xp)}</b><small>XP</small></span></button></li>`)
-              .join('')}</ol>
-            <p class="muted sm">${L('الأسبوع بيبدأ السبت. الـXP بييجي من الصفحات، الأوراد، الملاحظات، الردود والإعجابات.', 'Weeks start on Saturday. XP comes from pages, portions, notes, replies and likes.')} <button class="lnk" data-act="xp-help">${L('إزاي أكسب XP؟', 'How do I earn XP?')}</button></p>
-          </section>
-          <section class="card chat">
-            <header><h2>${icon('chat')}${L('دردشة الحلقة', 'Circle chat')}</h2></header>
-            ${V.thread('_c', 'gen', { cls: 'tall', placeholder: L('اكتب للحلقة…', 'Write to the circle…') })}
-          </section>
-        </div>
-        <div class="col-side">
-          <section class="card group">
-            <h3>${L('هدف الأسبوع', 'Weekly goal')}</h3>
-            <div class="goal">${V.ring(pages / goal, `<b>${L.num(pages)}</b><small>/ ${L.num(goal)}</small>`, pages >= goal ? 'jade' : 'lapis', 84)}<p class="muted sm">${L('صفحات قرأتها الحلقة كلها من السبت', 'Pages read by the whole circle since Saturday')}</p></div>
-            <div class="contrib">${board.filter((s) => s.pagesWeek).sort((a, b) => b.pagesWeek - a.pagesWeek).map((s) => `<span style="flex:${s.pagesWeek};--c:${esc(D.color(s.uid))}" title="${esc(D.name(s.uid))}: ${L.num(s.pagesWeek)}"></span>`).join('')}</div>
-          </section>
-          <section class="card members">
-            <h3>${L('الأعضاء', 'Members')}</h3>
-            <ul>${D.memberIds()
-              .map((u) => {
-                const s = G.of(u);
-                const reading = D.readingNow().find((x) => x.uid === u);
-                const b = reading && S.books.get(reading.b);
-                return `<li><button data-act="${V.memberMenu ? 'member-menu' : 'member'}" data-uid="${esc(u)}">${D.avatar(u, 'sm')}${online.has(u) ? '<i class="on-dot"></i>' : ''}<span><b>${esc(D.name(u))}${A.P && A.P.role && A.P.role(u) !== 'member' ? ` <i class="role-tag">${A.P.role(u) === 'owner' ? L('صاحب الحلقة', 'owner') : L('مشرف', 'admin')}</i>` : ''}</b><small>${reading ? `<span class="live-t">${L('في القراية:', 'Reading')}</span> <span dir="auto">${b ? esc(b.title) : ''}</span>` : `${L('مستوى', 'Level')} ${L.num(s.lv)} • ${L.count(s.badgeCount || 0, 'badge')}`}</small></span></button></li>`;
-              })
-              .join('')}</ul>
-          </section>
-        </div>
-      </div>
+      <nav class="segs" role="tablist" aria-label="${L('أقسام الحلقة', 'Circle sections')}">${segs
+        .map(([k, t, n]) => `<button role="tab" aria-selected="${k === seg}" class="${k === seg ? 'on' : ''}" data-act="circle-seg" data-seg="${k}">${t}${n ? `<i class="nv-b">${L.num(Math.min(n, 99))}</i>` : ''}</button>`)
+        .join('')}</nav>
+      <div class="circle-body seg-${seg}">${body}</div>
     </div>`;
   };
+  V.actions['circle-seg'] = (a) => V.go('circle', { seg: a.dataset.seg });
+  V.actions['circle-more'] = () => {
+    const canAdmin = (S.isOwner || S.canEdit) && D.canWrite();
+    const items = [];
+    if (canAdmin) items.push({ ic: 'edit', t: L('بيانات الحلقة والهدف الأسبوعي', 'Circle details & weekly goal'), fn: () => V.actions['edit-circle']() });
+    items.push({ ic: 'share', t: L('ادعُ أصحابك', 'Invite friends'), fn: () => V.actions.invite && V.actions.invite() });
+    if (V.circleMenu) items.push({ ic: 'users', t: L('حلقاتي (بدّل أو اعمل جديدة)', 'My circles (switch or create)'), fn: () => V.actions['circle-menu']() });
+    items.push({ ic: 'bolt', t: L('إزاي أكسب XP؟', 'How do I earn XP?'), fn: () => V.actions['xp-help']() });
+    V.menu(items);
+  };
+
+  function newsSeg() {
+    const { pages, goal } = G.groupWeek();
+    const board = G.board('week');
+    const daysLeft = Math.max(1, U.diffDays(U.today(), U.addDays(U.weekStart(), 6)) + 1);
+    const feed = V.feedBlock ? V.feedBlock() : '';
+    return `${V.liveBlock ? V.liveBlock() : ''}
+      <section class="card cchal">
+        <header><h3>${L('تحدي الحلقة الأسبوع ده', "This week's circle challenge")}</h3><small class="muted">${pages >= goal ? L('خلص! 🎉', 'Done! 🎉') : L(`فاضل ${L.count(daysLeft, 'day')}`, `${daysLeft} days left`)}</small></header>
+        ${V.bar(pages / goal, pages >= goal ? 'jade big' : 'gold big')}
+        <p class="muted sm">${L(`${L.num(pages)} من ${L.count(goal, 'page')} مع بعض`, `${pages} of ${goal} pages together`)}</p>
+        ${!board.some((s) => s.pagesWeek) ? '' : `<div class="contrib">${board.filter((s) => s.pagesWeek).sort((a, b) => b.pagesWeek - a.pagesWeek).map((s) => `<span style="flex:${s.pagesWeek};--c:${esc(D.color(s.uid))}" title="${esc(D.name(s.uid))}: ${L.num(s.pagesWeek)}"></span>`).join('')}</div>`}
+      </section>
+      ${feed || V.empty(L('مفيش أخبار لسه', 'No news yet'), L('لما حد يخلّص ورد أو يكتب ملاحظة هتلاقيه هنا.', 'Finished portions and notes will show up here.'))}`;
+  }
+
+  function boardSeg(mode, online) {
+    const board = G.board(mode);
+    const medal = ['gold', 'silver', 'bronze'];
+    return `<section class="card board">
+      <header><h2>${icon('trophy')}${L('الصدارة', 'Leaderboard')}</h2><div class="seg sm"><button class="${mode === 'week' ? 'on' : ''}" data-act="board" data-m="week">${L('الأسبوع ده', 'This week')}</button><button class="${mode === 'all' ? 'on' : ''}" data-act="board" data-m="all">${L('كل الوقت', 'All time')}</button></div></header>
+      ${board.length >= 3 ? podium(board.slice(0, 3), mode) : ''}
+      <ol class="lb">${board
+        .map((s, i) => `<li class="${s.uid === S.me ? 'me' : ''}"><button data-act="member" data-uid="${esc(s.uid)}"><span class="rank ${medal[i] || ''}">${L.num(i + 1)}</span>${D.avatar(s.uid, 'md')}${online.has(s.uid) ? '<i class="on-dot"></i>' : ''}
+          <span class="lb-n"><b>${esc(D.name(s.uid))}</b><small>${V.star(L.num(s.lv), 'xs gold')} ${esc(G.title(s.lv))}${s.streak ? ` • <span class="flame-t">${icon('flame')}${L.num(s.streak)}</span>` : ''}</small></span>
+          <span class="lb-xp"><b>${L.num(mode === 'week' ? s.week : s.xp)}</b><small>XP</small></span></button></li>`)
+        .join('')}</ol>
+      <p class="muted sm">${L('الأسبوع بيبدأ السبت. الـXP بييجي من الصفحات، الأوراد، الملاحظات، الردود والإعجابات.', 'Weeks start on Saturday. XP comes from pages, portions, notes, replies and likes.')} <button class="lnk" data-act="xp-help">${L('إزاي أكسب XP؟', 'How do I earn XP?')}</button></p>
+    </section>`;
+  }
+
+  function membersSeg(online) {
+    return `<section class="card members">
+      <ul>${D.memberIds()
+        .map((u) => {
+          const s = G.of(u);
+          const reading = D.readingNow().find((x) => x.uid === u);
+          const b = reading && S.books.get(reading.b);
+          return `<li><button data-act="${V.memberMenu ? 'member-menu' : 'member'}" data-uid="${esc(u)}">${D.avatar(u, 'md')}${online.has(u) ? '<i class="on-dot"></i>' : ''}<span><b>${esc(D.name(u))}${A.P && A.P.role && A.P.role(u) !== 'member' ? ` <i class="role-tag">${A.P.role(u) === 'owner' ? L('صاحب الحلقة', 'owner') : L('مشرف', 'admin')}</i>` : ''}</b><small>${reading ? `<span class="live-t">${L('في القراية:', 'Reading')}</span> <span dir="auto">${b ? esc(b.title) : ''}</span>` : `${L('مستوى', 'Level')} ${L.num(s.lv)} • ${s.streak ? `${icon('flame')}${L.num(s.streak)} • ` : ''}${L.count(s.badgeCount || 0, 'badge')}`}</small></span>${icon('more')}</button></li>`;
+        })
+        .join('')}</ul>
+      <button class="btn gold full" data-act="invite">${icon('share')}${L('ادعُ أصحابك أو عيلتك', 'Invite friends or family')}</button>
+    </section>`;
+  }
 
   function podium(top, mode) {
     const order = [top[1], top[0], top[2]];
@@ -73,7 +108,7 @@
       .join('')}</div>`;
   }
 
-  V.actions.board = (a) => V.go('circle', { board: a.dataset.m });
+  V.actions.board = (a) => V.go('circle', { seg: 'board', board: a.dataset.m });
   V.actions['member-menu'] = (a) => (V.memberMenu ? V.memberMenu(a.dataset.uid) : V.go('me', { uid: a.dataset.uid }));
   V.actions['xp-help'] = () => {
     const X = G.XP;
@@ -204,7 +239,7 @@
     if (t === 'system') document.documentElement.removeAttribute('data-theme');
     else document.documentElement.setAttribute('data-theme', t);
     const dark = t === 'dark' || (t === 'system' && !!(darkQ && darkQ.matches));
-    for (const m of document.querySelectorAll('meta[name=theme-color]')) m.content = dark ? '#0a0e1c' : '#2441a3';
+    for (const m of document.querySelectorAll('meta[name=theme-color]')) m.content = dark ? '#0f1115' : '#f6f4ef';
   };
   V.isDark = () => {
     const t = U.store.get('theme', 'light');
@@ -214,7 +249,7 @@
     U.store.set('theme', V.isDark() ? 'light' : 'dark');
     V.applyTheme();
   };
-  V.themeBtn = (attr) => `<button class="ib theme-t" ${attr} aria-label="${V.isDark() ? L('الوضع الفاتح', 'Light mode') : L('الوضع الغامق', 'Dark mode')}">${icon(V.isDark() ? 'sun' : 'moon')}</button>`;
+  V.themeBtn = (attr) => `<button class="ib round theme-t" ${attr} aria-label="${V.isDark() ? L('الوضع الفاتح', 'Light mode') : L('الوضع الغامق', 'Dark mode')}">${icon(V.isDark() ? 'sun' : 'moon')}</button>`;
   V.actions['theme-toggle'] = () => {
     V.toggleTheme();
     V.render();

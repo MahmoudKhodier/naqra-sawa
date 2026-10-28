@@ -190,17 +190,39 @@
       ${item('me', 'user', L('أنا', 'Me'))}`;
   }
 
+  function greeting() {
+    const h = new Date().getHours();
+    if (h >= 4 && h < 12) return L('صباح الخير', 'Good morning');
+    if (h >= 12 && h < 17) return L('يومك سعيد', 'Good afternoon');
+    return L('مساء الخير', 'Good evening');
+  }
+  V.greeting = greeting;
+
+  /* Top bar. On «اليوم» it is the greeting header with streak / level / freeze chips; elsewhere a compact bar. */
   function hud() {
     const el = document.getElementById('hud');
     if (!el) return;
     const s = G.of(S.me);
+    const home = V.state.route === 'home';
     const flame = s.streak ? (s.atRisk ? 'risk' : 'hot') : 'cold';
     const pct = s.span ? s.cur / s.span : 0;
-    const html = `<button class="hud-me" data-go="me" aria-label="${L('ملفي', 'My profile')}">${D.avatar(S.me, 'sm')}${V.star(L.num(s.lv), 'gold lvl')}</button>
-      <div class="hud-xp" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`)}"><span class="hud-t">${esc(G.title(s.lv))}</span>${V.bar(pct, 'gold')}<small>${L.num(s.cur)} / ${L.num(s.span)} XP</small></div>
-      ${V.inboxUnread ? `<button class="ib hud-bell" data-act="inbox" aria-label="${L('الجديد ليك', 'For you')}">${icon('bell')}${V.inboxUnread() ? `<i class="nv-b">${L.num(Math.min(V.inboxUnread(), 99))}</i>` : ''}</button>` : ''}
-      <span class="chip-flame ${flame}" title="${s.atRisk ? L('اقرأ النهارده عشان السلسلة متقطعش', 'Read today to keep your streak') : L('أيام القراءة المتتالية', 'Reading streak')}">${icon('flame')}<b>${L.num(s.streak)}</b>${s.freezes ? `<i class="fz" title="${L('حماية للسلسلة', 'Streak freeze')}">${icon('snow')}${s.freezes > 1 ? L.num(s.freezes) : ''}</i>` : ''}</span>
-      ${V.themeBtn ? V.themeBtn('data-act="theme-toggle"') : ''}<button class="ib lang" data-act="lang" aria-label="${L('English', 'العربية')}">${L('EN', 'ع')}</button>`;
+    const unread = V.inboxUnread ? V.inboxUnread() : 0;
+    const flameTitle = s.atRisk ? L('اقرأ النهارده عشان السلسلة متقطعش', 'Read today to keep your streak') : L('أيام القراءة المتتالية', 'Reading streak');
+    const me = `<button class="hud-me" data-go="me" aria-label="${L('ملفي', 'My profile')}">${D.avatar(S.me, 'md')}${V.star(L.num(s.lv), 'gold lvl')}</button>`;
+    const btns = `${V.themeBtn ? V.themeBtn('data-act="theme-toggle"') : ''}${V.inboxUnread ? `<button class="ib round hud-bell" data-act="inbox" aria-label="${L('الجديد ليك', 'For you')}">${icon('bell')}${unread ? `<i class="nv-b">${L.num(Math.min(unread, 99))}</i>` : ''}</button>` : ''}`;
+    const flameChip = `<span class="hchip flame ${flame}" title="${flameTitle}">${icon('flame')}<b>${L.num(s.streak)}</b>${home ? `<span>${L('يوم', s.streak === 1 ? 'day' : 'days')}</span>` : ''}</span>`;
+    let html;
+    if (home) {
+      const date = `${esc(L.day(U.today()))}${V.showHijri && V.showHijri() && L.hijriShort ? ` • ${esc(L.hijriShort())}` : ''}`;
+      html = `<div class="hud-row">${me}<div class="hud-hi"><h1 class="hud-greet">${greeting()}${L('، ', ', ')}<span dir="auto">${esc(D.name(S.me))}</span></h1><small class="hijri">${date}</small></div>${btns}</div>
+        <div class="hud-chips">${flameChip}
+          <span class="hchip lvl" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`)}">${V.star('', 'gold xs')}<b>${L(`المستوى ${L.num(s.lv)}`, `Level ${s.lv}`)}</b>${V.bar(pct, 'gold')}</span>
+          ${s.freezes ? `<span class="hchip fz" title="${L('حماية للسلسلة: لو فوّت يوم بتحميها', 'Streak freeze: protects a missed day')}">${icon('snow')}<b>×${L.num(s.freezes)}</b></span>` : ''}
+        </div>`;
+    } else {
+      html = `<div class="hud-row">${me}<div class="hud-xp" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`)}"><span class="hud-t">${esc(G.title(s.lv))}</span>${V.bar(pct, 'gold')}<small>${L.num(s.cur)} / ${L.num(s.span)} XP</small></div>${flameChip}${btns}</div>`;
+    }
+    el.classList.toggle('is-home', home);
     if (el.dataset.rtH !== html) {
       el.innerHTML = html;
       el.dataset.rtH = html;

@@ -223,10 +223,10 @@ const appState = (page) =>
       return 'note ' + n.id;
     }, ['bookId']);
 
-    await step('A sees B’s highlight in the home feed live', async () => {
+    await step('A sees B’s highlight in the circle news feed live', async () => {
       const p = pages.A;
       const m = await mark(p);
-      await p.click('[data-go="home"]');
+      await p.click('[data-go="circle"]');
       await until(p, 'note card in A’s feed', (id) => window.A.S.notes.has(id) && !!document.querySelector(`.feed .ncard [data-act="like"][data-nid="${id}"]`), ctx.noteId);
       const txt = await p.textContent('.feed .ncard');
       assert(/بسمة/.test(txt) && /جملة تستاهل/.test(txt), 'feed card lacks author/text: ' + txt.slice(0, 120));
@@ -528,6 +528,7 @@ const appState = (page) =>
 
     const memberMenu = async (page, uid, re) => {
       await page.click('[data-go="circle"]');
+      await page.click('[data-act="circle-seg"][data-seg="members"]');
       await page.click(`[data-act="member-menu"][data-uid="${uid}"]`);
       const item = page.locator('.menu-sheet .mi', { hasText: re });
       await item.first().click();

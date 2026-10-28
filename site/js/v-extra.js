@@ -25,6 +25,15 @@
       return '';
     }
   };
+  let hsfmt = null;
+  L.hijriShort = (k) => {
+    try {
+      hsfmt = hsfmt && hsfmt.lang === L.lang() ? hsfmt : Object.assign(new Intl.DateTimeFormat(L.isAr() ? 'ar-SA-u-ca-islamic-umalqura-nu-arab' : 'en-u-ca-islamic-umalqura', { day: 'numeric', month: 'long' }), { lang: L.lang() });
+      return hsfmt.format(U.parseD(k || U.today()));
+    } catch (e) {
+      return '';
+    }
+  };
   V.showHijri = () => U.store.get('hijri', true);
 
   /* ---------- reading-session summary (after closing the reader) ---------- */

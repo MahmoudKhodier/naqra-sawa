@@ -293,6 +293,7 @@
     play: '<path d="M7 4.5v15l12-7.5z"/>',
     question: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.7.3-1 .8-1 1.5v.6"/><circle cx="12" cy="17" r=".6"/>',
     quote: '<path d="M10 7H6.5A1.5 1.5 0 0 0 5 8.5V12h4v5H5"/><path d="M19 7h-3.5A1.5 1.5 0 0 0 14 8.5V12h4v5h-4"/>',
+    flag: '<path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/>',
     target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',
     vote: '<path d="M4 13h16v7H4z"/><path d="m8.5 9.5 2.5 2.5 5-5.5"/>',
     lang: '<path d="M4 5h8M8 3.5V5M5.5 5c.6 3 2.6 5.6 5.5 7M10.5 5c-.6 3.4-2.8 6.4-6 8"/><path d="m12 20 4-9 4 9M13.4 17h5.2"/>',
