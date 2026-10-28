@@ -10,6 +10,9 @@ Arabic-first reading-circle app (PWA + Android via Capacitor) backed by Supabase
 - `android/`, `capacitor.config.json`, `.github/workflows/` — APK build (release `android-latest`) and GitHub Pages deploy.
 - `tests/sql/` — RLS tests on a throwaway local Postgres 16. `tests/fake-supabase/` + `tests/e2e/` — fake Supabase on local Postgres for Playwright end-to-end tests.
 
+## Status (2026-10-28)
+Supabase project `ecptsvagvauqpxtapwst` (eu-central-1) has both migrations applied (run by the owner in SQL Editor, so `list_migrations` is empty). `config.js` points at it. GitHub Pages is live at https://mahmoudkhodier.github.io/naqra-sawa/. Security advisor only flags the intended SECURITY DEFINER RPCs (they check permissions themselves). Pending: auth email template, SMTP, URL config (dashboard), then a live smoke test. Web push not set up.
+
 ## Provisioning checklist (do this when the Supabase connector is available)
 1. List orgs/projects; create a project named `naqra-sawa` on the FREE plan (confirm the cost is $0 with the user before creating), region closest to Egypt (eu-central-1).
 2. Apply `supabase/migrations/*.sql` in order with the migration tool. Re-run `tests/sql/run.sh` locally first if you changed SQL.
