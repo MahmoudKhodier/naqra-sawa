@@ -62,6 +62,7 @@
     const daysLeft = Math.max(1, U.diffDays(U.today(), U.addDays(U.weekStart(), 6)) + 1);
     const feed = V.feedBlock ? V.feedBlock() : '';
     return `${V.liveBlock ? V.liveBlock() : ''}
+      ${V.sections('circle-news', {})}
       <section class="card cchal">
         <header><h3>${L('تحدي الحلقة الأسبوع ده', "This week's circle challenge", 'تحدي الحلقة هذا الأسبوع')}</h3><small class="muted">${pages >= goal ? L('خلص! 🎉', 'Done! 🎉', 'اكتمل! 🎉') : L(`فاضل ${L.count(daysLeft, 'day')}`, `${daysLeft} days left`, `بقي ${L.count(daysLeft, 'day', 'nom')}`)}</small></header>
         ${V.bar(pages / goal, pages >= goal ? 'jade big' : 'gold big')}
