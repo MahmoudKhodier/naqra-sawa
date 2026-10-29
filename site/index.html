@@ -1912,6 +1912,30 @@ button.wm-c:hover { border-color: var(--line); }
 [dir="rtl"] .chips.scroll, [dir="rtl"] .sh-lists, [dir="rtl"] .tabs { -webkit-mask-image: linear-gradient(to left, transparent, #000 var(--fade-s), #000 calc(100% - var(--fade-e)), transparent); mask-image: linear-gradient(to left, transparent, #000 var(--fade-s), #000 calc(100% - var(--fade-e)), transparent); }
 @keyframes x-fade { 0% { --fade-s: 0px; --fade-e: 28px; } 6% { --fade-s: 28px; } 94% { --fade-e: 28px; } 100% { --fade-s: 28px; --fade-e: 0px; } }
 @supports (animation-timeline: scroll()) { .chips.scroll, .sh-lists, .tabs { animation: x-fade linear both; animation-timeline: scroll(self inline); } }
+.rc-rows { list-style: none; padding: 0; margin: 8px 0 6px; display: flex; flex-direction: column; gap: 4px; }
+.rc-row { display: grid; grid-template-columns: auto minmax(0, 7em) 1fr auto; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border-radius: 12px; text-align: start; color: var(--ink); }
+.rc-row.me { background: var(--lapis-s); }
+.rc-row b { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-row small { color: var(--ink3); font-size: .78rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rc-row.done small { color: var(--jade); font-weight: 700; }
+.rc-av-s { position: relative; display: inline-flex; }
+.rc-av-s .on-dot { position: absolute; top: -2px; inset-inline-end: -2px; }
+.rc-mini { display: block; height: 6px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 10%, transparent); overflow: hidden; }
+.rc-mini > i { display: block; height: 100%; border-radius: inherit; background: var(--lapis); }
+.rc-row.done .rc-mini > i { background: var(--jade); }
+.cweek .contrib-k { margin-top: 8px; }
+.cw-today { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0; padding: 8px 10px; border-radius: 12px; background: var(--bg2); font-weight: 600; font-size: .88rem; }
+.cweek.full .cw-today { background: color-mix(in srgb, var(--jade-s) 70%, var(--card)); color: var(--jade); }
+.cw-today .tt-avs { margin: 0; gap: 2px; }
+/* Private books kept on the phone (v-books.js: the «احفظ نسخة على السيرفر» switch, «الملف على جهاز تاني») */
+.form label.my-up { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
+.my-up-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.my-up-t b { color: var(--ink); font-size: .9rem; }
+.my-up-t small { font-weight: 400; font-size: .78rem; }
+.my-it.away .my-cv { opacity: .6; }
+.my-away { display: flex; align-items: center; gap: 4px; color: var(--ink2); font-size: .78rem; }
+.my-away .ic { width: 14px; height: 14px; flex: none; }
+.my-repick { white-space: nowrap; cursor: pointer; }
 </style>
 </head>
 <body>

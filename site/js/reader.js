@@ -1401,7 +1401,7 @@
     const status = e && e.status;
     const msg =
       e && e.code === 'noparts' && st.priv
-        ? L('الكتاب ده متخزّن على الجهاز اللي ضفته منه بس. افتح نفس الملف من الجهاز ده.', 'This book is kept only on the device you added it from. Open the same file on this device.', 'هذا الكتاب محفوظ على الجهاز الذي أضفته منه فقط. افتح الملف نفسه على هذا الجهاز.')
+        ? L('الملف على جهاز تاني: الكتاب ده بيتقري من ملف على الجهاز اللي ضفته منه. اختار نفس الملف من الموبايل ده وكمّل من مكانك.', 'The file is on another device: this book reads from a file on the device you added it from. Pick the same file on this phone and go on where you were.', 'الملف على جهاز آخر: يُقرأ هذا الكتاب من ملف على الجهاز الذي أضفته منه. اختر الملف نفسه على هذا الهاتف وتابع من مكانك.')
         : e && e.code === 'noparts'
         ? L('الكتاب ده مالوش ملف مرفوع. افتح نسختك من جهازك.', 'This book has no uploaded file. Open your own copy.', 'لا يوجد ملف مرفوع لهذا الكتاب. افتح نسختك من جهازك.')
         : status === 403 || status === 404 || status === 401
@@ -1409,12 +1409,21 @@
           : L('حصلت مشكلة وإحنا بنفتح الكتاب. اتأكد من النت وجرّب تاني، أو افتح نسختك من جهازك.', 'Something went wrong opening the book. Check your connection and retry, or open your own copy.', 'حدثت مشكلة أثناء فتح الكتاب. تأكد من اتصالك بالإنترنت وحاول مجددًا، أو افتح نسختك من جهازك.');
     el.innerHTML = `<div class="rd-load-card err"><span class="star8 rubric"></span><b>${msg}</b>
       <div class="row-btns"><button class="btn" data-act="retry">${L('جرّب تاني', 'Try again', 'حاول مجددًا')}</button>
-      <label class="btn ghost">${U.icon('upload')}${L('افتح نسخة من جهازي', 'Open my copy')}<input type="file" id="rd-localfile" accept="application/pdf,.pdf" hidden></label>
+      <label class="btn ghost">${U.icon('upload')}${st.priv ? L('اختار الملف تاني', 'Pick the file again', 'اختر الملف مرة أخرى') : L('افتح نسخة من جهازي', 'Open my copy')}<input type="file" id="rd-localfile" accept="application/pdf,.pdf" hidden></label>
       <button class="btn ghost" data-act="close">${L('رجوع', 'Back')}</button></div>
       <small>${L('النسخة اللي هتفتحها لازم تكون نفس الكتاب بنفس عدد الصفحات عشان الملاحظات تيجي في مكانها.', 'Your copy must be the same edition (same page count) so notes land in the right place.', 'يجب أن تكون النسخة التي ستفتحها من الطبعة نفسها وبعدد الصفحات نفسه لتظهر الملاحظات في مكانها.')}</small></div>`;
   }
 
   async function useLocalFile(file) {
+    if (st.priv && A.V && A.V.relinkPrivate) {
+      // a private book: same checks as on the shelf, and the copy is kept on this device for good
+      const id = st.bookId, p = st.cur;
+      if (await A.V.relinkPrivate(id, file)) {
+        R.close(true);
+        R.open(id, { page: p });
+      }
+      return;
+    }
     try {
       const buf = await file.arrayBuffer();
       const pdf = await R.openPdf(new Uint8Array(buf.slice(0)));

@@ -426,6 +426,78 @@
         res();
       }
     });
+  /* A private book is, by default, read from a file picked on this phone: its PDF stays in this browser's
+     'qs-books' store under 'lb:<id>' (where the reader looks first) and never goes to the server. It is kept
+     outside U.cache's size index, so making room for other books never evicts it, and the browser is asked to
+     keep the storage persistently. Only the details, progress and notes sync, through my private docs. */
+  D.LOCAL_MAX = 200 * 1024 * 1024;
+  const onDevice = new Map(); // book id -> true / false, once checked on this device
+  const idbBlobs = (mode, fn) =>
+    new Promise((res, rej) => {
+      let r;
+      try {
+        r = indexedDB.open('qs-books', 1);
+      } catch (e) {
+        return rej(e);
+      }
+      r.onupgradeneeded = () => r.result.createObjectStore('blobs');
+      r.onerror = () => rej(r.error);
+      r.onsuccess = () => {
+        const db = r.result;
+        try {
+          const t = db.transaction('blobs', mode);
+          const q = fn(t.objectStore('blobs'));
+          t.oncomplete = () => (db.close(), res(q && 'result' in q ? q.result : null));
+          t.onerror = t.onabort = () => (db.close(), rej(t.error || (q && q.error) || new Error('idb')));
+        } catch (e) {
+          db.close();
+          rej(e);
+        }
+      };
+    });
+  const quotaErr = (e) => Object.assign(new Error('quota'), { code: 'quota', cause: e });
+  D.persistStorage = async () => {
+    try {
+      if (navigator.storage && navigator.storage.persist && !(await navigator.storage.persisted())) return await navigator.storage.persist();
+    } catch (e) {}
+    return false;
+  };
+  D.putLocalBook = async (id, buf) => {
+    if (!buf || !buf.byteLength) throw Object.assign(new Error('invalid_request'), { code: 'invalid_request' });
+    if (buf.byteLength > D.LOCAL_MAX) throw Object.assign(new Error('too_large'), { code: 'too_large' });
+    await D.persistStorage();
+    try {
+      const est = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null;
+      if (est && est.quota && est.usage + buf.byteLength > est.quota) throw quotaErr();
+    } catch (e) {
+      if (e && e.code === 'quota') throw e;
+    }
+    try {
+      await idbBlobs('readwrite', (s) => s.put(buf, 'lb:' + id));
+    } catch (e) {
+      throw e && /quota/i.test(String(e.name || e.message)) ? quotaErr(e) : Object.assign(new Error('storage'), { code: 'storage', cause: e });
+    }
+    const ix = U.store.get('cacheIndex', {}); // never part of the evictable cache
+    if (ix['lb:' + id]) {
+      delete ix['lb:' + id];
+      U.store.set('cacheIndex', ix);
+    }
+    onDevice.set(id, true);
+  };
+  /* true / false once known on this device, undefined while not checked yet (D.checkLocalBooks). */
+  D.localBook = (id) => onDevice.get(id);
+  D.checkLocalBooks = async (ids) => {
+    const todo = ids.filter((id) => !onDevice.has(id));
+    if (!todo.length) return false;
+    let keys = [];
+    try {
+      keys = (await idbBlobs('readonly', (s) => s.getAllKeys())) || [];
+    } catch (e) {}
+    const have = new Set(keys);
+    for (const id of todo) onDevice.set(id, have.has('lb:' + id));
+    return true;
+  };
+
   /* Remove one of my private books: its files first (so nothing is left behind if that fails), then its
      details, my progress, and my notes, bookmarks and «وقفت هنا» on it. */
   D.deletePrivateBook = async (id) => {
@@ -448,6 +520,7 @@
         return Object.assign(cur, { notes, marks, place });
       }).catch(() => {});
     await D.cacheDel(['lb:' + id, ...(b.parts || []).map((x) => 'a:' + x.id)]);
+    onDevice.set(id, false);
     U.store.del('last:' + id);
   };
 
