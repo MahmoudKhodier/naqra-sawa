@@ -736,8 +736,10 @@
       // legacy copy must not overwrite a newer row).
       const migrate = booksReady;
       const ups = [];
+      // The old one-row copy stays as it is for a while (KEEP_LEGACY): app versions from before rows read
+      // only that, and should see a shelf, not an empty one. Rows win over it; a deleted row hides it.
       const keepLegacy = {}; // items that cannot be rows (odd ids) stay in shelves.data.items
-      if (!migrate) for (const id of Object.keys(L0.items)) if (rowable(id, L0.items[id])) keepLegacy[id] = L0.items[id];
+      if (!migrate || KEEP_LEGACY) for (const id of Object.keys(L0.items)) if (rowable(id, L0.items[id])) keepLegacy[id] = L0.items[id];
       if (hasItems) {
         for (const id of Object.keys(nextItems)) {
           const v = nextItems[id];
@@ -772,6 +774,9 @@
     /* Move my legacy shelves.data.items into rows. Repeatable: an older app version on another phone may
        write items there again; the newer copy of a book wins (by its updatedAt / at), a book deleted after
        that copy was made stays deleted. Then items are cleared from the row, unless it changed meanwhile. */
+    /* Until every phone has an app that reads rows, the old one-row shelf is kept next to them (read-only for
+       this app, except when an older app writes it). Set to false later to let the move clear it. */
+    const KEEP_LEGACY = true;
     function maybeMigrate() {
       if (!ready || !booksReady || booksMissing || migrating) return;
       const L0 = legacyOf(st.shelves.get(me));
@@ -790,10 +795,8 @@
       const keep = {};
       for (const id of Object.keys(L0.items)) {
         const v = L0.items[id];
-        if (!rowable(id, v)) {
-          keep[id] = v;
-          continue;
-        }
+        if (!rowable(id, v) || KEEP_LEGACY) keep[id] = v;
+        if (!rowable(id, v)) continue;
         const row = rows.get(id);
         const take = !row ? true : row.deleted ? itemTime(v) > (Date.parse(row.at) || 0) : itemTime(v) > itemTime(row.data) && JSON.stringify(v) !== JSON.stringify(row.data);
         if (!take) continue;
@@ -806,6 +809,7 @@
       }
       if (!ups.length && JSON.stringify(keep) === JSON.stringify(L0.items)) return;
       await pushRows(ups);
+      if (JSON.stringify(keep) === JSON.stringify(L0.items)) return; // the old copy stays (KEEP_LEGACY)
       await saveShelfRow(Object.assign({}, L0.other, Object.keys(keep).length ? { items: keep } : {}), leg.at);
     }
 

@@ -141,7 +141,8 @@ async function joinCircle(browser, env, email, nick, code) {
       l = ul.page;
       pages.push(l);
       await until(l, 'Laila sees her 200 books', () => Object.keys((window.A.S.shelf.get(window.A.S.me) || {}).items || {}).length === 200);
-      await untilDb(env, 'rows + legacy items cleared', `select (select count(*)::int from public.shelf_books where user_id = $1 and not deleted) as n, (select data from public.shelves where user_id = $1) as d`, [Lid], (r) => r[0].n === 200 && !('items' in r[0].d));
+      // the old one-row copy stays for app versions that only read it (KEEP_LEGACY in platform.js)
+      await untilDb(env, 'rows written, the old copy kept', `select (select count(*)::int from public.shelf_books where user_id = $1 and not deleted) as n, (select data from public.shelves where user_id = $1) as d`, [Lid], (r) => r[0].n === 200 && Object.keys(r[0].d.items || {}).length === 200);
       const d = (await env.fake.sql('select data from public.shelves where user_id = $1', [Lid]))[0].data;
       assert(d.keep === 'me', 'other keys of the shelves row lost: ' + JSON.stringify(d));
       const row = (await env.fake.sql(`select data from public.shelf_books where user_id = $1 and id = 'lg7'`, [Lid]))[0].data;
@@ -175,7 +176,7 @@ async function joinCircle(browser, env, email, nick, code) {
         old1: { title: 'جديد من التطبيق القديم', status: 'want', at: later, updatedAt: later },
       };
       await env.fake.sql(`update public.shelves set data = $2 where user_id = $1`, [Lid, JSON.stringify({ items, keep: 'me' })]);
-      await untilDb(env, 'moved again', `select (select data from public.shelves where user_id = $1) as d, (select jsonb_object_agg(id, jsonb_build_object('t', data ->> 'title', 'del', deleted)) from public.shelf_books where user_id = $1 and id in ('lg1', 'lg2', 'lg3', 'old1')) as r`, [Lid], (r) => !('items' in r[0].d) && r[0].r && r[0].r.old1);
+      await untilDb(env, 'moved again', `select (select data from public.shelves where user_id = $1) as d, (select jsonb_object_agg(id, jsonb_build_object('t', data ->> 'title', 'del', deleted)) from public.shelf_books where user_id = $1 and id in ('lg1', 'lg2', 'lg3', 'old1')) as r`, [Lid], (r) => r[0].r && r[0].r.old1); // the old copy itself stays (KEEP_LEGACY)
       const r = (await env.fake.sql(`select jsonb_object_agg(id, jsonb_build_object('t', data ->> 'title', 'del', deleted)) as r from public.shelf_books where user_id = $1 and id in ('lg1', 'lg2', 'lg3', 'old1')`, [Lid]))[0].r;
       assert(r.lg1.t === 'عدّلته من التطبيق القديم', 'the newer legacy copy should win: ' + JSON.stringify(r.lg1));
       assert(r.lg2.t === 'كتاب قديم 2', 'a stale legacy copy overwrote the row: ' + JSON.stringify(r.lg2));

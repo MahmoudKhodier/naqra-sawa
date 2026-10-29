@@ -115,7 +115,7 @@ select t.is((select count(*) from pg_class c join pg_namespace n on n.oid = c.re
             0::bigint, 'structure: RLS is enabled on every public table');
 select t.is((select array_agg(tablename::text order by tablename) from pg_publication_tables
               where pubname = 'supabase_realtime'),
-            array['circle_members', 'circles', 'docs', 'profiles', 'shelves'],
+            array['circle_members', 'circles', 'docs', 'profiles', 'shelf_books', 'shelves'],
             'structure: realtime publication carries the 5 synced tables');
 select t.ok(exists (select 1 from storage.buckets where id = 'books' and public = false
                      and file_size_limit = 52428800 and allowed_mime_types = '{application/pdf}'),
