@@ -717,7 +717,7 @@
     const book = S.books.get(bookId);
     const w = G.wirds(book).find((x) => x.id === wid);
     V.sheet({
-      title: L(`خلاصتي في الورد ${L.num(w ? w.n : '')}`, `My takeaway • portion ${w ? w.n : ''}`),
+      title: L(`خلاصتي في الورد ${L.num(w ? w.n : '')}`, `My takeaway • Portion ${w ? w.n : ''}`),
       html: `<p class="muted">${L('إيه أكتر فكرة عجبتك أو فرقت معاك في الورد ده؟', 'What idea stood out or stayed with you in this portion?', 'ما أكثر فكرة أعجبتك أو أثّرت فيك في هذا الورد؟')}</p>
         <textarea id="take-text" rows="5" dir="auto" maxlength="${U.MAX.take}" autofocus placeholder="${L('اكتب هنا…', 'Write here…')}">${esc(existing ? existing.text : U.store.get(`draft:take:${bookId}:${wid}`, ''))}</textarea>
         <div class="row-btns end"><button class="btn gold" data-save>${icon('sparkle')}${L('انشر الخلاصة', 'Share takeaway')}</button></div>`,

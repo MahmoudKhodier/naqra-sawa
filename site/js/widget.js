@@ -25,7 +25,10 @@
     return primary;
   };
 
-  const goalText = (have, pages) => L(`${L.num(have)} من ${L.count(pages, 'page')} النهارده`, `${have} of ${pages} pages today`, `${L.num(have)} من ${L.count(pages, 'page')} اليوم`);
+  const goalText = (have, pages) =>
+    have > pages
+      ? L(`${L.count(have, 'page')} النهارده ✓ (الهدف ${L.num(pages)})`, `${have} pages today ✓ (goal ${pages})`, `${L.count(have, 'page')} اليوم ✓ (الهدف ${L.num(pages)})`)
+      : L(`${L.num(have)} من ${L.count(pages, 'page')} النهارده`, `${have} of ${pages} pages today`, `${L.num(have)} من ${L.count(pages, 'page')} اليوم`);
 
   W.data = () => {
     const base = { v: 1, lang: L.lang(), rtl: L.isAr(), day: U.today() };
