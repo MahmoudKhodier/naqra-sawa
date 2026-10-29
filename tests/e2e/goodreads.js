@@ -247,19 +247,18 @@ const item = (id, rest) => `<item><title>${rest.title}</title><book_id>${id}</bo
       }, phm);
       await until(p, 'removed', (id) => !window.A.S.shelf.get(window.A.S.me).items[id], phm);
       // on Goodreads: Fellowship 4 → 2, Granada 5 → 2, Atomic Habits finished in Sep 2025 with ★4
-      await setFeed(
-        edit(FEED, [
+      ctx.feed2 = edit(FEED, [
           ['<user_rating>4</user_rating>\n      <user_read_at><![CDATA[Sun, 14 Mar 2021', '<user_rating>2</user_rating>\n      <user_read_at><![CDATA[Sun, 14 Mar 2021'],
           ['<user_rating>5</user_rating>\n      <user_read_at><![CDATA[Sat, 02 Jul 2022', '<user_rating>2</user_rating>\n      <user_read_at><![CDATA[Sat, 02 Jul 2022'],
           ['<user_rating>0</user_rating>\n      <user_read_at><![CDATA[]]></user_read_at>', '<user_rating>4</user_rating>\n      <user_read_at><![CDATA[Tue, 30 Sep 2025 00:00:00 +0000]]></user_read_at>'],
           ['<user_shelves>currently-reading</user_shelves>', '<user_shelves>read</user_shelves>'],
-        ])
-      );
+      ]);
+      await setFeed(ctx.feed2);
       await closeSheets(p);
-      await p.screenshot({ path: '/tmp/claude-0/-home-user-naqra-sawa/7e805eea-e646-56e0-a81e-9929043ef038/scratchpad/g-debug.png' });
       await openSheet(p);
       await p.waitForSelector('[data-gr-sync]');
       const gr0 = await shelfGr(p);
+      ctx.grAfterRemove = gr0;
       await p.click('[data-gr-sync]');
       await until(p, 'synced', () => !!document.querySelector('.gr-res'), null, 15000);
       const sum = await p.$$eval('.gr-res b', (x) => x.map((e) => e.textContent).join(','));
@@ -270,15 +269,22 @@ const item = (id, rest) => `<item><title>${rest.title}</title><book_id>${id}</bo
       assert(one(it, /غرناطة/).rating === 3, 'Granada rating edited here: ' + one(it, /غرناطة/).rating);
       const ah = one(it, /Atomic Habits/);
       assert(ah.status === 'read' && ah.finished === '2025-09' && ah.rating === 4, 'Atomic Habits: ' + JSON.stringify(ah));
-      assert(!byTitle(it, /Project Hail Mary/).length, 'a book removed here came back (shelf gr before: ' + JSON.stringify(gr0 && gr0.ids && gr0.ids.length) + ')');
-      assert(sum === '٠,١,٨', 'summary: ' + sum);
+      assert(!byTitle(it, /Project Hail Mary/).length, 'a book removed here came back');
+      assert(sum === '٠,١,٧', 'summary: ' + sum);
       assert(/مش هنرجّعه/.test(note), 'no note about the removed book: ' + note);
       ctx.later = true;
     }, ['linked']);
 
+    await step("The shelf screen's own writes keep the shared link (shelf.gr)", async () => {
+      // v-shelf.js writes D.mutate('shelf/<me>', () => ({ items })): the storage layer must keep the other keys
+      // of the shelf document (gr), or other devices lose the link and books removed here come back there.
+      const gr = ctx.grAfterRemove;
+      assert(gr && gr.id === '777' && Array.isArray(gr.ids) && gr.ids.length === 9, 'shelf.gr after removing a book from the shelf screen: ' + JSON.stringify(gr));
+    }, ['grAfterRemove']);
+
     await step('Auto sync: quietly once the last sync is over 12 hours old, and only once', async () => {
       await closeSheets(p);
-      await setFeed(edit(FEED, [['  </channel>', item(5907, { title: 'The Hobbit', author: 'J.R.R. Tolkien', rating: 5, readAt: 'Mon, 01 Sep 2025 00:00:00 +0000', pages: 310 }) + '\n  </channel>']]));
+      await setFeed(edit(ctx.feed2, [['  </channel>', item(5907, { title: 'The Hobbit', author: 'J.R.R. Tolkien', rating: 5, readAt: 'Mon, 01 Sep 2025 00:00:00 +0000', pages: 310 }) + '\n  </channel>']]));
       // shortly after a sync: nothing happens on reload
       const n0 = await feedCalls();
       await p.reload({ waitUntil: 'load' });
@@ -292,7 +298,7 @@ const item = (id, rest) => `<item><title>${rest.title}</title><book_id>${id}</bo
       await p.waitForSelector('.home, .shell', { timeout: 20000 });
       await until(p, 'auto sync brought The Hobbit', () => Object.values((window.A.S.shelf.get(window.A.S.me) || {}).items || {}).some((x) => x.title === 'The Hobbit'), null, 20000);
       const toast = await p.waitForSelector('.toast', { timeout: 5000 }).then((e) => e.textContent()).catch(() => '');
-      assert(/Goodreads/.test(toast) && /جديد/.test(toast), 'toast: ' + toast);
+      assert(/Goodreads/.test(toast) && /Goodreads — جديد: كتاب واحد\s*$/.test(toast), 'toast: ' + toast);
       const n1 = await feedCalls();
       assert(n1 - n0 === 2, 'pages fetched by the auto sync: ' + (n1 - n0));
       const gr = await shelfGr(p);
@@ -311,13 +317,14 @@ const item = (id, rest) => `<item><title>${rest.title}</title><book_id>${id}</bo
     }, ['later']);
 
     await step('Unlink: the link goes, the books stay', async () => {
+      const n0 = (await items(p)).length;
       await openSheet(p);
       await p.click('[data-gr-unlink]');
       await p.click('[data-yes]');
       await until(p, 'unlinked', () => !!document.querySelector('#gr-url') && !document.querySelector('.gr-box.on'));
       const gr = await shelfGr(p);
       assert(gr && !gr.id && gr.off && gr.ids.length >= 9, 'shelf gr after unlink: ' + JSON.stringify(gr));
-      assert((await items(p)).length === 9, 'books removed on unlink');
+      assert((await items(p)).length === n0, 'books removed on unlink');
       assert(!(await p.evaluate(() => localStorage.getItem('qs:grLink:' + window.A.S.me))), 'device link kept');
     }, ['linked']);
 

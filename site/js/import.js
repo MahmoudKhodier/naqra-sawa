@@ -361,7 +361,7 @@
     const withReviews = opts.reviews !== false;
     const items = Object.assign({}, (cur && cur.items) || {});
     const prev = (cur && cur.gr) || {};
-    const known = new Set((prev.ids || []).map(String));
+    const known = new Set((prev.ids || []).concat(opts.knownIds || []).map(String));
     const ids = new Set(known);
     const byGr = new Map(), byKey = new Map();
     for (const [id, x] of Object.entries(items)) {
@@ -536,13 +536,16 @@
       if (!fresh) break; // past the last page (an empty page, or the last one again)
     }
     if (!feed.length) throw grErr('empty');
+    const loc = U.store.get('grLink:' + S.me, null);
     let out = null;
     await D.mutate(`shelf/${S.me}`, () => {
       const cur = S.shelf.get(S.me) || {};
-      out = Imp.mergeGoodreads(cur, feed, { id, reviews, virtual: V.shelfItems(S.me).filter((x) => x.virtual) });
+      // this device's copy of the seen ids too, in case the shared gr got lost
+      const knownIds = loc && String(loc.id) === id && Array.isArray(loc.ids) ? loc.ids : [];
+      out = Imp.mergeGoodreads(cur, feed, { id, reviews, knownIds, virtual: V.shelfItems(S.me).filter((x) => x.virtual) });
       return shelfBody(cur, { items: out.items, gr: out.gr });
     });
-    U.store.set('grLink:' + S.me, { id, key: key || '', at: out.gr.at, reviews });
+    U.store.set('grLink:' + S.me, { id, key: key || '', at: out.gr.at, reviews, ids: out.gr.ids });
     U.store.del('grErr:' + S.me);
     return Object.assign({ total: feed.length }, out.res);
   }
@@ -581,12 +584,11 @@
         return L('Goodreads مردّش. جرّب تاني كمان شوية.', "Goodreads didn't answer. Try again in a while.", 'لم يستجب Goodreads. حاول مجددًا بعد قليل.');
     }
   };
-  const grSummary = (r) =>
-    L(
-      `Goodreads — جديد: ${L.count(r.added, 'book')}، اتحدّث: ${L.count(r.updated, 'book')}`,
-      `Goodreads: ${r.added} new, ${r.updated} updated`,
-      `Goodreads — جديد: ${L.count(r.added, 'book', 'nom')}، تحدّث: ${L.count(r.updated, 'book', 'nom')}`
-    );
+  const grSummary = (r) => {
+    const part = (n, eg, en, ar) => (n ? [L(`${eg}: ${L.count(n, 'book')}`, `${n} ${en}`, `${ar}: ${L.count(n, 'book', 'nom')}`)] : []);
+    const parts = [...part(r.added, 'جديد', 'new', 'جديد'), ...part(r.updated, 'اتحدّث', 'updated', 'تحدّث')];
+    return 'Goodreads — ' + parts.join(L('، ', ', ', '، '));
+  };
 
   /* Quietly in the background once the circle has loaded, when the last sync is over 12 hours old. */
   let autoT = 0, autoTried = 0;
@@ -624,7 +626,11 @@
           body.querySelector('#imp-step').innerHTML = html;
           body.querySelector('#gr-wrap').hidden = html !== pick();
         };
-        const grShow = () => (body.querySelector('#gr-wrap').innerHTML = grBox());
+        const grShow = () => {
+          body.querySelector('#gr-wrap').innerHTML = grBox();
+          const f = body.querySelector('[data-gr-sync], [data-gr-link]'); // the pressed button was replaced: keep focus in the sheet
+          if (f) f.focus({ preventScroll: true });
+        };
         const grSay = (msg) => {
           const el = body.querySelector('#gr-err');
           if (!el) return;
