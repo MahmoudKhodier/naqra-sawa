@@ -180,9 +180,7 @@
       </section>
       <section class="card">
         <header class="sec-h"><h2>${L('الأوسمة', 'Badges')}</h2><small class="muted">${L.num(s.badgeCount)} / ${L.num(G.BADGES.length)}</small></header>
-        <div class="badges">${s.badges
-          .map((x) => `<div class="bdg${x.got ? ' got' : ''}" title="${esc(L(x.b.d[0], x.b.d[1]))}">${V.badgeIcon(x.b, x.got)}<b>${esc(L(x.b.t[0], x.b.t[1]))}</b><small>${x.got ? esc(L(x.b.d[0], x.b.d[1])) : `${L.num(x.v)} / ${L.num(x.b.n)}`}</small>${x.got ? '' : V.bar(x.v / x.b.n, 'gold')}</div>`)
-          .join('')}</div>
+        <div class="badges">${G.badgeGroups(s).map((grp) => V.badgeCard(grp, uid)).join('')}</div>
       </section>
       <section class="card">
         <header class="sec-h"><h2>${L('خريطة القراية', 'Reading map')}</h2><small class="muted">${L('آخر ١٨ أسبوع', 'Last 18 weeks')}</small></header>

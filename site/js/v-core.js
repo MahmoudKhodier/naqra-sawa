@@ -196,7 +196,7 @@
       ${item('shelf', 'shelf', L('مكتبتي', 'My shelf'))}
       ${item('circle', 'users', L('الحلقة', 'Circle'), unreadCircle)}
       ${item('me', 'user', L('أنا', 'Me'))}
-      ${item('settings', 'gear', L('إعدادات', 'Settings'))}`;
+      ${item('settings', 'gear', L('إعدادات', 'Settings'), A.Upd && A.Upd.nag() ? 1 : 0)}`;
   }
 
   function greeting() {
@@ -415,7 +415,14 @@
     if (!prev) return;
     if (V.freezeNotices) V.freezeNotices(prev, now);
     if (now.lv > prev.lv) setTimeout(() => V.levelUp(now.lv), 400);
-    const newB = now.badges.filter((id) => !prev.badges.includes(id));
+    const newB = now.badges.filter((id) => !prev.badges.includes(id) && G.BADGES.some((x) => x.id === id));
+    if (newB.length > 3) {
+      setTimeout(() => {
+        U.chime('ok');
+        U.toast(`${icon('trophy')}<span><b>${L(`${L.num(newB.length)} أوسمة جديدة!`, `${newB.length} new badges!`)}</b> ${L('شوفهم في صفحة «أنا»', 'See them on your profile')}</span>`, 'badge');
+      }, 900);
+      return;
+    }
     newB.forEach((id, i) => {
       const b = G.BADGES.find((x) => x.id === id);
       setTimeout(() => {
@@ -441,7 +448,23 @@
     });
   };
 
-  V.badgeIcon = (b, got, size = '') => `<span class="badge8 ${got ? 'got' : ''} ${size}" style="--h:${(U.hash(b.id) % 6)}">${icon(b.ic)}</span>`;
+  /* Medal colour = level: 1 bronze, 2 silver, 3 gold, 4 diamond. */
+  V.badgeIcon = (b, got, size = '') => `<span class="badge8 tier${b.tier || 1} ${got ? 'got' : ''} ${size}">${icon(b.ic)}</span>`;
+  const TIER = [null, ['برونزي', 'Bronze'], ['فضي', 'Silver'], ['ذهبي', 'Gold'], ['ماسي', 'Diamond']];
+  V.tierName = (n) => (TIER[n] ? L(TIER[n][0], TIER[n][1]) : '');
+
+  /* A badge group on a profile: the highest level earned (or the first one, greyed), level dots, and
+     progress to the next level. Tapping opens the details. */
+  V.badgeCard = (grp, uid) => {
+    const show = grp.top || grp.tiers[0];
+    const nx = grp.next;
+    return `<button class="bdg${grp.top ? ' got' : ''}" data-act="badge" data-g="${esc(grp.g)}" data-uid="${esc(uid)}">
+      ${V.badgeIcon(show.b, !!grp.top)}
+      <b>${esc(L(show.b.t[0], show.b.t[1]))}</b>
+      <span class="bdg-dots" aria-label="${L(`${L.num(grp.tiers.filter((x) => x.got).length)} من ${L.num(grp.tiers.length)}`, `${grp.tiers.filter((x) => x.got).length} of ${grp.tiers.length}`)}">${grp.tiers.map((x) => `<i class="tier${x.b.tier}${x.got ? ' on' : ''}"></i>`).join('')}</span>
+      ${nx ? `<small>${L.num(nx.v)} / ${L.num(nx.b.n)}</small>${V.bar(nx.v / nx.b.n, 'gold')}` : `<small class="gold-t">${L('خلّصت كل المستويات ✓', 'All levels done ✓')}</small>`}
+    </button>`;
+  };
 
   /* ---------- shared actions ---------- */
   V.markWird = async (bookId, wid) => {
@@ -630,6 +653,35 @@
     else if (V.actions && V.actions[act]) V.actions[act](a, e);
   });
   V.actions = {};
+  V.actions.badge = (a) => V.badgeSheet(a.dataset.g, a.dataset.uid || S.me);
+  V.badgeSheet = (g, uid0) => {
+    const uid = uid0 || S.me;
+    const s = G.of(uid);
+    const grp = G.badgeGroups(s).find((x) => x.g === g);
+    if (!grp) return;
+    const mine = uid === S.me;
+    const others = D.memberIds().filter((u) => u !== uid);
+    const holders = (b) => others.filter((u) => (G.of(u).badges || []).some((x) => x.got && x.b.id === b.id));
+    const show = grp.top || grp.tiers[0];
+    V.sheet({
+      title: L('وسام', 'Badge'),
+      html: `<div class="bd-sheet">
+        <div class="bd-hero">${V.badgeIcon(show.b, !!grp.top, 'lg')}<h2>${esc(L(show.b.t[0], show.b.t[1]))}</h2>
+          <p class="muted">${grp.top ? L(`أعلى مستوى اتفتح: ${V.tierName(grp.top.b.tier)}`, `Highest level earned: ${V.tierName(grp.top.b.tier)}`) : mine ? L('لسه ما اتفتحش — شوف إزاي تاخده تحت', 'Not earned yet — see how below') : L('لسه ما اتفتحش', 'Not earned yet')}</p></div>
+        <p class="bd-tip">${icon('info')}<span>${esc(L(grp.tip[0], grp.tip[1]))}</span></p>
+        <ol class="bd-tiers">${grp.tiers
+          .map((x) => {
+            const h = holders(x.b);
+            return `<li class="${x.got ? 'got' : ''}">${V.badgeIcon(x.b, x.got, 'sm')}
+              <div><b>${esc(L(x.b.t[0], x.b.t[1]))} <small class="muted">• ${V.tierName(x.b.tier)}</small></b><small>${esc(L(x.b.d[0], x.b.d[1]))}</small>
+                ${x.got ? `<small class="jade-t">${icon('check')}${L('اتفتح', 'Earned')}</small>` : `<div class="bd-prog">${V.bar(x.v / x.b.n, 'gold')}<small>${L.num(x.v)} / ${L.num(x.b.n)}</small></div>`}
+                ${h.length ? `<span class="bd-who">${h.slice(0, 6).map((u) => D.avatar(u, 'xs')).join('')}<small>${h.length === 1 ? esc(D.name(h[0])) : L(`${L.num(h.length)} من الحلقة`, `${h.length} in the circle`)}</small></span>` : ''}
+              </div></li>`;
+          })
+          .join('')}</ol>
+      </div>`,
+    });
+  };
 
   window.addEventListener('hashchange', () => {
     if (V._silentHash) {

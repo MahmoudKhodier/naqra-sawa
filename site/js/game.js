@@ -37,33 +37,115 @@
     return L(t[0], t[1]) + extra;
   };
 
-  G.BADGES = [
-    { id: 'first_wird', ic: 'check', n: 1, v: (s) => s.wirdsDone, t: ['أول ورد', 'First portion'], d: ['خلّص أول ورد مع الحلقة', 'Finish your first portion'] },
-    { id: 'on_time', ic: 'clock', n: 5, v: (s) => s.onTime, t: ['في الميعاد', 'Right on time'], d: ['خلّص ٥ أوراد قبل ميعادها', 'Finish 5 portions before they are due'] },
-    { id: 'pioneer', ic: 'bolt', n: 3, v: (s) => s.firsts, t: ['السبّاق', 'Trailblazer'], d: ['كن أول واحد يخلّص الورد ٣ مرات', 'Be first to finish a portion 3 times'] },
-    { id: 'p100', ic: 'scroll', n: 100, v: (s) => s.pages, t: ['مية صفحة', '100 pages'], d: ['اقرأ ١٠٠ صفحة', 'Read 100 pages'] },
-    { id: 'p1000', ic: 'layers', n: 1000, v: (s) => s.pages, t: ['ألف صفحة', '1,000 pages'], d: ['اقرأ ١٠٠٠ صفحة', 'Read 1,000 pages'] },
-    { id: 'streak7', ic: 'flame', n: 7, v: (s) => s.best, t: ['أسبوع نار', 'Week on fire'], d: ['اقرأ ٧ أيام ورا بعض', 'Read 7 days in a row'] },
-    { id: 'streak30', ic: 'flame', n: 30, v: (s) => s.best, t: ['شهر من غير ما تقطع', 'Unbroken month'], d: ['اقرأ ٣٠ يوم ورا بعض', 'Read 30 days in a row'] },
-    { id: 'pen', ic: 'note', n: 10, v: (s) => s.notes, t: ['صاحب قلم', 'Margin writer'], d: ['اكتب ١٠ ملاحظات أو تظليلات', 'Leave 10 notes or highlights'] },
-    { id: 'quotes', ic: 'quote', n: 5, v: (s) => s.quotes, t: ['صياد الاقتباسات', 'Quote hunter'], d: ['احفظ ٥ اقتباسات', 'Save 5 quotes'] },
-    { id: 'curious', ic: 'question', n: 5, v: (s) => s.questions, t: ['الفضولي', 'Curious mind'], d: ['اسأل ٥ أسئلة على الكتاب', 'Ask 5 questions in the margins'] },
-    { id: 'talk', ic: 'chat', n: 25, v: (s) => s.replies + s.msgs, t: ['المحاور', 'Conversationalist'], d: ['شارك ٢٥ مرة في النقاش', 'Post 25 replies or messages'] },
-    { id: 'loved', ic: 'heart', n: 25, v: (s) => s.likesRecv, t: ['محبوب الحلقة', 'Circle favourite'], d: ['اجمع ٢٥ إعجاب على ملاحظاتك', 'Collect 25 likes on your notes'] },
-    { id: 'take', ic: 'sparkle', n: 3, v: (s) => s.takes, t: ['الخلاصة', 'The distiller'], d: ['اكتب خلاصتك لـ٣ أوراد', 'Write your takeaway for 3 portions'] },
-    { id: 'shelf10', ic: 'shelf', n: 10, v: (s) => s.shelfRead, t: ['مكتبة عامرة', 'Full shelf'], d: ['ضيف ١٠ كتب قرأتها لمكتبتك', 'Add 10 books you have read'] },
-    { id: 'critic', ic: 'edit', n: 5, v: (s) => s.reviews, t: ['الناقد', 'The critic'], d: ['اكتب رأيك في ٥ كتب', 'Review 5 books'] },
-    { id: 'finisher', ic: 'trophy', n: 1, v: (s) => s.booksDone, t: ['خاتم الكتاب', 'Book finisher'], d: ['خلّص كتاب كامل مع الحلقة', 'Finish a whole book with the circle'] },
-    { id: 'cheer', ic: 'clap', n: 10, v: (s) => s.cheers, t: ['المشجّع', 'Cheerleader'], d: ['شجّع أصحابك ١٠ مرات', 'Cheer or nudge friends 10 times'] },
-    { id: 'quests', ic: 'chest', n: 7, v: (s) => s.questDays, t: ['صائد الكنوز', 'Treasure hunter'], d: ['افتح صندوق مهام اليوم ٧ مرات', 'Complete the daily quests 7 times'] },
+  /* Badges come in groups with up to four levels (bronze, silver, gold, diamond). The first level keeps the
+     original ids so badges already earned stay earned. `v` reads a number from the person's stats. */
+  G.BADGE_GROUPS = [
+    { g: 'pages', ic: 'scroll', tip: ['كل صفحة بتقراها في البرنامج بتتحسب — حتى لو بتقلّب بسرعة لازم تقف على الصفحة شوية.', 'Every page you read in the app counts — pause on a page for it to count.'] },
+    { g: 'streak', ic: 'flame', tip: ['اقرأ ولو صفحة كل يوم. كل ٧ أيام ورا بعض بتكسبك «حماية» بتنقذ السلسلة لو فوّت يوم.', 'Read at least a page every day. Every 7 days in a row earns a freeze that saves your streak once.'] },
+    { g: 'days', ic: 'calendar', tip: ['الأيام اللي قريت فيها، مش لازم ورا بعض.', 'Days you read on — they do not have to be in a row.'] },
+    { g: 'marathon', ic: 'bolt', tip: ['عدد الصفحات في يوم واحد.', 'Pages read in a single day.'] },
+    { g: 'hours', ic: 'clock', tip: ['وقت القراية الفعلي جوه القارئ (بيقف لما تسيب الموبايل).', 'Time actually spent reading in the reader (it pauses when you put the phone down).'] },
+    { g: 'wirds', ic: 'check', tip: ['علّم الورد إنه خلص لما تخلّص صفحاته.', 'Mark a portion done when you finish its pages.'] },
+    { g: 'ontime', ic: 'clock', tip: ['خلّص الورد قبل أو في يوم ميعاده.', 'Finish a portion on or before its due day.'] },
+    { g: 'pioneer', ic: 'bolt', tip: ['كن أول واحد في الحلقة يخلّص الورد.', 'Be the first in the circle to finish a portion.'] },
+    { g: 'books', ic: 'trophy', tip: ['خلّص كتاب كامل مع الحلقة ودوس «خلّصت الكتاب».', 'Finish a whole book with the circle and tap “I finished it”.'] },
+    { g: 'notes', ic: 'note', tip: ['ظلّل جملة أو حط ملاحظة على الصفحة وإنت بتقرأ.', 'Highlight a sentence or pin a note while reading.'] },
+    { g: 'quotes', ic: 'quote', tip: ['لما تظلّل، اختار «اقتباس».', 'When highlighting, choose “Quote”.'] },
+    { g: 'questions', ic: 'question', tip: ['لما تحط ملاحظة، اختار «سؤال» عشان أصحابك يردّوا.', 'When adding a note, choose “Question” so friends can answer.'] },
+    { g: 'takes', ic: 'sparkle', tip: ['بعد ما تخلّص الورد، اكتب أهم فكرة خرجت بيها من «خلاصات الورد».', 'After a portion, write the main idea you took away under “Takeaways”.'] },
+    { g: 'talk', ic: 'chat', tip: ['ردود على الملاحظات ورسايل في النقاش.', 'Replies to notes and messages in discussions.'] },
+    { g: 'loved', ic: 'heart', tip: ['الإعجابات اللي بتجيلك على ملاحظاتك.', 'Likes your notes receive.'] },
+    { g: 'generous', ic: 'heart', tip: ['اعمل إعجاب لملاحظات أصحابك.', "Like your friends' notes."] },
+    { g: 'cheer', ic: 'clap', tip: ['شجّع أو فكّر أصحابك من صفحة الحلقة أو التقدّم.', 'Cheer on or nudge friends from the circle or progress pages.'] },
+    { g: 'voter', ic: 'vote', tip: ['صوّت على الكتب المقترحة للحلقة.', 'Vote on the books suggested to the circle.'] },
+    { g: 'shelf', ic: 'shelf', tip: ['ضيف الكتب اللي قريتها قبل كده لمكتبتك (أو استوردها من Goodreads).', 'Add books you have read to your shelf (or import them from Goodreads).'] },
+    { g: 'critic', ic: 'edit', tip: ['اكتب رأيك (أكتر من سطر) في كتب مكتبتك.', 'Write a review (more than a line) for books on your shelf.'] },
+    { g: 'quests', ic: 'chest', tip: ['خلّص مهام اليوم التلاتة وافتح الصندوق.', 'Finish all three daily quests and open the chest.'] },
+    { g: 'level', ic: 'sparkle', tip: ['كل XP بتكسبه بيقرّبك للمستوى الجاي.', 'Every XP you earn brings the next level closer.'] },
   ];
+  const B = (g, tier, id, n, v, t, d) => ({ g, tier, id, n, v, t, d, ic: (G.BADGE_GROUPS.find((x) => x.g === g) || {}).ic || 'sparkle' });
+  G.BADGES = [
+    B('pages', 1, 'p100', 100, (s) => s.pages, ['مية صفحة', '100 pages'], ['اقرأ ١٠٠ صفحة', 'Read 100 pages']),
+    B('pages', 2, 'p1000', 1000, (s) => s.pages, ['ألف صفحة', '1,000 pages'], ['اقرأ ١٠٠٠ صفحة', 'Read 1,000 pages']),
+    B('pages', 3, 'p5000', 5000, (s) => s.pages, ['خمس تلاف صفحة', '5,000 pages'], ['اقرأ ٥٠٠٠ صفحة', 'Read 5,000 pages']),
+    B('pages', 4, 'p10000', 10000, (s) => s.pages, ['عشر تلاف صفحة', '10,000 pages'], ['اقرأ ١٠٬٠٠٠ صفحة', 'Read 10,000 pages']),
+    B('streak', 1, 'streak7', 7, (s) => s.best, ['أسبوع نار', 'Week on fire'], ['اقرأ ٧ أيام ورا بعض', 'Read 7 days in a row']),
+    B('streak', 2, 'streak30', 30, (s) => s.best, ['شهر من غير ما تقطع', 'Unbroken month'], ['اقرأ ٣٠ يوم ورا بعض', 'Read 30 days in a row']),
+    B('streak', 3, 'streak100', 100, (s) => s.best, ['مية يوم', '100-day streak'], ['اقرأ ١٠٠ يوم ورا بعض', 'Read 100 days in a row']),
+    B('streak', 4, 'streak365', 365, (s) => s.best, ['سنة كاملة', 'A whole year'], ['اقرأ ٣٦٥ يوم ورا بعض', 'Read 365 days in a row']),
+    B('days', 1, 'days30', 30, (s) => s.daysRead, ['قارئ مخلص', 'Faithful reader'], ['اقرأ في ٣٠ يوم مختلف', 'Read on 30 different days']),
+    B('days', 2, 'days100', 100, (s) => s.daysRead, ['عادة يومية', 'Daily habit'], ['اقرأ في ١٠٠ يوم مختلف', 'Read on 100 different days']),
+    B('days', 3, 'days365', 365, (s) => s.daysRead, ['رفيق الكتاب', 'Book companion'], ['اقرأ في ٣٦٥ يوم مختلف', 'Read on 365 different days']),
+    B('marathon', 1, 'day50', 50, (s) => s.maxDay, ['ماراثون', 'Marathon'], ['اقرأ ٥٠ صفحة في يوم واحد', 'Read 50 pages in one day']),
+    B('marathon', 2, 'day100', 100, (s) => s.maxDay, ['ماراثون كبير', 'Ultra marathon'], ['اقرأ ١٠٠ صفحة في يوم واحد', 'Read 100 pages in one day']),
+    B('marathon', 3, 'day200', 200, (s) => s.maxDay, ['مش قادر يسيب الكتاب', "Couldn't put it down"], ['اقرأ ٢٠٠ صفحة في يوم واحد', 'Read 200 pages in one day']),
+    B('hours', 1, 'hours10', 10, (s) => Math.floor(s.secs / 3600), ['عشر ساعات', '10 hours'], ['اقرأ ١٠ ساعات', 'Read for 10 hours']),
+    B('hours', 2, 'hours50', 50, (s) => Math.floor(s.secs / 3600), ['خمسين ساعة', '50 hours'], ['اقرأ ٥٠ ساعة', 'Read for 50 hours']),
+    B('hours', 3, 'hours100', 100, (s) => Math.floor(s.secs / 3600), ['مية ساعة', '100 hours'], ['اقرأ ١٠٠ ساعة', 'Read for 100 hours']),
+    B('wirds', 1, 'first_wird', 1, (s) => s.wirdsDone, ['أول ورد', 'First portion'], ['خلّص أول ورد مع الحلقة', 'Finish your first portion']),
+    B('wirds', 2, 'wirds10', 10, (s) => s.wirdsDone, ['عشر أوراد', '10 portions'], ['خلّص ١٠ أوراد', 'Finish 10 portions']),
+    B('wirds', 3, 'wirds50', 50, (s) => s.wirdsDone, ['خمسين ورد', '50 portions'], ['خلّص ٥٠ ورد', 'Finish 50 portions']),
+    B('wirds', 4, 'wirds100', 100, (s) => s.wirdsDone, ['مية ورد', '100 portions'], ['خلّص ١٠٠ ورد', 'Finish 100 portions']),
+    B('ontime', 1, 'on_time', 5, (s) => s.onTime, ['في الميعاد', 'Right on time'], ['خلّص ٥ أوراد قبل ميعادها', 'Finish 5 portions before they are due']),
+    B('ontime', 2, 'on_time25', 25, (s) => s.onTime, ['منضبط', 'Punctual'], ['خلّص ٢٥ ورد في ميعادهم', 'Finish 25 portions on time']),
+    B('ontime', 3, 'on_time100', 100, (s) => s.onTime, ['زي الساعة', 'Like clockwork'], ['خلّص ١٠٠ ورد في ميعادهم', 'Finish 100 portions on time']),
+    B('pioneer', 1, 'pioneer', 3, (s) => s.firsts, ['السبّاق', 'Trailblazer'], ['كن أول واحد يخلّص الورد ٣ مرات', 'Be first to finish a portion 3 times']),
+    B('pioneer', 2, 'pioneer10', 10, (s) => s.firsts, ['دايما الأول', 'Always first'], ['كن الأول ١٠ مرات', 'Be first 10 times']),
+    B('pioneer', 3, 'pioneer30', 30, (s) => s.firsts, ['قائد الحلقة', 'Circle leader'], ['كن الأول ٣٠ مرة', 'Be first 30 times']),
+    B('books', 1, 'finisher', 1, (s) => s.booksDone, ['خاتم الكتاب', 'Book finisher'], ['خلّص كتاب كامل مع الحلقة', 'Finish a whole book with the circle']),
+    B('books', 2, 'books3', 3, (s) => s.booksDone, ['تلات كتب', 'Three books'], ['خلّص ٣ كتب مع الحلقة', 'Finish 3 books with the circle']),
+    B('books', 3, 'books10', 10, (s) => s.booksDone, ['عشر كتب', 'Ten books'], ['خلّص ١٠ كتب مع الحلقة', 'Finish 10 books with the circle']),
+    B('books', 4, 'books25', 25, (s) => s.booksDone, ['مكتبة متنقلة', 'Walking library'], ['خلّص ٢٥ كتاب مع الحلقة', 'Finish 25 books with the circle']),
+    B('notes', 1, 'pen', 10, (s) => s.notes, ['صاحب قلم', 'Margin writer'], ['اكتب ١٠ ملاحظات أو تظليلات', 'Leave 10 notes or highlights']),
+    B('notes', 2, 'pen50', 50, (s) => s.notes, ['قلم رصاص', 'Pencil in hand'], ['اكتب ٥٠ ملاحظة أو تظليل', 'Leave 50 notes or highlights']),
+    B('notes', 3, 'pen200', 200, (s) => s.notes, ['شارح المتون', 'The annotator'], ['اكتب ٢٠٠ ملاحظة أو تظليل', 'Leave 200 notes or highlights']),
+    B('quotes', 1, 'quotes', 5, (s) => s.quotes, ['صياد الاقتباسات', 'Quote hunter'], ['احفظ ٥ اقتباسات', 'Save 5 quotes']),
+    B('quotes', 2, 'quotes25', 25, (s) => s.quotes, ['دفتر الاقتباسات', 'Commonplace book'], ['احفظ ٢٥ اقتباس', 'Save 25 quotes']),
+    B('quotes', 3, 'quotes100', 100, (s) => s.quotes, ['خزانة الحكم', 'Treasury of wisdom'], ['احفظ ١٠٠ اقتباس', 'Save 100 quotes']),
+    B('questions', 1, 'curious', 5, (s) => s.questions, ['الفضولي', 'Curious mind'], ['اسأل ٥ أسئلة على الكتاب', 'Ask 5 questions in the margins']),
+    B('questions', 2, 'curious25', 25, (s) => s.questions, ['الباحث', 'The researcher'], ['اسأل ٢٥ سؤال', 'Ask 25 questions']),
+    B('takes', 1, 'take', 3, (s) => s.takes, ['الخلاصة', 'The distiller'], ['اكتب خلاصتك لـ٣ أوراد', 'Write your takeaway for 3 portions']),
+    B('takes', 2, 'take15', 15, (s) => s.takes, ['المُلخِّص', 'The summariser'], ['اكتب ١٥ خلاصة', 'Write 15 takeaways']),
+    B('takes', 3, 'take50', 50, (s) => s.takes, ['عصارة الكتب', 'Essence of books'], ['اكتب ٥٠ خلاصة', 'Write 50 takeaways']),
+    B('talk', 1, 'talk', 25, (s) => s.replies + s.msgs, ['المحاور', 'Conversationalist'], ['شارك ٢٥ مرة في النقاش', 'Post 25 replies or messages']),
+    B('talk', 2, 'talk100', 100, (s) => s.replies + s.msgs, ['روح النقاش', 'Life of the discussion'], ['شارك ١٠٠ مرة في النقاش', 'Post 100 replies or messages']),
+    B('talk', 3, 'talk500', 500, (s) => s.replies + s.msgs, ['صالون أدبي', 'Literary salon'], ['شارك ٥٠٠ مرة في النقاش', 'Post 500 replies or messages']),
+    B('loved', 1, 'loved', 25, (s) => s.likesRecv, ['محبوب الحلقة', 'Circle favourite'], ['اجمع ٢٥ إعجاب على ملاحظاتك', 'Collect 25 likes on your notes']),
+    B('loved', 2, 'loved100', 100, (s) => s.likesRecv, ['قلمه مسموع', 'A voice people follow'], ['اجمع ١٠٠ إعجاب', 'Collect 100 likes']),
+    B('loved', 3, 'loved500', 500, (s) => s.likesRecv, ['نجم الحلقة', 'Circle star'], ['اجمع ٥٠٠ إعجاب', 'Collect 500 likes']),
+    B('generous', 1, 'generous10', 10, (s) => s.likesGiven, ['كريم', 'Generous'], ['اعمل إعجاب لـ١٠ ملاحظات من أصحابك', "Like 10 of your friends' notes"]),
+    B('generous', 2, 'generous50', 50, (s) => s.likesGiven, ['قلبه كبير', 'Big-hearted'], ['اعمل إعجاب لـ٥٠ ملاحظة', 'Like 50 notes']),
+    B('generous', 3, 'generous200', 200, (s) => s.likesGiven, ['داعم الحلقة', 'Circle supporter'], ['اعمل إعجاب لـ٢٠٠ ملاحظة', 'Like 200 notes']),
+    B('cheer', 1, 'cheer', 10, (s) => s.cheers, ['المشجّع', 'Cheerleader'], ['شجّع أصحابك ١٠ مرات', 'Cheer or nudge friends 10 times']),
+    B('cheer', 2, 'cheer50', 50, (s) => s.cheers, ['المحفّز', 'The motivator'], ['شجّع أصحابك ٥٠ مرة', 'Cheer or nudge friends 50 times']),
+    B('voter', 1, 'voter5', 5, (s) => s.votes, ['صوتك مسموع', 'Your vote counts'], ['صوّت على ٥ كتب مقترحة', 'Vote on 5 suggested books']),
+    B('voter', 2, 'voter20', 20, (s) => s.votes, ['ضمير الحلقة', 'Voice of the circle'], ['صوّت على ٢٠ كتاب مقترح', 'Vote on 20 suggested books']),
+    B('shelf', 1, 'shelf10', 10, (s) => s.shelfRead, ['مكتبة عامرة', 'Full shelf'], ['ضيف ١٠ كتب قرأتها لمكتبتك', 'Add 10 books you have read']),
+    B('shelf', 2, 'shelf50', 50, (s) => s.shelfRead, ['أمين المكتبة', 'The librarian'], ['ضيف ٥٠ كتاب قرأته', 'Add 50 books you have read']),
+    B('shelf', 3, 'shelf100', 100, (s) => s.shelfRead, ['دار الكتب', 'House of books'], ['ضيف ١٠٠ كتاب قرأته', 'Add 100 books you have read']),
+    B('critic', 1, 'critic', 5, (s) => s.reviews, ['الناقد', 'The critic'], ['اكتب رأيك في ٥ كتب', 'Review 5 books']),
+    B('critic', 2, 'critic20', 20, (s) => s.reviews, ['الناقد الأدبي', 'Literary critic'], ['اكتب رأيك في ٢٠ كتاب', 'Review 20 books']),
+    B('quests', 1, 'quests', 7, (s) => s.questDays, ['صائد الكنوز', 'Treasure hunter'], ['افتح صندوق مهام اليوم ٧ مرات', 'Complete the daily quests 7 times']),
+    B('quests', 2, 'quests30', 30, (s) => s.questDays, ['جامع الكنوز', 'Treasure collector'], ['افتح الصندوق ٣٠ مرة', 'Open the chest 30 times']),
+    B('quests', 3, 'quests100', 100, (s) => s.questDays, ['ملك الكنوز', 'Treasure king'], ['افتح الصندوق ١٠٠ مرة', 'Open the chest 100 times']),
+    B('level', 1, 'lv5', 5, (s) => s.lv, ['المستوى ٥', 'Level 5'], ['وصّل للمستوى ٥', 'Reach level 5']),
+    B('level', 2, 'lv10', 10, (s) => s.lv, ['المستوى ١٠', 'Level 10'], ['وصّل للمستوى ١٠', 'Reach level 10']),
+    B('level', 3, 'lv20', 20, (s) => s.lv, ['المستوى ٢٠', 'Level 20'], ['وصّل للمستوى ٢٠', 'Reach level 20']),
+  ];
+  /* One entry per group: its levels (with progress), the highest level earned and the next one to aim for. */
+  G.badgeGroups = (s) =>
+    G.BADGE_GROUPS.map((grp) => {
+      const tiers = (s.badges || []).filter((x) => x.b.g === grp.g).sort((a, b) => a.b.tier - b.b.tier);
+      const got = tiers.filter((x) => x.got);
+      return Object.assign({}, grp, { tiers, top: got.length ? got[got.length - 1] : null, next: tiers.find((x) => !x.got) || null });
+    }).filter((x) => x.tiers.length);
 
   function blank(uid) {
     return {
       uid, xp: 0, week: 0, prevWeek: 0, todayXp: 0, pages: 0, pagesWeek: 0, pagesPrevWeek: 0, pagesToday: 0, secs: 0, secsWeek: 0, freezes: 0, frozen: [],
       wirdsDone: 0, onTime: 0, firsts: 0, notes: 0, quotes: 0, questions: 0, takes: 0,
       replies: 0, msgs: 0, likesRecv: 0, likesGiven: 0, shelfRead: 0, reviews: 0,
-      booksDone: 0, cheers: 0, votes: 0, questDays: 0,
+      booksDone: 0, cheers: 0, votes: 0, questDays: 0, daysRead: 0, maxDay: 0,
       days: {}, byDay: {}, active: new Set(), events: [],
     };
   }
@@ -200,6 +282,8 @@
       for (const [day, n] of Object.entries(m.days || {})) {
         const v = Math.max(0, Math.min(2000, +n || 0));
         if (!v) continue;
+        s.daysRead++;
+        if (v > s.maxDay) s.maxDay = v;
         s.days[day] = v;
         s.pages += v;
         bump(s, day, 'pages', v);

@@ -46,12 +46,25 @@
     const m = S.members.get(uid) || {};
     const goal = (m.goal && +m.goal[year]) || 0;
     const doneYear = all.filter((x) => x.status === 'read' && String(x.finished || '').startsWith(year)).length;
-    const list = all.filter((x) => x.status === tab).sort((a, b) => String(b.finished || b.at).localeCompare(String(a.finished || a.at)));
+    const inTab = all.filter((x) => x.status === tab);
+    const q = String(opts.q || '').trim();
+    const sort = opts.sort || 'recent';
+    const qn = q ? A.Imp.key(q, '').replace(/\|$/, '') : '';
+    const list = inTab
+      .filter((x) => !qn || A.Imp.key(x.title + ' ' + (x.author || ''), '').includes(qn))
+      .sort((a, b) =>
+        sort === 'title' ? String(a.title).localeCompare(String(b.title), L.isAr() ? 'ar' : 'en')
+          : sort === 'author' ? String(a.author || '~').localeCompare(String(b.author || '~'), L.isAr() ? 'ar' : 'en')
+            : sort === 'rating' ? (b.rating || 0) - (a.rating || 0) || String(b.finished || b.at).localeCompare(String(a.finished || a.at))
+              : String(b.finished || b.at).localeCompare(String(a.finished || a.at)),
+      );
+    const tools = inTab.length > 6 || q ? `<div class="shelf-tools"><label class="sh-search">${icon('search')}<input id="sh-q" type="search" dir="auto" placeholder="${L('دوّر بالاسم أو المؤلف…', 'Search title or author…')}" value="${esc(q)}" aria-label="${L('دوّر في المكتبة', 'Search the shelf')}"></label>
+        <select id="sh-sort" aria-label="${L('الترتيب', 'Sort')}">${[['recent', L('الأحدث', 'Recent')], ['title', L('بالاسم', 'Title')], ['author', L('بالمؤلف', 'Author')], ['rating', L('بالتقييم', 'Rating')]].map(([k, t]) => `<option value="${k}" ${sort === k ? 'selected' : ''}>${t}</option>`).join('')}</select></div>` : '';
     const pagesTotal = all.filter((x) => x.status === 'read').reduce((s, x) => s + (+x.pages || 0), 0);
     const owners = D.memberIds();
     return `<div class="shelfpage">
       <header class="page-head"><div><h1>${mine ? L('مكتبتي', 'My shelf') : L(`مكتبة ${esc(D.name(uid))}`, `${esc(D.name(uid))}'s shelf`)}</h1><p class="muted">${L('كل الكتب اللي قريتها، بتقرأها، أو ناوي تقرأها', 'Everything read, in progress, or on the wish list')}</p></div>
-        ${mine && D.canWrite() ? `<div class="row-btns"><button class="btn gold" data-act="shelf-add">${icon('plus')}${L('ضيف كتاب', 'Add a book')}</button><button class="btn ghost" data-act="bulk-shelf">${icon('list')}<span class="hide-xs">${L('ضيف كذا كتاب', 'Add many')}</span></button></div>` : ''}</header>
+        ${mine && D.canWrite() ? `<div class="row-btns"><button class="btn gold" data-act="shelf-add">${icon('plus')}${L('ضيف كتاب', 'Add a book')}</button><button class="btn ghost" data-act="bulk-shelf" aria-label="${L('ضيف كذا كتاب', 'Add many')}">${icon('list')}<span class="hide-xs">${L('ضيف كذا كتاب', 'Add many')}</span></button><button class="btn ghost" data-act="import-shelf">${icon('download')}<span>Goodreads</span></button></div>` : ''}</header>
       <div class="owners" role="tablist">${owners.map((u) => `<button class="owner${u === uid ? ' on' : ''}" data-act="shelf-of" data-uid="${esc(u)}" role="tab" aria-selected="${u === uid}">${D.avatar(u, 'sm')}<span>${u === S.me ? L('أنا', 'Me') : esc(D.name(u))}</span></button>`).join('')}</div>
       <div class="shelf-top">
         <section class="card challenge">
@@ -67,7 +80,8 @@
         </section>
       </div>
       <nav class="tabs" role="tablist">${Object.entries(STATUS).map(([k, t]) => `<button role="tab" class="tab${k === tab ? ' on' : ''}" aria-selected="${k === tab}" data-act="shelf-tab" data-st="${k}" data-uid="${esc(uid)}"><span>${L(t[0], t[1])}</span><small>${L.num(counts[k] || 0)}</small></button>`).join('')}</nav>
-      ${list.length ? shelfRows(list) : V.empty(tab === 'read' ? L('الرف فاضي', 'This shelf is empty') : L('مفيش حاجة هنا لسه', 'Nothing here yet'), mine ? L('ضيف الكتب اللي قريتها قبل كده — كل كتاب بـ ١٠ XP، والرأي بـ ٥ زيادة.', 'Add books you have read before — 10 XP each, plus 5 for a review.') : '', mine && D.canWrite() ? `<button class="btn gold" data-act="bulk-shelf">${icon('list')}${L('ضيف كذا كتاب مرة واحدة', 'Add several at once')}</button>` : '')}
+      ${tools}
+      ${list.length ? shelfRows(list) : q ? V.empty(L('مفيش كتاب بالاسم ده', 'No book matches'), L('جرّب كلمة تانية من العنوان أو اسم المؤلف.', 'Try another word from the title or the author.')) : V.empty(tab === 'read' ? L('الرف فاضي', 'This shelf is empty') : L('مفيش حاجة هنا لسه', 'Nothing here yet'), mine ? L('ضيف الكتب اللي قريتها قبل كده — كل كتاب بـ ١٠ XP، والرأي بـ ٥ زيادة. عندك حساب Goodreads؟ هات مكتبتك كلها مرة واحدة.', 'Add books you have read before — 10 XP each, plus 5 for a review. On Goodreads? Bring your whole library at once.') : '', mine && D.canWrite() ? `<div class="row-btns center"><button class="btn gold" data-act="bulk-shelf">${icon('list')}${L('ضيف كذا كتاب مرة واحدة', 'Add several at once')}</button><button class="btn ghost" data-act="import-shelf">${icon('download')}${L('استورد من Goodreads', 'Import from Goodreads')}</button></div>` : '')}
     </div>`;
   };
 
@@ -92,7 +106,17 @@
   }
 
   V.actions['shelf-of'] = (a) => V.go('shelf', { uid: a.dataset.uid });
-  V.actions['shelf-tab'] = (a) => V.go('shelf', { uid: a.dataset.uid, st: a.dataset.st });
+  V.actions['shelf-tab'] = (a) => V.go('shelf', { uid: a.dataset.uid, st: a.dataset.st, sort: (V.state.opts || {}).sort });
+  document.addEventListener('input', (e) => {
+    if (e.target.id !== 'sh-q' || V.state.route !== 'shelf') return;
+    V.state.opts = Object.assign({}, V.state.opts, { q: e.target.value });
+    V.render();
+  });
+  document.addEventListener('change', (e) => {
+    if (e.target.id !== 'sh-sort' || V.state.route !== 'shelf') return;
+    V.state.opts = Object.assign({}, V.state.opts, { sort: e.target.value });
+    V.render();
+  });
   V.actions['shelf-add'] = () => V.shelfForm();
   V.actions['bulk-shelf'] = () => V.bulkShelf();
   V.actions['shelf-item'] = (a) => {
@@ -171,6 +195,11 @@
           };
           if (A.B) item.cover = A.B.coverValue(body, 'sf-cover');
           if (it && it.together) item.together = it.together;
+          if (!it) {
+            const k = A.Imp.key(item.title, item.author);
+            const dup = V.shelfItems(S.me).find((x) => A.Imp.key(x.title, x.author) === k);
+            if (dup && !(await V.confirm(L(`«${esc(dup.title)}» موجود في مكتبتك (${esc(L(STATUS[dup.status][0], STATUS[dup.status][1]))}). تضيفه تاني؟`, `“${esc(dup.title)}” is already on your shelf (${esc(STATUS[dup.status][1])}). Add it again?`), L('ضيفه', 'Add it')))) return;
+          }
           api.close();
           await V.saveShelfItem(it ? it.id : null, item);
         });
@@ -229,6 +258,13 @@
   V.shelfDetail = (uid, it) => {
     const mine = uid === S.me;
     const book = it.together ? S.books.get(it.together) : null;
+    // Others in the circle with the same book on their shelf (or finished together).
+    const k = A.Imp.key(it.title, it.author);
+    const others = D.memberIds()
+      .filter((u) => u !== uid)
+      .map((u) => ({ u, x: V.shelfItems(u).find((y) => A.Imp.key(y.title, y.author) === k) }))
+      .filter((o) => o.x);
+    const month = U.today().slice(0, 7);
     V.sheet({
       title: L(STATUS[it.status][0], STATUS[it.status][1]),
       html: `<div class="sd">${book ? V.cover(book, 'md') : V.coverOf ? V.coverOf(it, 'md') : V.genCover(it.title, it.author, 'md')}
@@ -237,6 +273,10 @@
           <div class="meta-chips">${it.finished ? `<span>${icon('calendar')}${it.finished.length === 4 ? L.num(+it.finished, { useGrouping: false }) : L.monthYear(it.finished)}</span>` : ''}${it.pages ? `<span>${icon('scroll')}${L.count(+it.pages, 'page')}</span>` : ''}${it.together ? `<span class="gold-t">${icon('users')}${L('قرأناه سوا', 'Read together')}</span>` : ''}${(it.tags || []).map((t) => `<span>${tagName(t)}</span>`).join('')}</div>
         </div></div>
         ${it.review ? `<blockquote class="review" dir="auto">${esc(it.review)}</blockquote>` : ''}
+        ${mine && D.canWrite() && !it.virtual && it.status !== 'read' ? `<div class="sd-move">${it.status === 'want' ? `<button class="btn" data-move="reading">${icon('play', 'flip-rtl')}${L('بدأت أقرأه', 'Started it')}</button>` : ''}<button class="btn gold" data-move="read">${icon('check')}${L('خلّصته', 'Finished it')}</button></div>` : ''}
+        ${others.length ? `<div class="sd-others"><h4>${L('في الحلقة', 'In the circle')}</h4>${others
+          .map((o) => `<button class="sd-o" data-act="shelf-of" data-uid="${esc(o.u)}">${D.avatar(o.u, 'sm')}<span><b>${esc(D.name(o.u))}</b><small>${esc(L(STATUS[o.x.status][0], STATUS[o.x.status][1]))}${o.x.together ? ` • ${L('مع الحلقة', 'with the circle')}` : ''}</small></span>${o.x.rating ? V.stars(o.x.rating) : ''}</button>`)
+          .join('')}</div>` : ''}
         <div class="row-btns">
           ${mine && D.canWrite() ? `<button class="btn" data-edit>${icon('edit')}${it.virtual ? L('قيّم الكتاب', 'Rate it') : L('عدّل', 'Edit')}</button>${!it.virtual ? `<button class="btn ghost" data-del>${icon('trash')}${L('شيله', 'Remove')}</button>` : ''}` : ''}
           ${!mine && D.canWrite() ? `<button class="btn" data-want>${icon('bookmark')}${L('عايز أقرأه', 'I want to read it')}</button>` : ''}
@@ -244,6 +284,18 @@
         </div>`,
       onMount: (body, api) =>
         body.addEventListener('click', async (e) => {
+          const mv = e.target.closest('[data-move]');
+          if (mv) {
+            api.close();
+            const status = mv.dataset.move;
+            await V.saveShelfItem(it.id, status === 'read' ? { status, finished: it.finished || month } : { status });
+            if (status === 'read') {
+              U.confetti(0.6);
+              setTimeout(() => V.shelfForm(Object.assign({}, it, { status: 'read', finished: it.finished || month })), 500); // rate and review while it is fresh
+            }
+            return;
+          }
+          if (e.target.closest('.sd-o')) api.close();
           if (e.target.closest('[data-edit]')) {
             api.close();
             V.shelfForm(it);

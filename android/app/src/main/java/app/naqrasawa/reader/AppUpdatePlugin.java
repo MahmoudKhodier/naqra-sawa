@@ -1,6 +1,8 @@
 package app.naqrasawa.reader;
 
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
@@ -52,6 +54,8 @@ public class AppUpdatePlugin extends Plugin {
     @PluginMethod
     public void install(PluginCall call) {
         String url = call.getString("url");
+        Integer mb = call.getInt("minBuild", 0); // small JS numbers arrive as Integer
+        final long minBuild = mb == null ? 0L : mb.longValue();
         if (url == null || !url.startsWith("https://")) {
             call.reject("bad url");
             return;
@@ -67,6 +71,8 @@ public class AppUpdatePlugin extends Plugin {
                     if (hop > 5) throw new Exception("too many redirects");
                     con = (HttpURLConnection) u.openConnection();
                     con.setInstanceFollowRedirects(false);
+                    con.setUseCaches(false);
+                    con.setRequestProperty("Cache-Control", "no-cache");
                     con.setConnectTimeout(20000);
                     con.setReadTimeout(30000);
                     int code = con.getResponseCode();
@@ -101,6 +107,12 @@ public class AppUpdatePlugin extends Plugin {
                         }
                     }
                 }
+                // The file must be this app, and at least the build the app was told about (never an older copy).
+                PackageManager pm = getContext().getPackageManager();
+                PackageInfo pi = pm.getPackageArchiveInfo(apk.getPath(), 0);
+                if (pi == null || !getContext().getPackageName().equals(pi.packageName)) throw new Exception("not this app");
+                long vc = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P ? pi.getLongVersionCode() : pi.versionCode;
+                if (minBuild > 0 && vc < minBuild) throw new Exception("stale " + vc + " < " + minBuild);
                 Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", apk);
                 Intent i = new Intent(Intent.ACTION_VIEW);
                 i.setDataAndType(uri, "application/vnd.android.package-archive");

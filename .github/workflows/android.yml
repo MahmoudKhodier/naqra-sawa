@@ -30,6 +30,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags: "what's new" is read from the commits since the last APK
 
       - uses: actions/setup-java@v4
         with:
@@ -134,6 +136,14 @@ jobs:
           kind=$([ "$SOURCE" = "secrets" ] && echo "release keystore" || echo "app key from the build cache")
           cert=$(cat "$RUNNER_TEMP/cert-sha256.txt" 2>/dev/null || true)
           notes="$RUNNER_TEMP/notes.md"
+          # What's new: "Whats-New: عربي || English" lines in the commit messages since the previous APK
+          # (the android-latest tag), added on top of the earlier builds' lines (kept for 40 lines), so the
+          # app can show everything someone missed since their own build.
+          prev=$(git rev-parse -q --verify "refs/tags/$tag^{commit}" || true)
+          range=$([ -n "$prev" ] && echo "$prev..$GITHUB_SHA" || echo "$GITHUB_SHA~1..$GITHUB_SHA")
+          new=$(git log --format=%B "$range" | sed -n 's/^Whats-New: *//p' | awk -v b="$BUILD" -F ' [|][|] ' 'NF { gsub(/[|]/, "/", $1); gsub(/[|]/, "/", $2); print b "|" $1 "|" ($2 == "" ? $1 : $2) }')
+          old=$(gh release view "$tag" --json body -q .body 2>/dev/null | sed -n '/^<!-- whats-new/,/^-->/p' | grep -E '^[0-9]+[|]' || true)
+          news=$(printf '%s\n%s\n' "$new" "$old" | grep -E '^[0-9]+[|]' | head -40 || true)
           {
             echo "## نقرأ سوا لأندرويد — نسخة رقم $BUILD"
             echo
@@ -143,6 +153,15 @@ jobs:
             echo "Android build $BUILD ($kind) from commit ${GITHUB_SHA::7}."
             echo "Signing certificate SHA-256: $cert"
             echo "Direct link: https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/naqra-sawa.apk"
+            if [ -n "$new" ]; then
+              echo
+              echo "### الجديد في النسخة دي"
+              printf '%s\n' "$new" | cut -d'|' -f2 | sed 's/^/- /'
+            fi
+            echo
+            echo "<!-- whats-new"
+            printf '%s\n' "$news" | grep -E '^[0-9]+[|]' || true
+            echo "-->"
           } > "$notes"
           # Keep the tag on the commit this APK was built from.
           git tag -f "$tag" "$GITHUB_SHA"
