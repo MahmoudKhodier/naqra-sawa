@@ -87,6 +87,12 @@ echo "== test.sql"
 OUT="$TMP/out.txt"
 # No ON_ERROR_STOP: keep going, every unexpected error is counted below.
 psql_admin -At -f "$HERE/test.sql" >"$OUT" 2>&1 || true
+# Feature tests in files of their own, run after test.sql (same users, circles and schema t).
+for f in "$HERE"/test_*.sql; do
+  [ -e "$f" ] || continue
+  echo "== $(basename "$f")"
+  psql_admin -At -f "$f" >>"$OUT" 2>&1 || true
+done
 
 echo "== concurrency: two doc_merge calls on the same row at the same time"
 {
