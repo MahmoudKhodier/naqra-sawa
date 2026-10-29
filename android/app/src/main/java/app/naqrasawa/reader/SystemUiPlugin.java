@@ -1,5 +1,6 @@
 package app.naqrasawa.reader;
 
+import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -61,6 +62,19 @@ public class SystemUiPlugin extends Plugin {
         getActivity().runOnUiThread(() -> {
             fullscreen = on;
             applyFullscreen();
+            call.resolve();
+        });
+    }
+
+    /** Reader orientation: "landscape", "portrait", or "auto" (follow the phone and its rotation lock). */
+    @PluginMethod
+    public void orientation(PluginCall call) {
+        final String mode = call.getString("mode", "auto");
+        getActivity().runOnUiThread(() -> {
+            int o = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
+            if ("landscape".equals(mode)) o = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+            else if ("portrait".equals(mode)) o = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+            getActivity().setRequestedOrientation(o);
             call.resolve();
         });
     }

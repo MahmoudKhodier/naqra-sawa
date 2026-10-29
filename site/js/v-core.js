@@ -638,7 +638,7 @@
     });
   };
 
-  V.toggleMark = async (bookId, page) => {
+  V.toggleMark = async (bookId, page, quiet) => {
     if (!D.canWrite()) return;
     await D.mutate(`data/users/${S.me}/priv`, () => {
       const cur = S.priv || {};
@@ -649,7 +649,7 @@
       marks[bookId] = bm;
       return Object.assign({}, cur, { marks });
     });
-    U.toast(L('اتحفظت', 'Saved'));
+    if (!quiet) U.toast(L('اتحفظت', 'Saved'));
   };
 
   /* ---------- global click handling for data-go / data-act shared actions ---------- */

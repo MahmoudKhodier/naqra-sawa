@@ -304,7 +304,7 @@
       if (!m) return null;
       const k = U.today();
       const body = Object.assign({}, m, { lastActive: k });
-      if (n) body.days = Object.assign({}, m.days, { [k]: ((m.days && m.days[k]) || 0) + n });
+      if (n) body.days = Object.assign({}, m.days, { [k]: Math.max(0, ((m.days && m.days[k]) || 0) + n) }); // n < 0: pages un-counted
       if (secs) body.secs = Object.assign({}, m.secs, { [k]: ((m.secs && m.secs[k]) || 0) + Math.round(secs) });
       delete body.id;
       return body;

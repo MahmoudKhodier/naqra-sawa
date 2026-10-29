@@ -243,7 +243,12 @@
     if (!R || !R.marksPref) return '';
     const seg = (act, cur, opts) => `<div class="seg sm">${opts.map(([k, t]) => `<button class="${cur === k ? 'on' : ''}" data-act="${act}" data-v="${k}" aria-pressed="${cur === k}">${t}</button>`).join('')}</div>`;
     const paged = !!U.store.get('readerPrefs', {}).paged;
+    const native = !!(A.Sys && A.Sys.canOrient && A.Sys.canOrient());
     return `<h3 class="set-h">${icon('book')}${L('القراءة', 'Reading')}</h3>
+      <div class="set-row"><span>${icon('book')}<span>${L('شكل الكتاب', 'Book look')}<small class="muted">${L('في وضع صفحة صفحة: غلاف وحافة ورق زي الكتاب', 'In page-by-page mode: a cover board and page edges, like a book')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdbook" ${R.bookPref() ? 'checked' : ''}><i></i></label></div>
+      <div class="set-row"><span>${icon('bookmark')}<span>${L('علامات «وقفت هنا» على الحافة', '«Stopped here» pills on the edge')}<small class="muted">${L('دوس على أي واحدة تعلّم السطر اللي وقفت عنده', 'Tap one to mark the line where you stopped')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdpills" ${R.pillsPref() ? 'checked' : ''}><i></i></label></div>
+      ${native ? `<div class="set-row"><span>${icon('swap')}${L('اتجاه القراية', 'Reading orientation')}</span>${seg('rd-orient', R.orientPref(), [['auto', L('حسب الموبايل', 'Follow phone')], ['portrait', L('بالطول', 'Upright')], ['landscape', L('بالعرض', 'Sideways')]])}</div>` : ''}
+      <div class="set-row"><span>${icon('swap')}<span>${L('اقترح القراية بالعرض', 'Suggest reading sideways')}<small class="muted">${L('تلميح صغير لما تفتح الكتاب والموبايل بالطول', 'A small hint when you open a book upright')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdask" ${R.orientAsk() ? 'checked' : ''}><i></i></label></div>
       <div class="set-row"><span>${icon('swap')}<span>${L('مكان الأدوات لما الموبايل بالعرض', 'Tools side when the phone is sideways')}<small class="muted">${L('القلم والملاحظة وشريط الصفحات', 'Highlight, note and the page slider')}</small></span></span>${seg('rd-tools', R.toolsSide(), [['right', L('يمين', 'Right')], ['left', L('شمال', 'Left')]])}</div>
       <div class="set-row"><span>${icon('eye')}<span>${L('الإضافات على الصفحات', 'Highlights and notes on pages')}<small class="muted">${L('تقدر تغيّرها كمان من زرار العين في القارئ', 'Also from the eye button in the reader')}</small></span></span>${seg('rd-marks', R.marksPref(), [['all', L('الكل', 'Everyone')], ['mine', L('بتاعتي', 'Mine')], ['none', L('ولا حاجة', 'None')]])}</div>
       <div class="set-row"><span>${icon('scroll')}${L('التقليب', 'Page turning')}</span>${seg('rd-paged', paged ? 'page' : 'scroll', [['page', L('صفحة صفحة', 'Page by page')], ['scroll', L('متواصل', 'Continuous')]])}</div>
@@ -258,6 +263,10 @@
   };
   V.actions['rd-tools'] = (a) => {
     A.R.setToolsSide(a.dataset.v);
+    V.render();
+  };
+  V.actions['rd-orient'] = (a) => {
+    U.store.set('rdOrient', a.dataset.v);
     V.render();
   };
   V.actions['rd-marks'] = (a) => {
@@ -305,6 +314,9 @@
       V.render();
     }
     if (e.target.id === 'set-rdfull') U.store.set('rdFull', e.target.checked);
+    if (e.target.id === 'set-rdbook') A.R.setBookLook(e.target.checked);
+    if (e.target.id === 'set-rdpills') A.R.setPills(e.target.checked);
+    if (e.target.id === 'set-rdask') U.store.set('rdOrientAsk', e.target.checked);
     if (e.target.id === 'set-sound') {
       U.store.set('sound', e.target.checked);
       if (e.target.checked) U.chime('ok');
