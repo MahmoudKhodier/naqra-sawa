@@ -77,6 +77,18 @@
     }
     return out;
   };
+  /* Ranges minus the pages a..b. */
+  U.rangesRemove = (ranges, a, b) => {
+    const out = [];
+    for (const [x, y] of ranges || []) {
+      if (y < a || x > b) out.push([x, y]);
+      else {
+        if (x < a) out.push([x, a - 1]);
+        if (y > b) out.push([b + 1, y]);
+      }
+    }
+    return out;
+  };
   U.rangesCount = (ranges) => (ranges || []).reduce((s, r) => s + (r[1] - r[0] + 1), 0);
   U.rangesCountIn = (ranges, a, b) =>
     (ranges || []).reduce((s, r) => s + Math.max(0, Math.min(r[1], b) - Math.max(r[0], a) + 1), 0);

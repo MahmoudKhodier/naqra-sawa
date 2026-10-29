@@ -27,6 +27,15 @@
     Sys.paint({ top: bg, bottom: bg, side: bg, light: !dark });
   };
 
+  /* Reader orientation (Android app): 'landscape', 'portrait' or 'auto'. Returns false where it can't be set. */
+  Sys.canOrient = () => !!(plug() && plug().orientation);
+  Sys.orient = (mode) => {
+    const p = plug();
+    if (!p || !p.orientation) return false;
+    p.orientation({ mode }).catch(() => {});
+    return true;
+  };
+
   let full = null;
   Sys.fullscreen = (on) => {
     const p = plug();

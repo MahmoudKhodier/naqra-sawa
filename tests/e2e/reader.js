@@ -398,7 +398,7 @@ async function menu(p, text) {
       await p.click('.rd [data-act="panel"]');
       await p.click('.rd-panel [data-act="pfilter"][data-f="all"]');
       const items = await p.$$eval('.rp-item', (x) => x.length);
-      const marks = await p.$$eval('.rp-marks .chip', (x) => x.map((e) => e.textContent));
+      const marks = await p.$$eval('.rp-bm-go b', (x) => x.map((e) => e.textContent));
       await H.shot(p, 'r07-panel');
       assert(items >= 2, 'notes in panel: ' + items);
       assert(marks.length >= 1, 'no bookmark chip');
@@ -504,7 +504,13 @@ async function menu(p, text) {
       for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
       const w = ctx.book.wirds[1];
       await p.evaluate((pg) => window.A.R.goTo(pg, false), w.from);
-      await T(500);
+      await until(p, 'arrived at the portion', (pg) => window.A.R._state().cur === pg, w.from, 6000);
+      await T(300);
+      if (await p.evaluate(() => window.A.R._state().browsing)) {
+        await showBars(p);
+        await p.click('[data-act="browse-here"]');
+        await T(300);
+      }
       const seen = [];
       for (let pg = w.from; pg <= w.to; pg++) {
         await p.evaluate((x) => window.A.R._markSeen(x), pg);
@@ -514,15 +520,87 @@ async function menu(p, text) {
         if (pg === Math.floor((w.from + w.to) / 2)) await H.shot(p, 'r08c-portion-progress');
       }
       const s = await p.evaluate(() => window.A.R._wird());
-      assert(s.width === '100%', 'bar not full at the end: ' + s.width);
+      assert(s.width === '100%', 'bar not full at the end: ' + s.width + ' ' + JSON.stringify(await p.evaluate(() => window.A.R._state())) + ' w ' + JSON.stringify(w));
       const joined = seen.join(' | ');
       assert(/نص الورد/.test(joined) && /فاضل/.test(joined) && /خلّصت صفحات الورد/.test(joined), 'cheers: ' + joined);
       await showBars(p);
       return `${w.to - w.from + 1} pages; ${seen.length} cheers`;
     }, ['open', 'cdp']);
 
-    await step('Close and reopen: resumes on the same page, opens from the device cache', async () => {
+    await step('Looking around does not count; «كمّل من هنا» counts again; un-count pages', async () => {
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      const s0 = await p.evaluate(() => window.A.R._state());
+      const far = s0.front + 30;
+      await p.evaluate((pg) => window.A.R.goTo(pg, false), far);
+      await until(p, 'arrived', (pg) => window.A.R._state().cur === pg, far, 6000);
+      await T(300);
+      const s1 = await p.evaluate(() => window.A.R._state());
+      assert(s1.browsing, 'a jump of 30 pages is not treated as looking around');
+      assert(await p.$('#rd-browse:not([hidden])'), 'no browsing bar');
+      await H.shot(p, 'r08d-browsing');
+      await p.evaluate((pg) => window.A.R._markSeen(pg), far);
+      await p.evaluate(() => window.A.R.flush());
+      await T(400);
+      const seenFar = await p.evaluate(({ id, pg }) => window.A.U.rangesHas((window.A.D.prog(id) || {}).seen, pg), { id: ctx.book.id, pg: far });
+      assert(!seenFar, 'a page counted while looking around');
+      await showBars(p);
+      await p.click('[data-act="browse-here"]');
+      await T(300);
+      const s2 = await p.evaluate(() => window.A.R._state());
+      assert(!s2.browsing && s2.front === far, 'continue-from-here did not move the reading point: ' + JSON.stringify(s2));
+      await p.evaluate((pg) => { window.A.R._markSeen(pg); window.A.R._markSeen(pg + 1); }, far);
+      await p.evaluate(() => window.A.R.flush());
+      await T(500);
+      const counted = await p.evaluate(({ id, pg }) => window.A.U.rangesHas((window.A.D.prog(id) || {}).seen, pg), { id: ctx.book.id, pg: far });
+      assert(counted, 'page not counted after «كمّل من هنا»');
+      // take them back off
+      await menu(p, 'شيل صفحات من المقروء');
+      await p.waitForSelector('#uc-form');
+      await p.fill('#uc-from', String(far));
+      await p.fill('#uc-to', String(far + 1));
+      await p.click('#uc-form button.btn');
+      await until(p, 'un-counted', ({ id, pg }) => !window.A.U.rangesHas((window.A.D.prog(id) || {}).seen, pg) && !window.A.U.rangesHas((window.A.D.prog(id) || {}).seen, pg + 1), { id: ctx.book.id, pg: far }, 6000);
+      return `jump to ${far}: not counted; read from here: counted; un-counted again`;
+    }, ['open', 'cdp']);
+
+    await step('«وقفت هنا»: a pill on the edge puts the line; book look pages alternate sides; bookmarks get names and slider marks', async () => {
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await menu(p, 'صفحة صفحة');
+      await T(800);
       const c = await cur(p);
+      const sides = await p.evaluate(() => [...document.querySelectorAll('.pg')].map((e) => [+e.dataset.p, e.dataset.side, getComputedStyle(e).getPropertyValue('--stack').trim()]));
+      for (const [pg, side] of sides) assert(side === (pg % 2 ? 'l' : 'r'), `Arabic book: page ${pg} should be a ${pg % 2 ? 'left' : 'right'}-hand page, got ${side}`);
+      assert(await p.$('.rd.paged.booky'), 'book look is not on in page-by-page mode');
+      const pills = await p.$$(`.pg[data-p="${c}"] .pill-edge`);
+      assert(pills.length === 12, 'pills on the edge: ' + pills.length);
+      await pills[5].click();
+      await until(p, 'line placed', (pg) => { const s = window.A.R._state(); return s.place && s.place.p === pg && s.place.manual; }, c, 5000);
+      await until(p, 'line drawn', (pg) => !!document.querySelector(`.pg[data-p="${pg}"] .place-line`), c, 5000);
+      await H.shot(p, 'r08e-book-look-line');
+      // bookmark button, name, slider tick
+      await showBars(p);
+      await p.click('#rd-bm');
+      await until(p, 'bookmarked', ({ id, pg }) => !!((window.A.S.priv.marks || {})[id] || {})[pg], { id: ctx.book.id, pg: c }, 5000);
+      assert(await p.$('#rd-bm.on'), 'bookmark button not lit');
+      assert(await p.$('#rd-scrub .bm-tick'), 'no bookmark mark on the slider');
+      await p.click('.rd [data-act="panel"]');
+      await p.click(`.rp-bm [data-act="bm-name"][data-p="${c}"]`);
+      await p.waitForSelector('#et-text');
+      await p.fill('#et-text', 'تعريف مهم');
+      await p.click('[data-edit-text] button.gold');
+      await until(p, 'named', ({ id, pg }) => (((window.A.S.priv.marks || {})[id] || {})[pg] || {}).t === 'تعريف مهم', { id: ctx.book.id, pg: c }, 5000);
+      await T(300);
+      const listed = await p.$eval('.rp-bms', (e) => e.textContent);
+      assert(/تعريف مهم/.test(listed), 'name not listed: ' + listed);
+      await p.click('.rd [data-act="panel"]');
+      await menu(p, 'تمرير متواصل');
+      return `pages ${sides.map((x) => x[0] + x[1]).join(' ')}; line on p. ${c}; bookmark named`;
+    }, ['open', 'cdp']);
+
+    await step('Close and reopen: resumes where you were reading (not where you only looked), opens from the device cache', async () => {
+      const c = await p.evaluate(() => window.A.R._state().front);
+      await p.evaluate((pg) => window.A.R.goTo(pg + 15, false), c); // a look ahead before closing
+      await T(600);
       await showBars(p);
       await p.click('.rd [data-act="close"]');
       await T(600);
@@ -732,6 +810,104 @@ async function menu(p, text) {
       await p.click('[data-act="rd-tools"][data-v="left"]');
       await p.click('[data-act="rd-marks"][data-v="all"]');
       return `renamed to «${h1}»; settings saved`;
+    }, ['open']);
+
+    await step('Landscape hint when opening upright; turn sideways; default orientation from Settings (stand-in Android layer)', async () => {
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      if (await p.evaluate(() => window.A.R.isOpen())) {
+        await showBars(p);
+        await p.click('.rd [data-act="close"]');
+        await T(700);
+        for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      }
+      await p.evaluate(() => {
+        const A = window.A;
+        window.__or = [];
+        A.__realNative = A.P.native;
+        A.P.native = true;
+        const orig = A.P.plugin;
+        A.__realPlugin = orig;
+        const stub = { paint: async () => {}, fullscreen: async () => {}, orientation: async (o) => window.__or.push(o.mode) };
+        A.P.plugin = (n) => (n === 'SystemUi' ? stub : orig(n));
+        A.U.store.del('rdOrientAsked');
+        A.U.store.set('rdOrientAsk', true);
+        A.U.store.set('rdOrient', 'auto');
+      });
+      await p.evaluate((id) => window.A.R.open(id), ctx.book.id);
+      await p.waitForSelector('.rd-orient.in', { timeout: 5000 });
+      await H.shot(p, 'r13-landscape-hint');
+      await p.click('.rd-orient [data-act="orient"]');
+      await until(p, 'asked to turn sideways', () => window.__or.includes('landscape'), null, 3000);
+      await showBars(p);
+      await p.click('.rd [data-act="close"]');
+      await until(p, 'released on close', () => window.__or[window.__or.length - 1] === 'auto', null, 3000);
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      // once a day: no hint the second time
+      await p.evaluate((id) => window.A.R.open(id), ctx.book.id);
+      await T(2200);
+      assert(!(await p.$('.rd-orient.in')), 'the hint came back the same day');
+      await showBars(p);
+      await p.click('.rd [data-act="close"]');
+      await T(500);
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      // Settings: always sideways
+      await p.click('[data-go="settings"]');
+      await T(400);
+      await p.click('[data-act="rd-orient"][data-v="landscape"]');
+      await p.evaluate(() => (window.__or = []));
+      await p.evaluate((id) => window.A.R.open(id), ctx.book.id);
+      await until(p, 'opened sideways', () => window.__or[0] === 'landscape', null, 3000);
+      await showBars(p);
+      await p.click('.rd [data-act="close"]');
+      await T(500);
+      await p.evaluate(() => {
+        const A = window.A;
+        A.P.native = A.__realNative;
+        A.P.plugin = A.__realPlugin;
+        A.U.store.set('rdOrient', 'auto');
+      });
+      return 'hint → sideways → released on close; once a day; Settings default applied';
+    }, ['open']);
+
+    await step('Settings for the «وقفت هنا» dots: how many, line colour, only with the bars, off', async () => {
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      if (await p.evaluate(() => window.A.R.isOpen())) {
+        await showBars(p);
+        await p.click('.rd [data-act="close"]');
+        await T(700);
+        for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      }
+      await p.click('[data-go="settings"]');
+      await T(400);
+      await p.click('[data-act="rd-pillshow"][data-v="bars"]');
+      await p.click('[data-act="rd-pillcount"][data-v="20"]');
+      await p.click('[data-act="rd-linecolor"][data-v="red"]');
+      await H.shot(p, 'r14-dot-settings');
+      await p.evaluate((id) => window.A.R.open(id), ctx.book.id);
+      await T(1500);
+      const s1 = await p.evaluate(() => ({ n: document.querySelector('.pg-ov').querySelectorAll('.pill-edge').length, line: document.querySelector('.rd').dataset.line, show: document.querySelector('.rd').dataset.pills }));
+      assert(s1.n === 20 && s1.line === 'red' && s1.show === 'bars', 'settings not applied: ' + JSON.stringify(s1));
+      await showBars(p);
+      await p.click('.rd [data-act="close"]');
+      await T(600);
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await p.click('[data-go="settings"]');
+      await T(300);
+      await p.click('[data-act="rd-pillshow"][data-v="off"]');
+      await p.evaluate((id) => window.A.R.open(id), ctx.book.id);
+      await T(1200);
+      const off = await p.evaluate(() => document.querySelectorAll('.pill-edge').length);
+      assert(off === 0, 'dots still shown when off: ' + off);
+      await showBars(p);
+      await p.click('.rd [data-act="close"]');
+      await T(500);
+      await p.evaluate(() => {
+        const U = window.A.U;
+        U.store.set('rdPillShow', 'always');
+        U.store.set('rdPillCount', 12);
+        U.store.set('rdLineColor', 'green');
+      });
+      return '20 dots, red line, with the bars; off hides them';
     }, ['open']);
 
     await step('No errors in the console', async () => {

@@ -34,6 +34,42 @@
     if (st) st.root.querySelector('.rd').classList.toggle('swap', swapNow());
   };
   R.fullPref = () => U.store.get('rdFull', true) !== false;
+  /* Book look in page-by-page mode, edge pills for «وقفت هنا», reader orientation and the landscape hint. */
+  R.bookPref = () => U.store.get('rdBook', true) !== false;
+  /* «وقفت هنا» marks on the edge: when they show (always / with the bars / off), how many, the line colour. */
+  R.pillShow = () => {
+    const v = U.store.get('rdPillShow', U.store.get('rdPills', true) === false ? 'off' : 'always');
+    return v === 'bars' || v === 'off' ? v : 'always';
+  };
+  R.pillsPref = () => R.pillShow() !== 'off';
+  R.pillCount = () => ({ 8: 8, 12: 12, 20: 20 })[U.store.get('rdPillCount', 12)] || 12;
+  R.lineColor = () => {
+    const v = U.store.get('rdLineColor', 'green');
+    return ['green', 'gold', 'red', 'blue'].includes(v) ? v : 'green';
+  };
+  const edgeUi = (rd) => {
+    rd.dataset.pills = R.pillShow();
+    rd.dataset.line = R.lineColor();
+  };
+  R.setEdge = (k, v) => {
+    U.store.set(k, v);
+    if (!st) return;
+    edgeUi(st.root.querySelector('.rd'));
+    redrawOverlays();
+  };
+  R.orientPref = () => {
+    const v = U.store.get('rdOrient', 'auto');
+    return v === 'portrait' || v === 'landscape' ? v : 'auto';
+  };
+  R.orientAsk = () => U.store.get('rdOrientAsk', true) !== false;
+  R.setBookLook = (on) => {
+    U.store.set('rdBook', !!on);
+    if (!st) return;
+    st.root.querySelector('.rd').classList.toggle('booky', !!on);
+    relayout();
+  };
+
+  const placeOf = (bookId) => (S.priv && S.priv.place && S.priv.place[bookId]) || null;
   /* Colours for the strips around the page in the Android app (see sysui.js): the bars' colour while they
      show, the page background while they are hidden. */
   const SYS = {
@@ -103,8 +139,15 @@
     const root = document.getElementById('reader');
     const prefs = U.store.get('readerPrefs', { zoom: 1, theme: 'day', paged: false });
     const prog = D.prog(bookId);
-    let start = opts.page || (prog && prog.last) || U.store.get('last:' + bookId, 1) || 1;
-    start = U.clamp(start | 0, 1, book.pages || 1);
+    const N0 = book.pages || 1;
+    // Where reading goes on: «وقفت هنا» (unless you read further on another device), else the last page read.
+    const place = placeOf(bookId);
+    const last = (prog && prog.last) || U.store.get('last:' + bookId, 1) || 1;
+    let front = U.clamp((place && place.p ? (last > place.p + 2 ? last : place.p) : last) | 0, 1, N0);
+    let start = U.clamp((opts.page || front) | 0, 1, N0);
+    // Opening a portion (or right next to where you are) is reading; any other page is a look around.
+    const myW = G.myCurrent(book);
+    if (opts.page && (opts.read || (myW && start >= myW.from && start <= myW.to) || Math.abs(start - front) <= 2)) front = start;
     st = {
       bookId, book, N: book.pages || 1, zoom: prefs.zoom || 1, theme: prefs.theme || 'day', mode: 'none',
       parts: (book.parts || []).map((p) => Object.assign({}, p, { pdf: null, loading: null })),
@@ -112,6 +155,7 @@
       pending: new Set(), dwellP: 0, dwellN: 0, sessionPages: 0, flash: opts.flash || null, uiHidden: false,
       notesVer: -1, panel: null, filter: 'wird', lastTop: 0,
       pagedPref: !!prefs.paged, paged: !!prefs.paged && !((prefs.zoom || 1) > 1.01), startedAt: Date.now(), activeSecs: 0, secsPending: 0, userAt: 0, activeAt: Date.now(),
+      front, browsing: false, counted: new Set(),
     };
     root.hidden = false;
     document.body.classList.add('reading');
@@ -120,18 +164,31 @@
     st.land = isLand();
     root.querySelector('.rd').classList.toggle('land', st.land);
     root.querySelector('.rd').classList.toggle('swap', swapNow());
+    root.querySelector('.rd').classList.toggle('booky', R.bookPref());
+    edgeUi(root.querySelector('.rd'));
     st.root = root;
     st.sc = root.querySelector('#rd-scroll');
     st.pagesEl = root.querySelector('#rd-pages');
     bind();
     marksUi();
     geom();
-    goTo(start, false);
+    if (!opts.page && place && place.p === start && !st.paged && place.y > 0.02) {
+      // put the «وقفت هنا» line a third of the way down the screen
+      st.sc.scrollTop = Math.max(0, st.tops[start] + place.y * st.hs[start] - st.sc.clientHeight * 0.3);
+      update();
+    } else goTo(start, false);
+    st.browsing = start > st.front + 2 || start < st.front - 1;
+    browseUi();
     chrome();
     D.presence({ b: bookId, p: start });
     st.tick = setInterval(tick, 1000);
     st.flushT = setInterval(() => flush(), 12000);
-    st.onVis = () => (document.hidden ? flush() : keepAwake(true));
+    st.onVis = () => {
+      if (document.hidden) {
+        savePlace();
+        flush();
+      } else keepAwake(true);
+    };
     document.addEventListener('visibilitychange', st.onVis);
     st.onResize = U.debounce(() => {
       if (!st) return;
@@ -147,6 +204,8 @@
     keepAwake(true);
     sysRefresh();
     if (A.Sys && R.fullPref()) A.Sys.fullscreen(true);
+    if (R.orientPref() !== 'auto' && A.Sys && A.Sys.orient(R.orientPref())) st.oriented = true;
+    else askLandscape();
     try {
       await prepareSource();
       if (!st) return;
@@ -160,7 +219,10 @@
   R.close = (silent) => {
     if (!st) return;
     const summary = !silent && (st.sessionPages >= 3 || st.activeSecs >= 60) ? { bookId: st.bookId, pages: st.sessionPages, secs: st.activeSecs } : null;
+    savePlace();
     flush();
+    if (st.oriented && A.Sys) A.Sys.orient('auto');
+    clearTimeout(st.orientT);
     clearInterval(st.tick);
     clearInterval(st.flushT);
     clearTimeout(st.tapT);
@@ -244,9 +306,10 @@
     if (st.paged) {
       // One page per screen-high slot, centred, fitted to the screen like a printed page.
       const H = (st.slotH = st.sc.clientHeight || window.innerHeight);
+      const frame = R.bookPref() ? 22 : 0; // the cover board and the stack of page edges around each page
       for (let p = 1; p <= N; p++) {
         const [w0, h0] = size(p);
-        const w = Math.round(Math.min(st.baseW, ((H - 12) * w0) / h0));
+        const w = Math.round(Math.min(st.baseW - frame * 2, ((H - 12 - frame * 2) * w0) / h0));
         const h = Math.round((w * h0) / w0);
         st.tops[p] = (p - 1) * H + Math.round((H - h) / 2);
         st.ws[p] = w;
@@ -274,7 +337,23 @@
     st.pagesEl.style.width = st.innerW + 'px';
     for (const [p, el] of st.els) placeEl(p, el);
   }
+  /* Book look: each page is one side of a leaf. In an Arabic book the even pages are right-hand pages (page
+     edges on the right) and the odd ones left-hand pages; the other way round in an English book. The stack
+     of edges grows on the side the pages pile up: read pages on the side you turn them to. */
+  function sideOf(p) {
+    const odd = p % 2 === 1;
+    return bookRTL() ? (odd ? 'l' : 'r') : odd ? 'r' : 'l';
+  }
+  function stackOf(p, side) {
+    const readSide = bookRTL() ? 'r' : 'l';
+    const n = Math.max(1, st.N - 1);
+    const f = side === readSide ? (p - 1) / n : (st.N - p) / n;
+    return 2 + Math.round(f * 8);
+  }
   function placeEl(p, el) {
+    const side = st.paged && R.bookPref() ? sideOf(p) : bookRTL() ? 'r' : 'l';
+    el.dataset.side = side;
+    el.style.setProperty('--stack', stackOf(p, side) + 'px');
     el.style.top = st.tops[p] + 'px';
     el.style.left = Math.round((st.innerW - st.ws[p]) / 2) + 'px';
     el.style.width = st.ws[p] + 'px';
@@ -530,7 +609,9 @@
     st.cur = p;
     const inp = st.root.querySelector('#rd-pgin');
     if (inp && document.activeElement !== inp) inp.value = L.num(p, { useGrouping: false });
-    U.store.set('last:' + st.bookId, p);
+    const was = st.browsing;
+    st.browsing = p > st.front + 2 || p < st.front - 1;
+    if (was !== st.browsing) browseUi();
     clearTimeout(presT);
     presT = setTimeout(() => st && D.presence({ b: st.bookId, p: st.cur }), 800);
     chrome();
@@ -553,9 +634,15 @@
     }
   }
   function markSeen(p) {
+    if (st.browsing) return; // looking around doesn't count
+    if (p > st.front) {
+      st.front = p;
+      U.store.set('last:' + st.bookId, p);
+    }
     const prog = D.prog(st.bookId);
     if ((prog && U.rangesHas(prog.seen, p)) || st.pending.has(p)) return;
     st.pending.add(p);
+    st.counted.add(p);
     st.sessionPages++;
     const chip = st.root.querySelector('#rd-today');
     if (chip) {
@@ -571,7 +658,7 @@
     const bookId = st.bookId;
     const pages = [...st.pending];
     st.pending.clear();
-    const cur = st.cur;
+    const cur = st.front; // resume where reading goes on, not where you looked around
     const prog = D.prog(bookId);
     const fresh = pages.filter((p) => !(prog && U.rangesHas(prog.seen, p)));
     const secs = st.secsPending >= 30 ? st.secsPending : 0;
@@ -623,6 +710,18 @@
         html += `<button class="pinb${n.priv ? ' priv' : ''}${mv ? ' moved' : ''}" data-nid="${U.esc(n.id)}" data-priv="${n.priv ? 1 : ''}" style="left:${r.x * 100}%;top:${r.y * 100}%;--c:${U.esc(col)}" aria-label="${label}">${D.avatar(n.by, 'xs')}${rc ? `<i>${L.num(rc)}</i>` : ''}</button>`;
       } else {
         html += `<button class="hlb k-${U.esc(n.kind || 'hl')}${n.priv ? ' priv' : ''}" data-nid="${U.esc(n.id)}" data-priv="${n.priv ? 1 : ''}" style="left:${r.x * 100}%;top:${r.y * 100}%;width:${r.w * 100}%;height:${r.h * 100}%;--c:${U.esc(col)};--a:${U.esc(D.color(n.by))}" aria-label="${label}"><span class="hl-tag">${D.avatar(n.by, 'xs')}${n.kind === 'q' ? '<b>؟</b>' : ''}${rc + likes ? `<i>${L.num(rc + likes)}</i>` : ''}</span></button>`;
+      }
+    }
+    // «وقفت هنا»: a line across the page, and pills along the edge to put it on any line with one tap.
+    const pl = placeOf(st.bookId);
+    if (pl && pl.p === p && (pl.manual || pl.y > 0.02))
+      html += `<div class="place-line" style="top:${pl.y * 100}%"><button class="pl-tab" data-act="place-off" aria-label="${L('شيل علامة وقفت هنا', 'Remove the stopped-here line')}">${U.icon('bookmark')}<span>${L('وقفت هنا', 'Stopped here')}</span></button></div>`;
+    if (R.pillsPref() && D.canWrite()) {
+      const n = R.pillCount();
+      for (let i = 0; i < n; i++) {
+        const y = (i + 0.5) / n;
+        const on = pl && pl.p === p && Math.abs(pl.y - y) < 0.5 / n;
+        html += `<button class="pill-edge${on ? ' on' : ''}" data-act="place" data-p="${p}" data-y="${r4(y)}" style="top:${y * 100}%" aria-label="${L(`وقفت هنا: ص ${L.num(p)}`, `I stopped here: p. ${p}`)}"></button>`;
       }
     }
     const draft = ov.querySelector('.hl-draft');
@@ -858,6 +957,7 @@
           <button class="ib hide-sm" data-act="zout" aria-label="${L('تصغير', 'Zoom out')}">${U.icon('zout')}</button>
           <button class="ib hide-sm zl" data-act="fit" id="rd-zoom" aria-label="${L('ملء العرض', 'Fit width')}">${L.num(Math.round(st.zoom * 100))}${L.isAr() ? '٪' : '%'}</button>
           <button class="ib hide-sm" data-act="zin" aria-label="${L('تكبير', 'Zoom in')}">${U.icon('zin')}</button>
+          <button class="ib rd-bm" data-act="bmark" id="rd-bm" aria-label="${L('علّم الصفحة', 'Bookmark this page')}">${U.icon('bookmark')}</button>
           <button class="ib" data-act="theme" aria-label="${L('لون الصفحة', 'Page colour')}">${U.icon(st.theme === 'night' ? 'moon' : st.theme === 'sepia' ? 'scroll' : 'sun')}</button>
           <button class="ib" data-act="panel" aria-label="${L('الملاحظات', 'Notes')}">${U.icon('list')}<i class="dot" id="rd-ncount" hidden></i></button>
           <button class="ib" data-act="more" aria-label="${L('المزيد', 'More')}">${U.icon('more')}</button>
@@ -867,6 +967,8 @@
       <div class="rd-hint" id="rd-hint" hidden></div>
       <div class="rd-wline" id="rd-wline" hidden aria-hidden="true"><i></i></div>
       <div class="rd-cheer" id="rd-cheer" role="status" aria-live="polite" hidden></div>
+      <div class="rd-browse" id="rd-browse" role="status" hidden></div>
+      <div class="rd-orient" id="rd-orient" hidden></div>
       <div class="rd-load" id="rd-load" hidden><div class="rd-load-card"><div class="spin8"></div><b id="rd-load-t">${L('بنجهّز الكتاب…', 'Preparing the book…')}</b><div class="bar"><i id="rd-load-bar"></i></div><small id="rd-load-s"></small></div></div>
       <footer class="rd-bot">
         <div class="rd-prompt" id="rd-prompt" hidden></div>
@@ -940,6 +1042,183 @@
     return { w: w && w.id, width: bar && bar.style.width, cheer: st.root.querySelector('#rd-cheer').textContent };
   };
 
+  /* ---------- «وقفت هنا», reading vs looking around ---------- */
+  function savePlaceDoc(v) {
+    if (!D.canWrite()) return Promise.resolve();
+    const id = st.bookId;
+    return D.privUpdate((cur) => {
+      const place = Object.assign({}, cur.place);
+      if (v) place[id] = v;
+      else delete place[id];
+      return Object.assign(cur, { place });
+    }).catch(() => {});
+  }
+  /* On leaving (close, app to the background): remember the line you were reading — unless you were only
+     looking around, or you put the line yourself on this page. */
+  function savePlace() {
+    if (!st || st.browsing || !D.canWrite()) return;
+    const old = placeOf(st.bookId);
+    let p = st.front, y = 0;
+    if (!st.paged && Math.abs(st.cur - st.front) <= 1) {
+      const a = anchorAt(st.sc.clientWidth / 2, st.sc.clientHeight * 0.3);
+      p = a.p;
+      y = U.clamp(r4(a.fy), 0, 0.98);
+    }
+    if (old && old.manual && old.p === p) return;
+    if (old && old.p === p && Math.abs((old.y || 0) - y) < 0.01) return;
+    savePlaceDoc({ p, y, at: U.nowIso(), manual: false });
+  }
+  function setPlace(p, y) {
+    const old = placeOf(st.bookId);
+    if (old && old.manual && old.p === p && Math.abs(old.y - y) < 0.03) return clearPlace();
+    st.front = p;
+    U.store.set('last:' + st.bookId, p);
+    if (st.browsing) {
+      st.browsing = false;
+      browseUi();
+    }
+    savePlaceDoc({ p, y, at: U.nowIso(), manual: true }).then(() => st && redrawOverlays());
+    if (navigator.vibrate) try { navigator.vibrate(10); } catch (e) {}
+    cheer(L(`علّمت مكانك: ص ${L.num(p)}`, `Marked where you are: p. ${p}`));
+    chrome();
+  }
+  function clearPlace() {
+    savePlaceDoc(null).then(() => st && redrawOverlays());
+  }
+  function backToPlace() {
+    const pl = placeOf(st.bookId);
+    const p = st.front;
+    if (pl && pl.p === p && !st.paged && pl.y > 0.02) {
+      st.sc.scrollTo({ top: Math.max(0, st.tops[p] + pl.y * st.hs[p] - st.sc.clientHeight * 0.3), behavior: reduced() ? 'auto' : 'smooth' });
+    } else goTo(p, !st.paged);
+  }
+  function readFromHere() {
+    st.front = st.cur;
+    U.store.set('last:' + st.bookId, st.cur);
+    st.browsing = false;
+    st.dwellN = 0;
+    browseUi();
+    savePlaceDoc({ p: st.cur, y: 0, at: U.nowIso(), manual: false });
+    chrome();
+  }
+  function browseUi() {
+    const el = st && st.root.querySelector('#rd-browse');
+    if (!el) return;
+    el.hidden = !st.browsing;
+    st.root.querySelector('.rd').classList.toggle('browsing', st.browsing);
+    if (st.browsing)
+      el.innerHTML = `<span class="rb-t">${U.icon('eye')}<span>${L('بتتصفّح — الصفحات هنا مش بتتحسب', "Looking around — these pages don't count")}</span></span>
+        <span class="rb-acts"><button class="btn sm ghost" data-act="browse-back">${U.icon('back', 'flip')}${L(`ارجع لمكانك (ص ${L.num(st.front)})`, `Back to p. ${st.front}`)}</button>
+        <button class="btn sm gold" data-act="browse-here">${U.icon('play', 'flip-rtl')}${L('كمّل من هنا', 'Read from here')}</button></span>`;
+  }
+  R._state = () => st && { front: st.front, browsing: st.browsing, cur: st.cur, place: placeOf(st.bookId) };
+
+  /* ---------- bookmarks ---------- */
+  function toggleBookmark() {
+    const marks = (S.priv && S.priv.marks && S.priv.marks[st.bookId]) || {};
+    const had = !!marks[st.cur];
+    A.V.toggleMark(st.bookId, st.cur, true).then(() => {
+      if (!st) return;
+      chrome();
+      redrawOverlays();
+      renderPanel();
+    });
+    cheer(had ? L('شلت العلامة', 'Bookmark removed') : L(`علّمت ص ${L.num(st.cur)} — تسمّيها من قايمة الملاحظات`, `Bookmarked p. ${st.cur} — name it from the notes list`));
+  }
+  function nameBookmark(p) {
+    const m = ((S.priv && S.priv.marks && S.priv.marks[st.bookId]) || {})[p];
+    A.V.editText({
+      title: L(`اسم علامة ص ${L.num(p)}`, `Name for the bookmark on p. ${p}`),
+      value: (m && m.t) || '',
+      max: 80,
+      rows: 2,
+      onSave: (t) =>
+        D.privUpdate((cur) => {
+          const marks = Object.assign({}, cur.marks);
+          const bm = Object.assign({}, marks[st.bookId]);
+          bm[p] = { at: (bm[p] && bm[p].at) || (typeof bm[p] === 'string' ? bm[p] : U.nowIso()), t };
+          marks[st.bookId] = bm;
+          return Object.assign(cur, { marks });
+        }).then(() => st && renderPanel()),
+    });
+  }
+
+  /* ---------- reading sideways ---------- */
+  function askLandscape() {
+    if (!R.orientAsk() || isLand() || window.innerWidth >= window.innerHeight) return;
+    if (!(A.Sys && A.Sys.canOrient()) && !(screen.orientation && screen.orientation.lock)) return;
+    if (U.store.get('rdOrientAsked', '') === U.today()) return; // once a day at most
+    st.orientT = setTimeout(() => {
+      if (!st || isLand()) return;
+      U.store.set('rdOrientAsked', U.today());
+      const el = st.root.querySelector('#rd-orient');
+      el.innerHTML = `<span class="ro-t">${U.icon('swap')}<span>${L('القراية بالعرض أريح للعين', 'Reading sideways is easier on the eyes')}</span></span>
+        <button class="btn sm gold" data-act="orient" data-v="landscape">${L('اقلب بالعرض', 'Turn sideways')}</button>
+        <button class="ib sm" data-act="orient-x" aria-label="${L('مش دلوقتي', 'Not now')}">${U.icon('close')}</button>
+        <button class="lnk ro-never" data-act="orient-never">${L('ماتسألنيش تاني', "Don't ask again")}</button>`;
+      el.hidden = false;
+      requestAnimationFrame(() => el.classList.add('in'));
+      st.orientT = setTimeout(hideOrient, 9000);
+    }, 1500);
+  }
+  function hideOrient() {
+    const el = st && st.root.querySelector('#rd-orient');
+    if (!el) return;
+    el.classList.remove('in');
+    setTimeout(() => st && (el.hidden = true), 250);
+  }
+  async function orientTo(mode) {
+    hideOrient();
+    if (A.Sys && A.Sys.orient(mode)) {
+      st.oriented = mode !== 'auto';
+      return;
+    }
+    try {
+      if (mode === 'auto') return screen.orientation.unlock();
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+      await screen.orientation.lock(mode);
+      st.oriented = true;
+    } catch (e) {
+      U.toast(L('لف الموبايل بالعرض', 'Turn your phone sideways'));
+    }
+  }
+
+  /* ---------- pages counted by mistake ---------- */
+  function uncountSheet() {
+    const counted = [...st.counted].sort((a, b) => a - b);
+    const from = counted.length ? counted[0] : st.cur;
+    const to = counted.length ? counted[counted.length - 1] : st.cur;
+    A.V.sheet({
+      title: L('شيل صفحات من المقروء', 'Un-count pages'),
+      html: `<form class="form" id="uc-form"><p class="muted">${L('اتحسبت صفحات وإنت بس بتتفرّج؟ شيلها من اللي قريته — مش هتضيع حاجة تانية.', "Pages counted while you were only looking? Take them off what you've read — nothing else changes.")}</p>
+        <div class="grid2"><div><label for="uc-from">${L('من صفحة', 'From page')}</label><input id="uc-from" type="number" min="1" max="${st.N}" value="${from}"></div>
+        <div><label for="uc-to">${L('لحد صفحة', 'To page')}</label><input id="uc-to" type="number" min="1" max="${st.N}" value="${to}"></div></div>
+        <div class="row-btns end"><button class="btn gold">${U.icon('check')}${L('شيلها', 'Un-count')}</button></div></form>`,
+      onMount: (body, api) =>
+        body.querySelector('#uc-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const a = U.clamp(+body.querySelector('#uc-from').value || 1, 1, st.N);
+          const b = U.clamp(+body.querySelector('#uc-to').value || a, a, st.N);
+          api.close();
+          await flush();
+          let today = 0;
+          for (let p = a; p <= b; p++) {
+            st.pending.delete(p);
+            if (st.counted.delete(p)) today++;
+          }
+          await D.saveProg(st.bookId, (c) => ({ seen: U.rangesRemove(c.seen, a, b) }));
+          if (today) await D.addPagesToday(-today);
+          st.sessionPages = Math.max(0, st.sessionPages - today);
+          if (st.front > b || st.front < a) {
+            /* the place still stands */
+          } else st.front = Math.max(1, a - 1);
+          U.toast(L(`اتشالت ص ${L.num(a)}–${L.num(b)} من المقروء`, `Pages ${a}–${b} are no longer counted`));
+          chrome();
+          scrub();
+        }),
+    });
+  }
+
   /* The eye button: shows whether other people's marks are on the pages. */
   function marksUi() {
     const b = st && st.root.querySelector('#rd-eye');
@@ -961,6 +1240,12 @@
   function chrome() {
     if (!st) return;
     marksUi();
+    const bm = st.root.querySelector('#rd-bm');
+    if (bm) {
+      const on = !!((S.priv && S.priv.marks && S.priv.marks[st.bookId]) || {})[st.cur];
+      bm.classList.toggle('on', on);
+      bm.setAttribute('aria-pressed', String(on));
+    }
     const b = st.book;
     const w = G.myCurrent(b);
     const wEl = st.root.querySelector('#rd-wird');
@@ -979,7 +1264,7 @@
     // finish prompt
     const pr = st.root.querySelector('#rd-prompt');
     let html = '';
-    if (D.canWrite() && D.joined()) {
+    if (D.canWrite() && D.joined() && !st.browsing) {
       if (w && st.cur >= w.to && st.dismissed !== w.id) {
         html = `<span class="star8 sm gold"></span><span>${L(`وصلت لآخر الورد ${L.num(w.n)}!`, `You reached the end of portion ${w.n}!`)}</span><button class="btn gold sm" data-act="wird-done" data-wid="${U.esc(w.id)}">${U.icon('check')}${L('خلّصته', 'Mark done')}</button><button class="ib sm" data-act="dismiss" aria-label="${L('إخفاء', 'Hide')}">${U.icon('close')}</button>`;
       } else if (!w && st.cur >= st.N && !(prog && prog.finished) && st.dismissed !== 'book') {
@@ -1026,8 +1311,12 @@
       k++;
     }
     for (const [uid, at] of live) others += `<span class="sm-av live" style="${side}:${pos(at || 1)}%" title="${U.esc(D.name(uid))}">${D.avatar(uid, 'xs')}</span>`;
+    const mk = (S.priv && S.priv.marks && S.priv.marks[st.bookId]) || {};
+    let ticks = '';
+    for (const k of Object.keys(mk)) if (mk[k]) ticks += `<i class="bm-tick" style="${side}:${pos(+k)}%"></i>`;
+    if (st.front !== st.cur) ticks += `<i class="front-tick" style="${side}:${pos(st.front)}%"></i>`;
     el.setAttribute('aria-valuenow', st.cur);
-    el.innerHTML = `<div class="trk">${segs}${seenBar}</div>${others}<span class="thumb" style="${side}:${pos(st.cur)}%"><b>${L.num(st.cur)}</b></span>`;
+    el.innerHTML = `<div class="trk">${segs}${seenBar}${ticks}</div>${others}<span class="thumb" style="${side}:${pos(st.cur)}%"><b>${L.num(st.cur)}</b></span>`;
   }
 
   function showLoading(on, f = 0, part) {
@@ -1190,6 +1479,20 @@
       else if (act === 'panel') togglePanel();
       else if (act === 'more') moreMenu();
       else if (act === 'marks') R.setMarks(R.marksPref() === 'all' ? 'mine' : 'all');
+      else if (act === 'place') setPlace(+t.dataset.p, +t.dataset.y);
+      else if (act === 'place-off') clearPlace();
+      else if (act === 'browse-back') backToPlace();
+      else if (act === 'browse-here') readFromHere();
+      else if (act === 'bmark') toggleBookmark();
+      else if (act === 'bm-name') nameBookmark(+t.dataset.p);
+      else if (act === 'bm-del') A.V.toggleMark(st.bookId, +t.dataset.p).then(() => renderPanel());
+      else if (act === 'orient') orientTo(t.dataset.v);
+      else if (act === 'orient-x') hideOrient();
+      else if (act === 'orient-never') {
+        U.store.set('rdOrientAsk', false);
+        hideOrient();
+        U.toast(L('تمام، مش هنسأل تاني. تقدر ترجّعه من الإعدادات.', "OK, we won't ask again. You can turn it back on in Settings."));
+      }
       else if (act === 'retry') {
         const id = st.bookId, p = st.cur;
         R.close(true);
@@ -1338,11 +1641,15 @@
     if (f === 'mine') list = list.filter((n) => n.by === S.me);
     if (f === 'q') list = list.filter((n) => n.kind === 'q');
     list.sort((a, b2) => a.page - b2.page || String(a.at).localeCompare(String(b2.at)));
-    const marks = Object.keys((S.priv && S.priv.marks && S.priv.marks[st.bookId]) || {}).map(Number).sort((a, b2) => a - b2);
+    const mk = (S.priv && S.priv.marks && S.priv.marks[st.bookId]) || {};
+    const marks = Object.keys(mk).filter((k) => mk[k]).map(Number).sort((a, b2) => a - b2);
     const chip = (id, label) => `<button class="chip${f === id ? ' on' : ''}" data-act="pfilter" data-f="${id}">${label}</button>`;
     el.innerHTML = `<div class="rp-head"><b>${L('ملاحظات الكتاب', 'Notes in this book')}</b><button class="ib" data-act="panel" aria-label="${L('قفل', 'Close')}">${U.icon('close')}</button></div>
       <div class="chips">${w ? chip('wird', L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)) : ''}${chip('all', L('الكل', 'All'))}${chip('mine', L('بتوعي', 'Mine'))}${chip('q', L('أسئلة', 'Questions'))}</div>
-      ${marks.length ? `<div class="rp-marks">${U.icon('bookmark')}${marks.map((p) => `<button class="chip" data-act="pgo" data-p="${p}">${L('ص', 'p.')} ${L.num(p)}</button>`).join('')}</div>` : ''}
+      ${marks.length ? `<div class="rp-bms"><h4>${U.icon('bookmark')}${L('العلامات', 'Bookmarks')}</h4>${marks
+        .map((p) => `<div class="rp-bm"><button class="rp-bm-go" data-act="pgo" data-p="${p}"><b>${L('ص', 'p.')} ${L.num(p)}</b>${mk[p] && mk[p].t ? `<span dir="auto">${U.esc(mk[p].t)}</span>` : `<small>${L('من غير اسم', 'no name')}</small>`}</button>
+          <button class="ib sm" data-act="bm-name" data-p="${p}" aria-label="${L('سمّيها', 'Name it')}">${U.icon('edit')}</button><button class="ib sm" data-act="bm-del" data-p="${p}" aria-label="${L('شيلها', 'Remove')}">${U.icon('trash')}</button></div>`)
+        .join('')}</div>` : ''}
       <div class="rp-list">${list.length ? list.map(noteRow).join('') : `<div class="empty sm"><span class="star8 faint"></span><p>${L('مفيش ملاحظات هنا لسه. استخدم «ظلّل» أو «ملاحظة» تحت وابدأ أول واحدة.', 'No notes here yet. Use Highlight or Note below to add the first one.')}</p></div>`}</div>`;
   }
   function noteRow(n) {
@@ -1378,6 +1685,10 @@
         };
         return MARKS.filter((k) => k !== v).map((k) => o[k]);
       })(),
+      st.paged ? { ic: 'book', t: R.bookPref() ? L('شكل عادي للصفحة', 'Plain page') : L('شكل الكتاب', 'Book look'), fn: () => R.setBookLook(!R.bookPref()) } : null,
+      A.Sys && A.Sys.canOrient() ? (isLand() ? { ic: 'swap', t: L('اقلب بالطول', 'Turn upright'), fn: () => orientTo('portrait') } : { ic: 'swap', t: L('اقلب بالعرض', 'Turn sideways'), fn: () => orientTo('landscape') }) : null,
+      st.oriented ? { ic: 'swap', t: L('لف مع الموبايل', 'Follow the phone'), fn: () => orientTo('auto') } : null,
+      st.counted.size || (D.prog(st.bookId) || {}).seen ? { ic: 'scroll', t: L('شيل صفحات من المقروء', 'Un-count pages'), fn: uncountSheet } : null,
       R.hiddenHere().length ? { ic: 'eye', t: L(`رجّع الملاحظات اللي خبّيتها (${L.num(R.hiddenHere().length)})`, `Show the notes you hid (${R.hiddenHere().length})`), fn: () => { const ids = R.hiddenHere(); D.privUpdate((cur) => { const h = Object.assign({}, cur.hidden); for (const id of ids) delete h[id]; return Object.assign(cur, { hidden: h }); }); } } : null,
       st.land ? { ic: 'swap', t: R.toolsSide() === 'left' ? L('انقل الأدوات لليمين', 'Move the tools to the right') : L('انقل الأدوات للشمال', 'Move the tools to the left'), fn: () => R.setToolsSide(R.toolsSide() === 'left' ? 'right' : 'left') } : null,
       { ic: 'zin', t: L('تكبير', 'Zoom in'), fn: () => setZoom(st.zoom * 1.25), cls: 'show-sm' },
