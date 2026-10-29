@@ -95,6 +95,7 @@ async function closeAll(p) {
       await D.set(`pokes/${D.newId()}`, { to, from: window.A.S.me, kind: 'cheer', at: U.nowIso(), b: '', wid: '' });
     }, seed.me);
     await T(1500);
+    await p.evaluate(() => window.A.Goals && (window.A.Goals.off = true));
 
     const views = [
       ['home', () => p.evaluate(() => window.A.V.go('home'))],
@@ -111,6 +112,11 @@ async function closeAll(p) {
       ['settings', () => p.evaluate(() => window.A.V.go('settings'))],
       ['inbox', () => p.evaluate(() => window.A.V.openInbox())],
       ['menu', () => p.evaluate(() => window.A.V.go('shelf')).then(() => p.click('[data-act="shelf-more"]'))],
+      ['quotes', () => p.evaluate(() => window.A.V.go('quotes'))],
+      ['invite', () => p.evaluate(() => window.A.V.go('circle')).then(() => p.click('[data-act="invite"]')).then(() => p.waitForSelector('#inv-card img', { timeout: 8000 }))],
+      ['recap', () => p.evaluate(() => window.A.V.circleRecap(window.A.U.weekStart()))],
+      ['pick', () => p.evaluate(() => window.A.V.go('shelf')).then(() => p.click('[data-act="shelf-more"]')).then(() => p.click('.mi:has-text("اختارلي"), .mi:has-text("Pick"), .mi:has-text("اختر لي")'))],
+      ['filter', () => p.evaluate(() => window.A.V.go('shelf')).then(() => p.click('[data-act="shelf-filter"]'))],
       ['reader', () => p.evaluate((b) => window.A.R.open(b, { page: 2 }), seed.book).then(() => T(1800))],
     ];
     const orients = process.env.LAND ? [['p', 390, 844], ['l', 844, 390]] : [['p', 390, 844]];
