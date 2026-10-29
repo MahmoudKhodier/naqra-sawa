@@ -353,7 +353,7 @@
     if (!App || !App.addListener) return;
     App.addListener('backButton', () => {
       if (V.sheets.length) return V.sheets[V.sheets.length - 1].close();
-      if (A.R.isOpen()) return A.R.close();
+      if (A.R.isOpen()) return A.R.closeAsk ? A.R.closeAsk() : A.R.close();
       if (V.state.route !== 'home') return V.go(V.state.route.startsWith('book-') ? 'books' : 'home');
       App.exitApp && App.exitApp();
     });

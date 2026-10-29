@@ -427,7 +427,7 @@
       const b = G.BADGES.find((x) => x.id === id);
       setTimeout(() => {
         U.chime('ok');
-        U.toast(`${V.badgeIcon(b, true, 'xs')}<span><b>${L('وسام جديد!', 'New badge!')}</b> ${esc(L(b.t[0], b.t[1]))}</span>`, 'badge');
+        U.toast(`${V.badgeIcon(b, true, 'xs')}<span><b>${b.secret ? L('وسام سري اتكشف! 🗝️', 'Secret badge found! 🗝️') : L('وسام جديد!', 'New badge!')}</b> ${esc(L(b.t[0], b.t[1]))}</span>`, 'badge');
       }, 900 + i * 1200);
     });
     if (now.qdone && !(prev.qday === now.qday && prev.qdone)) {
@@ -438,13 +438,22 @@
     }
   };
 
+  /* Rewards that open at this level: frames, emoji, paper colours. */
+  function unlocksAt(lv) {
+    const items = [
+      ...G.FRAMES.filter((f) => f.need.lv === lv).map((f) => L(`إطار «${f.t[0]}»`, `the “${f.t[1]}” frame`)),
+      ...G.EMOJI_PACKS.filter((p) => p.need.lv === lv).map((p) => p.e.join(' ')),
+      ...G.PAPERS.filter((p) => p.need && p.need.lv === lv).map((p) => L(`ورق «${p.t[0]}»`, `“${p.t[1]}” paper`)),
+    ];
+    return items.length ? `<p class="unlocks">${icon('gift')}<span>${L('اتفتحلك:', 'Unlocked:')} ${esc(items.join(L('، ', ', ')))}</span></p>` : '';
+  }
   V.levelUp = (lv) => {
     U.confetti(1.2);
     U.chime('big');
     V.sheet({
       title: L('مستوى جديد!', 'Level up!'),
       cls: 'celebrate',
-      html: `<div class="celeb">${V.star(L.num(lv), 'gold huge spin-in')}<h2>${esc(G.title(lv))}</h2><p>${L(`وصلت للمستوى ${L.num(lv)}. كمّل كده!`, `You reached level ${lv}. Keep going!`)}</p><button class="btn gold" data-close autofocus>${L('يلا بينا', "Let's go")}</button></div>`,
+      html: `<div class="celeb">${V.star(L.num(lv), 'gold huge spin-in')}<h2>${esc(G.title(lv))}</h2><p>${L(`وصلت للمستوى ${L.num(lv)}. كمّل كده!`, `You reached level ${lv}. Keep going!`)}</p>${unlocksAt(lv)}<div class="row-btns center"><button class="btn gold" data-close autofocus>${L('يلا بينا', "Let's go")}</button>${A.Share ? `<button class="btn ghost" data-act="share-level" data-close>${icon('share')}${L('شارك', 'Share')}</button>` : ''}</div></div>`,
     });
   };
 
@@ -493,13 +502,16 @@
   /* A badge group on a profile: the highest level earned (or the first one, greyed), level dots, and
      progress to the next level. Tapping opens the details. */
   V.badgeCard = (grp, uid) => {
+    if (grp.secret && !grp.top)
+      return `<button class="bdg secret" data-act="badge" data-g="${esc(grp.g)}" data-uid="${esc(uid)}">
+      <span class="badge8 tier5 q">${icon('question')}</span><b>${L('؟؟؟', '???')}</b><small class="bdg-hint">${esc(L(grp.tip[0], grp.tip[1]))}</small></button>`;
     const show = grp.top || grp.tiers[0];
     const nx = grp.next;
     return `<button class="bdg${grp.top ? ' got' : ''}" data-act="badge" data-g="${esc(grp.g)}" data-uid="${esc(uid)}">
       ${V.badgeIcon(show.b, !!grp.top)}
       <b>${esc(L(show.b.t[0], show.b.t[1]))}</b>
-      <span class="bdg-dots" aria-label="${L(`${L.num(grp.tiers.filter((x) => x.got).length)} من ${L.num(grp.tiers.length)}`, `${grp.tiers.filter((x) => x.got).length} of ${grp.tiers.length}`)}">${grp.tiers.map((x) => `<i class="tier${x.b.tier}${x.got ? ' on' : ''}"></i>`).join('')}</span>
-      ${nx ? `<small>${L.num(nx.v)} / ${L.num(nx.b.n)}</small>${V.bar(nx.v / nx.b.n, 'gold')}` : `<small class="gold-t">${L('خلّصت كل المستويات ✓', 'All levels done ✓')}</small>`}
+      ${grp.tiers.length > 1 ? `<span class="bdg-dots" aria-label="${L(`${L.num(grp.tiers.filter((x) => x.got).length)} من ${L.num(grp.tiers.length)}`, `${grp.tiers.filter((x) => x.got).length} of ${grp.tiers.length}`)}">${grp.tiers.map((x) => `<i class="tier${x.b.tier}${x.got ? ' on' : ''}"></i>`).join('')}</span>` : ''}
+      ${nx ? `<small>${L.num(nx.v)} / ${L.num(nx.b.n)}</small>${V.bar(nx.v / nx.b.n, 'gold')}` : `<small class="gold-t">${grp.secret ? L('سر اتكشف 🗝️', 'Secret found 🗝️') : grp.tiers.length > 1 ? L('خلّصت كل المستويات ✓', 'All levels done ✓') : L('اتفتح ✓', 'Earned ✓')}</small>`}
     </button>`;
   };
 
@@ -613,10 +625,11 @@
         <p>${L('قيّم الكتاب واكتب رأيك — هيتحط في مكتبتك تحت «قرأناه سوا»', "Rate it and add a review — it goes on your shelf under 'Read together'")}</p>
         ${V.stars(0, true, 'fin-stars')}
         <textarea id="fin-review" rows="3" dir="auto" maxlength="${U.MAX.review}" placeholder="${L('رأيك في سطرين (اختياري)', 'Your review (optional)')}"></textarea>
-        <div class="row-btns center"><button class="btn gold" data-save autofocus>${L('احفظ في مكتبتي', 'Save to my shelf')}</button></div></div>`,
+        <div class="row-btns center"><button class="btn gold" data-save autofocus>${L('احفظ في مكتبتي', 'Save to my shelf')}</button>${A.Share ? `<button class="btn ghost" data-share-book>${icon('share')}${L('شارك', 'Share')}</button>` : ''}</div></div>`,
       onMount: (body, api) => {
         V.bindStars(body);
         body.addEventListener('click', async (e) => {
+          if (e.target.closest('[data-share-book]')) return A.Share.book(bookId);
           if (!e.target.closest('[data-save]')) return;
           const rating = +body.querySelector('#fin-stars').dataset.v || 0;
           const review = body.querySelector('#fin-review').value.trim();
@@ -700,6 +713,17 @@
     const others = D.memberIds().filter((u) => u !== uid);
     const holders = (b) => others.filter((u) => (G.of(u).badges || []).some((x) => x.got && x.b.id === b.id));
     const show = grp.top || grp.tiers[0];
+    if (grp.secret && !grp.top)
+      return V.sheet({
+        title: L('وسام سري', 'Secret badge'),
+        html: `<div class="bd-sheet"><div class="bd-hero"><span class="badge8 tier5 q lg">${icon('question')}</span><h2>${L('؟؟؟', '???')}</h2>
+          <p class="muted">${L('وسام سري — اسمه بيظهر لما تكسبه.', 'A secret badge — its name shows once you earn it.')}</p></div>
+          <p class="bd-tip">${icon('sparkle')}<span>${L('تلميح:', 'Hint:')} ${esc(L(grp.tip[0], grp.tip[1]))}</span></p>
+          ${(() => {
+            const h = holders(grp.tiers[0].b);
+            return h.length ? `<p class="muted sm">${L(`${L.num(h.length)} من الحلقة عرفوا السر`, `${h.length} in the circle found it`)}</p>` : '';
+          })()}</div>`,
+      });
     V.sheet({
       title: L('وسام', 'Badge'),
       html: `<div class="bd-sheet">
@@ -716,9 +740,12 @@
               </div></li>`;
           })
           .join('')}</ol>
+        ${mine && grp.top && A.Share ? `<div class="row-btns center"><button class="btn ghost" data-act="share-badge" data-id="${esc(grp.top.b.id)}" data-close>${icon('share')}${L('شارك الوسام', 'Share this badge')}</button></div>` : ''}
       </div>`,
     });
   };
+  V.actions['share-badge'] = (a) => A.Share && A.Share.badge(a.dataset.id);
+  V.actions['share-level'] = () => A.Share && A.Share.level();
 
   window.addEventListener('hashchange', () => {
     if (V._silentHash) {

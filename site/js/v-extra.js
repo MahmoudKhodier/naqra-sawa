@@ -61,11 +61,28 @@
           <div class="gold-t"><b>+${L.num(pages * G.XP.page)}</b><small>XP</small></div>
         </div>
         ${s.streak ? `<p class="ss-streak">${icon('flame')}${L(`سلسلتك ${L.count(s.streak, 'day')}`, `Streak: ${L.count(s.streak, 'day')}`)}${s.freezes ? ` • ${icon('snow')}${L(`حماية ×${L.num(s.freezes)}`, `${s.freezes} freeze${s.freezes > 1 ? 's' : ''}`)}` : ''}</p>` : ''}
+        ${goalLine()}
         ${wird}
-        <button class="btn full" data-close autofocus>${L('تمام', 'Nice')}</button>
+        <div class="row-btns"><button class="btn full" data-close autofocus>${L('تمام', 'Nice')}</button>${A.Share ? `<button class="btn ghost icon-only" data-act="share-session" data-close aria-label="${L('شارك', 'Share')}">${icon('share')}</button>` : ''}</div>
       </div>`,
     });
   };
+
+  function goalLine() {
+    const g = G.dailyGoal();
+    const m = S.members.get(S.me) || {};
+    const k = U.today();
+    const have = g.k === 'mins' ? Math.floor(((m.secs && m.secs[k]) || 0) / 60) : (m.days && m.days[k]) || 0;
+    const unit = (n) => (g.k === 'mins' ? L.count(n, 'minute') : L.count(n, 'page'));
+    return `<div class="ss-goal">${V.ring(have / g.n, icon('target'), have >= g.n ? 'jade' : 'gold', 40)}<span>${have >= g.n ? L('هدف النهارده اتحقق 🎯', "Today's goal reached 🎯") : L(`هدف النهارده: فاضل ${unit(g.n - have)}`, `Today's goal: ${unit(g.n - have)} to go`)}</span></div>`;
+  }
+  let lastSession = null;
+  const sessionSummary0 = V.sessionSummary;
+  V.sessionSummary = (x) => {
+    lastSession = x;
+    sessionSummary0(x);
+  };
+  V.actions['share-session'] = () => lastSession && A.Share && A.Share.session(lastSession);
 
   /* ---------- weekly recap (first visit of a new week) ---------- */
   V.weeklyRecap = () => {

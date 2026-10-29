@@ -166,6 +166,7 @@
         <div class="pf-t"><h1 dir="auto">${esc(D.name(uid))}</h1><p class="pf-title">${esc(G.title(s.lv))}${rank ? ` • ${L(`المركز ${L.num(rank)} في الحلقة`, `#${rank} in the circle`)}` : ''}</p>
           <div class="pf-xp">${V.bar(s.span ? s.cur / s.span : 0, 'gold big')}<small>${L.num(s.cur)} / ${L.num(s.span)} XP • ${L(`فاضل ${L.num(s.toNext)} للمستوى ${L.num(s.lv + 1)}`, `${s.toNext} to level ${s.lv + 1}`)}</small></div>
           ${live ? `<p class="live-t"><span class="pulse"></span>${L('في القراية دلوقتي', 'Reading right now')}</p>` : ''}
+          ${mine && A.Share ? `<button class="lnk sm" data-act="share-level">${icon('share')}${L('شارك مستواك', 'Share your level')}</button>` : ''}
           ${!mine && D.canWrite() ? `<div class="row-btns"><button class="btn sm" data-act="poke" data-to="${esc(uid)}" data-kind="cheer">${icon('clap')}${L('ابعت تشجيع', 'Cheer')}</button><button class="btn ghost sm" data-go="shelf" data-uid="${esc(uid)}">${icon('shelf')}${L('المكتبة', 'Shelf')}</button></div>` : ''}
         </div>
       </header>
@@ -177,10 +178,16 @@
         <div class="stile">${icon('shelf')}<b>${L.num(shelf.length)}</b><small>${L('كتب في المكتبة', 'books on shelf')}</small></div>
         <div class="stile">${icon('check')}<b>${L.num(s.wirdsDone)}</b><small>${L('ورد خلّصه', 'portions done')}</small></div>
         <div class="stile">${icon('heart')}<b>${L.num(s.likesRecv)}</b><small>${L('إعجاب', 'likes received')}</small></div>
+        <div class="stile">${icon('target')}<b>${L.num(s.goalDays)}</b><small>${L('يوم حقق فيه الهدف', 'goal days')}</small></div>
+        <div class="stile">${icon('hourglass')}<b>${L.num(s.focusN)}</b><small>${L('جلسة تركيز', 'focus sessions')}</small></div>
       </section>
+      ${mine ? monthBlock() : ''}
+      ${mine ? rewardsBlock(s) : ''}
       <section class="card">
         <header class="sec-h"><h2>${L('الأوسمة', 'Badges')}</h2><small class="muted">${L.num(s.badgeCount)} / ${L.num(G.BADGES.length)}</small></header>
-        <div class="badges">${G.badgeGroups(s).map((grp) => V.badgeCard(grp, uid)).join('')}</div>
+        <div class="badges">${G.badgeGroups(s).filter((g) => !g.secret).map((grp) => V.badgeCard(grp, uid)).join('')}</div>
+        <h3 class="set-h">${icon('lock')}${L('أوسمة سرية', 'Secret badges')} <small class="muted">${L.num(G.secretsGot(s))} / ${L.num(G.BADGES.filter((b) => b.secret).length)}</small></h3>
+        <div class="badges secrets">${G.badgeGroups(s).filter((g) => g.secret).map((grp) => V.badgeCard(grp, uid)).join('')}</div>
       </section>
       <section class="card">
         <header class="sec-h"><h2>${L('خريطة القراية', 'Reading map')}</h2><small class="muted">${L('آخر ١٨ أسبوع', 'Last 18 weeks')}</small></header>
@@ -188,6 +195,42 @@
       </section>
     </div>`;
   };
+
+  /* The month in reading: this month so far, and last month. */
+  function monthBlock() {
+    if (!A.Wrapped) return '';
+    const W = A.Wrapped;
+    const now = U.today().slice(0, 7);
+    const prev = W.prevMonth();
+    return `<section class="card month-card">
+      <div><b>${icon('sparkle')}${L('شهرك في القراية', 'Your month in reading')}</b><small class="muted">${L('ملخص زي القصة، تقدر تشاركه', 'A story-style recap you can share')}</small></div>
+      <div class="row-btns"><button class="btn gold sm" data-act="wrapped" data-m="${now}">${esc(W.monthName(now))}</button><button class="btn ghost sm" data-act="wrapped" data-m="${prev}">${esc(W.monthName(prev))}</button></div>
+    </section>`;
+  }
+  /* What unlocks next: the closest locked frames, emoji and paper colours. */
+  function rewardsBlock(s) {
+    const all = [
+      ...G.FRAMES.map((f) => ({ kind: 'frame', f, need: f.need, t: L(`إطار «${f.t[0]}»`, `“${f.t[1]}” frame`) })),
+      ...G.EMOJI_PACKS.map((p) => ({ kind: 'emoji', p, need: p.need, t: p.e.join(' ') })),
+      ...G.PAPERS.filter((p) => p.need).map((p) => ({ kind: 'paper', p, need: p.need, t: L(`ورق «${p.t[0]}»`, `“${p.t[1]}” paper`) })),
+    ];
+    const got = all.filter((x) => G.unlocked(x.need, s)).length;
+    const next = all
+      .filter((x) => !G.unlocked(x.need, s))
+      .map((x) => Object.assign(x, { pr: G.needProgress(x.need, s) }))
+      .sort((a, b) => b.pr - a.pr)
+      .slice(0, 3);
+    const col = D.color(S.me);
+    const m = S.members.get(S.me) || {};
+    const face = m.emoji ? `<span class="av-emo">${esc(m.emoji)}</span>` : `<span class="av-ch">${esc(Array.from(D.name(S.me).trim())[0] || '؟')}</span>`;
+    const art = (x) =>
+      x.kind === 'frame' ? `<span class="av av-sm fr fr-${x.f.id}" style="--c:${esc(col)}">${face}</span>` : x.kind === 'paper' ? `<i class="pp sm" data-pp="${x.p.id}"></i>` : `<span class="rw-emo">${x.p.e[0]}</span>`;
+    return `<section class="card rewards">
+      <header class="sec-h"><h2>${icon('gift')}${L('الجوايز', 'Rewards')}</h2><small class="muted">${L(`اتفتح ${L.num(got)} من ${L.num(all.length)}`, `${got} of ${all.length} unlocked`)}</small></header>
+      ${next.length ? `<ul class="rw-next">${next.map((x) => `<li>${art(x)}<div><b>${esc(x.t)}</b><small>${esc(G.needText(x.need))}</small>${V.bar(x.pr, 'gold')}</div></li>`).join('')}</ul>` : `<p class="muted">${L('فتحت كل الجوايز! 👑', 'Everything unlocked! 👑')}</p>`}
+      <div class="row-btns"><button class="btn ghost sm" data-go="settings">${icon('frame')}${L('غيّر إطارك وعلامتك', 'Change frame and mark')}</button></div>
+    </section>`;
+  }
 
   /* ---------- settings (its own tab) ---------- */
   V.screens.settings = () => `<div class="settings-page">${settings()}</div>`;
@@ -228,7 +271,10 @@
       <div class="emo emo-all" role="radiogroup" aria-label="${L('علامتك', 'Your mark')}">
         <button type="button" class="emo-b letter${m.emoji ? '' : ' on'}" data-act="set-emoji" data-emo="" role="radio" aria-checked="${!m.emoji}" aria-label="${L('أول حرف من اسمي', 'First letter of my name')}">${esc(Array.from(D.name(S.me).trim())[0] || '؟')}</button>
         ${V.EMOJI.map((e) => `<button type="button" class="emo-b${m.emoji === e ? ' on' : ''}" data-act="set-emoji" data-emo="${e}" role="radio" aria-checked="${m.emoji === e}" aria-label="${e}">${e}</button>`).join('')}
-      </div>` : ''}
+        ${packsHtml(m)}
+      </div>
+      <span class="lbl set-lbl">${icon('frame')}${L('إطار الصورة', 'Frame')} <small class="muted">${L('بيتفتح مع المستويات والأوسمة', 'unlocks with levels and badges')}</small></span>
+      <div class="frames" role="radiogroup" aria-label="${L('إطار الصورة', 'Frame')}">${framesHtml(m)}</div>` : ''}
       <div class="set-row"><span>${icon('lang')}${L('اللغة', 'Language')}</span><div class="seg sm"><button class="${L.isAr() ? 'on' : ''}" data-act="${L.isAr() ? '' : 'lang'}">العربية</button><button class="${L.isAr() ? '' : 'on'}" data-act="${L.isAr() ? 'lang' : ''}">English</button></div></div>
       <div class="set-row"><span>${icon('moon')}${L('المظهر', 'Appearance')}</span><div class="seg sm">${[['system', L('تلقائي', 'Auto')], ['light', L('فاتح', 'Light')], ['dark', L('غامق', 'Dark')]].map(([k, t]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-t="${k}">${t}</button>`).join('')}</div></div>
       <div class="set-row"><span>${icon('calendar')}${L('التاريخ الهجري', 'Hijri date')}</span><label class="switch"><input type="checkbox" id="set-hijri" ${U.store.get('hijri', true) ? 'checked' : ''}><i></i></label></div>
@@ -237,6 +283,65 @@
       ${V.extraSettings ? V.extraSettings() : ''}
     </section>`;
   }
+  /* Emoji that unlock with levels and badges (locked ones show how to get them). */
+  function packsHtml(m) {
+    const s = G.of(S.me);
+    return G.EMOJI_PACKS.map((pk) => {
+      const ok = G.unlocked(pk.need, s);
+      return pk.e
+        .map((e) => `<button type="button" class="emo-b${ok ? '' : ' locked'}${m.emoji === e ? ' on' : ''}" data-act="set-emoji" data-emo="${e}" role="radio" aria-checked="${m.emoji === e}" aria-label="${ok ? e : esc(L(`مقفولة: ${G.needText(pk.need)}`, `Locked: ${G.needText(pk.need)}`))}" title="${ok ? '' : esc(G.needText(pk.need))}">${e}${ok ? '' : `<i class="lk">${icon('lock')}</i>`}</button>`)
+        .join('');
+    }).join('');
+  }
+  function framesHtml(m) {
+    const s = G.of(S.me);
+    const col = D.color(S.me);
+    const face = m.emoji ? `<span class="av-emo">${esc(m.emoji)}</span>` : `<span class="av-ch">${esc(Array.from(D.name(S.me).trim())[0] || '؟')}</span>`;
+    const cur = G.frameOf(S.me);
+    const none = `<button type="button" class="frm${cur ? '' : ' on'}" data-act="set-frame" data-fr="" role="radio" aria-checked="${!cur}"><span class="av av-md" style="--c:${esc(col)}">${face}</span><small>${L('من غير', 'None')}</small></button>`;
+    return none + G.FRAMES.map((f) => {
+      const ok = G.unlocked(f.need, s);
+      const pr = G.needProgress(f.need, s);
+      return `<button type="button" class="frm${cur === f.id ? ' on' : ''}${ok ? '' : ' locked'}" data-act="set-frame" data-fr="${f.id}" role="radio" aria-checked="${cur === f.id}">
+        <span class="av av-md fr fr-${f.id}" style="--c:${esc(col)}">${face}</span><small>${esc(L(f.t[0], f.t[1]))}</small>
+        ${ok ? '' : `<small class="frm-need">${icon('lock')}${esc(G.needText(f.need))}</small>${V.bar(pr, 'gold')}`}</button>`;
+    }).join('');
+  }
+  V.actions['set-frame'] = async (a) => {
+    const id = a.dataset.fr || '';
+    const f = G.FRAMES.find((x) => x.id === id);
+    if (f && !G.unlocked(f.need, G.of(S.me))) return U.toast(L(`الإطار ده بيتفتح بـ${G.needText(f.need)}`, `This frame unlocks with ${G.needText(f.need)}`));
+    await D.updateMe(() => ({ frame: id }));
+    U.toast(id ? L(`إطارك بقى «${f.t[0]}»`, `Frame: ${f.t[1]}`) : L('من غير إطار', 'No frame'));
+  };
+  /* The daily goal outside the reader. */
+  V.goalEdit = () => {
+    const g = G.dailyGoal();
+    const opts = g.k === 'mins' ? [10, 15, 20, 30, 45, 60] : [5, 10, 15, 20, 30, 50];
+    if (!opts.includes(g.n)) opts.push(g.n), opts.sort((x, y) => x - y);
+    V.sheet({
+      title: L('هدفك اليومي', 'Your daily goal'),
+      html: `<div class="goal-sheet"><p class="muted">${L('الدايرة اللي فوق في القارئ بتتملي لحد ما توصل هدفك. كل يوم بتحققه بيديك XP ويقربك من أوسمة «في الهدف».', 'The ring at the top of the reader fills up as you go. Each day you reach it gives XP and counts towards the “On target” badges.')}</p>
+        <div class="seg sm gs-kind"><button class="${g.k === 'pages' ? 'on' : ''}" data-gk="pages">${L('صفحات', 'Pages')}</button><button class="${g.k === 'mins' ? 'on' : ''}" data-gk="mins">${L('دقايق', 'Minutes')}</button></div>
+        <div class="chips gs-n">${opts.map((n) => `<button class="chip${n === g.n ? ' on' : ''}" data-gn="${n}">${L.num(n)}</button>`).join('')}</div></div>`,
+      onMount: (body, api) =>
+        body.addEventListener('click', async (e) => {
+          const k = e.target.closest('[data-gk]');
+          const n = e.target.closest('[data-gn]');
+          if (k && k.dataset.gk !== g.k) {
+            api.close();
+            await D.setDailyGoal(k.dataset.gk, k.dataset.gk === 'mins' ? 15 : 10);
+            V.goalEdit();
+          } else if (n) {
+            api.close();
+            await D.setDailyGoal(g.k, +n.dataset.gn);
+            V.render();
+          }
+        }),
+    });
+  };
+  V.actions['goal-edit'] = () => V.goalEdit();
+
   /* Reader preferences (this device): tools side when sideways, whose marks show, page turning. */
   function readingSettings() {
     const R = A.R;
@@ -244,7 +349,13 @@
     const seg = (act, cur, opts) => `<div class="seg sm">${opts.map(([k, t]) => `<button class="${cur === k ? 'on' : ''}" data-act="${act}" data-v="${k}" aria-pressed="${cur === k}">${t}</button>`).join('')}</div>`;
     const paged = !!U.store.get('readerPrefs', {}).paged;
     const native = !!(A.Sys && A.Sys.canOrient && A.Sys.canOrient());
+    const g = G.dailyGoal();
     return `<h3 class="set-h">${icon('book')}${L('القراءة', 'Reading')}</h3>
+      ${D.canWrite() && D.joined() ? `<div class="set-row"><span>${icon('target')}<span>${L('هدفك اليومي', 'Your daily goal')}<small class="muted">${L('الدايرة اللي فوق في القارئ', 'The ring at the top of the reader')}</small></span></span><button class="btn ghost sm" data-act="goal-edit">${g.k === 'mins' ? L.count(g.n, 'minute') : L.count(g.n, 'page')}</button></div>` : ''}
+      <div class="set-row"><span>${icon('sparkle')}<span>${L('التشجيع وقت القراية', 'Encouragement while reading')}<small class="muted">${L('كلمة صغيرة فوق، مرة كل كام دقيقة بالكتير', 'A small line at the top, every few minutes at most')}</small></span></span>${seg('rd-cheer', R.cheerPref(), [['all', L('كله', 'All')], ['key', L('المهم بس', 'Big moments')], ['off', L('مقفول', 'Off')]])}</div>
+      <div class="set-row"><span>${icon('bolt')}<span>${L('«+١» وهزة خفيفة لكل صفحة', '«+1» and a light buzz per page')}</span></span><label class="switch"><input type="checkbox" id="set-rdpop" ${R.popPref() ? 'checked' : ''}><i></i></label></div>
+      <div class="set-row"><span>${icon('book')}<span>${L('حركة تقليب الصفحة', 'Page-turn animation')}<small class="muted">${L('في وضع صفحة صفحة', 'In page-by-page mode')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdturn" ${R.turnAnimPref() ? 'checked' : ''}><i></i></label></div>
+      <div class="set-row sub"><span>${L('صوت ورق وإنت بتقلّب', 'Paper sound when turning')}</span><label class="switch"><input type="checkbox" id="set-rdsound" ${R.turnSoundPref() ? 'checked' : ''}><i></i></label></div>
       <div class="set-row"><span>${icon('book')}<span>${L('شكل الكتاب', 'Book look')}<small class="muted">${L('في وضع صفحة صفحة: غلاف وحافة ورق زي الكتاب', 'In page-by-page mode: a cover board and page edges, like a book')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdbook" ${R.bookPref() ? 'checked' : ''}><i></i></label></div>
       <div class="set-row"><span>${icon('bookmark')}<span>${L('نقط «وقفت هنا» على الحافة', '«Stopped here» dots on the edge')}<small class="muted">${L('دوس على أي نقطة تعلّم السطر اللي وقفت عنده', 'Tap a dot to mark the line where you stopped')}</small></span></span>${seg('rd-pillshow', R.pillShow(), [['always', L('دايماً', 'Always')], ['bars', L('مع الأزرار', 'With the bars')], ['off', L('مخفية', 'Off')]])}</div>
       ${R.pillShow() !== 'off' ? `<div class="set-row sub"><span>${L('عدد النقط', 'How many dots')}</span>${seg('rd-pillcount', String(R.pillCount()), [['8', L.num(8)], ['12', L.num(12)], ['20', L.num(20)]])}</div>
@@ -258,6 +369,8 @@
   }
   V.actions['set-emoji'] = async (a) => {
     const emoji = a.dataset.emo || '';
+    const pk = G.EMOJI_PACKS.find((x) => x.e.includes(emoji));
+    if (pk && !G.unlocked(pk.need, G.of(S.me))) return U.toast(L(`${emoji} بتتفتح بـ${G.needText(pk.need)}`, `${emoji} unlocks with ${G.needText(pk.need)}`));
     const m = S.members.get(S.me) || {};
     if ((m.emoji || '') === emoji) return;
     await D.updateMe(() => ({ emoji }));
@@ -281,6 +394,10 @@
   };
   V.actions['rd-orient'] = (a) => {
     U.store.set('rdOrient', a.dataset.v);
+    V.render();
+  };
+  V.actions['rd-cheer'] = (a) => {
+    U.store.set('rdCheer', a.dataset.v);
     V.render();
   };
   V.actions['rd-marks'] = (a) => {
@@ -330,6 +447,12 @@
     if (e.target.id === 'set-rdfull') U.store.set('rdFull', e.target.checked);
     if (e.target.id === 'set-rdbook') A.R.setBookLook(e.target.checked);
     if (e.target.id === 'set-rdask') U.store.set('rdOrientAsk', e.target.checked);
+    if (e.target.id === 'set-rdpop') U.store.set('rdPop', e.target.checked);
+    if (e.target.id === 'set-rdturn') U.store.set('rdTurnAnim', e.target.checked);
+    if (e.target.id === 'set-rdsound') {
+      U.store.set('rdTurnSound', e.target.checked);
+      if (e.target.checked && A.R._rustle) A.R._rustle();
+    }
     if (e.target.id === 'set-sound') {
       U.store.set('sound', e.target.checked);
       if (e.target.checked) U.chime('ok');

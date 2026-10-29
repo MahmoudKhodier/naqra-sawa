@@ -202,6 +202,7 @@
           ${mine && D.canWrite() ? `<button class="pill ghost" data-editnote>${icon('edit')}<span>${L('عدّل', 'Edit')}</span></button>` : ''}
           ${!mine && n.rect && S.priv && S.priv.moved && S.priv.moved[n.id] ? `<button class="pill ghost" data-unmove>${icon('pin')}<span>${L('رجّعها مكانها', 'Put it back')}</span></button>` : ''}
           ${!mine && n.rect && D.canWrite() ? `<button class="pill ghost" data-hideme>${icon('eyeoff')}<span>${L('اخفيها عندي', 'Hide for me')}</span></button>` : ''}
+          ${mine && A.Share && (n.crop || n.text) ? `<button class="pill ghost" data-sharenote>${icon('share')}<span>${L('صورة للمشاركة', 'Share as picture')}</span></button>` : ''}
           ${mine ? `<button class="pill ghost" data-del>${icon('trash')}<span>${L('امسح', 'Delete')}</span></button>` : ''}
         </div>
         ${!n.priv ? `<div class="replies" id="nt-replies" data-keep-scroll>${rs.length ? rs.map((r) => `<div class="rep">${D.avatar(r.by, 'sm')}<div class="rep-b"><b>${esc(D.name(r.by))}</b><small>${L.ago(r.at)} ${V.editedTag(r)}</small><p dir="auto">${esc(r.text)}</p></div>${r.by === S.me ? `<span class="rep-acts"><button class="ib sm" data-editrep="${esc(r.id)}" aria-label="${L('عدّل', 'Edit')}">${icon('edit')}</button><button class="ib sm" data-delrep="${esc(r.id)}" aria-label="${L('امسح', 'Delete')}">${icon('trash')}</button></span>` : ''}</div>`).join('') : `<p class="muted sm">${L('محدش رد لسه. ابدأ النقاش!', 'No replies yet. Start the conversation!')}</p>`}</div>
@@ -219,8 +220,9 @@
           // Decide what was tapped before anything is saved: saving redraws this sheet, and the redraw can turn
           // the tapped button into a different one.
           const q = (sel) => e.target.closest(sel);
-          const hit = { like: q('[data-like]'), gopage: q('[data-gopage]'), del: q('[data-del]'), unmove: q('[data-unmove]'), hideme: q('[data-hideme]'), editnote: q('[data-editnote]'), editrep: q('[data-editrep]'), delrep: q('[data-delrep]') };
+          const hit = { like: q('[data-like]'), gopage: q('[data-gopage]'), del: q('[data-del]'), unmove: q('[data-unmove]'), hideme: q('[data-hideme]'), editnote: q('[data-editnote]'), editrep: q('[data-editrep]'), delrep: q('[data-delrep]'), share: q('[data-sharenote]') };
           if (hit.like) return V.like(n.id);
+          if (hit.share) return A.Share.quote(n);
           if (hit.gopage) {
             api.close();
             if (A.R.isOpen() && A.R.bookId() === n.b) A.R.goTo(n.page, n.id);

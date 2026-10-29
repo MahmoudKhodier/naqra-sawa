@@ -228,17 +228,34 @@ async function menu(p, text) {
       assert(z === 1, 'zoom ' + z);
     }, ['open']);
 
-    await step('Page colour: day → sepia → night', async () => {
+    await step('Page colour: a palette of papers; some are locked rewards', async () => {
       const seen = [];
-      for (let i = 0; i < 3; i++) {
-        await p.click('.rd [data-act="theme"]');
+      const palette = async () => {
+        await menu(p, 'لون الورق'); // in the ⋯ menu on a phone (a button on wider screens)
+        await p.waitForSelector('.sheet-wrap.in .papers');
+      };
+      const choose = async (id) => {
+        await palette();
+        await p.click(`.sheet-wrap.in [data-paper="${id}"]`);
+        await p.waitForSelector('.sheet-wrap.in', { state: 'detached' }).catch(() => {});
+        await T(250);
         seen.push(await p.$eval('.rd', (e) => e.dataset.theme));
-      }
-      await p.click('.rd [data-act="theme"]');
-      await p.click('.rd [data-act="theme"]');
+      };
+      await choose('sepia');
+      await choose('night');
       await H.shot(p, 'r04-night');
-      await p.click('.rd [data-act="theme"]');
+      await palette();
+      const locked = await p.$$eval('.sheet-wrap.in .paper.locked', (els) => els.map((e) => e.dataset.paper));
+      await H.shot(p, 'r04b-papers');
+      await p.click('.sheet-wrap.in [data-paper="oled"]'); // locked: says how to unlock, keeps the colour
+      await T(300);
+      const still = await p.$eval('.rd', (e) => e.dataset.theme);
+      await p.keyboard.press('Escape');
+      await T(300);
+      await choose('day');
       assert(seen.join() === 'sepia,night,day', seen.join());
+      assert(locked.includes('oled') && still === 'night', 'locked papers: ' + locked.join() + ' / ' + still);
+      return `${locked.length} locked`;
     }, ['open']);
 
     await step('Page-by-page mode: swipe and edge taps turn pages in the Arabic direction', async () => {
@@ -512,7 +529,17 @@ async function menu(p, text) {
         await T(300);
       }
       const seen = [];
+      // one quiet cheer at most every two minutes: right after a cheer, the next small one waits
+      await p.evaluate(() => window.A.R._cheerReset());
       for (let pg = w.from; pg <= w.to; pg++) {
+        if (pg === w.from + 1) {
+          await p.evaluate((x) => window.A.R._markSeen(x), pg);
+          await T(60);
+          const quiet = await p.evaluate(() => window.A.R._cheerState());
+          assert(quiet.cooling, 'no cool-down after a cheer');
+          continue;
+        }
+        await p.evaluate(() => window.A.R._cheerReset());
         await p.evaluate((x) => window.A.R._markSeen(x), pg);
         await T(60);
         const s = await p.evaluate(() => window.A.R._wird());
@@ -522,7 +549,8 @@ async function menu(p, text) {
       const s = await p.evaluate(() => window.A.R._wird());
       assert(s.width === '100%', 'bar not full at the end: ' + s.width + ' ' + JSON.stringify(await p.evaluate(() => window.A.R._state())) + ' w ' + JSON.stringify(w));
       const joined = seen.join(' | ');
-      assert(/نص الورد/.test(joined) && /فاضل/.test(joined) && /خلّصت صفحات الورد/.test(joined), 'cheers: ' + joined);
+      const log = (await p.evaluate(() => window.A.R._cheerState())).log;
+      assert(['start', 'half', 'last', 'done'].every((k) => log.includes(k)), 'cheers: ' + log.join() + ' — ' + joined);
       await showBars(p);
       return `${w.to - w.from + 1} pages; ${seen.length} cheers`;
     }, ['open', 'cdp']);

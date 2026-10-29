@@ -62,6 +62,15 @@
     return v === 'portrait' || v === 'landscape' ? v : 'auto';
   };
   R.orientAsk = () => U.store.get('rdOrientAsk', true) !== false;
+  /* Encouragement while reading: everything / only the big moments / none; a «+1» and a light buzz for each
+     page that counts; the page-turn animation and its paper sound. */
+  R.cheerPref = () => {
+    const v = U.store.get('rdCheer', 'all');
+    return v === 'key' || v === 'off' ? v : 'all';
+  };
+  R.popPref = () => U.store.get('rdPop', true) !== false;
+  R.turnAnimPref = () => U.store.get('rdTurnAnim', true) !== false;
+  R.turnSoundPref = () => U.store.get('rdTurnSound', false) === true;
   R.setBookLook = (on) => {
     U.store.set('rdBook', !!on);
     if (!st) return;
@@ -76,7 +85,17 @@
     day: { bar: '#fcfcfd', bg: '#e6e8ef', light: true },
     sepia: { bar: '#f5ecdb', bg: '#e3d6bd', light: true },
     night: { bar: '#151821', bg: '#0d0f15', light: false },
+    cream: { bar: '#fbf7ec', bg: '#ebe4d2', light: true },
+    mint: { bar: '#f0f8f3', bg: '#d5e8dc', light: true },
+    sky: { bar: '#f0f5fb', bg: '#d6e2f0', light: true },
+    rose: { bar: '#fbf2f3', bg: '#ecd9dc', light: true },
+    parchment: { bar: '#f1e3c4', bg: '#d6c096', light: true },
+    ink: { bar: '#141a2b', bg: '#0b1020', light: false },
+    coffee: { bar: '#2a2119', bg: '#1b1510', light: false },
+    oled: { bar: '#000000', bg: '#000000', light: false },
   };
+  /* A paper colour this reader may use (some are rewards); anything else falls back to white. */
+  const paperOf = (t) => (SYS[t] && (!G.paperOk || G.paperOk(t)) ? t : 'day');
   R.sysColours = () => {
     const c = SYS[st && st.theme] || SYS.day;
     const col = st && st.uiHidden ? c.bg : c.bar;
@@ -149,13 +168,15 @@
     const myW = G.myCurrent(book);
     if (opts.page && (opts.read || (myW && start >= myW.from && start <= myW.to) || Math.abs(start - front) <= 2)) front = start;
     st = {
-      bookId, book, N: book.pages || 1, zoom: prefs.zoom || 1, theme: prefs.theme || 'day', mode: 'none',
+      bookId, book, N: book.pages || 1, zoom: prefs.zoom || 1, theme: paperOf(prefs.theme || 'day'), mode: 'none',
       parts: (book.parts || []).map((p) => Object.assign({}, p, { pdf: null, loading: null })),
       sizeFix: {}, els: new Map(), want: [], busy: false, gen: 0, cur: start, lastSaved: start,
       pending: new Set(), dwellP: 0, dwellN: 0, sessionPages: 0, flash: opts.flash || null, uiHidden: false,
       notesVer: -1, panel: null, filter: 'wird', lastTop: 0,
       pagedPref: !!prefs.paged, paged: !!prefs.paged && !((prefs.zoom || 1) > 1.01), startedAt: Date.now(), activeSecs: 0, secsPending: 0, userAt: 0, activeAt: Date.now(),
       front, browsing: false, counted: new Set(),
+      // encouragement: where today, the book and the portion stood when the book was opened
+      base: openBase(book, prog), cheerAt: 0, scrollAt: 0, cheered: {}, focus: null, liveSeen: new Set(),
     };
     root.hidden = false;
     document.body.classList.add('reading');
@@ -430,19 +451,88 @@
     st.gen++;
     update();
   }
-  /* +1 = next page in reading order. In page-by-page mode the new page slides in from the side, like a book. */
+  /* +1 = next page in reading order. In page-by-page mode the page you leave lifts and turns over its spine
+     edge like a leaf (or the new page slides in, with the animation off), with an optional paper sound. */
   function turn(dir) {
     if (!st) return;
     const to = U.clamp(st.cur + dir, 1, st.N);
     if (to === st.cur) return;
     if (!st.paged) return goTo(to, true);
+    const leaf = R.turnAnimPref() && !reduced() ? leafOf(st.cur) : null;
     goTo(to, false);
+    if (R.turnSoundPref()) rustle();
+    if (leaf) return flipLeaf(leaf, dir);
     const el = st.els.get(to);
     if (el && el.animate && !reduced()) {
       const from = (dir > 0) === bookRTL() ? -1 : 1;
       el.animate([{ transform: `translateX(${from * 56}px)`, opacity: 0.2 }, { transform: 'none', opacity: 1 }], { duration: 240, easing: 'cubic-bezier(.2,.8,.2,1)' });
     }
   }
+  /* A copy of the page on screen, laid over it, to turn away. */
+  function leafOf(p) {
+    const el = st.els.get(p);
+    const c = el && el.querySelector('canvas');
+    if (!c || !c.width) return null;
+    const r = el.getBoundingClientRect();
+    const box = st.root.firstElementChild.getBoundingClientRect();
+    const leaf = document.createElement('div');
+    leaf.className = 'turn-leaf';
+    leaf.setAttribute('aria-hidden', 'true');
+    leaf.style.cssText = `left:${r.left - box.left}px;top:${r.top - box.top}px;width:${r.width}px;height:${r.height}px`;
+    const copy = document.createElement('canvas');
+    copy.width = c.width;
+    copy.height = c.height;
+    copy.getContext('2d').drawImage(c, 0, 0);
+    leaf.appendChild(copy);
+    leaf.insertAdjacentHTML('beforeend', '<i class="tl-shade"></i>');
+    return leaf;
+  }
+  function flipLeaf(leaf, dir) {
+    // In an Arabic book a leaf turns over its right-hand edge (the spine) going on, and the other way back.
+    const pivotRight = (dir > 0) === bookRTL();
+    leaf.style.transformOrigin = pivotRight ? 'right center' : 'left center';
+    leaf.classList.add(pivotRight ? 'pv-r' : 'pv-l');
+    st.root.firstElementChild.appendChild(leaf);
+    const ang = pivotRight ? 90 : -90;
+    const opts = { duration: 480, easing: 'cubic-bezier(.4,.1,.6,1)', fill: 'forwards' };
+    const a = leaf.animate([{ transform: 'perspective(1800px) rotateY(0deg)' }, { transform: `perspective(1800px) rotateY(${ang}deg)` }], opts);
+    leaf.querySelector('.tl-shade').animate([{ opacity: 0 }, { opacity: 1 }], opts);
+    const done = () => leaf.remove();
+    a.onfinish = a.oncancel = done;
+    setTimeout(done, 1000);
+  }
+  /* A soft paper sound: a short burst of filtered noise. */
+  let actx = null, noise = null;
+  function rustle() {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (!noise) {
+        const len = Math.floor(actx.sampleRate * 0.36);
+        noise = actx.createBuffer(1, len, actx.sampleRate);
+        const d = noise.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 1.5);
+      }
+      const t = actx.currentTime;
+      const src = actx.createBufferSource();
+      src.buffer = noise;
+      const hp = actx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 600;
+      const bp = actx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.Q.value = 0.7;
+      bp.frequency.setValueAtTime(1600, t);
+      bp.frequency.linearRampToValueAtTime(3800, t + 0.3);
+      const g = actx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.08, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+      src.connect(hp).connect(bp).connect(g).connect(actx.destination);
+      src.start(t);
+      src.stop(t + 0.36);
+    } catch (e) {}
+  }
+  R._rustle = rustle;
   const bookRTL = () => st.book.lang !== 'en';
 
   /* ---------- virtualised pages ---------- */
@@ -624,6 +714,11 @@
     if (Date.now() - st.activeAt < 180000) {
       st.activeSecs++;
       st.secsPending++;
+      if (st.focus) {
+        st.focus.done++;
+        if (st.focus.done >= st.focus.mins * 60) finishFocus();
+        else if (st.focus.done % 10 === 0) goalUi();
+      } else if (st.activeSecs % 20 === 0 && G.dailyGoal().k === 'mins') goalUi();
     }
     if (st.cur === st.dwellP) {
       st.dwellN++;
@@ -644,14 +739,9 @@
     st.pending.add(p);
     st.counted.add(p);
     st.sessionPages++;
-    const chip = st.root.querySelector('#rd-today');
-    if (chip) {
-      chip.innerHTML = `${U.icon('scroll')}<b>+${L.num(st.sessionPages)}</b>`;
-      chip.classList.remove('pop');
-      void chip.offsetWidth;
-      chip.classList.add('pop');
-    }
+    plusOne();
     chrome();
+    bookMilestones();
   }
   async function flush() {
     if (!st || !D.canWrite() || !D.joined()) return;
@@ -663,12 +753,20 @@
     const fresh = pages.filter((p) => !(prog && U.rangesHas(prog.seen, p)));
     const secs = st.secsPending >= 30 ? st.secsPending : 0;
     if (secs) st.secsPending = 0;
+    const sitMins = Math.floor(st.activeSecs / 60); // this sitting so far (minutes without closing the book)
     if (!fresh.length && !secs && prog && prog.last === cur) return;
     if (!fresh.length && !secs && Math.abs((st.lastSaved || 0) - cur) < 1) return;
     st.lastSaved = cur;
     try {
-      if (fresh.length || !prog || prog.last !== cur) await D.saveProg(bookId, (c) => ({ seen: U.rangesAdd(c.seen, fresh), last: cur }));
-      if (fresh.length || secs) await D.addPagesToday(fresh.length, secs);
+      const k = U.today();
+      if (fresh.length || !prog || prog.last !== cur)
+        await D.saveProg(bookId, (c) => {
+          const add = fresh.filter((p) => !U.rangesHas(c.seen, p)).length;
+          const patch = { seen: U.rangesAdd(c.seen, fresh), last: cur };
+          if (add) patch.days = Object.assign({}, c.days, { [k]: ((c.days && +c.days[k]) || 0) + add });
+          return patch;
+        });
+      if (fresh.length || secs) await D.addPagesToday(fresh.length, secs, sitMins);
     } catch (e) {
       // Offline or a failed save: keep the pages so the next flush retries them.
       if (st && st.bookId === bookId) for (const p of fresh) st.pending.add(p);
@@ -950,22 +1048,22 @@
     return `<div class="rd" data-theme="${st.theme}" data-mode="none">
       <header class="rd-top">
         <button class="ib" data-act="close" aria-label="${L('رجوع', 'Back')}">${U.icon('back', 'flip')}</button>
-        <div class="rd-title"><b dir="auto">${U.esc(b.title)}</b><span id="rd-wird"></span><span class="rd-wprog" id="rd-wprog" hidden><i></i></span></div>
-        <span class="rd-today" id="rd-today" title="${L('صفحات قريتها في الجلسة دي', 'Pages read this session')}">${U.icon('scroll')}<b>+${L.num(0)}</b></span>
+        <div class="rd-title"><b dir="auto">${U.esc(b.title)}</b><span id="rd-wird"></span><span class="rd-wprog" id="rd-wprog" data-act="friends" hidden><i></i><span class="rd-wfr"></span></span></div>
+        <button class="rd-goal" id="rd-goal" data-act="goal" aria-label="${L('هدف النهارده', "Today's goal")}"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="rg-bg" cx="18" cy="18" r="15.5"/><circle class="rg-fg" cx="18" cy="18" r="15.5" pathLength="100" stroke-dasharray="0 100"/></svg><b id="rd-goal-n">${L.num(0)}</b></button>
         <label class="rd-pg"><input id="rd-pgin" inputmode="numeric" aria-label="${L('رقم الصفحة', 'Page number')}" value="${L.num(st.cur, { useGrouping: false })}"><span>/ ${L.num(st.N, { useGrouping: false })}</span></label>
         <div class="rd-acts">
           <button class="ib hide-sm" data-act="zout" aria-label="${L('تصغير', 'Zoom out')}">${U.icon('zout')}</button>
           <button class="ib hide-sm zl" data-act="fit" id="rd-zoom" aria-label="${L('ملء العرض', 'Fit width')}">${L.num(Math.round(st.zoom * 100))}${L.isAr() ? '٪' : '%'}</button>
           <button class="ib hide-sm" data-act="zin" aria-label="${L('تكبير', 'Zoom in')}">${U.icon('zin')}</button>
           <button class="ib rd-bm" data-act="bmark" id="rd-bm" aria-label="${L('علّم الصفحة', 'Bookmark this page')}">${U.icon('bookmark')}</button>
-          <button class="ib" data-act="theme" aria-label="${L('لون الصفحة', 'Page colour')}">${U.icon(st.theme === 'night' ? 'moon' : st.theme === 'sepia' ? 'scroll' : 'sun')}</button>
+          <button class="ib rd-paper" data-act="theme" aria-label="${L('لون الصفحة', 'Page colour')}">${U.icon('palette')}</button>
           <button class="ib" data-act="panel" aria-label="${L('الملاحظات', 'Notes')}">${U.icon('list')}<i class="dot" id="rd-ncount" hidden></i></button>
           <button class="ib" data-act="more" aria-label="${L('المزيد', 'More')}">${U.icon('more')}</button>
         </div>
       </header>
       <div class="rd-scroll" id="rd-scroll" tabindex="-1"><div class="rd-pages" id="rd-pages"></div></div>
       <div class="rd-hint" id="rd-hint" hidden></div>
-      <div class="rd-wline" id="rd-wline" hidden aria-hidden="true"><i></i></div>
+      <div class="rd-wline" id="rd-wline" hidden aria-hidden="true"><i></i><span class="rd-wfr"></span></div>
       <div class="rd-cheer" id="rd-cheer" role="status" aria-live="polite" hidden></div>
       <div class="rd-browse" id="rd-browse" role="status" hidden></div>
       <div class="rd-orient" id="rd-orient" hidden></div>
@@ -985,8 +1083,196 @@
     </div>`;
   }
 
-  /* Progress through the portion you are on: a bar under the title, a thin line along the top edge while the
-     bars are hidden, and a few words of encouragement at the start, half-way and the last pages. */
+  /* ---------- encouragement while reading ----------
+     Quiet by design: one small chip at the top edge (never over the middle of the page, never takes a tap),
+     shown only once the page has stopped moving, at most one every two minutes except for the big moments
+     (a portion done, ¼ ½ ¾ of the book, today's goal, a focus session), changing words so it doesn't repeat,
+     silent during a focus session, and adjustable in Settings (everything / big moments only / off). */
+  const POOLS = {
+    start: [['يلا بينا — الورد {n} • {pagesT}', 'Here we go — portion {n} • {pagesT}'], ['بسم الله، الورد {n} بدأ', 'Portion {n} — off we go'], ['الورد {n}: {pagesT} وبس', 'Portion {n}: just {pagesT}']],
+    half: [['نص الورد خلص — كمّل كده ✨', 'Half of the portion done — keep going ✨'], ['إنت في نص المشوار 👌', "You're halfway there 👌"], ['نص الورد ورا ضهرك ✨', 'Half the portion behind you ✨']],
+    last: [['فاضل {leftT} بس 💪', 'Just {leftT} left 💪'], ['خلاص قربت — {leftT} 🔥', 'Almost there — {leftT} 🔥'], ['آخر {leftT} في الورد 💪', 'The last {leftT} of the portion 💪']],
+    done: [['خلّصت صفحات الورد {n}! 🎉', 'You read every page of portion {n}! 🎉'], ['الورد {n} خلص — برافو عليك 🎉', 'Portion {n} done — well done 🎉'], ['عاش! الورد {n} تم 🎉', 'Nice! Portion {n} complete 🎉']],
+    m0: [['ربع الكتاب ✓ +{xp} XP', 'A quarter of the book ✓ +{xp} XP'], ['قريت ربع الكتاب 📖 +{xp} XP', "You've read a quarter of the book 📖 +{xp} XP"]],
+    m1: [['نص الكتاب! 🎉 +{xp} XP', 'Half the book! 🎉 +{xp} XP'], ['وصلت لنص الكتاب ✨ +{xp} XP', "You're halfway through the book ✨ +{xp} XP"]],
+    m2: [['تلت تربع الكتاب 🔥 +{xp} XP', 'Three quarters of the book 🔥 +{xp} XP'], ['فاضل الربع الأخير بس 🔥 +{xp} XP', 'Only the last quarter left 🔥 +{xp} XP']],
+    goal: [['هدف النهارده اتحقق 🎯 سلسلتك في أمان', "Today's goal reached 🎯 your streak is safe"], ['🎯 هدف النهارده تمام! +{xp} XP', "🎯 Today's goal done! +{xp} XP"]],
+    passed: [['لحقت {name} في الورد 👋', 'You caught up with {name} in this portion 👋'], ['بقيت جنب {name} في الورد 👋', "You're level with {name} in this portion 👋"]],
+    live: [['{name} معاك في الكتاب دلوقتي 👋', '{name} is in this book right now 👋']],
+    focus: [['جلسة تركيز {minsT} ✓ +{xp} XP', 'Focus session: {minsT} ✓ +{xp} XP']],
+  };
+  function pick(kind, vars = {}) {
+    const pool = POOLS[kind] || [];
+    const [ar, en] = pool[Math.floor(Math.random() * pool.length)] || ['', ''];
+    const fill = (t) => t.replace(/\{(\w+)\}/g, (_, k) => (vars[k] === undefined ? '' : typeof vars[k] === 'number' ? L.num(vars[k]) : String(vars[k])));
+    return L(fill(ar), fill(en));
+  }
+  function cheer(msg, opts = {}) {
+    if (!st || !msg) return;
+    const pref = R.cheerPref();
+    if (pref === 'off' || (!opts.key && (pref === 'key' || st.focus))) return;
+    const now = Date.now();
+    if (!opts.key && now - st.cheerAt < 120000) return;
+    // one at a time: a big moment waits for the one showing, a small one is dropped
+    if (now < (st.cheerBusy || 0)) {
+      if (opts.key) (st.cheerQ = st.cheerQ || []).push([msg, opts]);
+      return;
+    }
+    // wait for the page to stop moving, so nothing pops up mid-swipe
+    if (now - st.scrollAt < 900 && (opts.tries || 0) < 8) {
+      clearTimeout(st.cheerWait);
+      st.cheerWait = setTimeout(() => cheer(msg, Object.assign({}, opts, { tries: (opts.tries || 0) + 1 })), 800);
+      return;
+    }
+    const el = st.root.querySelector('#rd-cheer');
+    if (!el) return;
+    const dur = opts.key ? 3400 : 2600;
+    st.cheerAt = now;
+    st.cheerBusy = now + dur + 350;
+    (st.cheerLog = st.cheerLog || []).push(opts.kind || '');
+    el.textContent = msg;
+    el.hidden = false;
+    el.classList.remove('in');
+    void el.offsetWidth;
+    el.classList.add('in');
+    for (const g of st.root.querySelectorAll('#rd-wprog, #rd-wline')) {
+      g.classList.remove('glow');
+      void g.offsetWidth;
+      g.classList.add('glow');
+    }
+    clearTimeout(st.cheerT);
+    st.cheerT = setTimeout(() => {
+      el.classList.remove('in');
+      setTimeout(() => {
+        if (!st) return;
+        el.hidden = true;
+        st.cheerBusy = 0;
+        const nx = (st.cheerQ || []).shift();
+        if (nx) cheer(nx[0], nx[1]);
+      }, 320);
+    }, dur);
+  }
+
+  /* Where things stood when the book was opened: today's pages and minutes as saved, and how much of this
+     book was read — so the ring and the cheers only celebrate what happens now. */
+  function openBase(book, prog) {
+    const me = S.members.get(S.me) || {};
+    const k = U.today();
+    return { day: k, goalDone: !!(me.gd && me.gd[k]), book: U.rangesCount(prog && prog.seen), wird: {} };
+  }
+  /* Today so far: saved pages and minutes plus what this session has not saved yet. */
+  function todayNow() {
+    const me = S.members.get(S.me) || {};
+    const k = U.today();
+    const prog = D.prog(st.bookId);
+    let unsaved = 0;
+    for (const p of st.pending) if (!(prog && U.rangesHas(prog.seen, p))) unsaved++;
+    return { pages: ((me.days && +me.days[k]) || 0) + unsaved, mins: Math.floor((((me.secs && +me.secs[k]) || 0) + st.secsPending) / 60) };
+  }
+
+  /* The ring in the top bar: today's pages (or minutes) towards the daily goal; during a focus session it
+     counts the minutes left instead. */
+  function goalUi() {
+    const el = st && st.root.querySelector('#rd-goal');
+    if (!el) return;
+    const fg = el.querySelector('.rg-fg');
+    const n = el.querySelector('#rd-goal-n');
+    let f, txt, label;
+    if (st.focus) {
+      const left = Math.max(0, st.focus.mins * 60 - st.focus.done);
+      f = st.focus.done / (st.focus.mins * 60);
+      txt = L.num(Math.ceil(left / 60));
+      label = L(`جلسة تركيز: فاضل ${L.count(Math.ceil(left / 60), 'minute')}`, `Focus session: ${Math.ceil(left / 60)} min left`);
+      el.classList.remove('met');
+    } else {
+      const g = G.dailyGoal();
+      const t = todayNow();
+      const have = g.k === 'mins' ? t.mins : t.pages;
+      f = have / g.n;
+      txt = L.num(have);
+      label = L(`هدف النهارده: ${L.num(have)} من ${g.k === 'mins' ? L.count(g.n, 'minute') : L.count(g.n, 'page')}`, `Today's goal: ${have} of ${g.n} ${g.k === 'mins' ? 'minutes' : 'pages'}`);
+      el.classList.toggle('met', have >= g.n);
+      if (have >= g.n && !st.base.goalDone && !st.goalCheered && st.base.day === U.today()) {
+        st.goalCheered = true;
+        burst(el);
+        U.chime('ok');
+        cheer(pick('goal', { xp: G.XP.goal }), { key: true, kind: 'goal' });
+      }
+    }
+    el.classList.toggle('focus', !!st.focus);
+    fg.setAttribute('stroke-dasharray', `${(U.clamp(f, 0, 1) * 100).toFixed(1)} 100`);
+    if (n.textContent !== txt) n.textContent = txt;
+    el.setAttribute('aria-label', label);
+    el.title = label;
+  }
+  function burst(el) {
+    el.classList.remove('burst');
+    void el.offsetWidth;
+    el.classList.add('burst');
+    if (navigator.vibrate && R.popPref()) try { navigator.vibrate([12, 60, 18]); } catch (e) {}
+  }
+  /* «+1» floating up from the ring, and a light buzz, for each page that counts. */
+  function plusOne() {
+    if (!R.popPref()) return;
+    if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) {}
+    if (reduced()) return;
+    const rd = st.root.firstElementChild;
+    const el = document.createElement('span');
+    el.className = 'plus1';
+    el.setAttribute('aria-hidden', 'true');
+    el.textContent = '+' + L.num(1);
+    const ring = st.root.querySelector('#rd-goal');
+    const r = ring && !st.uiHidden ? ring.getBoundingClientRect() : null;
+    if (r && r.width) {
+      // beside the ring (towards the page number), rising
+      const rtl = document.documentElement.dir === 'rtl';
+      el.style.left = Math.round(rtl ? r.left - 4 : r.right + 4) + 'px';
+      el.style.top = Math.round(r.top + r.height * 0.35) + 'px';
+      el.classList.add(rtl ? 'to-l' : 'to-r');
+      const n = ring.querySelector('b');
+      n.classList.remove('bump');
+      void n.offsetWidth;
+      n.classList.add('bump');
+    } else el.classList.add('corner');
+    rd.appendChild(el);
+    setTimeout(() => el.remove(), 1100);
+  }
+
+  /* ¼, ½ and ¾ of the whole book, once each, only when crossed in this session. */
+  function bookMilestones() {
+    const N = st.N;
+    if (N < 20) return;
+    const prog = D.prog(st.bookId);
+    let n = U.rangesCount(prog && prog.seen);
+    for (const p of st.pending) if (!(prog && U.rangesHas(prog.seen, p))) n++;
+    G.MILESTONES.forEach((f, i) => {
+      const need = Math.ceil(f * N);
+      if (st.base.book < need && n >= need && !st.cheered['m' + i]) {
+        st.cheered['m' + i] = true;
+        U.chime('soft');
+        cheer(pick('m' + i, { xp: G.XP.milestone }), { key: true, kind: 'm' + i });
+      }
+    });
+  }
+
+  /* Friends in this portion: how many of its pages each has read (or done), and who is in the book now. */
+  function friendsIn(w) {
+    const total = w.to - w.from + 1;
+    const live = new Set(D.readingNow(st.bookId).map((x) => x.uid));
+    const out = [];
+    for (const uid of D.memberIds()) {
+      if (uid === S.me) continue;
+      const p = D.prog(st.bookId, uid);
+      const done = !!(p && p.done && p.done[w.id]);
+      const read = done ? total : U.rangesCountIn(p && p.seen, w.from, w.to);
+      if (!read && !live.has(uid)) continue;
+      out.push({ uid, read, f: read / total, done, live: live.has(uid) });
+    }
+    return out.sort((a, b) => a.f - b.f);
+  }
+
+  /* Progress through the portion you are on: a bar under the title with friends on it, a thin line along the
+     top edge while the bars are hidden, and a few words at the start, half-way, the last pages and the end. */
   function wirdProgress(w, prog) {
     const bar = st.root.querySelector('#rd-wprog');
     const line = st.root.querySelector('#rd-wline');
@@ -1000,42 +1286,197 @@
     const f = total ? read / total : 0;
     const pct = Math.round(f * 100) + '%';
     bar.hidden = line.hidden = false;
-    bar.firstChild.style.width = line.firstChild.style.width = pct;
+    bar.querySelector('i').style.width = line.querySelector('i').style.width = pct;
     bar.classList.toggle('done', read >= total);
     line.classList.toggle('done', read >= total);
+    // friends along the bar (avatars) and the line (dots)
+    const fr = friendsIn(w);
+    const key = w.id + '|' + fr.map((x) => `${x.uid}:${x.read}:${x.live ? 1 : 0}`).join(',');
+    if (bar.dataset.fr !== key) {
+      bar.dataset.fr = key;
+      let k = 0, lastF = -1;
+      const spots = fr.slice(-6).map((x) => {
+        k = x.f - lastF < 0.09 ? k + 1 : 0; // people at the same place fan out a little
+        lastF = x.f;
+        return { x, k };
+      });
+      bar.querySelector('.rd-wfr').innerHTML = spots
+        .map(({ x, k: kk }) => `<span class="rd-fr${x.live ? ' live' : ''}${x.done ? ' done' : ''}" style="--x:${(x.f * 100).toFixed(1)}%;--k:${kk}" title="${U.esc(D.name(x.uid))}">${D.avatar(x.uid, 'xs')}</span>`)
+        .join('');
+      line.querySelector('.rd-wfr').innerHTML = fr.map((x) => `<u class="${x.live ? 'live' : ''}" style="--x:${(x.f * 100).toFixed(1)}%;--c:${U.esc(D.color(x.uid))}"></u>`).join('');
+    }
     // cheers: once per portion and moment, only for pages counted in this session
-    st.cheered = st.cheered || {};
-    const seenBefore = (st.cheerBase = st.cheerBase || {});
-    if (seenBefore[w.id] === undefined) seenBefore[w.id] = read; // where this portion stood when we got here
+    const base = st.base.wird;
+    if (base[w.id] === undefined) base[w.id] = { read };
+    const before = base[w.id].read;
     const c = (st.cheered[w.id] = st.cheered[w.id] || {});
     const left = total - read;
-    const wn = L.num(w.n);
-    let msg = '';
+    const v = { n: w.n, pagesT: L.count(total, 'page'), leftT: L.count(left, 'page') };
     if (read >= total) {
-      if (!c.done && seenBefore[w.id] < total) msg = c.done = L(`خلّصت صفحات الورد ${wn}! 🎉`, `You read every page of portion ${w.n}! 🎉`);
-    } else if (left <= 3 && total >= 6 && !c.last && read > seenBefore[w.id]) {
-      msg = c.last = L(`فاضل ${L.count(left, 'page')} بس على الورد ${wn} 💪`, `Just ${left} page${left > 1 ? 's' : ''} left in portion ${w.n} 💪`);
-    } else if (f >= 0.5 && seenBefore[w.id] < total / 2 && !c.half) {
-      msg = c.half = L(`نص الورد ${wn} خلص — كمّل كده! ✨`, `Half of portion ${w.n} done — keep going! ✨`);
-    } else if (read > 0 && seenBefore[w.id] === 0 && !c.start && read === 1 && total >= 4) {
-      msg = c.start = L(`بدأت الورد ${wn} • ${L.count(total, 'page')}`, `Portion ${w.n} started • ${total} pages`);
+      if (!c.done && before < total) {
+        c.done = true;
+        cheer(pick('done', v), { key: true, kind: 'done' });
+      }
+    } else if (left <= 3 && total >= 6 && !c.last && read > before) {
+      c.last = true;
+      cheer(pick('last', v), { kind: 'last' });
+    } else if (f >= 0.5 && before < total / 2 && !c.half) {
+      c.half = true;
+      cheer(pick('half', v), { kind: 'half' });
+    } else if (read > 0 && before === 0 && !c.start && read === 1 && total >= 4) {
+      c.start = true;
+      cheer(pick('start', v), { kind: 'start' });
     }
-    if (msg) cheer(msg);
+    // caught up with a friend who was ahead of where you started this portion today
+    if (read > before)
+      for (const x of fr) {
+        if (!x.done && x.read >= 3 && x.read > before && read >= x.read && !c['p' + x.uid]) {
+          c['p' + x.uid] = true;
+          cheer(pick('passed', { name: D.name(x.uid) }), { kind: 'passed' });
+          break;
+        }
+      }
   }
-  function cheer(msg) {
-    const el = st.root.querySelector('#rd-cheer');
-    if (!el) return;
-    el.textContent = msg;
-    el.hidden = false;
-    el.classList.remove('in');
-    void el.offsetWidth;
-    el.classList.add('in');
-    clearTimeout(st.cheerT);
-    st.cheerT = setTimeout(() => {
-      el.classList.remove('in');
-      setTimeout(() => st && (el.hidden = true), 300);
-    }, 2800);
+  /* Friends who open this book while you read: one hello each. */
+  function liveHello() {
+    for (const x of D.readingNow(st.bookId)) {
+      if (st.liveSeen.has(x.uid)) continue;
+      st.liveSeen.add(x.uid);
+      cheer(pick('live', { name: D.name(x.uid) }), { kind: 'live' });
+    }
   }
+
+  /* ---------- focus session: a calm timer of reading minutes ---------- */
+  function startFocus(mins) {
+    st.focus = { mins, done: 0 };
+    goalUi();
+    U.toast(L(`جلسة تركيز ${L.count(mins, 'minute')} بدأت • التشجيع هيسكت لحد ما تخلص`, `${mins}-minute focus session started • cheers stay quiet until it ends`));
+  }
+  function stopFocus() {
+    st.focus = null;
+    goalUi();
+  }
+  function finishFocus() {
+    const mins = st.focus.mins;
+    st.focus = null;
+    goalUi();
+    burst(st.root.querySelector('#rd-goal'));
+    U.chime('big');
+    if (D.canWrite() && D.joined()) D.addFocus(mins).catch(() => {});
+    cheer(pick('focus', { minsT: L.count(mins, 'minute'), xp: Math.min(60, mins) * G.XP.focus }), { key: true, kind: 'focus' });
+  }
+  /* Closing the book in the middle of a focus session asks first. */
+  R.closeAsk = async () => {
+    if (!st) return;
+    if (st.focus && st.focus.mins * 60 - st.focus.done > 20) {
+      const left = Math.ceil((st.focus.mins * 60 - st.focus.done) / 60);
+      const ok = await A.V.confirm(L(`فاضل ${L.count(left, 'minute')} في جلسة التركيز. لو قفلت الكتاب دلوقتي الجلسة هتتلغي.`, `${left} min left in your focus session. Closing the book now cancels it.`), L('اقفل', 'Close'), true);
+      if (!ok || !st) return;
+    }
+    R.close();
+  };
+
+  /* Tapping the ring: today's numbers, the daily goal, and focus sessions. */
+  function goalSheet() {
+    const g = G.dailyGoal();
+    const t = todayNow();
+    const have = g.k === 'mins' ? t.mins : t.pages;
+    const sessMin = Math.round(st.activeSecs / 60);
+    const opts = g.k === 'mins' ? [10, 15, 20, 30, 45, 60] : [5, 10, 15, 20, 30, 50];
+    if (!opts.includes(g.n)) opts.push(g.n), opts.sort((a, b) => a - b);
+    const unit = (n) => (g.k === 'mins' ? L.count(n, 'minute') : L.count(n, 'page'));
+    const fLeft = st.focus ? Math.ceil((st.focus.mins * 60 - st.focus.done) / 60) : 0;
+    A.V.sheet({
+      title: L('هدف النهارده', "Today's goal"),
+      html: `<div class="goal-sheet">
+        <div class="gs-top">${A.V.ring(have / g.n, `<b>${L.num(have)}</b><small>/ ${L.num(g.n)}</small>`, have >= g.n ? 'jade' : 'gold', 84)}
+          <div><b>${have >= g.n ? L('هدف النهارده اتحقق 🎯', 'Goal reached today 🎯') : L(`فاضل ${unit(g.n - have)}`, `${unit(g.n - have)} to go`)}</b>
+            <small>${L(`الجلسة دي: ${L.count(st.sessionPages, 'page')} • ${L.count(sessMin, 'minute')}`, `This session: ${L.count(st.sessionPages, 'page')} • ${L.count(sessMin, 'minute')}`)}</small>
+            <small>${L(`النهارده كله: ${L.count(t.pages, 'page')} • ${L.count(t.mins, 'minute')}`, `All of today: ${L.count(t.pages, 'page')} • ${L.count(t.mins, 'minute')}`)}</small></div></div>
+        ${D.canWrite() && D.joined() ? `<span class="lbl">${L('هدفك كل يوم', 'Your daily goal')}</span>
+        <div class="seg sm gs-kind"><button class="${g.k === 'pages' ? 'on' : ''}" data-gk="pages">${L('صفحات', 'Pages')}</button><button class="${g.k === 'mins' ? 'on' : ''}" data-gk="mins">${L('دقايق', 'Minutes')}</button></div>
+        <div class="chips gs-n">${opts.map((n) => `<button class="chip${n === g.n ? ' on' : ''}" data-gn="${n}">${L.num(n)}</button>`).join('')}</div>
+        <span class="lbl">${U.icon('hourglass')}${L('جلسة تركيز', 'Focus session')}</span>
+        <p class="muted sm">${L('تايمر هادي بيعد دقايق القراية بس، والتشجيع بيسكت لحد ما يخلص. كمّلها من غير ما تقفل الكتاب وخد XP زيادة.', 'A calm timer that counts only reading minutes; cheers stay quiet until it ends. Finish without closing the book for bonus XP.')}</p>
+        ${st.focus
+          ? `<div class="gs-focus"><b>${L(`فاضل ${L.count(fLeft, 'minute')}`, `${fLeft} min left`)}</b><button class="btn ghost sm" data-fstop>${U.icon('close')}${L('وقّف الجلسة', 'Stop the session')}</button></div>`
+          : `<div class="row-btns">${[10, 20, 30].map((m) => `<button class="btn ghost" data-focus="${m}">${L.count(m, 'minute')}</button>`).join('')}</div>`}` : ''}
+      </div>`,
+      onMount: (body, api) =>
+        body.addEventListener('click', async (e) => {
+          const k = e.target.closest('[data-gk]');
+          const n = e.target.closest('[data-gn]');
+          const f = e.target.closest('[data-focus]');
+          if (k && k.dataset.gk !== g.k) {
+            api.close();
+            await D.setDailyGoal(k.dataset.gk, k.dataset.gk === 'mins' ? 15 : 10);
+            if (st) {
+              goalUi();
+              goalSheet();
+            }
+          } else if (n) {
+            api.close();
+            await D.setDailyGoal(g.k, +n.dataset.gn);
+            if (st) goalUi();
+            U.toast(L(`هدفك بقى ${unit(+n.dataset.gn)} في اليوم`, `Your goal is now ${unit(+n.dataset.gn)} a day`));
+          } else if (f) {
+            api.close();
+            if (st) startFocus(+f.dataset.focus);
+          } else if (e.target.closest('[data-fstop]')) {
+            api.close();
+            if (st) stopFocus();
+          }
+        }),
+    });
+  }
+
+  /* Tapping the portion bar: who is where in this portion. */
+  function friendsSheet() {
+    const w = G.wirds(st.book).find((x) => st.cur >= x.from && st.cur <= x.to);
+    if (!w) return;
+    const total = w.to - w.from + 1;
+    const prog = D.prog(st.bookId);
+    let mine = 0;
+    for (let p = w.from; p <= w.to; p++) if (st.pending.has(p) || (prog && U.rangesHas(prog.seen, p))) mine++;
+    const rows = [{ uid: S.me, read: mine, f: mine / total, done: !!(prog && prog.done && prog.done[w.id]), live: true }, ...friendsIn(w)].sort((a, b) => b.f - a.f);
+    const quiet = D.memberIds().filter((u) => u !== S.me && !rows.some((r) => r.uid === u));
+    A.V.sheet({
+      title: L(`مين وصل فين في الورد ${L.num(w.n)}`, `Who is where in portion ${w.n}`),
+      html: `<ul class="fr-list">${rows
+        .map((r) => `<li${r.uid === S.me ? ' class="me"' : ''}>${D.avatar(r.uid, 'sm')}<div><b>${U.esc(r.uid === S.me ? L('إنت', 'You') : D.name(r.uid))}${r.live && r.uid !== S.me ? ` <span class="live-t"><span class="pulse"></span>${L('في الكتاب دلوقتي', 'in the book now')}</span>` : ''}</b>${A.V.bar(r.f, r.done || r.f >= 1 ? 'jade' : 'gold')}<small>${r.done ? L('خلّص الورد ✓', 'Portion done ✓') : L(`${L.num(r.read)} من ${L.count(total, 'page')}`, `${r.read} of ${total} pages`)}</small></div></li>`)
+        .join('')}</ul>${quiet.length ? `<p class="muted sm">${L(`لسه ما بدأوش: ${quiet.map((u) => U.esc(D.name(u))).join('، ')}`, `Not started yet: ${quiet.map((u) => U.esc(D.name(u))).join(', ')}`)}</p>` : ''}`,
+    });
+  }
+
+  /* Paper colours: the free ones and the ones unlocked by levels and badges. */
+  function setTheme(t) {
+    st.theme = paperOf(t);
+    st.root.firstElementChild.dataset.theme = st.theme;
+    savePrefs();
+    sysRefresh();
+  }
+  function paperSheet() {
+    const s = G.of(S.me);
+    A.V.sheet({
+      title: L('لون الورق', 'Paper colour'),
+      html: `<div class="papers">${G.PAPERS.map((p) => {
+        const ok = G.unlocked(p.need, s);
+        return `<button class="paper${st.theme === p.id ? ' on' : ''}${ok ? '' : ' locked'}" data-paper="${p.id}" aria-pressed="${st.theme === p.id}"><i class="pp" data-pp="${p.id}" aria-hidden="true">${ok ? '' : U.icon('lock')}</i><b>${L(p.t[0], p.t[1])}</b>${ok ? '' : `<small>${U.esc(G.needText(p.need))}</small>`}</button>`;
+      }).join('')}</div><p class="muted sm">${L('ألوان جديدة بتتفتح مع المستويات والأوسمة.', 'More colours unlock with levels and badges.')}</p>`,
+      onMount: (body, api) =>
+        body.addEventListener('click', (e) => {
+          const b = e.target.closest('[data-paper]');
+          if (!b || !st) return;
+          const p = G.PAPERS.find((x) => x.id === b.dataset.paper);
+          if (!G.unlocked(p.need, G.of(S.me))) return U.toast(L(`اللون ده بيتفتح بـ${G.needText(p.need)}`, `Unlocks with ${G.needText(p.need)}`));
+          setTheme(p.id);
+          api.close();
+        }),
+    });
+  }
+  R._focusAt = (secs) => st && st.focus && (st.focus.done = secs); // for tests: jump a focus session forward
+  R._cheerReset = () => st && ((st.cheerAt = 0), (st.scrollAt = 0), (st.cheerBusy = 0)); // for tests: as if minutes had passed
+  R._cheerState = () => st && { cooling: Date.now() - st.cheerAt < 120000, text: st.root.querySelector('#rd-cheer').textContent, log: (st.cheerLog || []).slice(), queued: (st.cheerQ || []).length };
   R._wird = () => {
     const w = G.wirds(st.book).find((x) => st.cur >= x.from && st.cur <= x.to);
     const bar = st.root.querySelector('#rd-wprog i');
@@ -1206,7 +1647,12 @@
             st.pending.delete(p);
             if (st.counted.delete(p)) today++;
           }
-          await D.saveProg(st.bookId, (c) => ({ seen: U.rangesRemove(c.seen, a, b) }));
+          const k = U.today();
+          await D.saveProg(st.bookId, (c) => {
+            const patch = { seen: U.rangesRemove(c.seen, a, b) };
+            if (today && c.days && c.days[k]) patch.days = Object.assign({}, c.days, { [k]: Math.max(0, +c.days[k] - today) });
+            return patch;
+          });
           if (today) await D.addPagesToday(-today);
           st.sessionPages = Math.max(0, st.sessionPages - today);
           if (st.front > b || st.front < a) {
@@ -1261,6 +1707,8 @@
           : L(`الورد ${L.num(curW.n)} • ص ${L.num(curW.from)}–${L.num(curW.to)} ✓`, `Portion ${curW.n} • p. ${curW.from}–${curW.to} ✓`);
     }
     wirdProgress(curW, prog);
+    goalUi();
+    liveHello();
     // finish prompt
     const pr = st.root.querySelector('#rd-prompt');
     let html = '';
@@ -1386,6 +1834,7 @@
         st.raf = requestAnimationFrame(() => {
           if (!st) return;
           st.raf = 0;
+          st.scrollAt = Date.now();
           update();
           const t = sc.scrollTop;
           const dy = t - st.lastTop;
@@ -1464,17 +1913,14 @@
         return;
       }
       const act = t.dataset.act;
-      if (act === 'close') R.close();
+      if (act === 'close') R.closeAsk();
       else if (act === 'zin') setZoom(st.zoom * 1.2);
       else if (act === 'zout') setZoom(st.zoom / 1.2);
       else if (act === 'fit') setZoom(1);
-      else if (act === 'theme') {
-        st.theme = { day: 'sepia', sepia: 'night', night: 'day' }[st.theme] || 'day';
-        root.dataset.theme = st.theme;
-        t.innerHTML = U.icon(st.theme === 'night' ? 'moon' : st.theme === 'sepia' ? 'scroll' : 'sun');
-        savePrefs();
-        sysRefresh();
-      } else if (act === 'tool') setMode(t.dataset.tool);
+      else if (act === 'theme') paperSheet();
+      else if (act === 'goal') goalSheet();
+      else if (act === 'friends') friendsSheet();
+      else if (act === 'tool') setMode(t.dataset.tool);
       else if (act === 'mode-off') setMode(st.mode);
       else if (act === 'panel') togglePanel();
       else if (act === 'more') moreMenu();
@@ -1601,7 +2047,7 @@
     if (k === 'Escape') {
       if (st.mode !== 'none') setMode(st.mode);
       else if (st.panel) togglePanel(false);
-      else R.close();
+      else R.closeAsk();
     } else if (st.paged && (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'PageDown' || k === 'PageUp' || k === ' ' || k === 'ArrowDown' || k === 'ArrowUp')) {
       e.preventDefault();
       const fwd = k === 'PageDown' || k === ' ' || k === 'ArrowDown' || (k === 'ArrowLeft' ? bookRTL() : k === 'ArrowRight' ? !bookRTL() : false);
@@ -1669,6 +2115,7 @@
     const marked = !!marks[st.cur];
     A.V.menu([
       (b.toc && b.toc.length) || st.parts.length === 1 ? { ic: 'list', t: L('الفهرس', 'Contents'), fn: showToc } : null,
+      D.canWrite() && D.joined() ? { ic: 'hourglass', t: st.focus ? L('جلسة التركيز', 'Focus session') : L('ابدأ جلسة تركيز', 'Start a focus session'), fn: goalSheet } : null,
       { ic: 'bookmark', t: marked ? L('شيل العلامة من الصفحة دي', 'Remove bookmark here') : L('علّم الصفحة دي', 'Bookmark this page'), fn: () => A.V.toggleMark(st.bookId, st.cur) },
       st.pagedPref
         ? { ic: 'scroll', t: L('تمرير متواصل', 'Continuous scrolling'), fn: () => setPaged(false) }
@@ -1691,6 +2138,7 @@
       st.counted.size || (D.prog(st.bookId) || {}).seen ? { ic: 'scroll', t: L('شيل صفحات من المقروء', 'Un-count pages'), fn: uncountSheet } : null,
       R.hiddenHere().length ? { ic: 'eye', t: L(`رجّع الملاحظات اللي خبّيتها (${L.num(R.hiddenHere().length)})`, `Show the notes you hid (${R.hiddenHere().length})`), fn: () => { const ids = R.hiddenHere(); D.privUpdate((cur) => { const h = Object.assign({}, cur.hidden); for (const id of ids) delete h[id]; return Object.assign(cur, { hidden: h }); }); } } : null,
       st.land ? { ic: 'swap', t: R.toolsSide() === 'left' ? L('انقل الأدوات لليمين', 'Move the tools to the right') : L('انقل الأدوات للشمال', 'Move the tools to the left'), fn: () => R.setToolsSide(R.toolsSide() === 'left' ? 'right' : 'left') } : null,
+      { ic: 'palette', t: L('لون الورق', 'Paper colour'), fn: paperSheet, cls: 'show-sm' },
       { ic: 'zin', t: L('تكبير', 'Zoom in'), fn: () => setZoom(st.zoom * 1.25), cls: 'show-sm' },
       { ic: 'zout', t: L('تصغير', 'Zoom out'), fn: () => setZoom(st.zoom / 1.25), cls: 'show-sm' },
       { ic: 'fit', t: L('ملء العرض', 'Fit width'), fn: () => setZoom(1), cls: 'show-sm' },

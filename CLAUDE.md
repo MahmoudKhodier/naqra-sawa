@@ -19,6 +19,12 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - Book look (page-by-page): RTL even pages are right-hand pages; the cover board and page-edge stack are on the outer side only.
 - Private per-user data lives in `data/users/<uid>/priv`: private notes, bookmarks (`marks[book][page]` = time or `{at, t}`), `place`, `moved`/`hidden` (others' notes moved or hidden on my screen only).
 
+## Game notes
+- Everything is derived in `site/js/game.js` from shared data (no stored counters). New per-member fields in `members/<uid>` (the profile): `dg` daily goal `{k:'pages'|'mins', n}`, `gd[day]` goal reached, `hrs[day]` 24-bit mask of the hours pages were read in, `long[day]` longest sitting (min), `focus[day] = {n, m}` focus sessions, `frame` avatar frame. Per book: `prog.days[day]` pages of that book that day (written by the reader's flush).
+- XP extras: daily goal 15, ¼ ½ ¾ of a book 15 each, focus 1 per minute (≤ 60 a day). Rewards (`G.FRAMES`, `G.EMOJI_PACKS`, `G.PAPERS`) unlock by `{lv}`, `{badge}` or `{secrets}`; a frame or paper that isn't unlocked never shows. Secret badges are groups with `secret: true` (tier 5), shown as «؟؟؟» with a hint until earned.
+- Reader encouragement is deliberately quiet: one chip at the top edge, after scrolling stops, small cheers at most every 2 minutes, big moments queued; Settings → Reading has `rdCheer` (all/key/off), `rdPop` (+1 and buzz), `rdTurnAnim`, `rdTurnSound`, and the daily goal.
+- `garden.js` (a plant per member per book), `share.js` (canvas cards shared through Capacitor Share + Filesystem, Web Share or download), `wrapped.js` (the month as a story; a banner on Today in the first 10 days of a month).
+
 ## Provisioning checklist (do this when the Supabase connector is available)
 1. List orgs/projects; create a project named `naqra-sawa` on the FREE plan (confirm the cost is $0 with the user before creating), region closest to Egypt (eu-central-1).
 2. Apply `supabase/migrations/*.sql` in order with the migration tool. Re-run `tests/sql/run.sh` locally first if you changed SQL.
@@ -33,6 +39,7 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - `node tests/e2e/smoke.js` — full UI flow against the fake Supabase (see tests/e2e for details).
 - `node tests/e2e/reader.js` — the PDF reader on a phone (touch, 2× screen): scrolling, zoom, book mode, notes, contents, keep-awake.
 - `node tests/e2e/shelf.js` — Goodreads import, shelf search/sort/status moves, badge levels and details, the Android update prompt (stand-in native layer).
+- `node tests/e2e/play.js` — the game side: goal ring, cheers, friends on the portion bar, focus, page turn, papers, secret badges, frames, journey road, garden, the month story and share cards (saved as `card-*.png` in the shots folder).
 - Supabase and most of the internet are not reachable from the cloud sandbox; test against the fakes, then verify live with the user.
 
 ## Conventions

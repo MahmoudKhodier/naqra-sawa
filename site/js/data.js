@@ -187,17 +187,21 @@
     if (p && p.color) return p.color;
     return U.SPINES[U.hash(uid || '') % U.SPINES.length][0];
   };
+  /* A member's mark: their emoji, photo or first letter, in their colour, with the frame they chose (frames
+     are rewards; one that isn't unlocked doesn't show). */
   D.avatar = (uid, size = 'md') => {
     const p = S.profiles[uid];
     const n = D.name(uid);
     const col = D.color(uid);
     const m = S.members.get(uid);
-    if (m && m.emoji) return `<span class="av av-${size}" style="--c:${U.esc(col)}" title="${U.esc(n)}"><span class="av-emo">${U.esc(m.emoji)}</span></span>`;
+    const fr = A.G && A.G.frameOf ? A.G.frameOf(uid) : '';
+    const cls = `av av-${size}${fr ? ' fr fr-' + fr : ''}`;
+    if (m && m.emoji) return `<span class="${cls}" style="--c:${U.esc(col)}" title="${U.esc(n)}"><span class="av-emo">${U.esc(m.emoji)}</span></span>`;
     if (p && p.avatarUrl && !(m && m.nick && !p.name)) {
-      return `<span class="av av-${size}" style="--c:${U.esc(col)}" title="${U.esc(n)}"><img src="${U.esc(p.avatarUrl)}" alt=""></span>`;
+      return `<span class="${cls}" style="--c:${U.esc(col)}" title="${U.esc(n)}"><img src="${U.esc(p.avatarUrl)}" alt=""></span>`;
     }
     const ch = Array.from(n.trim())[0] || '؟';
-    return `<span class="av av-${size}" style="--c:${U.esc(col)}" title="${U.esc(n)}"><span class="av-ch">${U.esc(ch)}</span></span>`;
+    return `<span class="${cls}" style="--c:${U.esc(col)}" title="${U.esc(n)}"><span class="av-ch">${U.esc(ch)}</span></span>`;
   };
 
   let lastIds = '';
@@ -295,9 +299,11 @@
       return S.db.doc(path).set(body);
     });
 
-  /* New pages read today, and seconds spent reading. */
-  D.addPagesToday = async (n, secs = 0) => {
-    if ((!n && !secs) || !S.members.has(S.me) || !D.canWrite()) return;
+  /* New pages read today, and seconds spent reading. Also kept: the hour of the day pages were read in
+     (a bit per hour), the longest sitting today (`sitMins`, minutes without closing the book), and whether
+     today's daily goal was reached. */
+  D.addPagesToday = async (n, secs = 0, sitMins = 0) => {
+    if ((!n && !secs && !sitMins) || !S.members.has(S.me) || !D.canWrite()) return;
     const path = `members/${S.me}`;
     await D.mutate(path, () => {
       const m = S.members.get(S.me);
@@ -305,11 +311,26 @@
       const k = U.today();
       const body = Object.assign({}, m, { lastActive: k });
       if (n) body.days = Object.assign({}, m.days, { [k]: Math.max(0, ((m.days && m.days[k]) || 0) + n) }); // n < 0: pages un-counted
+      if (n > 0) body.hrs = Object.assign({}, m.hrs, { [k]: ((m.hrs && +m.hrs[k]) || 0) | (1 << new Date().getHours()) });
       if (secs) body.secs = Object.assign({}, m.secs, { [k]: ((m.secs && m.secs[k]) || 0) + Math.round(secs) });
+      if (sitMins > ((m.long && +m.long[k]) || 0)) body.long = Object.assign({}, m.long, { [k]: Math.round(sitMins) });
+      const g = A.G && A.G.dailyGoal ? A.G.dailyGoal() : null;
+      if (g && !(m.gd && m.gd[k])) {
+        const have = g.k === 'mins' ? ((body.secs && body.secs[k]) || 0) / 60 : (body.days && body.days[k]) || 0;
+        if (have >= g.n) body.gd = Object.assign({}, m.gd, { [k]: g.n });
+      }
       delete body.id;
       return body;
     });
   };
+  /* A finished focus session of `mins` minutes. */
+  D.addFocus = (mins) =>
+    D.updateMe((m) => {
+      const k = U.today();
+      const cur = (m.focus && m.focus[k]) || { n: 0, m: 0 };
+      return { focus: Object.assign({}, m.focus, { [k]: { n: (cur.n || 0) + 1, m: (cur.m || 0) + Math.round(mins) } }) };
+    });
+  D.setDailyGoal = (k, n) => D.updateMe(() => ({ dg: { k: k === 'mins' ? 'mins' : 'pages', n: Math.round(n) } }));
 
   /* patch may be a function (cur) => patch */
   D.saveProg = async (bookId, patch) => {

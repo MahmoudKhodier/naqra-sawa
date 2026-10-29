@@ -228,20 +228,37 @@
     const per = ws[0].to - ws[0].from + 1;
     const every = U.diffDays(ws[0].start, ws[0].due) + 1;
     return `<div class="plan-head"><p>${L(`${L.count(per, 'page')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} لـ ${L.dayShort(ws[ws.length - 1].due)}`, `${per} pages ${every === 1 ? 'a day' : every === 7 ? 'a week' : `every ${every} days`} • ${L.dayShort(ws[0].start)} – ${L.dayShort(ws[ws.length - 1].due)}`)}</p>${D.canWrite() ? `<button class="btn ghost sm" data-act="plan" data-b="${esc(b.id)}">${icon('edit')}${L('عدّل الخطة', 'Edit plan')}</button>` : ''}</div>
+      ${together(b, members)}
       ${wirdPath(b, ws, members)}`;
   }
+  /* Everyone in the circle finished the book: a banner, and confetti the first time it is seen. */
+  function together(b, members) {
+    if (members.length < 2 || !members.every((u) => (D.prog(b.id, u) || {}).finished)) return '';
+    const key = 'together:' + b.id;
+    if (!U.store.get(key, false)) {
+      U.store.set(key, true);
+      setTimeout(() => {
+        U.confetti(1.4);
+        U.chime('big');
+      }, 300);
+    }
+    return `<div class="together">${icon('trophy')}<div><b>${L('خلّصنا الكتاب سوا! 🎉', 'We finished the book together! 🎉')}</b><small>${L(`${L.count(members.length, 'member')} وصلوا لخط النهاية`, `${members.length} members reached the finish line`)}</small></div>${A.Share && (D.prog(b.id) || {}).finished ? `<button class="btn ghost sm" data-act="share-book" data-b="${esc(b.id)}">${icon('share')}${L('شارك', 'Share')}</button>` : ''}</div>`;
+  }
+  V.actions['share-book'] = (a) => A.Share && A.Share.book(a.dataset.b);
 
   /* The plan as a path: done ✓, the current one ★ with friends on it, a section header every 7 portions. */
   function wirdPath(b, ws, members) {
     const myCur = G.myCurrent(b);
     const at = new Map();
     for (const u of members) {
-      if (u === S.me) continue;
       const cw = G.myCurrent(b, u);
       if (!cw) continue;
       if (!at.has(cw.id)) at.set(cw.id, []);
-      at.get(cw.id).push(u);
+      if (u === S.me) at.get(cw.id).unshift(u);
+      else at.get(cw.id).push(u);
     }
+    const SCENE = ['🌴', '🏛️', '⛰️', '🌳', '🏜️', '🕌', '🌊', '🏰', '🌵', '⛲', '🐪', '🌾'];
+    const h0 = U.hash(b.id);
     const X = [0, 56, 84, 56, 0, -56, -84, -56];
     let html = '';
     ws.forEach((w, i) => {
@@ -259,20 +276,73 @@
         const p = D.prog(b.id, u);
         return p && p.done && p.done[w.id];
       }).length;
-      const others = (at.get(w.id) || []).slice(0, 3);
+      const here = at.get(w.id) || [];
+      const others = here.slice(0, 4);
+      const more = here.length - others.length;
+      const deco = i % 3 === 1 ? `<span class="wpv-deco" aria-hidden="true">${SCENE[(h0 + i) % SCENE.length]}</span>` : '';
       const unread = V.unread(b.id, w.id);
       const state = done ? `✓ ${L(`${L.num(fins)} من ${L.num(members.length)}`, `${fins} of ${members.length}`)}` : st === 'soon' ? L.dayShort(w.start) : L.due(w.due);
       const node = done ? icon('check') : cur ? '<span class="star8 sm"></span>' : lastOne ? icon('trophy') : L.num(w.n);
       html += `<li class="wpv s-${st}${cur ? ' cur' : ''} ${side}" style="--x:${x}px"><div class="wpv-in">
         ${cur ? `<span class="wpv-bub">${st === 'late' ? L('متأخر', 'Late') : L('دلوقتي', 'Now')}</span>` : ''}
         <button class="wpv-n" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" aria-label="${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)}: ${state}">${node}</button>
-        ${others.length ? `<span class="wpv-avs" aria-hidden="true">${others.map((u) => D.avatar(u, 'xs')).join('')}</span>` : ''}
+        ${others.length ? `<span class="wpv-avs" aria-hidden="true">${others.map((u) => `<span class="${u === S.me ? 'me' : ''}">${D.avatar(u, 'xs')}</span>`).join('')}${more > 0 ? `<i>+${L.num(more)}</i>` : ''}</span>` : ''}
+        ${deco}
         ${unread ? `<i class="wpv-dot" title="${L('رسايل جديدة في نقاش الورد', 'New messages in this portion')}"></i>` : ''}
         <span class="wpv-l"><b>${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)}</b><small>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</small><small class="due ${done ? 'done' : st}">${state}</small></span>
       </div></li>`;
     });
-    return `<ol class="wpv-list">${html}</ol>`;
+    const fins = members.filter((u) => (D.prog(b.id, u) || {}).finished);
+    html += `<li class="wpv-end"><span class="wpv-flag" aria-hidden="true">🏁</span><b>${L('خط النهاية', 'Finish line')}</b>
+      <small>${fins.length ? `<span class="wpv-fins">${fins.slice(0, 6).map((u) => D.avatar(u, 'xs')).join('')}</span>${L(`${L.num(fins.length)} من ${L.num(members.length)} خلّصوا الكتاب`, `${fins.length} of ${members.length} finished the book`)}` : L('لسه محدش وصل — مين هيبقى الأول؟', 'Nobody yet — who will be first?')}</small></li>`;
+    return `<ol class="wpv-list"><li class="wpv-roadli" aria-hidden="true" data-rt-skip></li>${html}</ol>`;
   }
+  /* The road between the portions: drawn under the path once it is laid out, coloured up to where you are. */
+  V.after = V.after || [];
+  V.after.push((scr) => {
+    const list = scr.querySelector('.wpv-list');
+    if (!list) return;
+    const nodes = [...list.querySelectorAll('.wpv-n')];
+    if (nodes.length < 2) return;
+    const box = list.getBoundingClientRect();
+    if (!box.width) return;
+    const pts = nodes.map((n) => {
+      const r = n.getBoundingClientRect();
+      return [Math.round(r.left + r.width / 2 - box.left), Math.round(r.top + r.height / 2 - box.top)];
+    });
+    const end = list.querySelector('.wpv-flag');
+    if (end) {
+      const r = end.getBoundingClientRect();
+      pts.push([Math.round(r.left + r.width / 2 - box.left), Math.round(r.top + r.height / 2 - box.top)]);
+    }
+    const cur = nodes.findIndex((n) => n.closest('.wpv.cur'));
+    const upto = cur >= 0 ? cur : nodes.every((n) => n.closest('.s-done, .s-late-done')) ? pts.length - 1 : -1;
+    const key = pts.join(';') + '|' + upto + '|' + box.width;
+    const holder = list.querySelector(':scope > .wpv-roadli');
+    if (!holder) return;
+    let svg = holder.querySelector('.wpv-road');
+    if (svg && svg.dataset.k === key) return;
+    const path = (ps) => {
+      let d = `M${ps[0]}`;
+      for (let i = 0; i < ps.length - 1; i++) {
+        const p0 = ps[i - 1] || ps[i], p1 = ps[i], p2 = ps[i + 1], p3 = ps[i + 2] || p2;
+        const c1 = [Math.round(p1[0] + (p2[0] - p0[0]) / 6), Math.round(p1[1] + (p2[1] - p0[1]) / 6)];
+        const c2 = [Math.round(p2[0] - (p3[0] - p1[0]) / 6), Math.round(p2[1] - (p3[1] - p1[1]) / 6)];
+        d += ` C${c1} ${c2} ${p2}`;
+      }
+      return d;
+    };
+    if (!svg) {
+      svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'wpv-road');
+      holder.appendChild(svg);
+    }
+    svg.dataset.k = key;
+    svg.setAttribute('width', Math.round(box.width));
+    svg.setAttribute('height', Math.round(list.scrollHeight));
+    const d = path(pts);
+    svg.innerHTML = `<path class="r-edge" d="${d}"/><path class="r-base" d="${d}"/><path class="r-dash" d="${d}"/>${upto > 0 ? `<path class="r-prog" d="${path(pts.slice(0, upto + 1))}"/>` : ''}`;
+  });
 
   /* One portion: progress, who finished, read / discuss / mark done. */
   V.actions.wird = (a) => {
@@ -448,7 +518,7 @@
       return `<tr><th scope="row"><button class="who" data-act="member" data-uid="${esc(u)}">${D.avatar(u, 'sm')}<span><b>${esc(D.name(u))}</b><small>${p && p.finished ? '🏆 ' + L('الكتاب خلص', 'Finished') : `${L.num(Math.round((seen / (b.pages || 1)) * 100))}٪ • ${L('ص', 'p.')} ${L.num((p && p.last) || 1)}`}${live.has(u) ? ` • <span class="live-t">${L('في القراية دلوقتي', 'reading now')}</span>` : ''}</small></span></button>
         ${u !== S.me && D.canWrite() ? `<span class="who-acts">${behind ? `<button class="ib sm" data-act="poke" data-to="${esc(u)}" data-kind="poke" data-b="${esc(b.id)}" aria-label="${L('تذكير', 'Nudge')}">${icon('hand')}</button>` : ''}<button class="ib sm" data-act="poke" data-to="${esc(u)}" data-kind="cheer" data-b="${esc(b.id)}" aria-label="${L('تشجيع', 'Cheer')}">${icon('clap')}</button></span>` : ''}</th>${cells}</tr>`;
     });
-    return `${ws.length ? '' : `<p class="muted">${L('لما تعملوا خطة هتشوفوا هنا مين خلّص أنهي ورد.', 'Once you have a plan you will see who finished which portion here.')}</p>`}
+    return `${A.Garden ? A.Garden.bed(b) : ''}${ws.length ? '' : `<p class="muted">${L('لما تعملوا خطة هتشوفوا هنا مين خلّص أنهي ورد.', 'Once you have a plan you will see who finished which portion here.')}</p>`}
       <div class="matrix-wrap"><table class="matrix"><thead><tr><th></th>${ws.map((w) => `<th scope="col">${L.num(w.n)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>
       <div class="legend"><span><i class="c-done"></i>${L('في الميعاد', 'On time')}</span><span><i class="c-late-done"></i>${L('بعد الميعاد', 'Late')}</span><span><i class="c-late"></i>${L('متأخر', 'Behind')}</span><span><i class="c-now"></i>${L('دلوقتي', 'Now')}</span><span><i class="first"></i>${L('الأول', 'First')}</span></div>`;
   }

@@ -41,6 +41,7 @@
     return `<div class="home">
       <div class="home-main">
         ${A.Upd ? A.Upd.banner() : ''}
+        ${A.Wrapped ? A.Wrapped.banner() : ''}
         ${pokesBlock()}
         ${primary ? heroCard(primary) : noBooks()}
         ${primary ? raceCard(primary) : ''}
@@ -48,7 +49,7 @@
       </div>
       <div class="home-side">
         ${V.startChecklist ? V.startChecklist() : ''}
-        ${D.canWrite() ? homeCards() : ''}
+        ${D.canWrite() ? homeCards(primary) : ''}
       </div>
     </div>`;
   };
@@ -217,7 +218,7 @@
   }
 
   /* Small cards: today's quests, this week's reading days, the circle's weekly challenge. */
-  function homeCards() {
+  function homeCards(primary) {
     const q = G.myQuests();
     const nDone = q.filter((x) => x.done).length;
     const next = q.find((x) => !x.done);
@@ -237,7 +238,19 @@
     }).join('');
     const { pages, goal } = G.groupWeek();
     const daysLeft = Math.max(1, U.diffDays(today, U.addDays(ws, 6)) + 1);
+    // today's goal: pages or minutes
+    const g = G.dailyGoal();
+    const me = S.members.get(S.me) || {};
+    const have = g.k === 'mins' ? Math.floor(((me.secs && me.secs[today]) || 0) / 60) : (me.days && me.days[today]) || 0;
+    const met = have >= g.n;
+    const goalCard = `<button class="hcard goalc${met ? ' met' : ''}" data-act="goal-edit">
+        <span class="hc-h"><b>${L('هدف النهارده', "Today's goal")}</b><small>${icon('target')}</small></span>
+        <span class="gc-ring">${V.ring(have / g.n, `<b>${L.num(have)}</b><small>/${L.num(g.n)}</small>`, met ? 'jade' : 'gold', 66)}</span>
+        <small>${met ? L('اتحقق 🎯 +' + L.num(G.XP.goal) + ' XP', `Done 🎯 +${G.XP.goal} XP`) : g.k === 'mins' ? L(`فاضل ${L.count(g.n - have, 'minute')}`, `${g.n - have} min to go`) : L(`فاضل ${L.count(g.n - have, 'page')}`, `${g.n - have} pages to go`)}</small>
+      </button>`;
     return `<div class="hcards" aria-label="${L('مهام وتحديات', 'Quests and challenges')}">
+      ${goalCard}
+      ${primary && A.Garden ? A.Garden.mine(primary) : ''}
       <button class="hcard quest${chestReady ? ' ready' : ''}" data-act="${chestReady ? 'chest' : 'quests'}">
         <span class="hc-h"><span class="hc-ic">${icon(chestReady ? 'chest' : 'target')}</span><b>${L('مهام اليوم', "Today's quests")}</b><small>${L.num(nDone)}/${L.num(q.length)}</small></span>
         <span class="hc-t">${next ? G.questText(next) : opened ? L('خلّصت مهام النهارده ✓', 'All done for today ✓') : L('افتح الصندوق!', 'Open the chest!')}</span>
