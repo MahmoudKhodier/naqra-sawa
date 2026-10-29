@@ -47,6 +47,10 @@ You only do this once. With the Supabase connector in Claude Code, Claude can do
 1. ارفع الكود على repo (Claude بيعمل ده).
 2. من **Settings → Pages** اختار **Source: GitHub Actions**. بعد كام دقيقة التطبيق هيبقى على `https://USER.github.io/REPO/`.
 3. ملف الأندرويد بيتبني لوحده وبيتحط في **Releases → android-latest** باسم `naqra-sawa.apk`. حط رابطه في `apkUrl` في `site/config.js` عشان يظهر في الإعدادات.
+4. **تحديث قاعدة البيانات أوتوماتيك (اختياري) · Automatic database updates:** عشان أي تعديل في `supabase/migrations/` يتطبّق على Supabase لوحده بعد ما الاختبارات تنجح (من غير SQL Editor):
+   1. في Supabase: زرار **Connect** فوق ← **Session pooler** ← انسخ الـURI (لو مش فاكر باسورد قاعدة البيانات: **Project Settings → Database → Reset database password**) وحط الباسورد مكان `[YOUR-PASSWORD]`.
+   2. في GitHub: **Settings → Secrets and variables → Actions → New repository secret** ← الاسم `SUPABASE_DB_URL` والقيمة الـURI.
+   3. من **Actions → migrate → Run workflow** شغّله مرة. أول مرة بيسجّل اللي اتطبّق بإيدك من غير ما يعيده.
 
 ## 3) اختياري · Optional
 

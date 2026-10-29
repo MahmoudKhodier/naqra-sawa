@@ -1,0 +1,71 @@
+# Applies new database migrations (supabase/migrations/*.sql) to the live Supabase database, after the SQL tests
+# pass on a throwaway Postgres. Needs one repository secret, SUPABASE_DB_URL: the "Session pooler" connection
+# string from Supabase (Connect → Session pooler), with the database password in it. Without it, nothing runs.
+#
+# Applied files are recorded in naqra_meta.applied (a schema the API does not expose). The first run records the
+# migrations that were already applied by hand (up to 20261029000000_author_guard.sql) without running them again.
+name: migrate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - '.github/workflows/migrate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - name: Check for the database secret
+        id: secret
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "::notice title=No SUPABASE_DB_URL::Database migrations are not applied automatically. Add the SUPABASE_DB_URL secret (docs/SETUP.md) or run them in the Supabase SQL Editor."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.secret.outputs.ok == 'true'
+
+      - name: SQL tests on a throwaway Postgres 16
+        if: steps.secret.outputs.ok == 'true'
+        run: bash tests/sql/run.sh
+
+      - name: Apply new migrations
+        if: steps.secret.outputs.ok == 'true'
+        run: |
+          set -euo pipefail
+          psql_live() { psql "$DB_URL" -X -q -v ON_ERROR_STOP=1 "$@"; }
+          psql_live -c "create schema if not exists naqra_meta;
+                        revoke all on schema naqra_meta from public;
+                        create table if not exists naqra_meta.applied (name text primary key, applied_at timestamptz not null default now());"
+          # First run: the migrations already applied by hand are recorded, not run again.
+          if [ "$(psql_live -At -c 'select count(*) from naqra_meta.applied')" = "0" ]; then
+            for f in 20261028000000_init.sql 20261028000100_presence_auth.sql 20261029000000_author_guard.sql; do
+              psql_live -c "insert into naqra_meta.applied (name) values ('$f') on conflict do nothing"
+            done
+            echo "Recorded the migrations applied by hand."
+          fi
+          applied=0
+          for path in $(ls supabase/migrations/*.sql | sort); do
+            f=$(basename "$path")
+            if [ "$(psql_live -At -c "select count(*) from naqra_meta.applied where name = '$f'")" = "1" ]; then continue; fi
+            echo "Applying $f"
+            { cat "$path"; echo; echo "insert into naqra_meta.applied (name) values ('$f');"; } | psql_live --single-transaction -f -
+            applied=$((applied + 1))
+          done
+          echo "Applied $applied new migration(s)." | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
