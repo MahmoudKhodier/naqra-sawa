@@ -248,6 +248,7 @@
     const paged = !!U.store.get('readerPrefs', {}).paged;
     const native = !!(A.Sys && A.Sys.canOrient && A.Sys.canOrient());
     return `<h3 class="set-h">${icon('book')}${L('القراءة', 'Reading')}</h3>
+      ${V.goalSettings ? V.goalSettings() : ''}
       <div class="set-row"><span>${icon('book')}<span>${L('شكل الكتاب', 'Book look')}<small class="muted">${L('في وضع صفحة صفحة: غلاف وحافة ورق زي الكتاب', 'In page-by-page mode: a cover board and page edges, like a book', 'في وضع صفحة بصفحة: غلاف وحافة أوراق مثل الكتاب')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdbook" ${R.bookPref() ? 'checked' : ''}><i></i></label></div>
       <div class="set-row"><span>${icon('bookmark')}<span>${L('نقط «وقفت هنا» على الحافة', '«Stopped here» dots on the edge', 'نقاط «وقفت هنا» على الحافة')}<small class="muted">${L('دوس على أي نقطة تعلّم السطر اللي وقفت عنده', 'Tap a dot to mark the line where you stopped', 'اضغط على أي نقطة لتعلّم السطر الذي توقفت عنده')}</small></span></span>${seg('rd-pillshow', R.pillShow(), [['always', L('دايماً', 'Always', 'دائمًا')], ['bars', L('مع الأزرار', 'With the bars')], ['off', L('مخفية', 'Off')]])}</div>
       ${R.pillShow() !== 'off' ? `<div class="set-row sub"><span>${L('عدد النقط', 'How many dots', 'عدد النقاط')}</span>${seg('rd-pillcount', String(R.pillCount()), [['8', L.num(8)], ['12', L.num(12)], ['20', L.num(20)]])}</div>

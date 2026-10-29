@@ -1703,6 +1703,78 @@ button.wm-c:hover { border-color: var(--line); }
 .cr-t small { color: var(--ink3); }
 .cr-bar { position: absolute; inset-block: 0; inset-inline-start: 0; width: calc(var(--f) * 100%); background: color-mix(in srgb, var(--gold) 16%, transparent); pointer-events: none; }
 .cr-open { display: flex; flex-direction: column; gap: 8px; text-align: start; margin: 12px 0; }
+/* ---------- reader: «قعدة تركيز» (focus session: corner ring, its card, the daily offer, the summary) ---------- */
+.rd-focus { position: absolute; z-index: 7; top: calc(64px + env(safe-area-inset-top, 0px)); inset-inline-end: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; transition: top .25s; }
+.rd.ui-off .rd-focus { top: calc(10px + env(safe-area-inset-top, 0px)); }
+.rd.land .rd-focus { top: 10px; inset-inline-end: 72px; }
+.rd.land.ui-off .rd-focus { inset-inline-end: 12px; }
+.rf-ring { position: relative; width: 44px; height: 44px; padding: 0; border-radius: 50%; display: grid; place-items: center; background: var(--rd-bar); color: var(--rd-ink); box-shadow: 0 2px 10px rgb(0 0 0 / .14); opacity: .82; transition: opacity .2s; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.rf-ring:hover, .rf-ring:focus-visible, .rf-ring[aria-expanded="true"] { opacity: 1; }
+.rf-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.rf-ring circle { fill: none; stroke-width: 3; }
+.rf-trk { stroke: color-mix(in srgb, var(--rd-ink) 14%, transparent); }
+.rf-arc { stroke: var(--gold); stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; transition: stroke-dashoffset 1s linear, stroke .3s; }
+.rf-n { position: relative; font: 700 .86rem/1 var(--f-disp); font-variant-numeric: tabular-nums; }
+.rf-n .ic { width: 16px; height: 16px; }
+.rf-ring.goal .rf-arc, .rf-ring.over .rf-arc { stroke: var(--jade); }
+.rf-ring.paused .rf-arc, .rf-ring.idle .rf-arc { stroke: var(--rd-ink3); }
+.rf-ring.paused, .rf-ring.idle { opacity: 1; }
+.rf-ring.goal { animation: rfPulse 1.1s ease-out 2; }
+@keyframes rfPulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--jade) 55%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
+/* the card takes the reader's page colours (day, sepia, night), its buttons too */
+.rf-pop { --card: var(--rd-page); --ink: var(--rd-ink); --ink2: var(--rd-ink); --ink3: var(--rd-ink3); --line: var(--rd-line); width: min(290px, calc(100vw - 24px)); display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 16px; background: var(--card); color: var(--ink); box-shadow: var(--shadow-lg); border: 1.5px solid color-mix(in srgb, var(--gold) 45%, transparent); animation: rfIn .2s both; }
+@keyframes rfIn { from { opacity: 0; transform: translateY(-6px); } }
+.rf-time { display: flex; align-items: baseline; gap: 8px; }
+.rf-left { font: 700 1.7rem/1 var(--f-disp); font-variant-numeric: tabular-nums; }
+.rf-state { color: var(--ink3); font-size: .8rem; }
+.rf-meta { display: flex; align-items: center; gap: 6px; color: var(--ink2); font-size: .86rem; font-weight: 600; }
+.rf-meta .ic { width: 16px; height: 16px; color: var(--gold-t); }
+.rf-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.rf-btns .btn { flex: 1 1 auto; }
+.rd-foffer { position: absolute; z-index: 7; left: 50%; top: calc(70px + env(safe-area-inset-top, 0px)); transform: translate(-50%, -8px); opacity: 0; transition: opacity .25s, transform .25s; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 8px; padding: 10px 12px 6px; width: min(440px, calc(100vw - 24px)); background: var(--card); color: var(--ink); border-radius: 18px; box-shadow: var(--shadow-lg); border: 1.5px solid color-mix(in srgb, var(--lapis) 45%, transparent); }
+.rd-foffer.in { opacity: 1; transform: translate(-50%, 0); }
+.rd-foffer:not(.in) { pointer-events: none; }
+.rd.ui-off .rd-foffer, .rd.land .rd-foffer { top: calc(12px + env(safe-area-inset-top, 0px)); }
+.rd-foffer .rfo-t { display: flex; gap: 6px; align-items: center; font-weight: 700; font-size: .92rem; flex: 1 1 100%; justify-content: center; text-align: center; }
+.rd-foffer .rfo-t .ic { color: var(--lapis); flex: none; }
+.rd-foffer .rfo-never { flex-basis: 100%; text-align: center; font-size: .78rem; color: var(--ink3); padding: 4px; }
+.rf-form .rf-lens { margin-top: 4px; }
+.rf-form .rf-lens .chip { font-variant-numeric: tabular-nums; }
+.rf-sum .row-btns { width: 100%; max-width: 420px; }
+.rf-sum .row-btns .btn { flex: 1 1 auto; }
+.rf-goal { display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--ink2); margin: 0; }
+.rf-goal .ic { width: 18px; height: 18px; color: var(--gold-t); }
+.rf-goal.hit, .rf-goal.hit .ic { color: var(--jade); }
+@media (prefers-reduced-motion: reduce) {
+  .rd-focus, .rf-arc, .rf-ring, .rd-foffer { transition: none; }
+  .rf-ring.goal, .rf-pop { animation: none; }
+}
+/* ---- personal motivation: daily goal, forecast, time estimates, firsts (goals.js) ---- */
+.dgoal { display: flex; align-items: center; gap: 12px; width: 100%; text-align: start; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 10px 14px; margin-bottom: 12px; box-shadow: var(--shadow); color: inherit; flex-wrap: wrap; }
+.dgoal .ring .rg-in .ic { position: static; inset: auto; width: 18px; height: 18px; transform: none; color: var(--gold-t); }
+.dgoal .ring .rg-in .ic circle { fill: inherit; stroke-width: inherit; }
+.dgoal.done .ring .rg-in .ic { color: var(--jade); }
+.dgoal .dg-t .dg-wk { align-self: flex-start; margin-top: 4px; }
+.dgoal .rg-in b { font-size: .95rem; }
+.dgoal .dg-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dgoal .dg-t b { font-size: .95rem; }
+.dgoal .dg-t small { font-size: .78rem; color: var(--ink3); }
+.dgoal.done { background: color-mix(in srgb, var(--jade-s) 60%, var(--card)); border-color: color-mix(in srgb, var(--jade) 30%, var(--line)); }
+.dgoal.only-wk { padding: 8px 14px; }
+.dg-wk { display: inline-flex; align-items: center; gap: 5px; font-size: .8rem; font-weight: 600; color: var(--gold-t); background: var(--gold-s); padding: 4px 10px; border-radius: 12px; }
+.dg-wk .ic { width: 15px; height: 15px; }
+.fcast { display: flex; gap: 8px; align-items: flex-start; font-size: .84rem; color: var(--ink2); margin: 6px 0 0; }
+.fcast .ic { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--jade); }
+.fcast > span { display: flex; flex-direction: column; gap: 1px; }
+.fcast small { font-size: .78rem; color: var(--jade); font-weight: 600; }
+.fcast.behind small { color: var(--gold-t); }
+.hero .fcast.hero-fc { padding: 0 2px; }
+.bp-time, .plan-time, .ws-time, .pv-time { display: flex; gap: 6px; align-items: center; font-size: .82rem; color: var(--ink3); margin: 4px 0 0; }
+.bp-time .ic, .plan-time .ic, .ws-time .ic, .pv-time .ic { width: 15px; height: 15px; flex: none; }
+.plan-time { margin: -4px 0 10px; }
+.settings .set-num { width: 84px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg2); color: inherit; font: inherit; text-align: center; }
+.first-celeb .first-ic { display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%; background: var(--gold-s); color: var(--gold-t); animation: spinIn .8s cubic-bezier(.2, 1.4, .4, 1) both; }
+.first-celeb .first-ic .ic { width: 44px; height: 44px; }
 </style>
 </head>
 <body>
@@ -1735,6 +1807,7 @@ button.wm-c:hover { border-color: var(--line); }
 <script src="js/v-me.js"></script>
 <script src="js/v-worm.js"></script>
 <script src="js/v-together.js"></script>
+<script src="js/goals.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

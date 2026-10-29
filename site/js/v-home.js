@@ -42,6 +42,7 @@
       <div class="home-main">
         ${A.Upd ? A.Upd.banner() : ''}
         ${pokesBlock()}
+        ${goalStrip()}
         ${V.sections('home', { primary, reading })}
         ${primary ? heroCard(primary) : noBooks()}
         ${primary ? raceCard(primary) : ''}
@@ -65,11 +66,31 @@
     </section>`;
   }
 
-  /* Seconds per page for this reader (from their own reading time), for "about N minutes" hints. */
-  function secsPerPage() {
-    const s = G.of(S.me);
-    return s.pages >= 10 && s.secs > 0 ? U.clamp(s.secs / s.pages, 20, 240) : 75;
+  /* Today's small goal: a ring with the pages read today, the pages left and about how long they take. */
+  function goalStrip() {
+    if (!D.joined()) return '';
+    const g = G.goalOf(S.me);
+    const sv = G.streakView(S.me);
+    const wk = sv.weekly && sv.risk ? `<span class="dg-wk">${icon('flame')}${sv.hint}</span>` : '';
+    if (!g.on) return wk ? `<div class="dgoal only-wk">${wk}</div>` : '';
+    const left = Math.max(0, g.pages - g.have);
+    const sub = g.done
+      ? L('هدف النهارده اتحقق 🎯', "Today's goal is done 🎯", 'تحقق هدف اليوم 🎯')
+      : L(`فاضل ${L.count(left, 'page')} • حوالي ${G.timeText(G.minutesFor(left))}`, `${left} to go • about ${G.timeText(G.minutesFor(left))}`, `بقي ${L.count(left, 'page', 'nom')} • نحو ${G.timeText(G.minutesFor(left))}`);
+    return `<button class="dgoal${g.done ? ' done' : ''}" data-go="settings" aria-label="${L('هدفك اليومي — غيّره من الإعدادات', 'Your daily goal — change it in Settings', 'هدفك اليومي — غيّره من الإعدادات')}">
+      ${V.ring(g.have / g.pages, icon(g.done ? 'check' : 'target'), g.done ? 'jade' : 'gold', 42)}
+      <span class="dg-t"><b>${L(`${L.num(g.have)} من ${L.count(g.pages, 'page')} النهارده`, `${g.have} of ${g.pages} pages today`, `${L.num(g.have)} من ${L.count(g.pages, 'page')} اليوم`)}</b>
+        <small>${sub}${g.auto ? ` • ${L('هدف بيكبر معاك', 'a goal that grows with you', 'هدف ينمو معك')}` : ''}</small>${wk}</span>
+    </button>`;
   }
+
+  /* "At this pace you'll finish on …" and how that compares with the plan (only with enough reading to go on). */
+  V.forecastLine = (b, cls = '') => {
+    const f = G.forecast(b);
+    if (!f) return '';
+    const cmp = G.forecastCompare(f);
+    return `<p class="fcast ${cls}${f.diff != null && f.diff < 0 ? ' behind' : ''}">${icon('flag')}<span>${G.forecastText(f)}${cmp ? `<small>${cmp}</small>` : ''}</span></p>`;
+  };
 
   function heroCard(b) {
     const ws = G.wirds(b);
@@ -87,6 +108,7 @@
       </div>`;
     if (!ws.length) {
       return `<section class="card wcard hero">${head(`${b.author ? `<p class="muted" dir="auto">${esc(b.author)}</p>` : ''}<p class="hi-sub">${L('لسه مفيش خطة. قسّموه أوراد عشان كل واحد يعرف هيقرأ إيه وإمتى.', 'No plan yet. Split it into portions so everyone knows what to read and when.', 'لا توجد خطة بعد. قسّموه أورادًا ليعرف كل واحد ماذا سيقرأ ومتى.')}</p>`)}
+        ${V.forecastLine(b, 'hero-fc')}
         <div class="hero-acts">${D.canWrite() ? `<button class="btn gold big" data-act="plan" data-b="${esc(b.id)}">${icon('calendar')}${L('اعمل خطة', 'Make a plan', 'ضع خطة')}</button>` : ''}<button class="btn big${D.canWrite() ? ' ghost' : ''}" data-act="read" data-b="${esc(b.id)}">${icon('play', 'flip-rtl')}${last > 1 ? L(`كمّل من ص ${L.num(last)}`, `Continue from p. ${last}`, `تابِع من ص ${L.num(last)}`) : L('ابدأ القراية', 'Start reading', 'ابدأ القراءة')}</button></div>
       </section>`;
     }
@@ -104,12 +126,14 @@
     const st = G.wirdStatus(b, w);
     const bh = G.behind(b);
     const behind = bh.late.length > 0;
-    const mins = Math.max(1, Math.round(((behind ? bh.pages : left) * secsPerPage()) / 60));
+    const t = G.timeText(G.minutesFor(behind ? bh.pages : left));
     const sub = behind
-      ? L(`فاضل ${L.count(bh.pages, 'page')} عشان تلحق الحلقة • حوالي ${L.duration(mins * 60)}`, `${bh.pages} pages to catch up • about ${L.duration(mins * 60)}`, `بقي ${L.count(bh.pages, 'page', 'nom')} لتلحق بالحلقة • نحو ${L.duration(mins * 60)}`)
-      : left
-        ? L(`فاضل ${L.count(left, 'page')} • حوالي ${L.count(mins, 'minute')}`, `${left} pages left • about ${mins} min`, `بقي ${L.count(left, 'page', 'nom')} • نحو ${L.count(mins, 'minute')}`)
-        : L('قريت صفحاته كلها — علّم إنك خلّصته', 'You read every page — mark it done', 'قرأت صفحاته كلها — علّم أنك أنهيته');
+      ? L(`فاضل ${L.count(bh.pages, 'page')} عشان تلحق الحلقة • حوالي ${t}`, `${bh.pages} pages to catch up • about ${t}`, `بقي ${L.count(bh.pages, 'page', 'nom')} لتلحق بالحلقة • نحو ${t}`)
+      : left === total
+        ? L(`${L.count(total, 'page')} • الورد ده حوالي ${t}`, `${total} pages • this portion takes about ${t}`, `${L.count(total, 'page')} • هذا الورد نحو ${t}`)
+        : left
+          ? L(`فاضل ${L.count(left, 'page')} • حوالي ${t}`, `${left} pages left • about ${t}`, `بقي ${L.count(left, 'page', 'nom')} • نحو ${t}`)
+          : L('قريت صفحاته كلها — علّم إنك خلّصته', 'You read every page — mark it done', 'قرأت صفحاته كلها — علّم أنك أنهيته');
     const ready = bh.readyToMark;
     const catchRow = behind
       ? `<div class="catchup">
@@ -123,6 +147,7 @@
       ${head(`${behind ? `<span class="tag late">${L(`متأخر ${L.count(bh.late.length, 'wird')}`, `${bh.late.length} portion${bh.late.length > 1 ? 's' : ''} behind`, `متأخر بـ${L.count(bh.late.length, 'wird')}`)}</span>` : ''}<p class="hi-w">${L(`الورد ${L.num(w.n)} • ص ${L.num(w.from)}–${L.num(w.to)}`, `Portion ${w.n} • p. ${w.from}–${w.to}`)}</p>
         <p class="hi-sub">${sub}</p>
         <p class="due ${st}">${L.due(w.due)}</p>`)}
+      ${V.forecastLine(b, 'hero-fc')}
       ${catchRow}
       ${pathStrip(b, ws, w)}
       <div class="hero-acts">

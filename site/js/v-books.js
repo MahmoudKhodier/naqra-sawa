@@ -191,6 +191,8 @@
           ${b.author ? `<p class="muted" dir="auto">${esc(b.author)}</p>` : ''}
           <div class="meta-chips"><span>${icon('scroll')}${L.count(b.pages || 0, 'page')}</span>${ws.length ? `<span>${icon('calendar')}${L.count(ws.length, 'wird')}</span>` : ''}<span>${icon('user')}${L('إضافة', 'Added by')} ${esc(D.name(b.addedBy))}</span>${(b.parts || []).length ? '' : `<span class="warn">${icon('info')}${L('كل واحد بيفتح نسخته', 'Everyone opens their own copy', 'كل عضو يفتح نسخته')}</span>`}</div>
           <div class="bp-prog">${V.bar(pct, pct >= 1 ? 'jade' : 'lapis')}<small>${L(`قريت ${L.num(Math.round(pct * 100))}٪`, `${Math.round(pct * 100)}% read`, `قرأت ${L.num(Math.round(pct * 100))}٪`)}</small></div>
+          ${b.pages ? `<p class="bp-time">${icon('clock')}<span>${L(`الكتاب كله حوالي ${G.timeText(G.minutesFor(b.pages))}`, `The whole book takes about ${G.timeText(G.minutesFor(b.pages))}`, `الكتاب كله نحو ${G.timeText(G.minutesFor(b.pages))}`)}${pct > 0 && pct < 1 ? ` • ${L(`فاضل حوالي ${G.timeText(G.minutesFor(Math.round(b.pages * (1 - pct))))}`, `about ${G.timeText(G.minutesFor(Math.round(b.pages * (1 - pct))))} left`, `بقي نحو ${G.timeText(G.minutesFor(Math.round(b.pages * (1 - pct))))}`)}` : ''}</span></p>` : ''}
+          ${V.forecastLine ? V.forecastLine(b, 'bp-fc') : ''}
         </div>
       </header>
           <div class="row-btns bp-actions">
@@ -228,7 +230,16 @@
     const per = ws[0].to - ws[0].from + 1;
     const every = U.diffDays(ws[0].start, ws[0].due) + 1;
     return `<div class="plan-head"><p>${L(`${L.count(per, 'page')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} لـ ${L.dayShort(ws[ws.length - 1].due)}`, `${per} pages ${every === 1 ? 'a day' : every === 7 ? 'a week' : `every ${every} days`} • ${L.dayShort(ws[0].start)} – ${L.dayShort(ws[ws.length - 1].due)}`, `${L.count(per, 'page', 'nom')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} إلى ${L.dayShort(ws[ws.length - 1].due)}`)}</p>${D.canWrite() ? `<button class="btn ghost sm" data-act="plan" data-b="${esc(b.id)}">${icon('edit')}${L('عدّل الخطة', 'Edit plan')}</button>` : ''}</div>
+      ${planTime(b, ws)}
       ${wirdPath(b, ws, members)}`;
+  }
+
+  /* About how long my current portion (or a typical one) and the whole plan take at my reading speed. */
+  function planTime(b, ws) {
+    const cur = G.myCurrent(b) || ws[0];
+    const all = ws[ws.length - 1].to - ws[0].from + 1;
+    const n = cur.to - cur.from + 1;
+    return `<p class="plan-time">${icon('clock')}<span>${L(`الورد ده حوالي ${G.timeText(G.minutesFor(n))} • الكتاب كله حوالي ${G.timeText(G.minutesFor(all))}`, `This portion takes about ${G.timeText(G.minutesFor(n))} • the whole book about ${G.timeText(G.minutesFor(all))}`, `هذا الورد نحو ${G.timeText(G.minutesFor(n))} • الكتاب كله نحو ${G.timeText(G.minutesFor(all))}`)}</span></p>`;
   }
 
   /* The plan as a path: done ✓, the current one ★ with friends on it, a section header every 7 portions. */
@@ -298,6 +309,7 @@
       html: `<div class="wsheet">
         <p class="ws-meta">${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)} • ${L.day(w.start)}${w.due !== w.start ? ' → ' + L.day(w.due) : ''} • <span class="due ${done ? 'done' : st}">${done ? L('خلّصته ✓', 'Done ✓', 'أنهيته ✓') : st === 'soon' ? L('لسه', 'Upcoming', 'قادم') : L.due(w.due)}</span></p>
         <div class="ws-prog">${V.bar(seen / total, done ? 'jade' : 'lapis')}<small>${L(`قريت ${L.num(seen)} من ${L.count(total, 'page')}`, `${seen} of ${total} pages read`, `قرأت ${L.num(seen)} من ${L.count(total, 'page')}`)}</small></div>
+        ${done ? '' : `<p class="ws-time">${icon('clock')}${seen && seen < total ? L(`فاضل حوالي ${G.timeText(G.minutesFor(total - seen))}`, `About ${G.timeText(G.minutesFor(total - seen))} left`, `بقي نحو ${G.timeText(G.minutesFor(total - seen))}`) : L(`الورد ده حوالي ${G.timeText(G.minutesFor(total))}`, `This portion takes about ${G.timeText(G.minutesFor(total))}`, `هذا الورد نحو ${G.timeText(G.minutesFor(total))}`)}</p>`}
         <div class="ws-fins"><b>${L('خلّصوه', 'Finished', 'أنهوه')}</b>${fins.length ? `<span class="mavs">${fins.map((x, i) => `<span class="fin${i === 0 ? ' first' : ''}" title="${esc(D.name(x.u))}">${D.avatar(x.u, 'sm')}</span>`).join('')}</span><small>${L.num(fins.length)}/${L.num(members.length)}</small>` : `<small>${L('لسه محدش', 'Nobody yet', 'لا أحد بعد')}</small>`}</div>
         <div class="row-btns">
           <button class="btn big" data-act="read" data-b="${esc(b.id)}" data-p="${startAt}" data-close>${icon('play', 'flip-rtl')}${startAt > w.from ? L(`كمّل من ص ${L.num(startAt)}`, `Continue from p. ${startAt}`, `تابِع من ص ${L.num(startAt)}`) : L('اقرأ الورد', 'Read it')}</button>
@@ -849,6 +861,7 @@
       if (!out.length) return '';
       const show = out.length > 5 ? [...out.slice(0, 3), null, out[out.length - 1]] : out;
       return `<div class="pv-sum">${V.star(L.num(out.length), 'gold')}<div><b>${L.count(out.length, 'wird')} • ${L.count(per, 'page')} ${L('للورد', 'each')}</b><small>${L(`آخر ورد: ${L.day(out[out.length - 1].due)}`, `Last one due ${L.day(out[out.length - 1].due)}`)}${V.showHijri && V.showHijri() && L.hijri ? ` (${L.hijri(out[out.length - 1].due)})` : ''} • ${L(`حوالي ${L.count(Math.ceil(per / Math.max(1, st.every)), 'page')} في اليوم`, `about ${Math.ceil(per / Math.max(1, st.every))} pages a day`, `نحو ${L.count(Math.ceil(per / Math.max(1, st.every)), 'page')} يوميًا`)}</small></div></div>
+        <p class="pv-time">${icon('clock')}${L(`كل ورد حوالي ${G.timeText(G.minutesFor(per))} • الكتاب كله حوالي ${G.timeText(G.minutesFor(out[out.length - 1].to - out[0].from + 1))}`, `Each portion about ${G.timeText(G.minutesFor(per))} • the whole book about ${G.timeText(G.minutesFor(out[out.length - 1].to - out[0].from + 1))}`, `كل ورد نحو ${G.timeText(G.minutesFor(per))} • الكتاب كله نحو ${G.timeText(G.minutesFor(out[out.length - 1].to - out[0].from + 1))}`)}</p>
         <ol class="pv-list">${show.map((w) => (w ? `<li><span class="star8 xs faint"><b>${L.num(w.n)}</b></span><span>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</span><small>${L.day(w.start)}${w.due !== w.start ? ' → ' + L.day(w.due) : ''}</small></li>` : '<li class="gap">⋯</li>')).join('')}</ol>`;
     };
     V.sheet({

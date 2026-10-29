@@ -62,6 +62,7 @@
     { g: 'critic', ic: 'edit', tip: ['اكتب رأيك (أكتر من سطر) في كتب مكتبتك.', 'Write a review (more than a line) for books on your shelf.', 'اكتب رأيك (أكثر من سطر) في كتب مكتبتك.'] },
     { g: 'quests', ic: 'chest', tip: ['خلّص مهام اليوم التلاتة وافتح الصندوق.', 'Finish all three daily quests and open the chest.', 'أنهِ مهام اليوم الثلاث وافتح الصندوق.'] },
     { g: 'level', ic: 'sparkle', tip: ['كل XP بتكسبه بيقرّبك للمستوى الجاي.', 'Every XP you earn brings the next level closer.', 'كل XP تكسبه يقرّبك من المستوى التالي.'] },
+    { g: 'together', ic: 'users', tip: ['أيام كل اللي في الحلقة قرأوا فيها ولو صفحة. وسام للحلقة كلها.', 'Days when everyone in the circle read at least a page. A badge for the whole circle.', 'أيام قرأ فيها كل أعضاء الحلقة ولو صفحة. وسام للحلقة كلها.'] },
   ];
   const B = (g, tier, id, n, v, t, d) => ({ g, tier, id, n, v, t, d, ic: (G.BADGE_GROUPS.find((x) => x.g === g) || {}).ic || 'sparkle' });
   G.BADGES = [
@@ -131,6 +132,9 @@
     B('level', 1, 'lv5', 5, (s) => s.lv, ['المستوى ٥', 'Level 5'], ['اوصل للمستوى ٥', 'Reach level 5', 'ابلغ المستوى ٥']),
     B('level', 2, 'lv10', 10, (s) => s.lv, ['المستوى ١٠', 'Level 10'], ['اوصل للمستوى ١٠', 'Reach level 10', 'ابلغ المستوى ١٠']),
     B('level', 3, 'lv20', 20, (s) => s.lv, ['المستوى ٢٠', 'Level 20'], ['اوصل للمستوى ٢٠', 'Reach level 20', 'ابلغ المستوى ٢٠']),
+    B('together', 1, 'together1', 1, (s) => s.circleFull, ['الحلقة كاملة', 'The whole circle'], ['يوم كل اللي في الحلقة قرأوا فيه', 'A day when everyone in the circle read', 'يوم قرأ فيه كل أعضاء الحلقة']),
+    B('together', 2, 'together7', 7, (s) => s.circleFull, ['أسبوع الحلقة كاملة', 'Whole-circle week', 'أسبوع الحلقة الكاملة'], ['٧ أيام الحلقة كلها قرأت فيها', '7 days when the whole circle read', '٧ أيام قرأت فيها الحلقة كلها']),
+    B('together', 3, 'together30', 30, (s) => s.circleFull, ['شهر الحلقة كاملة', 'Whole-circle month', 'شهر الحلقة الكاملة'], ['٣٠ يوم الحلقة كلها قرأت فيها', '30 days when the whole circle read', '٣٠ يومًا قرأت فيها الحلقة كلها']),
   ];
   /* One entry per group: its levels (with progress), the highest level earned and the next one to aim for. */
   G.badgeGroups = (s) =>
@@ -146,6 +150,7 @@
       wirdsDone: 0, onTime: 0, firsts: 0, notes: 0, quotes: 0, questions: 0, takes: 0,
       replies: 0, msgs: 0, likesRecv: 0, likesGiven: 0, shelfRead: 0, reviews: 0,
       booksDone: 0, cheers: 0, votes: 0, questDays: 0, daysRead: 0, maxDay: 0,
+      weekStreak: 0, bestWeekStreak: 0, weekDays: 0, weekNeed: 3, weekLeft: 3, weekAtRisk: false, circleFull: 0,
       days: {}, byDay: {}, active: new Set(), events: [],
     };
   }
@@ -259,6 +264,201 @@
       if (!best || p.done[wid] < best.t) best = { u: p.u, t: p.done[wid] };
     }
     return best && best.u;
+  };
+
+  /* ---------- streak style: daily (default) or weekly (weeks in a row with reading on at least n days) ---------- */
+  /* Stored on the member doc: streakPref = {mode: 'day' | 'week', n: 1..7}. */
+  G.streakPref = (uid = S.me) => {
+    const p = (S.members.get(uid) || {}).streakPref || {};
+    return { mode: p.mode === 'week' ? 'week' : 'day', n: U.clamp(Math.round(+p.n || 3), 1, 7) };
+  };
+  function weekStreak(s, sortedDays, today) {
+    const n = G.streakPref(s.uid).n;
+    const cur = U.weekStart(today);
+    const per = new Map();
+    for (const d of sortedDays) if (d <= today) per.set(U.weekStart(d), (per.get(U.weekStart(d)) || 0) + 1);
+    let run = 0, best = 0;
+    if (sortedDays.length) {
+      for (let w = U.weekStart(sortedDays[0]), i = 0; w <= cur && i < 600; w = U.addDays(w, 7), i++) {
+        if ((per.get(w) || 0) >= n) run++;
+        else if (w !== cur) run = 0; // this week isn't over yet
+        best = Math.max(best, run);
+      }
+    }
+    s.weekNeed = n;
+    s.weekDays = per.get(cur) || 0;
+    s.weekLeft = Math.max(0, n - s.weekDays);
+    s.weekStreak = run;
+    s.bestWeekStreak = best;
+    s.weekAtRisk = run > 0 && s.weekLeft > 0;
+  }
+  const WEEKS = {
+    eg: { one: 'أسبوع', two: 'أسبوعين', few: '{n} أسابيع', other: '{n} أسبوع' },
+    ar: { one: 'أسبوع واحد', two: 'أسبوعين', few: '{n} أسابيع', many: '{n} أسبوعًا', other: '{n} أسبوع' },
+    en: { one: '1 week', other: '{n} weeks' },
+  };
+  const plural = { ar: new Intl.PluralRules('ar'), en: new Intl.PluralRules('en') };
+  G.weeks = (n) => {
+    const f = WEEKS[L.lang()] || WEEKS.eg;
+    let cat = plural[L.lang() === 'en' ? 'en' : 'ar'].select(n);
+    if (L.lang() !== 'en' && n === 0) cat = 'other';
+    return (f[cat] || f.other).replace('{n}', L.num(n));
+  };
+  /* What the flame shows for this person: their daily or weekly streak, whether it is at risk, and the hint. */
+  G.streakView = (uid = S.me) => {
+    const s = G.of(uid);
+    const pref = G.streakPref(uid);
+    if (pref.mode !== 'week') {
+      return {
+        weekly: false, n: s.streak, risk: s.atRisk, best: s.best,
+        unit: L('يوم', s.streak === 1 ? 'day' : 'days'),
+        hint: s.atRisk ? L('اقرأ النهارده عشان السلسلة متقطعش', 'Read today to keep your streak', 'اقرأ اليوم كي لا تنقطع سلسلتك') : L('أيام القراءة المتتالية', 'Reading streak'),
+      };
+    }
+    const k = s.weekLeft;
+    const n = s.weekStreak;
+    const unitAr = n >= 3 && n <= 10 ? 'أسابيع' : 'أسبوع';
+    return {
+      weekly: true, n, risk: s.weekAtRisk, best: s.bestWeekStreak, need: pref.n, left: k,
+      unit: L(unitAr, n === 1 ? 'week' : 'weeks'),
+      hint: s.weekAtRisk
+        ? L(`فاضل ${k === 1 ? 'يوم قراية واحد' : `${L.count(k, 'day')} قراية`} الأسبوع ده`, `${k} more reading day${k === 1 ? '' : 's'} this week`, `بقي ${L.count(k, 'day', 'nom')} للقراءة هذا الأسبوع`)
+        : L(`${G.weeks(n)} ورا بعض فيها ${L.count(pref.n, 'day')} قراية على الأقل`, `${G.weeks(n)} in a row with at least ${pref.n} reading day${pref.n === 1 ? '' : 's'}`, `${G.weeks(n)} متتالية فيها ${L.count(pref.n, 'day')} قراءة على الأقل`),
+    };
+  };
+
+  /* ---------- the whole circle read today ---------- */
+  function circleFull() {
+    const ms = [...S.members.values()];
+    if (ms.length < 2) return [];
+    const today = U.today();
+    let set = null;
+    for (const m of ms) {
+      const mine = new Set(Object.keys(m.days || {}).filter((d) => d <= today && +m.days[d] > 0));
+      set = set ? new Set([...set].filter((d) => mine.has(d))) : mine;
+      if (!set.size) return [];
+    }
+    return [...set].sort();
+  }
+  /* Sorted list of days ('YYYY-MM-DD') when every current member read at least one page. */
+  G.circleFullDays = () => (G.all().circleFull || []).slice();
+
+  /* ---------- time estimates ---------- */
+  /* Seconds per page for this reader (from their reading time once there is enough of it), else ~1.2 min. */
+  G.secsPerPage = (uid = S.me) => {
+    const s = G.of(uid);
+    return s.pages >= 10 && s.secs > 0 ? U.clamp(s.secs / s.pages, 20, 240) : 72;
+  };
+  G.minutesFor = (pages, uid = S.me) => (pages > 0 ? Math.max(1, Math.round((pages * G.secsPerPage(uid)) / 60)) : 0);
+  /* "20 minutes", "1 hour", "4 and a half hours": rounded the way people say it. */
+  G.timeText = (mins) => {
+    mins = Math.max(1, Math.round(mins || 0));
+    if (mins < 60) return L.count(mins < 10 ? mins : Math.round(mins / 5) * 5, 'minute');
+    const halves = Math.round(mins / 30);
+    const h = Math.floor(halves / 2);
+    if (halves % 2 === 0) return L.count(h, 'hour');
+    return L(`${L.count(h, 'hour')} ونص`, `${h}.5 hours`, `${L.count(h, 'hour')} ونصف`);
+  };
+
+  /* ---------- pace and finish-date forecast ---------- */
+  /* Pages a day over the last 14 days (counting from the first day read, if that is later), or null when there
+     is too little to go on (fewer than 3 reading days or 10 pages). */
+  G.pace = (uid = S.me) => {
+    const m = S.members.get(uid);
+    const days = (m && m.days) || {};
+    const today = U.today();
+    const readToday = +days[today] > 0;
+    const end = readToday ? today : U.addDays(today, -1);
+    const keys = Object.keys(days).filter((k) => +days[k] > 0 && k <= end).sort();
+    if (!keys.length) return null;
+    let start = U.addDays(end, -13);
+    if (keys[0] > start) start = keys[0];
+    const span = U.diffDays(start, end) + 1;
+    let pages = 0, rdays = 0;
+    for (const k of keys) {
+      if (k < start) continue;
+      pages += Math.min(2000, +days[k]);
+      rdays++;
+    }
+    if (rdays < 3 || pages < 10) return null;
+    return { perDay: pages / span, perReadingDay: pages / rdays, days: rdays, span, pages, readToday };
+  };
+  /* When I'd finish this book at my pace, and how that compares with the plan's last due day.
+     null when the book is done or there isn't enough data. */
+  G.forecast = (book, uid = S.me) => {
+    if (!book || !book.pages) return null;
+    const p = A.D.prog(book.id, uid);
+    if (p && p.finished) return null;
+    const ws = G.wirds(book);
+    const from = ws.length ? ws[0].from : 1;
+    const to = ws.length ? ws[ws.length - 1].to : book.pages;
+    const left = Math.max(0, to - from + 1 - U.rangesCountIn(p && p.seen, from, to));
+    if (!left) return null;
+    const pace = G.pace(uid);
+    if (!pace || pace.perDay <= 0) return null;
+    const need = Math.ceil(left / pace.perDay);
+    if (need > 730) return null;
+    const today = U.today();
+    const date = U.addDays(today, Math.max(0, need - (pace.readToday ? 0 : 1)));
+    const out = { date, left, perDay: pace.perDay, perReadingDay: pace.perReadingDay, pace };
+    const due = ws.length ? ws[ws.length - 1].due : null;
+    if (due && due >= today) {
+      out.due = due;
+      out.diff = U.diffDays(date, due); // > 0: ahead of the plan
+      out.catchUp = Math.ceil(left / (U.diffDays(today, due) + (pace.readToday ? 0 : 1) || 1));
+    }
+    return out;
+  };
+  /* "by 3 days", "by a week" — the gap between a forecast and the plan. */
+  G.byDays = (d) => {
+    d = Math.abs(d);
+    if (d % 7 === 0 && d <= 28) {
+      const w = d / 7;
+      return w === 1 ? L('بأسبوع', 'a week') : w === 2 ? L('بأسبوعين', '2 weeks') : L(`بـ${L.num(w)} أسابيع`, `${w} weeks`);
+    }
+    return d === 1 ? L('بيوم', 'a day', 'بيوم واحد') : d === 2 ? L('بيومين', '2 days') : L(`بـ${L.count(d, 'day')}`, `${d} days`);
+  };
+  G.forecastText = (f) => {
+    if (!f) return '';
+    const today = U.today();
+    const when = f.date === today ? L('النهارده', 'today', 'اليوم') : f.date === U.addDays(today, 1) ? L('بكرة', 'tomorrow', 'غدًا') : L(`يوم ${L.dayShort(f.date)}`, `on ${L.dayShort(f.date)}`, `يوم ${L.dayShort(f.date)}`);
+    return L(`على السرعة دي هتخلّص الكتاب ${when}`, `At this pace you'll finish the book ${when}`, `بهذه السرعة ستنهي الكتاب ${when}`);
+  };
+  G.forecastCompare = (f) => {
+    if (!f || f.diff == null) return '';
+    if (f.diff > 0) return L(`قبل الخطة ${G.byDays(f.diff)}`, `${G.byDays(f.diff)} ahead of the plan`, `قبل الخطة ${G.byDays(f.diff)}`);
+    if (f.diff === 0) return L('في ميعاد الخطة بالظبط', 'right on the plan', 'في موعد الخطة تمامًا');
+    return L(`متأخر عن الخطة ${G.byDays(f.diff)} — ${L.count(f.catchUp, 'page')} في اليوم تلحقك`, `${G.byDays(f.diff)} behind the plan — ${f.catchUp} pages a day gets you there`, `متأخر عن الخطة ${G.byDays(f.diff)} — ${L.count(f.catchUp, 'page')} في اليوم تكفي لتلحق`);
+  };
+
+  /* ---------- a small daily goal that grows ---------- */
+  /* Stored on the member doc: goalDaily = {pages, auto, at}. Off: auto false and pages 0. Missing: auto from a
+     small start. In auto it steps up a rung after hitting it on 5 of the last 7 days and eases down after a bad
+     week (2 or fewer), at most once a week (`at` is the day of the last change). */
+  G.GOAL_STEPS = [3, 4, 5, 7, 10, 12, 15, 20, 25, 30, 40, 50, 60, 80, 100];
+  G.goalStart = (uid = S.me) => U.clamp(Math.round(600 / G.secsPerPage(uid)), 3, 5); // 5 pages, or 10 minutes if less
+  G.goalOf = (uid = S.me) => {
+    const g = (S.members.get(uid) || {}).goalDaily || null;
+    const off = !!g && g.auto === false && !(+g.pages > 0);
+    const have = G.of(uid).pagesToday;
+    if (off) return { on: false, auto: false, pages: 0, have, done: false, at: g.at || '' };
+    const auto = !g || g.auto !== false;
+    const pages = g && +g.pages > 0 ? U.clamp(Math.round(+g.pages), 1, 500) : G.goalStart(uid);
+    return { on: true, auto, pages, have, done: have >= pages, at: (g && g.at) || '' };
+  };
+  /* The next stored goal for a day (null: nothing to change). Pure: (goal, member days, today). */
+  G.goalNext = (g, days, today = U.today()) => {
+    if (!g || !g.on || !g.auto) return null;
+    if (!g.at) return { auto: true, pages: g.pages, at: today };
+    if (U.diffDays(g.at, today) < 7) return null;
+    let hits = 0;
+    for (let i = 1; i <= 7; i++) if ((+(days || {})[U.addDays(today, -i)] || 0) >= g.pages) hits++;
+    const st = G.GOAL_STEPS;
+    let pages = g.pages;
+    if (hits >= 5) pages = st.find((x) => x > g.pages) || g.pages + 20;
+    else if (hits <= 2) pages = [...st].reverse().find((x) => x < g.pages) || st[0];
+    if (pages === g.pages) return null;
+    return { auto: true, pages, at: today, prev: g.pages, dir: pages > g.pages ? 'up' : 'down', hits };
   };
 
   function compute() {
@@ -413,6 +613,10 @@
     }
     for (const pr of S.proposals.values()) for (const [uid, v] of Object.entries(pr.votes || {})) if (v && get(uid)) get(uid).votes++;
 
+    // days when every current member read at least a page (a circle of two or more)
+    out.circleFull = circleFull();
+    for (const s of out.values()) s.circleFull = S.members.has(s.uid) ? out.circleFull.length : 0;
+
     // quest bonus + totals + streaks
     const today = U.today();
     const wk = U.weekStart(today);
@@ -465,6 +669,7 @@
       s.freezes = fz;
       s.atRisk = run > 0 && !act(today);
       s.best = best;
+      weekStreak(s, sorted, today);
       Object.assign(s, G.levelOf(s.xp));
       s.badges = G.BADGES.map((b) => {
         const v = b.v(s);

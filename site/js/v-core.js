@@ -311,13 +311,14 @@
     if (!el) return;
     const s = G.of(S.me);
     const home = V.state.route === 'home';
-    const flame = s.streak ? (s.atRisk ? 'risk' : 'hot') : 'cold';
+    const sv = G.streakView(S.me); // daily or weekly, as chosen in Settings
+    const flame = sv.n ? (sv.risk ? 'risk' : 'hot') : 'cold';
     const pct = s.span ? s.cur / s.span : 0;
     const unread = V.inboxUnread ? V.inboxUnread() : 0;
-    const flameTitle = s.atRisk ? L('اقرأ النهارده عشان السلسلة متقطعش', 'Read today to keep your streak', 'اقرأ اليوم كي لا تنقطع سلسلتك') : L('أيام القراءة المتتالية', 'Reading streak');
+    const flameTitle = sv.hint;
     const me = `<button class="hud-me" data-go="me" aria-label="${L('ملفي', 'My profile')}">${D.avatar(S.me, 'md')}${V.star(L.num(s.lv), 'gold lvl')}</button>`;
     const btns = `${V.inboxUnread ? `<button class="ib round hud-bell" data-act="inbox" aria-label="${L('الجديد ليك', 'For you', 'الجديد لك')}">${icon('bell')}${unread ? `<i class="nv-b">${L.num(Math.min(unread, 99))}</i>` : ''}</button>` : ''}`;
-    const flameChip = `<span class="hchip flame ${flame}" title="${flameTitle}">${icon('flame')}<b>${L.num(s.streak)}</b>${home ? `<span>${L('يوم', s.streak === 1 ? 'day' : 'days')}</span>` : ''}</span>`;
+    const flameChip = `<span class="hchip flame ${flame}${sv.weekly ? ' weekly' : ''}" title="${esc(flameTitle)}">${icon('flame')}<b>${L.num(sv.n)}</b>${home ? `<span>${sv.unit}</span>` : ''}</span>`;
     let html;
     if (home) {
       const date = `${esc(L.day(U.today()))}${V.showHijri && V.showHijri() && L.hijriShort ? ` • ${esc(L.hijriShort())}` : ''}`;
