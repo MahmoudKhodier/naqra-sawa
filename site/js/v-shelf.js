@@ -27,6 +27,7 @@
     dnf: ['سبته', 'Didn’t finish', 'لم أكمله'],
   };
   V.SHELF_STATUS = STATUS;
+  V.SHELF_TAGS = TAGS;
   V.shelfTagName = (k) => tagName(k);
   const PAGE = 80; // rows drawn at first; more come as you scroll
   const SPINES = 24; // the wooden shelf shows the first few only
