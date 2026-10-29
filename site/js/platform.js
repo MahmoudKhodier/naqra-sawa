@@ -39,6 +39,7 @@
     if (!e) return err('unavailable');
     if (e.code && /^(invalid_argument|unavailable|quota_exceeded|too_large|declined)$/.test(e.code)) return e;
     const c = String(e.code || '');
+    if (c === '23514' && /data_check/.test(e.message || '')) return err('too_large', e.message);
     if (c === '42501' || c === 'PGRST301' || c === '23514' || c === '22P02' || c === 'P0002' || c === '23503') return err('invalid_argument', e.message);
     if (c === '54000' || /too large|payload/i.test(e.message || '')) return err('invalid_argument', e.message);
     return err('unavailable', e.message);

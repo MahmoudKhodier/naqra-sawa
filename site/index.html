@@ -580,6 +580,10 @@ textarea { resize: vertical; line-height: 1.55; }
 /* composer */
 .composer { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; flex-wrap: wrap; }
 .composer textarea { flex: 1; min-height: 44px; max-height: 160px; resize: none; border-radius: 14px; }
+.tcount { display: block; width: 100%; margin-top: 4px; font-size: .78rem; color: var(--ink3); text-align: end; }
+.tcount.full { color: var(--rubric); font-weight: 700; }
+.composer .tcount { order: 9; }
+.nc-more { display: inline-block; margin-top: 2px; font-size: .86rem; font-weight: 700; color: var(--lapis); }
 .composer.tall textarea { min-height: 60px; }
 .replying { flex-basis: 100%; display: flex; align-items: center; gap: 8px; font-size: .84rem; color: var(--ink2); background: var(--bg2); padding: 6px 10px; border-radius: 10px; }
 .replying span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -304,6 +304,92 @@ async function menu(p, text) {
       for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
     }, ['open', 'cdp']);
 
+    await step('A long note (2,700 characters) saves in full: shared, private, takeaway and chat; cards offer «اقرأ الباقي»', async () => {
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      const text = fs.readFileSync(path.join(H.FIXTURES, 'long-note-ar.txt'), 'utf8').trim();
+      const c = await cur(p);
+      const bid = ctx.book.id;
+      const compose = async () => {
+        await until(p, 'previous sheet gone', () => !document.querySelector('.sheet-wrap'), null, 4000);
+        await p.evaluate(({ bid, c }) => window.A.V.composeNote({ bookId: bid, page: c, rect: { x: 0.8, y: 0.85, w: 0, h: 0 }, crop: null }), { bid, c });
+        await p.waitForSelector('.sheet-wrap.in #nk-text');
+      };
+      // shared, typed as one paste-like insert (respects the box's limit like a real paste)
+      await compose();
+      await p.waitForSelector('#nk-text');
+      await p.focus('#nk-text');
+      await p.keyboard.insertText(text);
+      const inBox = await p.$eval('#nk-text', (e) => e.value.length);
+      assert(inBox === text.length, `the box kept ${inBox} of ${text.length} characters`);
+      await p.click('.sheet-wrap.in [data-save]');
+      await until(p, 'shared note saved', (n) => [...window.A.S.notes.values()].some((x) => x.text && x.text.length === n), text.length, 6000);
+      // private
+      await compose();
+      await p.waitForSelector('#nk-text');
+      await p.focus('#nk-text');
+      await p.keyboard.insertText(text);
+      await p.click('.sheet-wrap.in [data-vis="me"]');
+      await p.click('.sheet-wrap.in [data-save]');
+      try {
+        await until(p, 'private note saved', (n) => Object.values((window.A.S.priv && window.A.S.priv.notes) || {}).some((x) => x.text && x.text.length === n), text.length, 6000);
+      } catch (e) {
+        const dbg = await p.evaluate(() => ({ priv: Object.values((window.A.S.priv && window.A.S.priv.notes) || {}).map((x) => x.text && x.text.length), notes: [...window.A.S.notes.values()].map((x) => x.text && x.text.length), sheets: document.querySelectorAll('.sheet-wrap').length, toasts: [...document.querySelectorAll('.toast')].map((t) => t.textContent) }));
+        throw new Error(e.message + ' ' + JSON.stringify(dbg));
+      }
+      const db = await env.fake.sql("select max(length(data->>'text')) as n from public.docs where col = 'notes'");
+      assert(+db[0].n === [...text].length, `database has ${db[0].n} of ${[...text].length} characters`); // Postgres counts an emoji as one
+      // a paste longer than the box allows says so
+      await compose();
+      await p.waitForSelector('#nk-text');
+      const warned = await p.evaluate(() => {
+        const ta = document.getElementById('nk-text');
+        const dt = new DataTransfer();
+        dt.setData('text/plain', 'x'.repeat(+ta.getAttribute('maxlength') + 5));
+        ta.focus();
+        ta.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+        return [...document.querySelectorAll('.toast')].some((t) => /أطول من المسموح/.test(t.textContent));
+      });
+      assert(warned, 'no warning for a paste that does not fit');
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      // the card shows the start and «اقرأ الباقي», which opens the whole note
+      await showBars(p);
+      await p.click('.rd [data-act="close"]');
+      await T(700); // the session summary shows after closing the book
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await p.evaluate((id) => window.A.V.go('book-' + id, { tab: 'notes' }), bid);
+      await T(500);
+      await p.click('.nc-more');
+      await p.waitForSelector('.nt-text');
+      const shown = await p.$eval('.nt-text', (e) => e.textContent.length);
+      assert(shown === text.length, `the note sheet shows ${shown} characters`);
+      await H.shot(p, 'r07b-long-note');
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      // a chat message and a takeaway of the same length
+      await p.evaluate((id) => window.A.V.go('book-' + id, { tab: 'talk', ch: 'gen' }), bid);
+      await T(400);
+      await p.focus('textarea[id^="in-"]');
+      await p.keyboard.insertText(text);
+      await p.click('.composer button.btn');
+      await until(p, 'long message saved', (n) => [...window.A.S.msgs].some((m) => m.text && m.text.length === n), text.length, 6000);
+      const w = ctx.book.wirds[0].id;
+      await until(p, 'sheets closed', () => !document.querySelector('.sheet-wrap'), null, 4000);
+      await p.evaluate(({ bid, w }) => window.A.V.writeTake(bid, w), { bid, w });
+      await p.waitForSelector('#take-text');
+      await p.focus('#take-text');
+      await p.keyboard.insertText(text);
+      await p.click('.sheet-wrap.in [data-save]');
+      await until(p, 'long takeaway saved', (n) => [...window.A.S.notes.values()].some((x) => x.kind === 'take' && x.text.length === n), text.length, 6000);
+      // drafts are dropped once the server has the text
+      try {
+        await until(p, 'drafts cleared', () => !Object.keys(localStorage).some((k) => k.startsWith('qs:draft:')), null, 6000);
+      } catch (e) {
+        throw new Error('drafts left after saving: ' + (await p.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('qs:draft:')).join(', '))));
+      }
+      await p.evaluate(({ bid, c }) => window.A.R.open(bid, { page: c }), { bid, c });
+      await T(1200);
+      return `${text.length} characters kept everywhere`;
+    }, ['open', 'cdp']);
+
     await step('Bookmark this page, then find it and the notes in the panel', async () => {
       await menu(p, 'علّم الصفحة');
       await T(600);

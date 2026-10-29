@@ -105,7 +105,14 @@
         localStorage.setItem('qs:' + k, JSON.stringify(v));
       } catch (e) {}
     },
+    del(k) {
+      try {
+        localStorage.removeItem('qs:' + k);
+      } catch (e) {}
+    },
   };
+  /* Longest text each kind of box takes. Generous: a document row holds 256 KB, and private notes share one row. */
+  U.MAX = { note: 10000, take: 10000, msg: 5000, reply: 5000, review: 5000, suggest: 1500 };
 
   U.loadScript = (src) =>
     new Promise((res, rej) => {

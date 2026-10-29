@@ -246,6 +246,38 @@
   }
 
   /* ---------- sheets (dialogs), menus, confirm ---------- */
+  /* Text boxes with a limit: a counter shows up near it, and pasting more than fits says so instead of cutting silently. */
+  function lenNote(ta) {
+    const max = +ta.getAttribute('maxlength') || 0;
+    if (!max || max >= 100000) return;
+    let c = ta.nextElementSibling && ta.nextElementSibling.classList.contains('tcount') ? ta.nextElementSibling : null;
+    const n = ta.value.length;
+    if (n < max * 0.85) {
+      if (c) c.remove();
+      return;
+    }
+    if (!c) {
+      c = document.createElement('small');
+      c.className = 'tcount';
+      c.setAttribute('aria-live', 'polite');
+      ta.after(c);
+    }
+    c.classList.toggle('full', n >= max);
+    c.textContent = n >= max ? L(`وصلت للحد (${L.num(max)} حرف)`, `Limit reached (${max} characters)`) : L(`فاضل ${L.num(max - n)} حرف`, `${max - n} characters left`);
+  }
+  document.addEventListener('input', (e) => e.target.matches && e.target.matches('textarea[maxlength]') && lenNote(e.target));
+  document.addEventListener('paste', (e) => {
+    const ta = e.target;
+    if (!ta.matches || !ta.matches('textarea[maxlength]')) return;
+    const max = +ta.getAttribute('maxlength') || 0;
+    const add = ((e.clipboardData && e.clipboardData.getData('text')) || '').length;
+    const room = max - ta.value.length + ((ta.selectionEnd || 0) - (ta.selectionStart || 0));
+    if (max && add > room) {
+      U.toast(L(`النص اللي لزقته أطول من المسموح هنا (${L.num(max)} حرف) — اتقص آخره. قسّمه على جزئين.`, `What you pasted is longer than fits here (${max} characters) — the end was cut. Split it in two.`), 'warn');
+      setTimeout(() => lenNote(ta), 0);
+    }
+  });
+
   V.sheet = ({ title = '', html = '', cls = '', onMount, onData, wide = false }) => {
     const wrap = document.createElement('div');
     wrap.className = 'sheet-wrap';
@@ -489,16 +521,19 @@
     V.sheet({
       title: L(`خلاصتي في الورد ${L.num(w ? w.n : '')}`, `My takeaway • portion ${w ? w.n : ''}`),
       html: `<p class="muted">${L('إيه أكتر فكرة عجبتك أو فرقت معاك في الورد ده؟', 'What idea stood out or stayed with you in this portion?')}</p>
-        <textarea id="take-text" rows="5" dir="auto" maxlength="1500" autofocus placeholder="${L('اكتب هنا…', 'Write here…')}">${esc(existing ? existing.text : '')}</textarea>
+        <textarea id="take-text" rows="5" dir="auto" maxlength="${U.MAX.take}" autofocus placeholder="${L('اكتب هنا…', 'Write here…')}">${esc(existing ? existing.text : U.store.get(`draft:take:${bookId}:${wid}`, ''))}</textarea>
         <div class="row-btns end"><button class="btn gold" data-save>${icon('sparkle')}${L('انشر الخلاصة', 'Share takeaway')}</button></div>`,
       onMount: (body, api) =>
         body.addEventListener('click', async (e) => {
           if (!e.target.closest('[data-save]')) return;
           const text = body.querySelector('#take-text').value.trim();
           if (text.length < 3) return U.toast(L('اكتب كلمتين على الأقل', 'Write a few words first'), 'warn');
+          const draftKey = `draft:take:${bookId}:${wid}`;
+          U.store.set(draftKey, text);
           api.close();
           const id = existing ? existing.id : D.newId();
           await D.set(`notes/${id}`, V.clean(Object.assign({}, existing || {}, { b: bookId, wid, kind: 'take', text, page: w ? w.to : null, rect: null, by: S.me, at: existing ? existing.at : U.nowIso(), likes: existing ? existing.likes || {} : {}, replies: existing ? existing.replies || {} : {} })));
+          U.store.del(draftKey);
           if (!existing) U.xpPop(G.XP.take, L('خلاصة', 'Takeaway'));
         }),
     });
@@ -517,7 +552,7 @@
         <div class="xp-lines"><span class="gold-t">${L('خاتم الكتاب', 'Book finisher')} <b>+${L.num(G.XP.book)} XP</b></span></div>
         <p>${L('قيّم الكتاب واكتب رأيك — هيتحط في مكتبتك تحت «قرأناه سوا»', "Rate it and add a review — it goes on your shelf under 'Read together'")}</p>
         ${V.stars(0, true, 'fin-stars')}
-        <textarea id="fin-review" rows="3" dir="auto" placeholder="${L('رأيك في سطرين (اختياري)', 'Your review (optional)')}"></textarea>
+        <textarea id="fin-review" rows="3" dir="auto" maxlength="${U.MAX.review}" placeholder="${L('رأيك في سطرين (اختياري)', 'Your review (optional)')}"></textarea>
         <div class="row-btns center"><button class="btn gold" data-save autofocus>${L('احفظ في مكتبتي', 'Save to my shelf')}</button></div></div>`,
       onMount: (body, api) => {
         V.bindStars(body);

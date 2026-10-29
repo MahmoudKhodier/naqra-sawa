@@ -133,7 +133,7 @@
         <div class="grid2"><div><label for="sf-fin">${L('خلّصته إمتى؟', 'Finished when?')}</label><input id="sf-fin" type="month" value="${esc(v.finished && v.finished.length === 7 ? v.finished : '')}"></div>
           <div><label for="sf-pages">${L('عدد الصفحات', 'Pages')}</label><input id="sf-pages" type="number" min="0" max="20000" value="${esc(v.pages || '')}"></div></div>
         <span class="lbl">${L('تقييمك', 'Your rating')}</span>${V.stars(v.rating || 0, true, 'sf-stars')}
-        <label for="sf-review">${L('رأيك في الكتاب', 'Your review')} <small class="muted">(+${L.num(G.XP.review)} XP ${L('لو أكتر من سطر', 'if more than a line')})</small></label><textarea id="sf-review" rows="3" maxlength="1500" dir="auto">${esc(v.review || '')}</textarea>
+        <label for="sf-review">${L('رأيك في الكتاب', 'Your review')} <small class="muted">(+${L.num(G.XP.review)} XP ${L('لو أكتر من سطر', 'if more than a line')})</small></label><textarea id="sf-review" rows="3" maxlength="${U.MAX.review}" dir="auto">${esc(v.review || '')}</textarea>
         <span class="lbl">${L('تصنيف', 'Tags')}</span>
         <div class="chips wrap" id="sf-tags">${TAGS.map(([k]) => `<button type="button" class="chip${(v.tags || []).includes(k) ? ' on' : ''}" data-tag="${k}">${tagName(k)}</button>`).join('')}</div>
         <div class="row-btns end"><button class="btn gold">${icon('check')}${L('احفظ', 'Save')}</button></div></form>`,

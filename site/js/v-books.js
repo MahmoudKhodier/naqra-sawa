@@ -117,7 +117,7 @@
         ${A.B ? A.B.coverField('pr-cover', pre.cover, pre.title) : ''}
         <label for="pr-title">${L('اسم الكتاب', 'Title')}</label><input id="pr-title" required maxlength="140" dir="auto" value="${esc(pre.title || '')}" autofocus>
         <label for="pr-author">${L('المؤلف', 'Author')}</label><input id="pr-author" maxlength="100" dir="auto" value="${esc(pre.author || '')}">
-        <label for="pr-note">${L('ليه الكتاب ده؟', 'Why this book?')}</label><textarea id="pr-note" rows="3" maxlength="500" dir="auto"></textarea>
+        <label for="pr-note">${L('ليه الكتاب ده؟', 'Why this book?')}</label><textarea id="pr-note" rows="3" maxlength="${U.MAX.suggest}" dir="auto"></textarea>
         <div class="row-btns end"><button class="btn gold">${icon('vote')}${L('اقترح', 'Suggest')}</button></div></form>`,
       onMount: (body, api) => {
         if (A.B) {
@@ -330,7 +330,7 @@
       <div class="msgs" id="msgs-${key}" data-keep-scroll>${rows.length ? rows.join('') : `<div class="empty sm"><span class="star8 faint"></span><p>${opts.empty || L('لسه محدش كتب. قول رأيك!', 'No messages yet. Say something!')}</p></div>`}</div>
       ${D.canWrite() ? `<form class="composer" data-send data-b="${esc(b)}" data-ch="${esc(ch)}" data-key="${key}">
         ${replyTo ? `<div class="replying">${icon('chat')}<span dir="auto">${L('رد على', 'Replying to')} <b>${esc(D.name(replyTo.by))}</b>: ${esc(String(replyTo.text).slice(0, 60))}</span><button type="button" class="ib sm" data-act="cancel-reply" aria-label="${L('إلغاء', 'Cancel')}">${icon('close')}</button></div>` : ''}
-        <textarea id="in-${key}" rows="1" dir="auto" maxlength="2000" placeholder="${opts.placeholder || L('اكتب رسالة…', 'Write a message…')}"></textarea>
+        <textarea id="in-${key}" rows="1" dir="auto" maxlength="${U.MAX.msg}" placeholder="${opts.placeholder || L('اكتب رسالة…', 'Write a message…')}"></textarea>
         <button class="btn icon-only" aria-label="${L('ابعت', 'Send')}">${icon('send', 'flip-rtl')}</button></form>` : ''}
     </div>`;
   };

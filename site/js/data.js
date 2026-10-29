@@ -152,6 +152,8 @@
       }
     } else if (code === 'invalid_argument') {
       U.toast(L('مقدرتش أحفظ — يمكن التعديل ده مش مسموح لك.', "Couldn't save — you may not be allowed to make this change."), 'warn');
+    } else if (code === 'too_large') {
+      U.toast(L('الكلام ده أطول من اللي ينفع يتحفظ في مكان واحد. قسّمه على جزئين — اللي كتبته محفوظ كمسودة.', "That's too long to save in one place. Split it in two — what you wrote is kept as a draft."), 'warn');
     } else if (code === 'quota_exceeded') {
       U.toast(L('المساحة المتاحة للحلقة خلصت. امسحوا حاجات قديمة وجرّبوا تاني', 'The circle is out of space. Delete some old items and try again'), 'warn');
     } else if (code === 'resource_exhausted') {

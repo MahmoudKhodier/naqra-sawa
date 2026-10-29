@@ -31,13 +31,20 @@
       html: `${ctx.crop ? `<div class="crop-prev"><img src="${esc(ctx.crop)}" alt=""></div>` : `<div class="pin-prev">${icon('pin')}<span>${L('ملاحظة مثبّتة على الصفحة', 'A note pinned to the page')}</span></div>`}
         <div class="seg-pick" role="radiogroup" id="nk-kinds">${KINDS.map((k) => `<button type="button" class="sp${k === kind ? ' on' : ''}" data-kind="${k}" role="radio" aria-checked="${k === kind}">${icon(KIND_IC[k])}<span>${V.kindLabel(k)}</span></button>`).join('')}</div>
         <div class="colors" id="nk-colors" ${hasRect ? '' : 'hidden'}>${A.R.COLORS.map((c) => `<button type="button" class="cdot${c === color ? ' on' : ''}" data-color="${c}" style="--c:${c}" aria-label="${c}"></button>`).join('')}</div>
-        <textarea id="nk-text" rows="3" dir="auto" maxlength="2000" placeholder="${L('اكتب تعليقك أو سؤالك… (اختياري للتظليل)', 'Write your comment or question… (optional for highlights)')}"></textarea>
+        <textarea id="nk-text" rows="3" dir="auto" maxlength="${U.MAX.note}" placeholder="${L('اكتب تعليقك أو سؤالك… (اختياري للتظليل)', 'Write your comment or question… (optional for highlights)')}"></textarea>
         <div class="vis" role="radiogroup">
           <button type="button" class="sp on" data-vis="all">${icon('users')}<span>${L('للحلقة كلها', 'Whole circle')}</span></button>
           <button type="button" class="sp" data-vis="me">${icon('lock')}<span>${L('ليا بس', 'Only me')}</span></button>
         </div>
         <div class="row-btns end"><button class="btn ghost" data-close>${L('إلغاء', 'Cancel')}</button><button class="btn" data-save>${icon('check')}${L('احفظ', 'Save')} <small class="xp-hint">+${L.num(G.XP.note)} XP</small></button></div>`,
       onMount: (body) => {
+        // A long note is kept as a draft until it is saved, so a failed save or an accidental close loses nothing.
+        const draftKey = `draft:nk:${ctx.bookId}:${ctx.page}`;
+        const ta = body.querySelector('#nk-text');
+        const draft = U.store.get(draftKey, '');
+        if (draft) ta.value = draft;
+        let saving = false;
+        ta.addEventListener('input', U.debounce(() => !saving && (ta.value.trim() ? U.store.set(draftKey, ta.value) : U.store.del(draftKey)), 400));
         setTimeout(() => !hasRect && body.querySelector('#nk-text').focus(), 80);
         body.addEventListener('click', async (e) => {
           const k = e.target.closest('[data-kind]');
@@ -70,6 +77,8 @@
               body.querySelector('#nk-text').focus();
               return U.toast(L('اكتب الملاحظة الأول', 'Write the note first'), 'warn');
             }
+            saving = true; // a late draft write must not bring this note back after it is saved
+            if (text) U.store.set(draftKey, text);
             api.close();
             const base = { b: ctx.bookId, page: ctx.page, rect: ctx.rect, kind, color, text, at: U.nowIso() };
             if (priv) {
@@ -78,11 +87,13 @@
                 const cur = S.priv || {};
                 return Object.assign({}, cur, { notes: Object.assign({}, cur.notes || {}, { [id]: base }) });
               });
+              U.store.del(draftKey);
               U.toast(L('اتحفظت ليك لوحدك 🔒', 'Saved privately 🔒'));
             } else {
               const id = D.newId();
               const w = G.wirds(book).find((x) => ctx.page >= x.from && ctx.page <= x.to);
               await D.set(`notes/${id}`, Object.assign(base, { by: S.me, crop: ctx.crop || null, wid: w ? w.id : '', likes: {}, replies: {} }));
+              U.store.del(draftKey);
               U.chime('soft');
               U.xpPop(G.XP.note, V.kindLabel(kind));
             }
@@ -134,7 +145,7 @@
           ${mine ? `<button class="pill ghost" data-del>${icon('trash')}<span>${L('امسح', 'Delete')}</span></button>` : ''}
         </div>
         ${!n.priv ? `<div class="replies" id="nt-replies" data-keep-scroll>${rs.length ? rs.map((r) => `<div class="rep">${D.avatar(r.by, 'sm')}<div class="rep-b"><b>${esc(D.name(r.by))}</b><small>${L.ago(r.at)}</small><p dir="auto">${esc(r.text)}</p></div>${r.by === S.me ? `<button class="ib sm" data-delrep="${esc(r.id)}" aria-label="${L('امسح', 'Delete')}">${icon('trash')}</button>` : ''}</div>`).join('') : `<p class="muted sm">${L('محدش رد لسه. ابدأ النقاش!', 'No replies yet. Start the conversation!')}</p>`}</div>
-        ${D.canWrite() ? `<form class="composer" data-reply><textarea id="nt-reply-${esc(n.id)}" rows="1" dir="auto" maxlength="1500" placeholder="${L('اكتب ردك…', 'Write a reply…')}"></textarea><button class="btn icon-only" aria-label="${L('ابعت', 'Send')}">${icon('send', 'flip-rtl')}</button></form>` : ''}` : ''}
+        ${D.canWrite() ? `<form class="composer" data-reply><textarea id="nt-reply-${esc(n.id)}" rows="1" dir="auto" maxlength="${U.MAX.reply}" placeholder="${L('اكتب ردك…', 'Write a reply…')}"></textarea><button class="btn icon-only" aria-label="${L('ابعت', 'Send')}">${icon('send', 'flip-rtl')}</button></form>` : ''}` : ''}
       </div>`;
     };
     V.sheet({
@@ -200,7 +211,7 @@
     return `<article class="ncard k-${esc(n.kind)}${isTake ? ' take' : ''}">
       <header>${D.avatar(n.by, 'sm')}<div class="nc-who"><b data-act="member" data-uid="${esc(n.by)}">${esc(D.name(n.by))}</b><small>${V.kindLabel(n.kind)}${opts.showBook && book ? ` • <span dir="auto">${esc(book.title)}</span>` : ''}${n.page && !isTake ? ` • ${L('ص', 'p.')} ${L.num(n.page)}` : ''}${isTake && w ? ` • ${L('الورد', 'Portion')} ${L.num(w.n)}` : ''} • ${L.ago(n.at)}</small></div></header>
       ${n.crop ? `<button class="nc-crop" data-act="open-note" data-nid="${esc(n.id)}" style="--c:${U.col(n.color)}"><img src="${esc(n.crop)}" alt="${esc(L('الجزء المظلّل', 'Highlighted passage'))}" loading="lazy"></button>` : ''}
-      ${n.text ? `<p class="nc-text${n.kind === 'quote' ? ' quote' : ''}" dir="auto">${esc(n.text.length > 420 ? n.text.slice(0, 420) + '…' : n.text)}</p>` : ''}
+      ${n.text ? `<p class="nc-text${n.kind === 'quote' ? ' quote' : ''}" dir="auto">${esc(n.text.length > 420 ? n.text.slice(0, 400).replace(/\s+\S*$/, '') + '…' : n.text)}</p>${n.text.length > 420 ? `<button class="lnk nc-more" data-act="open-note" data-nid="${esc(n.id)}">${L('اقرأ الباقي', 'Read more')}</button>` : ''}` : ''}
       <footer>
         <button class="pill${liked ? ' on' : ''}" data-act="like" data-nid="${esc(n.id)}" aria-label="${L('إعجاب', 'Like')}">${icon('heart')}<span>${L.num(lc)}</span></button>
         <button class="pill" data-act="open-note" data-nid="${esc(n.id)}">${icon('chat')}<span>${rc ? L.num(rc) : L('رد', 'Reply')}</span></button>
