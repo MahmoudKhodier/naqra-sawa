@@ -146,7 +146,17 @@
       return true;
     } catch (e) {
       console.warn('inbox notifications', e);
-      U.toast(L('مقدرتش أفعّل الإشعارات. جرّب تاني لما النت يبقى كويس', "Couldn't turn on notifications. Try again when you're online", 'تعذّر تفعيل الإشعارات. حاول مجددًا عند توفر الاتصال'), 'warn');
+      // Wanted, but not done yet (offline, or the server isn't updated yet): kept, and tried again by itself.
+      const prev = ipref() || {};
+      U.store.set('inboxNotif', { on: false, asked: true, wanted: true, token: prev.token || newToken() });
+      const serverOld = e && (e.code === 'PGRST202' || e.code === '42883' || /could not find the function|404/i.test(String(e.message || '')));
+      if (loud !== false)
+        U.toast(
+          serverOld
+            ? L('الإشعارات لسه مش جاهزة على السيرفر — هفعّلها لوحدي أول ما تجهز', "Notifications aren't ready on the server yet — they'll switch on by themselves once it is", 'الإشعارات ليست جاهزة على الخادم بعد — سأفعّلها تلقائيًا فور جاهزيتها')
+            : L('مقدرتش أفعّل الإشعارات دلوقتي — هجرّب تاني لوحدي بعد شوية', "Couldn't turn on notifications right now — I'll try again by myself soon", 'تعذّر تفعيل الإشعارات الآن — سأحاول مجددًا تلقائيًا بعد قليل'),
+          'warn',
+        );
       return false;
     } finally {
       busy = false;
@@ -200,7 +210,14 @@
   /* Asked once, gently: a few seconds after the app is ready, when nothing else is on screen. */
   let askTries = 0;
   IN.maybeAsk = () => {
-    if (ipref() || !IN.available()) return;
+    const pr = ipref();
+    // said yes but it didn't go through last time: quietly try again on the next open
+    if (pr && pr.wanted && !pr.on && IN.available()) {
+      if (A.S.phase === 'ready' && A.D.joined()) IN.enable(false);
+      else if (++askTries < 120) setTimeout(IN.maybeAsk, 5000);
+      return;
+    }
+    if (pr || !IN.available()) return;
     // not in a circle yet (just signed up), reading, or another sheet open: try again a bit later
     const later = !A.D.joined() || (A.R && A.R.isOpen()) || (V.sheets && V.sheets.length) || A.S.phase !== 'ready';
     if (later) return ++askTries < 120 && setTimeout(IN.maybeAsk, 5000);

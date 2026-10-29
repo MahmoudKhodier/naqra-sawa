@@ -35,12 +35,18 @@
       <div class="set-row" id="set-streak-row"><span>${icon('flame')}<span>${L('السلسلة', 'Streak')}<small class="muted">${streakSub}</small></span></span>${seg('streak-mode', sp.mode, [['day', L('يومية', 'Daily')], ['week', L('أسبوعية', 'Weekly')]])}</div>
       ${sp.mode === 'week' ? `<div class="set-row sub"><label for="set-streak-n">${L('أيام القراية في الأسبوع', 'Reading days a week', 'أيام القراءة في الأسبوع')}</label><select id="set-streak-n" class="set-num">${[1, 2, 3, 4, 5, 6, 7].map((n) => `<option value="${n}" ${n === sp.n ? 'selected' : ''}>${L.num(n)}</option>`).join('')}</select></div>` : ''}`;
   };
+  /* Every change keeps a dated entry (hist), so «مهام اليوم» can ask for that day's goal even later on. */
+  const withHist = (m, body) => {
+    const hist = ((m.goalDaily && m.goalDaily.hist) || []).filter((e) => e.d !== U.today());
+    hist.push({ d: U.today(), p: body.auto === false && !(+body.pages > 0) ? 0 : +body.pages || 0 });
+    return Object.assign({}, body, { hist: hist.slice(-120) });
+  };
   V.actions['goal-mode'] = async (a) => {
     const v = a.dataset.v;
     const g = G.goalOf(S.me);
     const today = U.today();
     const body = v === 'off' ? { auto: false, pages: 0, at: today } : v === 'auto' ? { auto: true, pages: g.on && g.auto ? g.pages : G.goalStart(S.me), at: today } : { auto: false, pages: g.on ? g.pages : G.goalStart(S.me), at: today };
-    await D.updateMe(() => ({ goalDaily: body }));
+    await D.updateMe((m) => ({ goalDaily: withHist(m, body) }));
   };
   V.actions['streak-mode'] = async (a) => {
     const sp = G.streakPref(S.me);
@@ -50,7 +56,7 @@
     if (e.target.id === 'set-goal-n') {
       const n = U.clamp(Math.round(+e.target.value || 0), 1, 500);
       e.target.value = n;
-      await D.updateMe(() => ({ goalDaily: { auto: false, pages: n, at: U.today() } }));
+      await D.updateMe((m) => ({ goalDaily: withHist(m, { auto: false, pages: n, at: U.today() }) }));
       U.toast(L(`هدفك بقى ${L.count(n, 'page')} في اليوم`, `Your goal is now ${n} pages a day`, `أصبح هدفك ${L.count(n, 'page')} في اليوم`));
     }
     if (e.target.id === 'set-streak-n') {
@@ -71,7 +77,7 @@
     const next = G.goalNext(g, m.days || {}, today);
     if (!next) return null;
     const body = { auto: true, pages: next.pages, at: next.at };
-    await D.updateMe(() => ({ goalDaily: body }));
+    await D.updateMe((m2) => ({ goalDaily: withHist(m2, body) }));
     if (next.dir === 'up') {
       U.chime('ok');
       U.toast(`${icon('target')}<span><b>${L('هدفك اليومي كبر!', 'Your daily goal grew!', 'كبر هدفك اليومي!')}</b> ${L(`حققته ${L.num(next.hits)} أيام من ٧، فبقى ${L.count(next.pages, 'page')}`, `You hit it ${next.hits} days out of 7, so it's now ${next.pages} pages`, `حققته ${L.num(next.hits)} أيام من ٧، فأصبح ${L.count(next.pages, 'page')}`)}</span>`, 'gold');

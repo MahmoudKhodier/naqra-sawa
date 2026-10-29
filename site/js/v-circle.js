@@ -57,28 +57,10 @@
   };
 
   function newsSeg() {
-    const { pages, goal } = G.groupWeek();
-    const board = G.board('week');
-    const daysLeft = Math.max(1, U.diffDays(U.today(), U.addDays(U.weekStart(), 6)) + 1);
     const feed = V.feedBlock ? V.feedBlock() : '';
     return `${V.liveBlock ? V.liveBlock() : ''}
       ${V.sections('circle-news', {})}
-      <section class="card cchal">
-        <header><h3>${L('تحدي الحلقة الأسبوع ده', "This week's circle challenge", 'تحدي الحلقة هذا الأسبوع')}</h3><small class="muted">${pages >= goal ? L('خلص! 🎉', 'Done! 🎉', 'اكتمل! 🎉') : L(`فاضل ${L.count(daysLeft, 'day')}`, `${daysLeft} days left`, `بقي ${L.count(daysLeft, 'day', 'nom')}`)}</small></header>
-        ${V.bar(pages / goal, pages >= goal ? 'jade big' : 'gold big')}
-        <p class="muted sm">${L(`${L.num(pages)} من ${L.count(goal, 'page')} مع بعض`, `${pages} of ${goal} pages together`, `${L.num(pages)} من ${L.count(goal, 'page')} معًا`)}</p>
-        ${contrib(board)}
-      </section>
       ${feed || V.empty(L('مفيش أخبار لسه', 'No news yet', 'لا أخبار بعد'), L('لما حد يخلّص ورد أو يكتب ملاحظة هتلاقيه هنا.', 'Finished portions and notes will show up here.', 'عندما ينهي أحد وردًا أو يكتب ملاحظة ستجده هنا.'))}`;
-  }
-
-  /* Who read how much of the week's pages: a bar split by member, with a key under it. */
-  function contrib(board) {
-    const who = board.filter((s) => s.pagesWeek).sort((a, b) => b.pagesWeek - a.pagesWeek);
-    if (!who.length) return '';
-    return `<p class="contrib-h muted sm">${L('مين قرا كام صفحة', 'Pages by member', 'من قرأ كم صفحة')}</p>
-      <div class="contrib" aria-hidden="true">${who.map((s) => `<span style="flex:${s.pagesWeek};--c:${esc(D.color(s.uid))}" title="${esc(D.name(s.uid))}: ${L.num(s.pagesWeek)}"></span>`).join('')}</div>
-      <ul class="contrib-k">${who.map((s) => `<li style="--c:${esc(D.color(s.uid))}"><i></i><bdi>${esc(D.name(s.uid))}</bdi> <b>${L.num(s.pagesWeek)}</b></li>`).join('')}</ul>`;
   }
 
   function boardSeg(mode, online) {
@@ -184,49 +166,19 @@
           ? `<div class="stile flame ${s.weekStreak ? (s.weekAtRisk ? 'risk' : 'hot') : ''}">${icon('flame')}<b>${L.num(s.weekStreak)}</b><small>${L('أسابيع ورا بعض', 'week streak', 'أسابيع متتالية')} • ${L('الأحسن', 'best', 'الأفضل')} ${L.num(s.bestWeekStreak)}</small></div>`
           : `<div class="stile flame ${s.streak ? (s.atRisk ? 'risk' : 'hot') : ''}">${icon('flame')}<b>${L.num(s.streak)}</b><small>${L('أيام ورا بعض', 'day streak', 'أيام متتالية')} • ${L('الأحسن', 'best', 'الأفضل')} ${L.num(s.best)}${s.freezes ? ` • ${L(`حماية ×${L.num(s.freezes)}`, `${s.freezes} freeze`)}` : ''}</small></div>`}
         <div class="stile">${icon('clock')}<b>${L.duration ? esc(L.duration(s.secs)) : ''}</b><small>${L('وقت القراية', 'time reading', 'وقت القراءة')}${s.secsWeek ? ` • ${L('الأسبوع ده', 'this week', 'هذا الأسبوع')} ${esc(L.duration(s.secsWeek))}` : ''}</small></div>
-        <div class="stile">${icon('bolt')}<b>${L.num(s.xp)}</b><small>XP • ${L('الأسبوع ده', 'this week', 'هذا الأسبوع')} ${L.num(s.week)}</small></div>
         <div class="stile">${icon('scroll')}<b>${L.num(s.pages)}</b><small>${L('صفحة', 'pages')}</small></div>
         <div class="stile">${icon('shelf')}<b>${L.num(shelf.length)}</b><small>${L('كتب في المكتبة', 'books on shelf')}</small></div>
-        <div class="stile">${icon('check')}<b>${L.num(s.wirdsDone)}</b><small>${L('ورد خلص', 'portions done', 'ورد منجز')}</small></div>
-        <div class="stile">${icon('heart')}<b>${L.num(s.likesRecv)}</b><small>${L('إعجاب', 'likes received')}</small></div>
       </section>
       ${V.sections('me', { uid, mine, s })}
       <section class="card">
         <header class="sec-h"><h2>${L('الأوسمة', 'Badges')}</h2><small class="muted">${L.num(s.badgeCount)} / ${L.num(G.BADGES.length)}</small></header>
         <div class="badges">${G.badgeGroups(s).map((grp) => V.badgeCard(grp, uid)).join('')}</div>
       </section>
-      <section class="card">
-        <header class="sec-h"><h2>${L('خريطة القراية', 'Reading map', 'خريطة القراءة')}</h2><small class="muted">${L('آخر ١٨ أسبوع', 'Last 18 weeks', 'آخر ١٨ أسبوعًا')}</small></header>
-        ${heatmap(s)}
-      </section>
     </div>`;
   };
 
   /* ---------- settings (its own tab) ---------- */
   V.screens.settings = () => `<div class="settings-page">${settings()}</div>`;
-
-  function heatmap(s) {
-    const weeks = 18;
-    const today = U.today();
-    const start = U.addDays(U.weekStart(today), -7 * (weeks - 1));
-    let cols = '';
-    for (let w = 0; w < weeks; w++) {
-      let cells = '';
-      for (let d = 0; d < 7; d++) {
-        const k = U.addDays(start, w * 7 + d);
-        if (k > today) {
-          cells += '<i class="hm f"></i>';
-          continue;
-        }
-        const n = s.days[k] || 0;
-        const act = s.active.has(k);
-        const lv = n >= 40 ? 4 : n >= 20 ? 3 : n >= 8 ? 2 : n > 0 || act ? 1 : 0;
-        cells += `<i class="hm l${lv}" title="${esc(L.day(k))}: ${L.count(n, 'page')}"></i>`;
-      }
-      cols += `<span class="hm-col">${cells}</span>`;
-    }
-    return `<div class="heat" dir="ltr">${cols}</div><div class="hm-legend"><span>${L('أقل', 'Less')}</span><i class="hm l0"></i><i class="hm l1"></i><i class="hm l2"></i><i class="hm l3"></i><i class="hm l4"></i><span>${L('أكتر', 'More', 'أكثر')}</span></div>`;
-  }
 
   function settings() {
     const m = S.members.get(S.me) || {};

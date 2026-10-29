@@ -168,7 +168,10 @@
   const POOL = ['note', 'talk', 'like', 'shelf', 'cheer'];
   G.questsFor = (uid, day, s) => {
     const r = U.rng(U.hash(uid + '|' + day));
-    const readN = [5, 10, 15, 20][Math.floor(r() * 4)];
+    // The reading quest is my daily goal (as it was that day); without one, a size picked for the day.
+    const random = [5, 10, 15, 20][Math.floor(r() * 4)];
+    const goalN = G.goalPagesOn ? G.goalPagesOn(uid, day) : 0;
+    const readN = goalN || random;
     const pool = POOL.slice();
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(r() * (i + 1));
@@ -452,6 +455,19 @@
     const pages = g && +g.pages > 0 ? U.clamp(Math.round(+g.pages), 1, 500) : G.goalStart(uid);
     return { on: true, auto, pages, have, done: have >= pages, at: (g && g.at) || '' };
   };
+  /* The daily goal in pages as it stood on a day (0: off, or no goal recorded yet for that day). */
+  G.goalPagesOn = (uid, day) => {
+    const g = (S.members.get(uid) || {}).goalDaily;
+    let p = 0, found = false;
+    for (const e of (g && g.hist) || []) if (e.d <= day) {
+      p = +e.p || 0;
+      found = true;
+    }
+    // A goal set before dates were kept: it counts from today on (never G.goalOf here: that would recompute
+    // the very numbers being computed).
+    if (!found && g && day === U.today() && !(g.auto === false && !(+g.pages > 0))) return +g.pages > 0 ? U.clamp(Math.round(+g.pages), 1, 500) : 0;
+    return p;
+  };
   /* The next stored goal for a day (null: nothing to change). Pure: (goal, member days, today). */
   G.goalNext = (g, days, today = U.today()) => {
     if (!g || !g.on || !g.auto) return null;
@@ -699,9 +715,45 @@
     rows.sort((a, b) => (mode === 'week' ? b.week - a.week : b.xp - a.xp) || b.xp - a.xp);
     return rows;
   };
+  /* Pages of a member in the week starting ws (Saturday): read in the app, plus the pages of portions marked
+     done that week that weren't read in the app (read on paper, say). days: days with either. */
+  G.weekPagesOf = (uid, ws = U.weekStart()) => {
+    const we = U.addDays(ws, 6);
+    const m = S.members.get(uid) || {};
+    let app = 0;
+    const days = new Set();
+    for (let i = 0; i < 7; i++) {
+      const d = U.addDays(ws, i);
+      const n = +((m.days && m.days[d]) || 0);
+      if (n > 0) {
+        app += n;
+        days.add(d);
+      }
+    }
+    let paper = 0;
+    for (const p of S.prog.values()) {
+      if (p.u !== uid) continue;
+      const book = S.books.get(p.b) || (S.gone && S.gone.get(p.b));
+      if (!book) continue;
+      for (const [wid, t] of Object.entries(p.done || {})) {
+        const d = t && U.isoKey(t);
+        if (!d || d < ws || d > we) continue;
+        const w = G.wirds(book).find((x) => x.id === wid);
+        if (!w) continue;
+        let seen = 0;
+        for (let pg = w.from; pg <= w.to; pg++) if (U.rangesHas(p.seen, pg)) seen++;
+        const off = Math.max(0, w.to - w.from + 1 - seen);
+        if (off) {
+          paper += off;
+          days.add(d);
+        }
+      }
+    }
+    return { pages: app + paper, app, paper, days: days.size };
+  };
   G.groupWeek = () => {
     let pages = 0;
-    for (const s of G.all().values()) if (S.members.has(s.uid)) pages += s.pagesWeek;
+    for (const uid of S.members.keys()) pages += G.weekPagesOf(uid).pages;
     const goal = (S.circle && +S.circle.weeklyGoal) || 300;
     return { pages, goal };
   };

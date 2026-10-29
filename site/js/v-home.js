@@ -204,17 +204,6 @@
       const f = done ? 1 : at < w.from ? 0 : U.clamp((at - w.from + 1) / total, 0, 0.94);
       return { uid, done, at, f, live: live.has(uid), t: done ? p.done[w.id] : '' };
     });
-    rows.sort((a, b2) => a.f - b2.f);
-    // People at (nearly) the same page fan out sideways instead of covering each other.
-    let groupF = -1, k = 0;
-    for (const r of rows) {
-      if (r.f - groupF < 0.08) k++;
-      else {
-        groupF = r.f;
-        k = 0;
-      }
-      r.shift = k * 22;
-    }
     const me = rows.find((r) => r.uid === S.me);
     const doneRows = rows.filter((r) => r.done).sort((a, b2) => String(a.t).localeCompare(String(b2.t)));
     const first = doneRows[0];
@@ -223,14 +212,19 @@
     if (D.canWrite() && first && first.uid !== S.me)
       action = `<button class="pill gold" data-act="poke" data-to="${esc(first.uid)}" data-kind="cheer" data-b="${esc(b.id)}" data-w="${esc(w.id)}">${icon('clap')}${L(`شجّع ${esc(D.name(first.uid))}`, `Cheer ${esc(D.name(first.uid))}`)}</button>`;
     else if (liveOther) action = `<button class="pill jade" data-act="read" data-b="${esc(b.id)}" ${liveOther.at ? `data-p="${liveOther.at}"` : ''}><span class="pulse"></span>${L(`اقرا مع ${esc(D.name(liveOther.uid))}`, `Read with ${esc(D.name(liveOther.uid))}`, `اقرأ مع ${esc(D.name(liveOther.uid))}`)}</button>`;
-    const avs = rows
-      .slice(0, 14)
-      .map((r) => `<button class="rc-av${r.uid === S.me ? ' me' : ''}${r.live ? ' live' : ''}${r.done ? ' done' : ''}" style="inset-inline-start:clamp(0px, calc(${(r.f * 100).toFixed(1)}% - 17px + ${r.shift}px), calc(100% - 34px));top:4px" data-act="who" data-uid="${esc(r.uid)}" data-b="${esc(b.id)}" data-w="${esc(w.id)}" title="${esc(D.name(r.uid))} • ${r.done ? L('خلاص', 'done', 'تم') : r.at >= w.from ? `${L('ص', 'p.')} ${L.num(r.at)}` : L('لسه', 'not yet', 'ليس بعد')}">${D.avatar(r.uid, 'sm')}</button>`)
-      .join('');
+    // One row per member: their place in the portion, never piled on top of each other.
+    const order = rows.slice().sort((a, b2) => b2.f - a.f || (a.uid === S.me ? -1 : 1));
+    const shown = order.length > 6 ? order.slice(0, 5) : order;
+    if (me && !shown.includes(me)) shown[shown.length - 1] = me;
+    const rowHtml = (r) => `<li><button class="rc-row${r.uid === S.me ? ' me' : ''}${r.done ? ' done' : ''}" data-act="who" data-uid="${esc(r.uid)}" data-b="${esc(b.id)}" data-w="${esc(w.id)}">
+        <span class="rc-av-s">${D.avatar(r.uid, 'sm')}${r.live ? '<i class="on-dot"></i>' : ''}</span>
+        <b dir="auto">${r.uid === S.me ? L('إنت', 'You', 'أنت') : esc(D.name(r.uid))}</b>
+        <i class="rc-mini"><i style="width:${Math.round(r.f * 100)}%"></i></i>
+        <small>${r.done ? L('خلاص ✓', 'Done ✓', 'تمّ ✓') : r.at >= w.from ? `${L('ص', 'p.')} ${L.num(r.at)}` : L('لسه', 'Not yet', 'ليس بعد')}</small></button></li>`;
     return `<section class="card race">
       <header><h3>${L(`مين وصل فين في الورد ${L.num(w.n)}`, `Who is where in portion ${w.n}`, `أين وصل كل واحد في الورد ${L.num(w.n)}`)}</h3>${action}</header>
-      <div class="rc-track"><i class="rc-line"><i style="width:${me ? Math.round(me.f * 100) : 0}%"></i></i>${avs}</div>
-      <div class="rc-labels"><span>${L('ص', 'p.')} ${L.num(w.from)}</span><span>${L(`${L.num(doneRows.length)} من ${L.num(members.length)} خلّصوا`, `${doneRows.length} of ${members.length} done`, `${L.num(doneRows.length)} من ${L.num(members.length)} أنهوا`)}</span><span>${icon('flag')}${L('ص', 'p.')} ${L.num(w.to)}</span></div>
+      <ul class="rc-rows">${shown.map(rowHtml).join('')}</ul>
+      <div class="rc-labels"><span>${L('ص', 'p.')} ${L.num(w.from)} – ${L.num(w.to)}</span><span>${L(`${L.num(doneRows.length)} من ${L.num(members.length)} خلّصوا`, `${doneRows.length} of ${members.length} done`, `${L.num(doneRows.length)} من ${L.num(members.length)} أنهوا`)}</span>${order.length > shown.length ? `<button class="lnk sm" data-go="book-${esc(b.id)}" data-tab="plan">${L(`و${L.num(order.length - shown.length)} كمان`, `+${order.length - shown.length} more`, `و${L.num(order.length - shown.length)} آخرون`)}</button>` : ''}</div>
       ${iAmBehind ? `<p class="rc-behind">${L(`الحلقة في الورد ${L.num(grp.n)} وإنت لسه في الورد ${L.num(mine.n)} — شد حيلك وهتلحقهم`, `The circle is on portion ${grp.n}, you're on ${mine.n} — you can catch up`, `الحلقة في الورد ${L.num(grp.n)} وأنت ما زلت في الورد ${L.num(mine.n)} — اجتهد وستلحق بهم`)}</p>` : ''}
     </section>`;
   }

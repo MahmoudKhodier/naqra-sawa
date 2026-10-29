@@ -104,7 +104,31 @@
     </section>`;
   }
   V.addSection('home-side', { order: 10, render: () => (D.canWrite() ? todayCard() : '') });
-  V.addSection('circle-news', { order: 10, render: () => todayCard() + recapCard() });
+  V.addSection('circle-news', { order: 10, render: () => weekCard() });
+
+  /* «الحلقة الأسبوع ده»: who read today, the week's goal (with portions read elsewhere), who read what, and
+     the week's recap — one card instead of three. */
+  function weekCard() {
+    const ms = members();
+    const today = U.today();
+    const ws = U.weekStart();
+    const { pages, goal } = G.groupWeek();
+    const daysLeft = Math.max(1, U.diffDays(today, U.addDays(ws, 6)) + 1);
+    const done = ms.filter((u) => pagesOn(u, today) > 0);
+    const all = ms.length > 1 && done.length === ms.length;
+    const run = all ? V.circleFullRun() : 0;
+    const who = ms.map((u) => ({ u, n: G.weekPagesOf(u, ws).pages })).filter((x) => x.n).sort((a, b) => b.n - a.n);
+    const last = U.addDays(ws, -7);
+    const lastHad = U.parseD(today).getDay() !== 5 && weekOf(last).total > 0;
+    return `<section class="card cweek${all ? ' full' : ''}">
+      <header class="sec-h"><h3>${icon('users')}${L('الحلقة الأسبوع ده', 'The circle this week', 'الحلقة هذا الأسبوع')}</h3><small class="muted">${pages >= goal ? L('الهدف خلص! 🎉', 'Goal reached! 🎉', 'تحقق الهدف! 🎉') : L(`فاضل ${L.count(daysLeft, 'day')}`, `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left`, `بقي ${L.count(daysLeft, 'day', 'nom')}`)}</small></header>
+      ${V.bar(pages / goal, pages >= goal ? 'jade big' : 'gold big')}
+      <p class="muted sm">${L(`${L.num(pages)} من ${L.count(goal, 'page')} مع بعض`, `${pages} of ${goal} pages together`, `${L.num(pages)} من ${L.count(goal, 'page')} معًا`)}</p>
+      ${who.length ? `<ul class="contrib-k">${who.map((x) => `<li style="--c:${esc(D.color(x.u))}"><i></i><bdi>${esc(D.name(x.u))}</bdi> <b>${L.num(x.n)}</b></li>`).join('')}</ul>` : ''}
+      ${ms.length > 1 ? `<div class="cw-today"><span>${all ? L('النهارده الحلقة كاملة! 🎉', 'Everyone read today! 🎉', 'الحلقة كاملة اليوم! 🎉') : L(`النهارده: ${L.num(done.length)} من ${L.num(ms.length)} قروا`, `Today: ${done.length} of ${ms.length} read`, `اليوم: ${L.num(done.length)} من ${L.num(ms.length)} قرؤوا`)}${run > 1 ? ` • ${L(`${L.count(run, 'day')} ورا بعض 🔥`, `${run} days in a row 🔥`, `${L.count(run, 'day', 'nom')} متتالية 🔥`)}` : ''}</span>${done.length ? `<span class="tt-avs">${done.map((u) => `<span title="${esc(D.name(u))}">${D.avatar(u, 'xs')}</span>`).join('')}</span>` : ''}</div>` : ''}
+      <div class="row-btns"><button class="btn sm" data-act="circle-recap" data-ws="${ws}">${icon('sparkle')}${L('تفاصيل الأسبوع', "This week's details", 'تفاصيل الأسبوع')}</button>${lastHad ? `<button class="btn sm ghost" data-act="circle-recap" data-ws="${last}">${L('ملخص الأسبوع اللي فات', "Last week's recap", 'ملخص الأسبوع الماضي')}</button>` : ''}</div>
+    </section>`;
+  }
 
   /* ---------- the circle's week, every Friday (the week runs Saturday → Friday) ---------- */
   const weekOf = (ws) => {
@@ -116,13 +140,8 @@
     const ms = members();
     const rows = ms
       .map((u) => {
-        let pages = 0, days = 0;
-        for (let i = 0; i < 7; i++) {
-          const n = pagesOn(u, U.addDays(ws, i));
-          pages += n;
-          if (n > 0) days++;
-        }
-        return { u, pages, days };
+        const x = G.weekPagesOf(u, ws); // the app's pages + portions marked done but read elsewhere
+        return { u, pages: x.pages, paper: x.paper, days: x.days };
       })
       .sort((a, b) => b.pages - a.pages);
     const full = fullDays().filter((d) => d >= ws && d <= we).length;
@@ -138,6 +157,11 @@
     const finished = [...S.books.values()].filter((b) => b.doneAt && inWeek(b.doneAt));
     return { ws, we, rows, total: rows.reduce((t, r) => t + r.pages, 0), full, portions, best, open, finished };
   };
+  const rowLine = (r) => {
+    if (!r.pages) return L('من غير قراية الأسبوع ده', 'No reading this week', 'بلا قراءة هذا الأسبوع');
+    const paper = r.paper ? L(` (منها ${L.num(r.paper)} برّه التطبيق)`, ` (${r.paper} outside the app)`, ` (منها ${L.num(r.paper)} خارج التطبيق)`) : '';
+    return L(`${L.count(r.pages, 'page')}${paper} • قراية في ${L.count(r.days, 'day')}`, `${r.pages} pages${paper} • read on ${r.days} ${r.days === 1 ? 'day' : 'days'}`, `${L.count(r.pages, 'page')}${paper} • قراءة في ${L.count(r.days, 'day')}`);
+  };
   V.circleRecap = (ws) => {
     const w = weekOf(ws);
     const max = Math.max(1, ...w.rows.map((r) => r.pages));
@@ -152,7 +176,7 @@
           <div class="${w.full ? 'jade-t' : ''}"><b>${L.num(w.full)}</b><small>${L('يوم الحلقة كاملة', 'full-circle days', 'يوم الحلقة كاملة')}</small></div>
         </div>
         <ol class="cr-rows">${w.rows
-          .map((r, i) => `<li${r.u === S.me ? ' class="me"' : ''}><span class="cr-n">${L.num(i + 1)}</span>${D.avatar(r.u, 'sm')}<span class="cr-t"><b>${esc(D.name(r.u))}</b><small>${L(`${L.count(r.pages, 'page')} • قراية في ${L.count(r.days, 'day')}`, `${r.pages} pages • read on ${r.days} ${r.days === 1 ? 'day' : 'days'}`, `${L.count(r.pages, 'page')} • قراءة في ${L.count(r.days, 'day')}`)}</small></span><i class="cr-bar" style="--f:${r.pages / max}"></i></li>`)
+          .map((r, i) => `<li${r.u === S.me ? ' class="me"' : ''}><span class="cr-n">${L.num(i + 1)}</span>${D.avatar(r.u, 'sm')}<span class="cr-t"><b>${esc(D.name(r.u))}</b><small>${rowLine(r)}</small></span><i class="cr-bar" style="--f:${r.pages / max}"></i></li>`)
           .join('')}</ol>
         ${me >= 0 ? `<p class="muted">${me === 0 && w.rows[0].pages ? L('كنت الأول الأسبوع ده! 🏆', 'You topped the circle this week! 🏆', 'كنت الأول هذا الأسبوع! 🏆') : L(`مكانك: ${L.num(me + 1)} من ${L.num(w.rows.length)}`, `You: #${me + 1} of ${w.rows.length}`, `مكانك: ${L.num(me + 1)} من ${L.num(w.rows.length)}`)}</p>` : ''}
         ${w.finished.length ? `<p class="gold-t">${icon('trophy')}${L('خلّصنا:', 'We finished:', 'أنهينا:')} ${w.finished.map((b) => `«${esc(b.title)}»`).join('، ')}</p>` : ''}
@@ -167,12 +191,6 @@
     const ws = U.weekStart();
     return U.parseD(U.today()).getDay() === 5 ? ws : U.addDays(ws, -7);
   };
-  function recapCard() {
-    const ws = recapWeek();
-    const w = weekOf(ws);
-    if (!w.total) return '';
-    return `<button class="card recap-card" data-act="circle-recap" data-ws="${ws}">${icon('sparkle')}<span><b>${ws === U.weekStart() ? L('ملخص الحلقة للأسبوع ده جاهز', "This week's circle recap is ready", 'ملخص الحلقة لهذا الأسبوع جاهز') : L('ملخص الحلقة للأسبوع اللي فات', "Last week's circle recap", 'ملخص الحلقة للأسبوع الماضي')}</b><small>${L(`${L.count(w.total, 'page')} مع بعض`, `${w.total} pages together`, `${L.count(w.total, 'page')} معًا`)}</small></span>${icon('fwd', 'flip-rtl')}</button>`;
-  }
   V.actions['circle-recap'] = (a) => V.circleRecap(a.dataset.ws);
   // Shown by itself once per week (instead of the old Saturday recap of my own numbers).
   V.checkRecap = () => {

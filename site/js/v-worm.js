@@ -252,7 +252,7 @@
     return { from: t.slice(0, 4) + '-01-01', to: t.slice(0, 4) + '-12-31' };
   };
   const PRESETS = () => [
-    { id: 'books12', t: L('١٢ كتاب السنة دي', '12 books this year', '١٢ كتابًا هذا العام'), kind: 'books', n: 12, per: 'year' },
+    { id: 'books12', t: L('هدف كتب السنة', "This year's book goal", 'هدف كتب العام'), kind: 'books', n: 12, per: 'year', yearGoal: true },
     { id: 'authors12', t: L('كاتب جديد كل شهر', 'A new author every month', 'كاتب جديد كل شهر'), kind: 'authors', n: 12, per: 'year' },
     { id: 'pages1000', t: L('١٠٠٠ صفحة الشهر ده', '1,000 pages this month', '١٠٠٠ صفحة هذا الشهر'), kind: 'pages', n: 1000, per: 'month' },
     { id: 'days30', t: L('٣٠ يوم قراية الشهر ده', '30 reading days this month', '٣٠ يومًا من القراءة هذا الشهر'), kind: 'days', n: 30, per: 'month' },
@@ -327,13 +327,21 @@
     const K = KINDS[c.kind];
     const inner = `<span class="wm-c-ic">${icon(ok ? 'check' : K.ic)}</span><span class="wm-c-b"><b dir="auto">${esc(titleOf(c))}</b>${V.bar(p / n, ok ? 'jade' : 'gold')}<small><span class="wm-c-n">${L(`${L.num(Math.min(p, 999999))} من ${K.unit(n)}`, `${p} of ${K.unit(n)}`, `${L.num(Math.min(p, 999999))} من ${K.unit(n)}`)}</span> • ${ok ? `<span class="jade-t">${L('خلّصته! 🎉', 'Done! 🎉', 'أنجزته! 🎉')}</span>` : esc(when(c))}</small></span>`;
     return mine && D.canWrite()
-      ? `<button class="wm-c${ok ? ' done' : ''}" data-act="wm-ch" data-id="${esc(c.id)}">${inner}${icon('more')}</button>`
+      ? `<button class="wm-c${ok ? ' done' : ''}" data-act="${c.year ? 'set-goal' : 'wm-ch'}" data-id="${esc(c.id)}">${inner}${icon(c.year ? 'edit' : 'more')}</button>`
       : `<div class="wm-c${ok ? ' done' : ''}" data-id="${esc(c.id)}">${inner}</div>`;
   }
+  /* The year's book goal (set on «مكتبتي» too) is the first of my challenges. */
+  const yearGoal = (uid) => {
+    const y = U.today().slice(0, 4);
+    const m = S.members.get(uid) || {};
+    const n = (m.goal && +m.goal[y]) || 0;
+    return n ? { id: 'year-goal', year: true, kind: 'books', n, from: y + '-01-01', to: y + '-12-31', t: L(`تحدي ${L.num(+y, { useGrouping: false })}: ${L.count(n, 'book')}`, `${y} challenge: ${n} books`, `تحدي ${L.num(+y, { useGrouping: false })}: ${L.count(n, 'book')}`) } : null;
+  };
   function challengesCard(ctx) {
     const t = U.today();
-    const all = chList(ctx.uid);
-    const live = all.filter((c) => c.to >= t).sort((a, b) => String(a.to).localeCompare(String(b.to)));
+    const yg = yearGoal(ctx.uid);
+    const all = (yg ? [yg] : []).concat(chList(ctx.uid));
+    const live = all.filter((c) => c.to >= t).sort((a, b) => (b.year ? 1 : 0) - (a.year ? 1 : 0) || String(a.to).localeCompare(String(b.to)));
     if (!ctx.mine) {
       const act = live.filter((c) => c.from <= t);
       if (!act.length) return '';
@@ -392,6 +400,11 @@
           const b = e.target.closest('[data-preset]');
           if (!b) return;
           const p = PRESETS().find((x) => x.id === b.dataset.preset);
+          if (p.yearGoal) {
+            // the year's book goal is one number, kept with the shelf: set it there
+            api.close();
+            return V.actions['set-goal']();
+          }
           pre = p.id;
           $('#wm-ch-t').value = p.t;
           $('#wm-ch-kind').value = p.kind;

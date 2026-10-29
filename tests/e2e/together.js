@@ -84,11 +84,11 @@ const closeAll = async (p) => {
     await step('«قراية الحلقة النهارده»: one of two, then the whole circle', async () => {
       await a.evaluate(() => window.A.D.addPagesToday(4));
       await a.evaluate(() => window.A.V.go('circle'));
-      await until(a, 'today card', () => /١ من ٢/.test((document.querySelector('.together-today') || {}).textContent || ''));
+      await until(a, 'today line', () => /١ من ٢/.test((document.querySelector('.cweek .cw-today') || {}).textContent || ''));
       await b.evaluate(() => window.A.D.addPagesToday(2));
-      await until(a, 'full', () => document.querySelector('.together-today.full'));
-      const t = await a.$eval('.together-today', (e) => e.textContent);
-      assert(/الحلقة كاملة النهارده/.test(t), 'no full-circle line: ' + t);
+      await until(a, 'full', () => document.querySelector('.cweek.full'));
+      const t = await a.$eval('.cweek', (e) => e.textContent);
+      assert(/الحلقة كاملة/.test(t) && /الحلقة الأسبوع ده/.test(t), 'no full-circle line: ' + t);
       await closeAll(a);
     });
 
@@ -121,7 +121,8 @@ const closeAll = async (p) => {
       await a.evaluate(() => window.A.V.circleRecap(window.A.U.weekStart()));
       await a.waitForSelector('.circle-recap');
       const t = await a.$eval('.circle-recap', (e) => e.textContent);
-      assert(/٦/.test(t) && /أحمد/.test(t) && /بسمة/.test(t), 'pages/members missing: ' + t.slice(0, 200));
+      // 6 pages read in the app, and portion 1 marked done without reading it here: its pages count too
+      assert(/أحمد/.test(t) && /بسمة/.test(t) && /برّه التطبيق/.test(t), 'pages/members missing: ' + t.slice(0, 300));
       assert(/جملة الأسبوع/.test(t), 'best note missing');
       assert(/ليه البطل/.test(t), 'open question missing');
       const rows = await a.$$eval('.cr-rows li', (x) => x.map((e) => e.textContent.replace(/\s+/g, ' ').trim()));
@@ -168,9 +169,9 @@ const closeAll = async (p) => {
         window.A.L.set('en');
         window.A.V.go('circle');
       });
-      await a.waitForSelector('.together-today');
-      const t = await a.$eval('.together-today', (e) => e.textContent);
-      assert(/whole circle read today/i.test(t), 'English: ' + t);
+      await a.waitForSelector('.cweek');
+      const t = await a.$eval('.cweek', (e) => e.textContent);
+      assert(/The circle this week/.test(t), 'English: ' + t);
       const errs = [...(a.__errors || []), ...(b.__errors || [])].filter((e) => !/favicon|fonts|404/.test(e));
       assert(!errs.length, errs.slice(0, 4).join('\n'));
     });

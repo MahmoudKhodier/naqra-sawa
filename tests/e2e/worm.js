@@ -289,11 +289,16 @@ const toastText = (page) => page.$$eval('#toasts .toast', (x) => x.map((t) => t.
       await p.waitForSelector('#wm-ch');
       assert(/تحديات بتعملها لنفسك/.test(await p.textContent('#wm-ch')), 'empty card text');
       await closeSheets(p);
-      for (const id of ['books12', 'authors12', 'pages1000', 'days30']) {
+      for (const id of ['authors12', 'pages1000', 'days30']) {
         await newChallenge(async () => {
           await p.click(`[data-preset="${id}"]`);
         });
       }
+      await newChallenge(async () => {
+        await p.selectOption('#wm-ch-kind', 'books');
+        await p.fill('#wm-ch-n', '12');
+        await p.selectOption('#wm-ch-per', 'year');
+      });
       await newChallenge(async () => {
         await p.selectOption('#wm-ch-kind', 'tag');
         await p.selectOption('#wm-ch-tag', 'novel');
@@ -303,7 +308,7 @@ const toastText = (page) => page.$$eval('#toasts .toast', (x) => x.map((t) => t.
       const cs = await p.evaluate(() => window.A.S.members.get(window.A.S.me).challenges);
       assert(cs.length === 5, 'saved: ' + JSON.stringify(cs));
       const b12 = cs.find((c) => c.kind === 'books');
-      assert(b12.n === 12 && b12.from === YEAR + '-01-01' && b12.to === YEAR + '-12-31' && b12.pre === 'books12' && !b12.t, 'preset: ' + JSON.stringify(b12));
+      assert(b12.n === 12 && b12.from === YEAR + '-01-01' && b12.to === YEAR + '-12-31', 'books challenge: ' + JSON.stringify(b12));
       const pg = cs.find((c) => c.kind === 'pages');
       assert(pg.from === MONTH1 && pg.n === 1000, 'month preset: ' + JSON.stringify(pg));
       const want = {
