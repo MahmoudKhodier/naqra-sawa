@@ -73,6 +73,7 @@
         <span class="ss-n"><b>${L.num(pagesTotal)}</b><small>${L('صفحة', 'pages')}</small></span>
         <span class="ss-n"><b>${L.num(all.filter((x) => x.together).length)}</b><small>${L('مع الحلقة', 'together')}</small></span>
       </button>
+      ${V.sections('shelf', { uid, mine, all })}
       <nav class="tabs" role="tablist">${Object.entries(STATUS).map(([k, t]) => `<button role="tab" class="tab${k === tab ? ' on' : ''}" aria-selected="${k === tab}" data-act="shelf-tab" data-st="${k}" data-uid="${esc(uid)}"><span>${L(...t)}</span><small>${L.num(counts[k] || 0)}</small></button>`).join('')}</nav>
       ${tools}
       ${list.length ? shelfRows(list) : q ? V.empty(L('مفيش كتاب بالاسم ده', 'No book matches', 'لا يوجد كتاب بهذا الاسم'), L('جرّب كلمة تانية من العنوان أو اسم المؤلف.', 'Try another word from the title or the author.', 'جرّب كلمة أخرى من العنوان أو اسم المؤلف.')) : V.empty(tab === 'read' ? L('الرف فاضي', 'This shelf is empty', 'الرف فارغ') : L('مفيش حاجة هنا لسه', 'Nothing here yet', 'لا شيء هنا بعد'), mine ? L('ضيف الكتب اللي قريتها قبل كده — كل كتاب بـ ١٠ XP، والرأي بـ ٥ زيادة. عندك حساب Goodreads؟ هات مكتبتك كلها مرة واحدة.', 'Add books you have read before — 10 XP each, plus 5 for a review. On Goodreads? Bring your whole library at once.', 'أضف الكتب التي قرأتها من قبل — لكل كتاب ١٠ XP، وللرأي ٥ إضافية. لديك حساب Goodreads؟ اجلب مكتبتك كلها دفعة واحدة.') : '', mine && D.canWrite() ? `<div class="row-btns center"><button class="btn gold" data-act="bulk-shelf">${icon('list')}${L('ضيف كذا كتاب مرة واحدة', 'Add several at once', 'أضف عدة كتب دفعة واحدة')}</button><button class="btn ghost" data-act="import-shelf">${icon('download')}${L('استورد من Goodreads', 'Import from Goodreads')}</button></div>` : '')}
@@ -117,6 +118,7 @@
     V.menu([
       { ic: 'list', t: L('ضيف كذا كتاب مرة واحدة', 'Add many at once', 'أضف عدة كتب دفعة واحدة'), fn: () => V.bulkShelf() },
       { ic: 'download', t: L('استورد من Goodreads', 'Import from Goodreads'), fn: () => V.importShelf() },
+      ...V.menuItems('shelf', { uid: S.me }),
     ]);
   V.actions['shelf-item'] = (a) => {
     const uid = (V.state.opts && V.state.opts.uid) || S.me;

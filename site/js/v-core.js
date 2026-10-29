@@ -39,6 +39,34 @@
 
   /* ---------- routing ---------- */
   const ROUTES = ['home', 'books', 'shelf', 'circle', 'me', 'settings'];
+  /* Extension points, so a feature can live in a file of its own:
+     V.addRoute('quotes', 'me')            a screen (V.screens.quotes) whose tab in the bottom bar is «أنا»;
+     V.addSection('me', {order, render})   a block on a screen: render(ctx) returns HTML ('' to skip);
+     V.addMenu('shelf', (ctx) => item)     an entry in a ⋯ menu ({ic, t, fn} or null). */
+  V.routes = ROUTES;
+  V.navParent = {};
+  V.addRoute = (name, parent) => {
+    if (!ROUTES.includes(name)) ROUTES.push(name);
+    if (parent) V.navParent[name] = parent;
+  };
+  const sections = {};
+  V.addSection = (where, sec) => (sections[where] = sections[where] || []).push(Object.assign({ order: 50 }, sec));
+  V.sections = (where, ctx) =>
+    (sections[where] || [])
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .map((s) => {
+        try {
+          return s.render(ctx) || '';
+        } catch (e) {
+          console.error(where, e);
+          return '';
+        }
+      })
+      .join('');
+  const menus = {};
+  V.addMenu = (where, fn) => (menus[where] = menus[where] || []).push(fn);
+  V.menuItems = (where, ctx) => (menus[where] || []).map((fn) => fn(ctx)).filter(Boolean);
   /* Avatar marks people can pick (onboarding shows the first 16; Settings shows all). */
   V.EMOJI = [
     '📚', '🦉', '🌙', '🌿', '☕', '🐢', '🦊', '⭐',
@@ -255,7 +283,7 @@
   V.nav = () => nav();
   function nav() {
     const el = document.getElementById('nav');
-    const r = V.state.route.startsWith('book-') ? 'books' : V.state.route;
+    const r = V.state.route.startsWith('book-') ? 'books' : V.navParent[V.state.route] || V.state.route;
     const pokes = V.newPokes();
     const unreadCircle = V.unread('_c', 'gen');
     const item = (id, ic, label, badge = 0) =>

@@ -178,6 +178,7 @@
         <div class="stile">${icon('check')}<b>${L.num(s.wirdsDone)}</b><small>${L('ورد خلص', 'portions done', 'ورد منجز')}</small></div>
         <div class="stile">${icon('heart')}<b>${L.num(s.likesRecv)}</b><small>${L('إعجاب', 'likes received')}</small></div>
       </section>
+      ${V.sections('me', { uid, mine, s })}
       <section class="card">
         <header class="sec-h"><h2>${L('الأوسمة', 'Badges')}</h2><small class="muted">${L.num(s.badgeCount)} / ${L.num(G.BADGES.length)}</small></header>
         <div class="badges">${G.badgeGroups(s).map((grp) => V.badgeCard(grp, uid)).join('')}</div>
