@@ -428,6 +428,8 @@
     if (!f || f.diff == null) return '';
     if (f.diff > 0) return L(`قبل الخطة ${G.byDays(f.diff)}`, `${G.byDays(f.diff)} ahead of the plan`, `قبل الخطة ${G.byDays(f.diff)}`);
     if (f.diff === 0) return L('في ميعاد الخطة بالظبط', 'right on the plan', 'في موعد الخطة تمامًا');
+    // far behind: just the way back, no count of days
+    if (f.diff < -28) return L(`${L.count(f.catchUp, 'page')} في اليوم تلحقك بالخطة`, `${f.catchUp} pages a day gets you back on the plan`, `${L.count(f.catchUp, 'page')} في اليوم تكفي لتلحق بالخطة`);
     return L(`متأخر عن الخطة ${G.byDays(f.diff)} — ${L.count(f.catchUp, 'page')} في اليوم تلحقك`, `${G.byDays(f.diff)} behind the plan — ${f.catchUp} pages a day gets you there`, `متأخر عن الخطة ${G.byDays(f.diff)} — ${L.count(f.catchUp, 'page')} في اليوم تكفي لتلحق`);
   };
 

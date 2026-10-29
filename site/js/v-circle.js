@@ -171,7 +171,9 @@
         </div>
       </header>
       <section class="stat-tiles">
-        <div class="stile flame ${s.streak ? (s.atRisk ? 'risk' : 'hot') : ''}">${icon('flame')}<b>${L.num(s.streak)}</b><small>${L('أيام ورا بعض', 'day streak', 'أيام متتالية')} • ${L('الأحسن', 'best', 'الأفضل')} ${L.num(s.best)}${s.freezes ? ` • ${L(`حماية ×${L.num(s.freezes)}`, `${s.freezes} freeze`)}` : ''}</small></div>
+        ${G.streakPref && G.streakPref(uid).mode === 'week'
+          ? `<div class="stile flame ${s.weekStreak ? (s.weekAtRisk ? 'risk' : 'hot') : ''}">${icon('flame')}<b>${L.num(s.weekStreak)}</b><small>${L('أسابيع ورا بعض', 'week streak', 'أسابيع متتالية')} • ${L('الأحسن', 'best', 'الأفضل')} ${L.num(s.bestWeekStreak)}</small></div>`
+          : `<div class="stile flame ${s.streak ? (s.atRisk ? 'risk' : 'hot') : ''}">${icon('flame')}<b>${L.num(s.streak)}</b><small>${L('أيام ورا بعض', 'day streak', 'أيام متتالية')} • ${L('الأحسن', 'best', 'الأفضل')} ${L.num(s.best)}${s.freezes ? ` • ${L(`حماية ×${L.num(s.freezes)}`, `${s.freezes} freeze`)}` : ''}</small></div>`}
         <div class="stile">${icon('clock')}<b>${L.duration ? esc(L.duration(s.secs)) : ''}</b><small>${L('وقت القراية', 'time reading', 'وقت القراءة')}${s.secsWeek ? ` • ${L('الأسبوع ده', 'this week', 'هذا الأسبوع')} ${esc(L.duration(s.secsWeek))}` : ''}</small></div>
         <div class="stile">${icon('bolt')}<b>${L.num(s.xp)}</b><small>XP • ${L('الأسبوع ده', 'this week', 'هذا الأسبوع')} ${L.num(s.week)}</small></div>
         <div class="stile">${icon('scroll')}<b>${L.num(s.pages)}</b><small>${L('صفحة', 'pages')}</small></div>
@@ -255,6 +257,7 @@
       <div class="set-row sub"><span>${L('لون خط «وقفت هنا»', 'Colour of the «stopped here» line')}</span><div class="seg sm swatches">${[['green', 'var(--jade)', L('أخضر', 'Green')], ['gold', 'var(--gold)', L('دهبي', 'Gold', 'ذهبي')], ['red', 'var(--rubric)', L('أحمر', 'Red')], ['blue', 'var(--lapis)', L('أزرق', 'Blue')]].map(([k, c, t]) => `<button class="${R.lineColor() === k ? 'on' : ''}" data-act="rd-linecolor" data-v="${k}" aria-pressed="${R.lineColor() === k}" aria-label="${t}" title="${t}"><i style="--c:${c}"></i></button>`).join('')}</div></div>` : ''}
       ${native ? `<div class="set-row"><span>${icon('swap')}${L('اتجاه القراية', 'Reading orientation', 'اتجاه القراءة')}</span>${seg('rd-orient', R.orientPref(), [['auto', L('حسب الموبايل', 'Follow phone', 'حسب الهاتف')], ['portrait', L('بالطول', 'Upright', 'عمودي')], ['landscape', L('بالعرض', 'Sideways', 'أفقي')]])}</div>` : ''}
       <div class="set-row"><span>${icon('swap')}<span>${L('اقترح القراية بالعرض', 'Suggest reading sideways', 'اقترح القراءة الأفقية')}<small class="muted">${L('تلميح صغير لما تفتح الكتاب والموبايل بالطول', 'A small hint when you open a book upright', 'تلميح صغير عندما تفتح الكتاب والهاتف في الوضع العمودي')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdask" ${R.orientAsk() ? 'checked' : ''}><i></i></label></div>
+      <div class="set-row"><span>${icon('clock')}<span>${L('اقترح قعدة تركيز', 'Suggest a focus session', 'اقترح جلسة تركيز')}<small class="muted">${L('مرة في اليوم لما تفتح كتاب', 'Once a day when you open a book', 'مرة في اليوم عند فتح كتاب')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdfocus" ${R.focusAsk && R.focusAsk() ? 'checked' : ''}><i></i></label></div>
       <div class="set-row"><span>${icon('swap')}<span>${L('مكان الأدوات لما الموبايل بالعرض', 'Tools side when the phone is sideways', 'مكان الأدوات عندما يكون الهاتف أفقيًا')}<small class="muted">${L('القلم والملاحظة وشريط الصفحات', 'Highlight, note and the page slider')}</small></span></span>${seg('rd-tools', R.toolsSide(), [['right', L('يمين', 'Right')], ['left', L('شمال', 'Left', 'يسار')]])}</div>
       <div class="set-row"><span>${icon('eye')}<span>${L('الإضافات على الصفحات', 'Highlights and notes on pages')}<small class="muted">${L('تقدر تغيّرها كمان من زرار العين في القارئ', 'Also from the eye button in the reader', 'يمكنك تغييرها أيضًا من زر العين في القارئ')}</small></span></span>${seg('rd-marks', R.marksPref(), [['all', L('الكل', 'Everyone')], ['mine', L('بتاعتي', 'Mine', 'إضافاتي')], ['none', L('ولا حاجة', 'None', 'لا شيء')]])}</div>
       <div class="set-row"><span>${icon('scroll')}${L('التقليب', 'Page turning')}</span>${seg('rd-paged', paged ? 'page' : 'scroll', [['page', L('صفحة صفحة', 'Page by page', 'صفحة بصفحة')], ['scroll', L('متواصل', 'Continuous')]])}</div>
@@ -334,6 +337,7 @@
     if (e.target.id === 'set-rdfull') U.store.set('rdFull', e.target.checked);
     if (e.target.id === 'set-rdbook') A.R.setBookLook(e.target.checked);
     if (e.target.id === 'set-rdask') U.store.set('rdOrientAsk', e.target.checked);
+    if (e.target.id === 'set-rdfocus') U.store.set('rdFocusAsk', e.target.checked);
     if (e.target.id === 'set-haptics') {
       U.store.set('haptics', e.target.checked);
       if (e.target.checked) U.buzz('ok');

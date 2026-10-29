@@ -103,27 +103,54 @@
   }
 
   /* ---------- firsts: celebrated once, across devices (my private doc: firsts {key: day}) ---------- */
-  const thisMonth = () => U.today().slice(0, 7);
+  /* Each first knows the day it happened (''= not yet), so something that happened before the feature first ran
+     on this account (or arrives late from another device) is marked seen quietly instead of celebrated. */
   const privNotes = () => Object.values((S.priv && S.priv.notes) || {}).filter(Boolean);
-  const myProgs = () => [...S.myProg.values()];
+  const myProgs = () => [...S.prog.values()].filter((p) => p.u === S.me).concat([...S.myProg.values()]);
+  const earliest = (list) => list.filter((t) => typeof t === 'string' && t).map((t) => (t.length === 10 ? t : U.isoKey(t))).sort()[0] || '';
+  const myDays = () => {
+    const d = (S.members.get(S.me) || {}).days || {};
+    return Object.keys(d).filter((k) => +d[k] > 0 && k <= U.today()).sort().map((k) => [k, +d[k]]);
+  };
   const FIRSTS = [
-    { k: 'pages10', ic: 'scroll', ok: (s) => s.pages >= 10,
+    { k: 'pages10', ic: 'scroll',
+      at: () => {
+        let n = 0;
+        for (const [k, v] of myDays()) if ((n += v) >= 10) return k;
+        return '';
+      },
       t: ['أول ١٠ صفحات!', 'Your first 10 pages!'],
       p: ['دي أول ١٠ صفحات تقراها هنا. البداية دايمًا أصعب حاجة، وإنت عدّيتها.', "The first ten pages are the hardest part. You're past them.", 'هذه أول ١٠ صفحات تقرؤها هنا. البداية أصعب ما في الأمر، وقد تجاوزتها.'] },
-    { k: 'wird', ic: 'check', ok: (s) => s.wirdsDone >= 1 || myProgs().some((p) => p.done && Object.values(p.done).some(Boolean)),
+    { k: 'wird', ic: 'check', at: () => earliest(myProgs().flatMap((p) => Object.values(p.done || {}))),
       t: ['أول ورد خلّصته!', 'Your first portion done!', 'أول ورد أنهيته!'],
       p: ['ورد كامل من أوله لآخره. كده العادة بتتبني.', "A whole portion, start to finish. That's how a habit is built.", 'ورد كامل من أوله إلى آخره. هكذا تُبنى العادة.'] },
     { k: 'book', ic: 'trophy',
-      ok: (s) => s.booksDone >= 1 || myProgs().some((p) => p.finished) || Object.values(((S.shelf.get(S.me) || {}).items) || {}).some((it) => it && it.status === 'read' && !it.src && String(it.finished || '') === thisMonth()),
+      at: () => {
+        const month = U.today().slice(0, 7);
+        const shelf = Object.values(((S.shelf.get(S.me) || {}).items) || {}).filter((it) => it && it.status === 'read' && !it.src && !it.together && String(it.finished || '') === month);
+        return earliest([...myProgs().map((p) => p.finished), ...shelf.map((it) => it.updatedAt || it.at)]);
+      },
       t: ['أول كتاب تخلّصه هنا!', 'Your first finished book!', 'أول كتاب تنهيه هنا!'],
       p: ['كتاب كامل! ده إنجاز بجد.', "A whole book! That's a real achievement.", 'كتاب كامل! هذا إنجاز حقيقي.'] },
-    { k: 'streak7', ic: 'flame', ok: (s) => s.best >= 7,
+    { k: 'streak7', ic: 'flame',
+      // the first 7 days in a row can't lean on a freeze (the first freeze comes with them)
+      at: () => {
+        const act = [...G.of(S.me).active].filter((d) => d <= U.today()).sort();
+        let run = 0, prev = '';
+        for (const d of act) {
+          run = prev && U.addDays(prev, 1) === d ? run + 1 : 1;
+          prev = d;
+          if (run >= 7) return d;
+        }
+        return '';
+      },
       t: ['أول ٧ أيام ورا بعض!', 'Your first 7-day streak!', 'أول ٧ أيام متتالية!'],
       p: ['أسبوع كامل من غير ما تقطع — وكسبت «حماية» للسلسلة كمان.', 'A whole week without a break — and you earned a streak freeze too.', 'أسبوع كامل بلا انقطاع — وكسبت «حماية» للسلسلة أيضًا.'] },
-    { k: 'quote', ic: 'quote', ok: (s) => s.quotes >= 1 || privNotes().some((n) => n.kind === 'quote'),
+    { k: 'quote', ic: 'quote',
+      at: () => earliest([...[...S.notes.values()].filter((n) => n.by === S.me && n.kind === 'quote'), ...privNotes().filter((n) => n.kind === 'quote')].map((n) => n.at || U.nowIso())),
       t: ['أول اقتباس!', 'Your first quote!'],
       p: ['جملة عجبتك وحفظتها. هترجعلها وقت ما تحب.', 'A line you loved, saved for whenever you want it again.', 'جملة أعجبتك وحفظتها. ستعود إليها متى شئت.'] },
-    { k: 'cheer', ic: 'clap', ok: (s) => s.cheers >= 1,
+    { k: 'cheer', ic: 'clap', at: () => earliest([...S.pokes.values()].filter((x) => x.from === S.me).map((x) => x.at)),
       t: ['أول تشجيع منك!', 'Your first cheer!'],
       p: ['كلمة حلوة بتفرق مع صحابك أكتر ما تتخيل.', 'A kind word means more to friends than you would think.', 'الكلمة الطيبة تصنع فرقًا لدى أصدقائك أكثر مما تتخيل.'] },
   ];
@@ -134,24 +161,29 @@
   const queue = [];
 
   function firstsCheck() {
-    const s = G.of(S.me);
     const have = S.priv && S.priv.firsts;
+    const today = U.today();
     if (!have) {
       // First run since this shipped: whatever is already achieved counts as seen, without a party.
       if (initDone) return;
       initDone = true;
-      const today = U.today();
       const seen = { _since: today };
-      for (const f of FIRSTS) if (f.ok(s)) seen[f.k] = today;
+      for (const f of FIRSTS) if (f.at()) seen[f.k] = today;
       D.privUpdate((cur) => Object.assign(cur, { firsts: Object.assign(seen, cur.firsts || {}) })).catch(() => (initDone = false));
       for (const k of Object.keys(seen)) shown.add(k);
       return;
     }
+    const since = have._since || today;
+    const quiet = {};
     for (const f of FIRSTS) {
-      if (have[f.k] || shown.has(f.k) || !f.ok(s)) continue;
+      if (have[f.k] || shown.has(f.k)) continue;
+      const at = f.at();
+      if (!at) continue;
       shown.add(f.k);
-      queue.push(Object.assign({ seenAt: Date.now() }, f));
+      if (at < since) quiet[f.k] = today; // history that showed up late
+      else queue.push(Object.assign({ seenAt: Date.now() }, f));
     }
+    if (Object.keys(quiet).length) D.privUpdate((cur) => Object.assign(cur, { firsts: Object.assign({}, quiet, cur.firsts) })).catch(() => {});
     showNext();
   }
   function showNext() {
@@ -178,7 +210,7 @@
 
   /* ---------- run after every render (wraps V.celebrate) and every few seconds for queued firsts ---------- */
   function tick() {
-    if (!ready()) return;
+    if (Goals.off || !ready()) return; // tests of other things switch these celebrations off
     try {
       Goals.evalGoal().catch((e) => console.warn('goal', e));
       goalCheck();

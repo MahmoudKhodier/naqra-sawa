@@ -144,6 +144,7 @@ const toastText = (page) => page.$$eval('#toasts .toast', (x) => x.map((t) => t.
         window.__conf = 0;
         window.A.U.confetti = () => window.__conf++;
         window.A.V.levelUp = () => {};
+        if (window.A.Goals) window.A.Goals.off = true; // firsts and the daily goal have their own test (goals.js)
       });
       ctx.joined = true;
     });

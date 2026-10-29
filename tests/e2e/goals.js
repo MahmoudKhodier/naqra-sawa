@@ -173,11 +173,12 @@ const setDays = (p, map, extra) =>
       assert(JSON.stringify(n) === JSON.stringify([10, 0, '٥ ساعات', '٤ ساعات ونص', '٧ دقايق']), 'helpers: ' + JSON.stringify(n));
     });
 
-    await step('Forecast: behind the plan, with the pages a day that catch up; the first 10 pages celebrate once', async () => {
+    await step('Forecast: behind the plan, with the pages a day that catch up (earlier days are history: no party)', async () => {
       await setDays(p, { '-1': 3, '-3': 3, '-5': 3, '-7': 3, '-9': 3, '-11': 3, '-13': 3 });
       await until(p, 'days in', () => window.A.G.of(window.A.S.me).pages === 21);
+      await until(p, 'marked quietly', () => !!window.A.S.priv.firsts.pages10);
       const f = await drain(p);
-      assert(JSON.stringify(f) === '["pages10"]', 'firsts: ' + JSON.stringify(f));
+      assert(!f.length, 'history celebrated: ' + JSON.stringify(f));
       await go(p, 'home');
       const want = await p.evaluate(() => 'على السرعة دي هتخلّص الكتاب يوم ' + window.A.L.dayShort(window.A.U.addDays(window.A.U.today(), 24)));
       const fc = await text(p, '.hero .fcast');
@@ -208,6 +209,9 @@ const setDays = (p, map, extra) =>
       assert(en.includes("At this pace you'll finish the book on") && en.includes('2 days ahead of the plan'), 'English: ' + en);
       const ent = await text(p, '.bp-time');
       assert(ent.includes('The whole book takes about 50 minutes'), 'English time: ' + ent);
+      await lang(p, 'ar');
+      const ar = await text(p, '.bp-fc');
+      assert(ar.includes('بهذه السرعة ستنهي الكتاب يوم') && ar.includes('قبل الخطة بيومين'), 'فصحى: ' + ar);
       await lang(p, 'eg');
       return fc;
     });
@@ -244,7 +248,7 @@ const setDays = (p, map, extra) =>
 
     await step('The goal grows after 5 of 7 days, waits a week, and eases after a bad week; 7 days in a row celebrate once', async () => {
       const ago = (n) => p.evaluate((n) => window.A.U.addDays(window.A.U.today(), n), n);
-      await setDays(p, { 0: 6, '-1': 6, '-2': 6, '-3': 2, '-4': 6, '-5': 6, '-6': 6, '-7': 1 }, { goalDaily: { auto: true, pages: 5, at: await ago(-7) } });
+      await setDays(p, { 0: 6, '-1': 6, '-2': 6, '-3': 2, '-4': 6, '-5': 6, '-6': 6, '-7': 0 }, { goalDaily: { auto: true, pages: 5, at: await ago(-7) } });
       await until(p, 'days in', () => window.A.G.of(window.A.S.me).best >= 7);
       const up = await p.evaluate(() => window.A.Goals.evalGoal(true));
       assert(up && up.dir === 'up' && up.pages === 7 && up.hits === 5, 'up: ' + JSON.stringify(up));
@@ -358,7 +362,7 @@ const setDays = (p, map, extra) =>
       assert(f[0] === 'book' && f.filter((x) => x === 'book').length === 1, 'book: ' + JSON.stringify(f));
     });
 
-    await step('A friend joins; their history does not celebrate on the first run', async () => {
+    await step('A friend joins: 10 pages today celebrate once; history does not celebrate on the first run', async () => {
       const cid = await p.evaluate(() => window.A.P.circle().id);
       code = (await env.fake.sql('select invite_code from public.circles where id = $1', [cid]))[0].invite_code;
       site = env.siteUrl.replace(/\/?$/, '/');
@@ -369,6 +373,13 @@ const setDays = (p, map, extra) =>
       await q.click('#join-form button[type=submit]');
       await q.waitForSelector('.shell #screen .home', { timeout: 15000 });
       await until(q, 'firsts initialised', () => !!(window.A.S.priv && window.A.S.priv.firsts));
+      // reading 12 pages today: the first 10 pages celebrate, once
+      await q.evaluate(() => window.A.D.addPagesToday(12, 600));
+      let f = await drain(q);
+      assert(JSON.stringify(f) === '["pages10"]', 'pages10: ' + JSON.stringify(f));
+      await q.evaluate(() => window.A.D.addPagesToday(3, 60));
+      f = await drain(q);
+      assert(!f.length, 'again: ' + JSON.stringify(f));
       // As if this person used the app before firsts existed: pause, build history, forget the firsts, reopen.
       await q.evaluate(async () => {
         const { D, S, U } = window.A;
@@ -385,7 +396,7 @@ const setDays = (p, map, extra) =>
       await q.reload({ waitUntil: 'load' });
       await q.waitForSelector('.shell #screen .home', { timeout: 15000 });
       await until(q, 'firsts marked', () => !!(window.A.S.priv && window.A.S.priv.firsts && window.A.S.priv.firsts.pages10 && window.A.S.priv.firsts.cheer));
-      const f = await drain(q, 3500);
+      f = await drain(q, 3500);
       assert(!f.length, 'history celebrated: ' + f);
       await drain(p);
     });

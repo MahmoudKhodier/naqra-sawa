@@ -101,7 +101,7 @@
     const head = (lines) => `<div class="hero-top">
         <button class="hero-cover" data-go="book-${esc(b.id)}" aria-label="${L('صفحة الكتاب', 'Book page')}">${V.cover(b, 'hero')}</button>
         <div class="hero-info">
-          <span class="tag">${L('بنقراه سوا', 'Reading together', 'نقرؤه معًا')}${pct ? ` • ${L.num(pct)}${L.isAr() ? '٪' : '%'}` : ''}</span>
+          <span class="tag">${L('بنقراه سوا', 'Reading together', 'نقرؤه معًا')}${pct ? `<span class="tag-pct">${L.num(pct)}${L.isAr() ? '٪' : '%'}</span>` : ''}</span>
           <h2 class="book-t" dir="auto"><button data-go="book-${esc(b.id)}">${esc(b.title)}</button></h2>
           ${lines}
         </div>
