@@ -42,6 +42,7 @@
       <div class="home-main">
         ${A.Upd ? A.Upd.banner() : ''}
         ${pokesBlock()}
+        ${V.sections('home', { primary, reading })}
         ${primary ? heroCard(primary) : noBooks()}
         ${primary ? raceCard(primary) : ''}
         ${others.length ? otherBooks(others) : ''}
@@ -49,6 +50,7 @@
       <div class="home-side">
         ${V.startChecklist ? V.startChecklist() : ''}
         ${D.canWrite() ? homeCards() : ''}
+        ${V.sections('home-side', { primary, reading })}
       </div>
     </div>`;
   };
