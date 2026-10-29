@@ -215,6 +215,92 @@ const items = (p) => p.evaluate(() => Object.values((window.A.S.shelf.get(window
       await closeSheets(p);
     }, ['imported']);
 
+    await step('A big library (1,500 books): pages as you scroll, years, letters, filters', async () => {
+      await q.evaluate(async () => {
+        const { D, S, U } = window.A;
+        const t = U.nowIso();
+        const items = {};
+        const tags = ['novel', 'history', 'philo'];
+        for (let i = 0; i < 1500; i++) {
+          const y = 2026 - (i % 6);
+          items['big' + i] = { title: (i % 2 ? 'Book ' : 'كتاب ') + String(i).padStart(4, '0'), author: 'Author ' + (i % 40), status: i % 10 === 9 ? 'want' : 'read', rating: i % 6, finished: `${y}-${String(1 + (i % 12)).padStart(2, '0')}`, tags: [tags[i % 3]], lists: i % 7 === 0 ? ['كلاسيكيات'] : [], pages: 100 + (i % 400), review: '', at: t, updatedAt: t };
+        }
+        await D.mutate(`shelf/${S.me}`, () => ({ items }));
+      });
+      const t0 = Date.now();
+      await q.evaluate(() => window.A.V.go('shelf', { st: 'read' }));
+      await q.waitForSelector('.shelf-list li');
+      const ms = Date.now() - t0;
+      const rows = await q.$$eval('.shelf-list li', (x) => x.length);
+      assert(rows <= 100, 'drew ' + rows + ' rows at once');
+      const years = await q.$$eval('.sh-year', (x) => x.map((e) => e.textContent.replace(/\s+/g, ' ').trim()));
+      assert(years.length >= 1 && /٢٠٢٦/.test(years[0]), 'no year groups: ' + years.join(' | '));
+      await q.evaluate(() => document.querySelector('.sh-more').scrollIntoView());
+      await q.waitForFunction(() => document.querySelectorAll('.shelf-list li').length > 100, null, { timeout: 5000 });
+      // sorted by name: a letter index jumps
+      await q.selectOption('#sh-sort', 'title');
+      await q.waitForSelector('.sh-az button');
+      const letters = await q.$$eval('.sh-az button', (x) => x.map((e) => e.textContent));
+      assert(letters.includes('B') && letters.includes('ك'), 'letters: ' + letters.join(''));
+      await q.click('.sh-az button:has-text("ك")');
+      await T(600);
+      const top = await q.evaluate(() => [...document.querySelectorAll('.shelf-list li')].find((li) => li.getBoundingClientRect().top >= 0).textContent);
+      assert(/كتاب/.test(top), 'the jump landed on ' + top.slice(0, 40));
+      // filters: ★5, a tag and one of my shelves
+      await q.click('[data-act="shelf-filter"]');
+      await q.click('.sheet [data-k="rating"][data-v="5"]');
+      await q.click('.sheet [data-k="tag"][data-v="philo"]');
+      await q.click('.sheet [data-apply]');
+      await T(300);
+      const shown = await q.$eval('.sh-active', (e) => e.textContent);
+      const want = await q.evaluate(() => Object.values(window.A.S.shelf.get(window.A.S.me).items).filter((x) => x.status === 'read' && x.rating >= 5 && x.tags.includes('philo')).length);
+      assert(new RegExp(want.toLocaleString('ar-EG')).test(shown) || shown.includes(String(want)), `filter count: ${shown} vs ${want}`);
+      await q.click('.sh-active [data-k="tag"]');
+      await q.click('.sh-active [data-k="rating"]');
+      await q.click('.sh-lists [data-list="كلاسيكيات"]');
+      await T(300);
+      const cls = await q.$eval('.sh-active', (e) => e.textContent);
+      assert(/كلاسيكيات/.test(cls), 'list filter not on: ' + cls);
+      await H.shot(q, 's08-big-library');
+      return `${ms} ms to the first rows; ${rows} rows drawn, ${years.length} years`;
+    }, ['imported']);
+
+    await step('My shelves, didn’t finish, and reading a book again', async () => {
+      await closeSheets(p);
+      await p.evaluate(() => window.A.V.go('shelf', { st: 'read' }));
+      await p.click('.shelf-list li button:has-text("الأيام")');
+      await p.click('.sheet [data-edit]');
+      await p.fill('#sf-list-new', 'أعيده');
+      await p.click('[data-addlist]');
+      await p.click('#sf-form button.btn.gold');
+      await until(p, 'on my shelf «أعيده»', () => Object.values(window.A.S.shelf.get(window.A.S.me).items).some((x) => /الأيام/.test(x.title) && (x.lists || []).includes('أعيده')));
+      // read it again: the old date goes into its history
+      await T(400);
+      await p.click('.shelf-list li button:has-text("الأيام")');
+      await p.click('.sheet [data-reread]');
+      await p.fill('#rr-m', '2026-09');
+      await p.click('#rr-f button.btn.gold');
+      await until(p, 'second read saved', () => Object.values(window.A.S.shelf.get(window.A.S.me).items).some((x) => /الأيام/.test(x.title) && x.finished === '2026-09' && (x.reads || []).length === 1));
+      // reading → didn't finish → back to reading
+      await p.evaluate(async () => window.A.V.saveShelfItem('dnf1', { title: 'كتاب طويل', author: '', status: 'reading', rating: 0, review: '', tags: [], pages: 900 }));
+      await p.evaluate(() => window.A.V.go('shelf', { st: 'reading' }));
+      await T(300);
+      await p.click('.shelf-list li button:has-text("كتاب طويل")');
+      await p.click('[data-move="dnf"]');
+      await until(p, 'dnf', () => window.A.S.shelf.get(window.A.S.me).items.dnf1.status === 'dnf');
+      await p.evaluate(() => window.A.V.go('shelf', { st: 'dnf' }));
+      await p.waitForSelector('.tab.on:has-text("سبته")');
+      // rename and remove a shelf from ⋯ → «رفوفي»
+      await p.click('[data-act="shelf-more"]');
+      await p.click('.mi:has-text("رفوفي")');
+      await p.click('[data-ren="أعيده"]');
+      await p.fill('#ask-v', 'أقرأه تاني');
+      await p.click('#ask-f button');
+      await until(p, 'renamed', () => Object.values(window.A.S.shelf.get(window.A.S.me).items).some((x) => (x.lists || []).includes('أقرأه تاني')) && !Object.values(window.A.S.shelf.get(window.A.S.me).items).some((x) => (x.lists || []).includes('أعيده')));
+      await closeSheets(p);
+      return 'shelf added, renamed; re-read kept 2 dates; dnf tab';
+    }, ['imported']);
+
     await step('Badges: groups two per row, levels, details sheet with how-to and who has it', async () => {
       await p.evaluate(async () => {
         const { D, U } = window.A;
