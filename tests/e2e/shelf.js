@@ -227,6 +227,8 @@ const items = (p) => p.evaluate(() => Object.values((window.A.S.shelf.get(window
         }
         await D.mutate(`shelf/${S.me}`, () => ({ items }));
       });
+      await T(1500);
+      await closeSheets(q); // 1,500 books is a level up: its celebration opens on top
       const t0 = Date.now();
       await q.evaluate(() => window.A.V.go('shelf', { st: 'read' }));
       await q.waitForSelector('.shelf-list li');
@@ -238,6 +240,7 @@ const items = (p) => p.evaluate(() => Object.values((window.A.S.shelf.get(window
       await q.evaluate(() => document.querySelector('.sh-more').scrollIntoView());
       await q.waitForFunction(() => document.querySelectorAll('.shelf-list li').length > 100, null, { timeout: 5000 });
       // sorted by name: a letter index jumps
+      await closeSheets(q);
       await q.selectOption('#sh-sort', 'title');
       await q.waitForSelector('.sh-az button');
       const letters = await q.$$eval('.sh-az button', (x) => x.map((e) => e.textContent));

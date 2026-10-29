@@ -727,7 +727,11 @@
       const leg = st.shelves.get(me);
       const L0 = legacyOf(leg);
       const hasItems = Object.prototype.hasOwnProperty.call(body, 'items');
-      const { items: nextItems, ...other } = body;
+      // Keys other than items are merged into what is there (a write about books never drops e.g. the
+      // Goodreads link); a key set to null is removed.
+      const { items: nextItems, ...given } = body;
+      const other = Object.assign({}, L0.other, given);
+      for (const k of Object.keys(other)) if (other[k] === null) delete other[k];
       if (hasItems && !isObj(nextItems)) throw err('invalid_argument', 'items must be an object');
       const view = shelfView(me);
       const cur = (view && view.items) || {};
