@@ -148,6 +148,8 @@
     root.querySelector('.rd').classList.toggle('land', st.land);
     root.querySelector('.rd').classList.toggle('swap', swapNow());
     root.querySelector('.rd').classList.toggle('booky', R.bookPref());
+    root.querySelector('.rd').dataset.pills = U.store.get('rdPillStyle', 'pill');
+    root.querySelector('.rd').dataset.spine = U.store.get('rdSpine', 'plain');
     st.root = root;
     st.sc = root.querySelector('#rd-scroll');
     st.pagesEl = root.querySelector('#rd-pages');
@@ -432,7 +434,7 @@
     const el = document.createElement('div');
     el.className = 'pg';
     el.dataset.p = p;
-    el.innerHTML = `<div class="pg-blank"><span>${L.num(p)}</span></div><div class="pg-ov" data-p="${p}"></div>`;
+    el.innerHTML = `<div class="pg-blank"><span>${L.num(p)}</span></div><i class="pg-spine" aria-hidden="true"></i><div class="pg-ov" data-p="${p}"></div>`;
     el.rw = 0;
     placeEl(p, el);
     st.pagesEl.appendChild(el);
