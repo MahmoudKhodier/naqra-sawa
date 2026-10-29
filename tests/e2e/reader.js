@@ -869,6 +869,47 @@ async function menu(p, text) {
       return 'hint → sideways → released on close; once a day; Settings default applied';
     }, ['open']);
 
+    await step('Settings for the «وقفت هنا» dots: how many, line colour, only with the bars, off', async () => {
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      if (await p.evaluate(() => window.A.R.isOpen())) {
+        await showBars(p);
+        await p.click('.rd [data-act="close"]');
+        await T(700);
+        for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      }
+      await p.click('[data-go="settings"]');
+      await T(400);
+      await p.click('[data-act="rd-pillshow"][data-v="bars"]');
+      await p.click('[data-act="rd-pillcount"][data-v="20"]');
+      await p.click('[data-act="rd-linecolor"][data-v="red"]');
+      await H.shot(p, 'r14-dot-settings');
+      await p.evaluate((id) => window.A.R.open(id), ctx.book.id);
+      await T(1500);
+      const s1 = await p.evaluate(() => ({ n: document.querySelector('.pg-ov').querySelectorAll('.pill-edge').length, line: document.querySelector('.rd').dataset.line, show: document.querySelector('.rd').dataset.pills }));
+      assert(s1.n === 20 && s1.line === 'red' && s1.show === 'bars', 'settings not applied: ' + JSON.stringify(s1));
+      await showBars(p);
+      await p.click('.rd [data-act="close"]');
+      await T(600);
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await p.click('[data-go="settings"]');
+      await T(300);
+      await p.click('[data-act="rd-pillshow"][data-v="off"]');
+      await p.evaluate((id) => window.A.R.open(id), ctx.book.id);
+      await T(1200);
+      const off = await p.evaluate(() => document.querySelectorAll('.pill-edge').length);
+      assert(off === 0, 'dots still shown when off: ' + off);
+      await showBars(p);
+      await p.click('.rd [data-act="close"]');
+      await T(500);
+      await p.evaluate(() => {
+        const U = window.A.U;
+        U.store.set('rdPillShow', 'always');
+        U.store.set('rdPillCount', 12);
+        U.store.set('rdLineColor', 'green');
+      });
+      return '20 dots, red line, with the bars; off hides them';
+    }, ['open']);
+
     await step('No errors in the console', async () => {
       const errs = p.__errors.filter((e) => !/favicon|fonts|404/.test(e));
       assert(!errs.length, errs.slice(0, 4).join('\n'));

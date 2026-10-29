@@ -1007,6 +1007,11 @@ textarea { resize: vertical; line-height: 1.55; }
 .settings .set-row > span small { font-weight: 400; font-size: .76rem; }
 .settings .set-h { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 1rem; color: var(--lapis); }
 .settings .set-h + .set-row { border-top: 0; }
+.settings .set-row.sub { border-top: 0; padding-top: 2px; padding-inline-start: 30px; }
+.settings .set-row.sub > span { font-weight: 500; color: var(--ink2); font-size: .92rem; }
+.seg.swatches button { min-width: 38px; display: grid; place-items: center; }
+.seg.swatches i { width: 18px; height: 18px; border-radius: 50%; background: var(--c); display: block; }
+.seg.swatches button.on i { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--c); }
 .form.inline .row { display: flex; gap: 8px; margin-bottom: 8px; }
 .switch { position: relative; width: 50px; height: 30px; flex: none; }
 .switch input { position: absolute; opacity: 0; inset: 0; cursor: pointer; z-index: 1; margin: 0; }
@@ -1264,7 +1269,11 @@ textarea { resize: vertical; line-height: 1.55; }
 .rd { --board: #6b3a22; --leaf: #fbfaf5; --leaf-line: #d3cbba; }
 .rd[data-theme="sepia"] { --board: #5c3a1f; --leaf: #f6ecd6; --leaf-line: #c9b994; }
 .rd[data-theme="night"] { --board: #251913; --leaf: #2b2c31; --leaf-line: #16171a; }
-.rd.paged.booky .pg { border-radius: 1px; box-shadow: 0 0 0 1px rgb(0 0 0 / .1), 0 0 0 calc(var(--stack) + 12px) var(--board), 0 16px 36px calc(var(--stack) + 10px) rgb(0 0 0 / .32); }
+.rd.paged.booky .pg { border-radius: 1px; }
+/* The cover board shows on the outer side (with the page edges), top and bottom; the spine side has none,
+   as if the book goes on there. */
+.rd.paged.booky .pg[data-side="r"] { box-shadow: 0 0 0 1px rgb(0 0 0 / .1), calc((var(--stack) + 12px) / 2) 0 0 calc((var(--stack) + 14px) / 2) var(--board), 6px 16px 36px calc(var(--stack) / 2 + 8px) rgb(0 0 0 / .3); }
+.rd.paged.booky .pg[data-side="l"] { box-shadow: 0 0 0 1px rgb(0 0 0 / .1), calc((var(--stack) + 12px) / -2) 0 0 calc((var(--stack) + 14px) / 2) var(--board), -6px 16px 36px calc(var(--stack) / 2 + 8px) rgb(0 0 0 / .3); }
 .rd.paged.booky .pg::before { content: ""; position: absolute; top: 2px; bottom: 2px; width: var(--stack); background: repeating-linear-gradient(90deg, var(--leaf) 0 1px, var(--leaf-line) 1px 2px); pointer-events: none; }
 .rd.paged.booky .pg[data-side="r"]::before { left: 100%; border-radius: 0 3px 3px 0; }
 .rd.paged.booky .pg[data-side="l"]::before { right: 100%; border-radius: 3px 0 0 3px; }
@@ -1272,60 +1281,32 @@ textarea { resize: vertical; line-height: 1.55; }
 .rd.paged.booky .pg[data-side="r"]::after { left: 0; background: linear-gradient(90deg, rgb(0 0 0 / .28), rgb(0 0 0 / .09) 30%, transparent); }
 .rd.paged.booky .pg[data-side="l"]::after { right: 0; background: linear-gradient(270deg, rgb(0 0 0 / .28), rgb(0 0 0 / .09) 30%, transparent); }
 .rd.paged.booky .pg canvas { border-radius: 1px; }
-/* Spine side (no page stack): variants */
-.pg-spine { display: none; position: absolute; top: 0; bottom: 0; pointer-events: none; }
-.rd.paged.booky .pg-spine { display: block; }
-.rd.paged.booky .pg[data-side="r"] .pg-spine { right: 100%; }
-.rd.paged.booky .pg[data-side="l"] .pg-spine { left: 100%; }
-/* fold: a dark binding band on the board along the spine */
-.rd.paged.booky[data-spine="fold"] .pg-spine { width: 14px; top: -12px; bottom: -12px; background: linear-gradient(90deg, #2a140a, #4a2614 45%, #2a140a); box-shadow: inset 0 0 6px rgb(0 0 0 / .5); }
-.rd.paged.booky[data-spine="fold"] .pg[data-side="r"] .pg-spine { border-radius: 6px 0 0 6px; }
-.rd.paged.booky[data-spine="fold"] .pg[data-side="l"] .pg-spine { border-radius: 0 6px 6px 0; }
-/* facing: a sliver of the opposite page curving into the spine */
-.rd.paged.booky[data-spine="facing"] .pg-spine { width: 12px; top: 3px; bottom: 3px; }
-.rd.paged.booky[data-spine="facing"] .pg[data-side="r"] .pg-spine { background: linear-gradient(90deg, color-mix(in srgb, var(--leaf) 92%, #000) 0, var(--leaf) 35%, color-mix(in srgb, var(--leaf) 55%, #000) 100%); border-radius: 10px 0 0 10px / 50% 0 0 50%; }
-.rd.paged.booky[data-spine="facing"] .pg[data-side="l"] .pg-spine { background: linear-gradient(270deg, color-mix(in srgb, var(--leaf) 92%, #000) 0, var(--leaf) 35%, color-mix(in srgb, var(--leaf) 55%, #000) 100%); border-radius: 0 10px 10px 0 / 0 50% 50% 0; }
-/* open: no cover board on the spine side (the book continues there), only the edge of the facing page */
-.rd.paged.booky[data-spine="open"] .pg[data-side="r"] { box-shadow: 0 0 0 1px rgb(0 0 0 / .1), calc((var(--stack) + 12px) / 2) 0 0 calc((var(--stack) + 14px) / 2) var(--board), 6px 16px 36px calc(var(--stack) / 2 + 8px) rgb(0 0 0 / .3); }
-.rd.paged.booky[data-spine="open"] .pg[data-side="l"] { box-shadow: 0 0 0 1px rgb(0 0 0 / .1), calc((var(--stack) + 12px) / -2) 0 0 calc((var(--stack) + 14px) / 2) var(--board), -6px 16px 36px calc(var(--stack) / 2 + 8px) rgb(0 0 0 / .3); }
-.rd.paged.booky[data-spine="open"] .pg-spine { width: 10px; top: 4px; bottom: 4px; }
-.rd.paged.booky[data-spine="open"] .pg[data-side="r"] .pg-spine { background: linear-gradient(90deg, color-mix(in srgb, var(--leaf) 80%, #000), var(--leaf) 55%, color-mix(in srgb, var(--leaf) 60%, #000)); border-radius: 12px 0 0 12px / 50% 0 0 50%; box-shadow: -2px 0 4px rgb(0 0 0 / .18); }
-.rd.paged.booky[data-spine="open"] .pg[data-side="l"] .pg-spine { background: linear-gradient(270deg, color-mix(in srgb, var(--leaf) 80%, #000), var(--leaf) 55%, color-mix(in srgb, var(--leaf) 60%, #000)); border-radius: 0 12px 12px 0 / 0 50% 50% 0; box-shadow: 2px 0 4px rgb(0 0 0 / .18); }
-/* stitch: a stitched seam along the spine edge of the board */
-.rd.paged.booky[data-spine="stitch"] .pg-spine { width: 12px; top: -8px; bottom: -8px; }
-.rd.paged.booky[data-spine="stitch"] .pg[data-side="r"] .pg-spine { background: linear-gradient(90deg, rgb(0 0 0 / .35), transparent); border-left: 2px dashed rgb(235 205 160 / .55); }
-.rd.paged.booky[data-spine="stitch"] .pg[data-side="l"] .pg-spine { background: linear-gradient(270deg, rgb(0 0 0 / .35), transparent); border-right: 2px dashed rgb(235 205 160 / .55); }
-/* «وقفت هنا» edge marks: variants */
-.rd[data-pills="tick"] .pill-edge { width: 9px; height: 0; margin-top: 0; border: 0; border-top: 2px solid rgb(255 255 255 / .38); border-radius: 1px; opacity: 1; }
-.rd:not(.booky)[data-pills="tick"] .pill-edge, .rd:not(.paged)[data-pills="tick"] .pill-edge { border-top-color: color-mix(in srgb, var(--rd-ink) 22%, transparent); }
-.rd[data-pills="dot"] .pill-edge { width: 5px; height: 5px; margin-top: -2.5px; border: 0; border-radius: 50%; background: rgb(255 255 255 / .34); opacity: 1; }
-.rd:not(.booky)[data-pills="dot"] .pill-edge, .rd:not(.paged)[data-pills="dot"] .pill-edge { background: color-mix(in srgb, var(--rd-ink) 22%, transparent); }
-.rd.paged.booky[data-pills="dot"] .pg[data-side="r"] .pill-edge { right: calc(-1 * (var(--stack) + 8px)); }
-.rd.paged.booky[data-pills="dot"] .pg[data-side="l"] .pill-edge { left: calc(-1 * (var(--stack) + 8px)); }
-/* the chosen line: a green ribbon that sticks out of the edge, for every variant except the original pill */
-.rd:not([data-pills="pill"]) .pill-edge.on { width: 18px; height: 10px; margin-top: -5px; border: 0; border-radius: 0; background: var(--jade); opacity: 1; box-shadow: 0 2px 6px rgb(0 0 0 / .3); }
-.rd:not([data-pills="pill"]) .pg[data-side="r"] .pill-edge.on { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 5px 50%); }
-.rd:not([data-pills="pill"]) .pg[data-side="l"] .pill-edge.on { clip-path: polygon(0 0, 100% 0, calc(100% - 5px) 50%, 100% 100%, 0 100%); }
-.rd.paged.booky:not([data-pills="pill"]) .pg[data-side="r"] .pill-edge.on { right: calc(-1 * (var(--stack) + 14px)); }
-.rd.paged.booky:not([data-pills="pill"]) .pg[data-side="l"] .pill-edge.on { left: calc(-1 * (var(--stack) + 14px)); }
-/* calm while reading: the marks fade out with the bars, the chosen one stays */
-.rd[data-pills="tick-calm"] .pill-edge { width: 9px; height: 0; margin-top: 0; border: 0; border-top: 2px solid rgb(255 255 255 / .38); border-radius: 1px; opacity: 1; transition: opacity .25s; }
-.rd.ui-off[data-pills="tick-calm"] .pill-edge:not(.on) { opacity: 0; }
 /* «وقفت هنا»: pills down the edge, and the line itself */
-.pill-edge { position: absolute; width: 11px; height: 6px; margin-top: -3px; padding: 0; border-radius: 4px; background: transparent; border: 1.5px solid color-mix(in srgb, var(--jade) 60%, transparent); opacity: .6; transition: opacity .15s, background .15s; }
-.pill-edge::before { content: ""; position: absolute; inset: -10px -9px; }
-.pill-edge:hover, .pill-edge:focus-visible { opacity: 1; }
-.pill-edge.on { background: var(--jade); border-color: var(--jade); opacity: 1; }
-.pg[data-side="r"] .pill-edge { right: 3px; }
-.pg[data-side="l"] .pill-edge { left: 3px; }
-.rd.paged.booky .pill-edge { border-color: rgb(255 255 255 / .55); }
-.rd.paged.booky .pill-edge.on { background: #4fd69a; border-color: #4fd69a; }
-.rd.paged.booky .pg[data-side="r"] .pill-edge { right: calc(-1 * (var(--stack) + 11px)); }
-.rd.paged.booky .pg[data-side="l"] .pill-edge { left: calc(-1 * (var(--stack) + 11px)); }
+.rd { --place-c: var(--jade); }
+.rd[data-line="gold"] { --place-c: var(--gold); }
+.rd[data-line="red"] { --place-c: var(--rubric); }
+.rd[data-line="blue"] { --place-c: var(--lapis); }
+.pill-edge { position: absolute; width: 6px; height: 6px; margin-top: -3px; padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--rd-ink) 24%, transparent); transition: opacity .25s, background .15s; }
+.pill-edge::before { content: ""; position: absolute; inset: -11px -10px; }
+.pill-edge:hover, .pill-edge:focus-visible { background: var(--place-c); }
+.pg[data-side="r"] .pill-edge { right: 4px; }
+.pg[data-side="l"] .pill-edge { left: 4px; }
+.rd.paged.booky .pill-edge { background: rgb(255 255 255 / .36); }
+.rd.paged.booky .pg[data-side="r"] .pill-edge { right: calc(-1 * (var(--stack) + 9px)); }
+.rd.paged.booky .pg[data-side="l"] .pill-edge { left: calc(-1 * (var(--stack) + 9px)); }
+.rd .pill-edge.on, .rd.paged.booky .pill-edge.on { width: 18px; height: 10px; margin-top: -5px; border-radius: 0; background: var(--place-c); box-shadow: 0 2px 6px rgb(0 0 0 / .3); opacity: 1; }
+.pg[data-side="r"] .pill-edge.on { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 5px 50%); }
+.pg[data-side="l"] .pill-edge.on { clip-path: polygon(0 0, 100% 0, calc(100% - 5px) 50%, 100% 100%, 0 100%); }
+.rd.paged.booky .pg[data-side="r"] .pill-edge.on { right: calc(-1 * (var(--stack) + 14px)); }
+.rd.paged.booky .pg[data-side="l"] .pill-edge.on { left: calc(-1 * (var(--stack) + 14px)); }
+.rd:not(.paged) .pg[data-side="r"] .pill-edge.on, .rd:not(.booky) .pg[data-side="r"] .pill-edge.on { right: -2px; }
+.rd:not(.paged) .pg[data-side="l"] .pill-edge.on, .rd:not(.booky) .pg[data-side="l"] .pill-edge.on { left: -2px; }
+/* «only with the bars»: the dots fade while you read; the chosen line's ribbon stays */
+.rd[data-pills="bars"].ui-off .pill-edge:not(.on) { opacity: 0; pointer-events: none; }
 .rd:not([data-mode="none"]) .pill-edge { display: none; }
-.place-line { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--jade); pointer-events: none; z-index: 2; }
-.place-line::before { content: ""; position: absolute; left: 0; right: 0; top: -2px; height: 8px; background: linear-gradient(color-mix(in srgb, var(--jade) 18%, transparent), transparent); }
-.pl-tab { pointer-events: auto; position: absolute; top: -13px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px 4px 8px; border-radius: 12px; background: var(--jade); color: #fff; font: 700 11px/1 var(--f-ui); box-shadow: 0 3px 10px rgb(0 0 0 / .2); }
+.place-line { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--place-c); pointer-events: none; z-index: 2; }
+.place-line::before { content: ""; position: absolute; left: 0; right: 0; top: -2px; height: 8px; background: linear-gradient(color-mix(in srgb, var(--place-c) 18%, transparent), transparent); }
+.pl-tab { pointer-events: auto; position: absolute; top: -13px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px 4px 8px; border-radius: 12px; background: var(--place-c); color: #fff; font: 700 11px/1 var(--f-ui); box-shadow: 0 3px 10px rgb(0 0 0 / .2); }
 .pl-tab .ic { width: 12px; height: 12px; }
 .pg[data-side="r"] .pl-tab { right: 22px; }
 .pg[data-side="l"] .pl-tab { left: 22px; }

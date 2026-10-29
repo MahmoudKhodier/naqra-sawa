@@ -36,7 +36,27 @@
   R.fullPref = () => U.store.get('rdFull', true) !== false;
   /* Book look in page-by-page mode, edge pills for «وقفت هنا», reader orientation and the landscape hint. */
   R.bookPref = () => U.store.get('rdBook', true) !== false;
-  R.pillsPref = () => U.store.get('rdPills', true) !== false;
+  /* «وقفت هنا» marks on the edge: when they show (always / with the bars / off), how many, the line colour. */
+  R.pillShow = () => {
+    const v = U.store.get('rdPillShow', U.store.get('rdPills', true) === false ? 'off' : 'always');
+    return v === 'bars' || v === 'off' ? v : 'always';
+  };
+  R.pillsPref = () => R.pillShow() !== 'off';
+  R.pillCount = () => ({ 8: 8, 12: 12, 20: 20 })[U.store.get('rdPillCount', 12)] || 12;
+  R.lineColor = () => {
+    const v = U.store.get('rdLineColor', 'green');
+    return ['green', 'gold', 'red', 'blue'].includes(v) ? v : 'green';
+  };
+  const edgeUi = (rd) => {
+    rd.dataset.pills = R.pillShow();
+    rd.dataset.line = R.lineColor();
+  };
+  R.setEdge = (k, v) => {
+    U.store.set(k, v);
+    if (!st) return;
+    edgeUi(st.root.querySelector('.rd'));
+    redrawOverlays();
+  };
   R.orientPref = () => {
     const v = U.store.get('rdOrient', 'auto');
     return v === 'portrait' || v === 'landscape' ? v : 'auto';
@@ -48,10 +68,7 @@
     st.root.querySelector('.rd').classList.toggle('booky', !!on);
     relayout();
   };
-  R.setPills = (on) => {
-    U.store.set('rdPills', !!on);
-    if (st) redrawOverlays();
-  };
+
   const placeOf = (bookId) => (S.priv && S.priv.place && S.priv.place[bookId]) || null;
   /* Colours for the strips around the page in the Android app (see sysui.js): the bars' colour while they
      show, the page background while they are hidden. */
@@ -148,8 +165,7 @@
     root.querySelector('.rd').classList.toggle('land', st.land);
     root.querySelector('.rd').classList.toggle('swap', swapNow());
     root.querySelector('.rd').classList.toggle('booky', R.bookPref());
-    root.querySelector('.rd').dataset.pills = U.store.get('rdPillStyle', 'pill');
-    root.querySelector('.rd').dataset.spine = U.store.get('rdSpine', 'plain');
+    edgeUi(root.querySelector('.rd'));
     st.root = root;
     st.sc = root.querySelector('#rd-scroll');
     st.pagesEl = root.querySelector('#rd-pages');
@@ -434,7 +450,7 @@
     const el = document.createElement('div');
     el.className = 'pg';
     el.dataset.p = p;
-    el.innerHTML = `<div class="pg-blank"><span>${L.num(p)}</span></div><i class="pg-spine" aria-hidden="true"></i><div class="pg-ov" data-p="${p}"></div>`;
+    el.innerHTML = `<div class="pg-blank"><span>${L.num(p)}</span></div><div class="pg-ov" data-p="${p}"></div>`;
     el.rw = 0;
     placeEl(p, el);
     st.pagesEl.appendChild(el);
@@ -701,7 +717,7 @@
     if (pl && pl.p === p && (pl.manual || pl.y > 0.02))
       html += `<div class="place-line" style="top:${pl.y * 100}%"><button class="pl-tab" data-act="place-off" aria-label="${L('شيل علامة وقفت هنا', 'Remove the stopped-here line')}">${U.icon('bookmark')}<span>${L('وقفت هنا', 'Stopped here')}</span></button></div>`;
     if (R.pillsPref() && D.canWrite()) {
-      const n = 12;
+      const n = R.pillCount();
       for (let i = 0; i < n; i++) {
         const y = (i + 0.5) / n;
         const on = pl && pl.p === p && Math.abs(pl.y - y) < 0.5 / n;
