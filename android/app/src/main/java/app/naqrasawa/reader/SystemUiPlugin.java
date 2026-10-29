@@ -25,7 +25,8 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  * The strips around the page (status bar, navigation bar, camera cut-out) take the colours of what is on screen:
  * the app's background, or the reader's bars and page colour. Capacitor's SystemBars pads the window by those
  * strips and repaints them with the theme colour on every rotation, so the last colours are put back after it.
- * Also hides the status and navigation bars while reading ("fullscreen"); a swipe from the edge shows them for a moment.
+ * Also hides the status bar (clock, battery) while reading; a swipe from the top shows it for a moment.
+ * The navigation bar (back / home, or the gesture line) always stays: the page is laid out above it.
  */
 @CapacitorPlugin(name = "SystemUi")
 public class SystemUiPlugin extends Plugin {
@@ -105,8 +106,9 @@ public class SystemUiPlugin extends Plugin {
         Window w = getActivity().getWindow();
         WindowInsetsControllerCompat c = WindowCompat.getInsetsController(w, w.getDecorView());
         c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-        if (fullscreen) c.hide(WindowInsetsCompat.Type.systemBars());
-        else c.show(WindowInsetsCompat.Type.systemBars());
+        if (fullscreen) c.hide(WindowInsetsCompat.Type.statusBars());
+        else c.show(WindowInsetsCompat.Type.statusBars());
+        c.show(WindowInsetsCompat.Type.navigationBars());
     }
 
     private static int parse(String s, int fallback) {

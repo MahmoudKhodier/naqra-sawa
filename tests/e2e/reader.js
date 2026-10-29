@@ -410,10 +410,12 @@ async function menu(p, text) {
       const c = await cur(p);
       const bid = ctx.book.id;
       // someone else's highlight on this page
-      await p.evaluate(async ({ bid, c }) => {
-        const { D, U } = window.A;
-        await D.set('notes/other-hl-1', { b: bid, page: c, kind: 'hl', rect: { x: 0.2, y: 0.5, w: 0.5, h: 0.04 }, color: '', text: 'من حد تاني', by: 'someone-else', at: U.nowIso(), wid: '', likes: {}, replies: {} });
-      }, { bid, c });
+      // posted by someone else: written straight into the database (the app only posts in your own name)
+      const cid = (await env.fake.sql('select id from public.circles limit 1'))[0].id;
+      const other = '00000000-0000-4000-8000-0000000000aa';
+      for (const [id, rect, kind] of [['other-hl-1', { x: 0.2, y: 0.5, w: 0.5, h: 0.04 }, 'hl'], ['other-pin-1', { x: 0.25, y: 0.62, w: 0, h: 0 }, 'note']])
+        await env.fake.sql('insert into public.docs (circle_id, col, id, data) values ($1, $2, $3, $4)', [cid, 'notes', id, JSON.stringify({ b: bid, page: c, kind, rect, color: '', text: 'من حد تاني', by: other, at: new Date().toISOString(), wid: '', likes: {}, replies: {} })]);
+      ctx.otherPin = 'other-pin-1';
       await until(p, "the other person's highlight drawn", (pg) => !!document.querySelector(`.pg[data-p="${pg}"] .hlb[data-nid="other-hl-1"]`), c, 6000);
       const count = () => p.evaluate((pg) => ({ all: document.querySelectorAll(`.pg[data-p="${pg}"] .hlb, .pg[data-p="${pg}"] .pinb`).length, other: document.querySelectorAll(`.pg[data-p="${pg}"] [data-nid="other-hl-1"]`).length }), c);
       const before = await count();
@@ -422,7 +424,7 @@ async function menu(p, text) {
       await T(400);
       const mine = await count();
       assert(mine.other === 0, "others' highlight still showing after the eye button");
-      assert(mine.all === before.all - 1, `your own marks should stay: ${before.all} → ${mine.all}`);
+      assert(mine.all === before.all - 2, `your own marks should stay: ${before.all} → ${mine.all}`);
       assert(await p.$eval('#rd-eye', (e) => e.classList.contains('on')), 'eye button does not show the filter is on');
       await H.shot(p, 'r08-others-hidden');
       await menu(p, 'صفحة نضيفة');
@@ -437,6 +439,86 @@ async function menu(p, text) {
       assert(kept === 'all', 'preference not saved: ' + kept);
       for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
       return `${before.all} marks → ${mine.all} (mine only) → 0 (clean) → ${back.all}`;
+    }, ['open', 'cdp']);
+
+    await step("Move notes: mine moves for everyone; someone else's only on my screen; hide for me and bring back", async () => {
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      const c = await cur(p);
+      const hold = async (sel, dx, dy) => {
+        await p.$eval(sel, (e) => e.scrollIntoView({ block: 'center' }));
+        await T(400);
+        const b = await (await p.$(sel)).boundingBox();
+        const x = b.x + b.width / 2, y = b.y + b.height / 2;
+        await ctx.cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+        await T(650);
+        for (let i = 1; i <= 6; i++) {
+          await ctx.cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + (dx * i) / 6, y: y + (dy * i) / 6 }] });
+          await T(30);
+        }
+        await ctx.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        await T(700);
+      };
+      // mine
+      const myPin = await p.evaluate((pg) => {
+        const mine = [...window.A.S.notes.values()].filter((x) => x.by === window.A.S.me && x.page === pg && x.rect && x.rect.w === 0);
+        mine.sort((a, b) => Math.abs(a.rect.y - 0.4) - Math.abs(b.rect.y - 0.4));
+        const n = mine[0];
+        return n && { id: n.id, x: n.rect.x, y: n.rect.y };
+      }, c);
+      assert(myPin, 'no pin of mine on this page');
+      await hold(`.pg[data-p="${c}"] .pinb[data-nid="${myPin.id}"]`, -50, -60);
+      const moved = await p.evaluate((id) => window.A.S.notes.get(id).rect, myPin.id);
+      assert(Math.abs(moved.x - myPin.x) > 0.05 && Math.abs(moved.y - myPin.y) > 0.03, `my pin did not move: ${JSON.stringify(myPin)} → ${JSON.stringify(moved)}`);
+      const db = await env.fake.sql("select data->'rect' as r from public.docs where col = 'notes' and id = $1", [myPin.id]);
+      assert(Math.abs(db[0].r.x - moved.x) < 0.001, 'the move did not reach the database (others would not see it)');
+      assert(!(await p.$('.sheet-wrap')), 'the note sheet opened after a drag');
+      // someone else's
+      const before = (await env.fake.sql("select data->'rect' as r from public.docs where id = 'other-pin-1'"))[0].r;
+      await hold(`.pg[data-p="${c}"] .pinb[data-nid="other-pin-1"]`, 70, 50);
+      const mv = await p.evaluate(() => window.A.S.priv && window.A.S.priv.moved && window.A.S.priv.moved['other-pin-1']);
+      const after = (await env.fake.sql("select data->'rect' as r from public.docs where id = 'other-pin-1'"))[0].r;
+      assert(mv && mv.x > before.x, 'not moved on my screen: ' + JSON.stringify(mv));
+      assert(after.x === before.x && after.y === before.y, "someone else's note changed in the database");
+      await H.shot(p, 'r08b-moved-notes');
+      // put back, hide for me, bring back
+      await p.$eval(`.pg[data-p="${c}"] .pinb[data-nid="other-pin-1"]`, (e) => e.scrollIntoView({ block: 'center' }));
+      await T(400);
+      await tap(ctx.cdp, ...(await (async () => { const b = await (await p.$(`.pg[data-p="${c}"] .pinb[data-nid="other-pin-1"]`)).boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2]; })()));
+      await p.waitForSelector('[data-unmove]', { timeout: 4000 });
+      await T(500);
+      const sheets = await p.$$eval('.sheet-wrap', (x) => x.length);
+      assert(sheets === 1, 'one tap opened ' + sheets + ' note sheets');
+      await p.click('[data-unmove]');
+      await until(p, 'put back', () => !(window.A.S.priv.moved || {})['other-pin-1']);
+      await p.click('[data-hideme]');
+      await T(300);
+      const hidT = await p.$$eval('.toast', (x) => x.filter((t) => /اتخبّت/.test(t.textContent)).length);
+      assert(hidT === 1, 'hide toast shown ' + hidT + ' times');
+      await until(p, 'hidden for me', (pg) => !document.querySelector(`.pg[data-p="${pg}"] [data-nid="other-pin-1"]`), c);
+      await menu(p, 'رجّع الملاحظات اللي خبّيتها');
+      await until(p, 'shown again', (pg) => !!document.querySelector(`.pg[data-p="${pg}"] [data-nid="other-pin-1"]`), c);
+      return 'mine → database; theirs → my private copy only; hide + bring back';
+    }, ['open', 'cdp']);
+
+    await step('Portion progress while reading: bar fills, cheers at the start, half-way, last pages and the end', async () => {
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      const w = ctx.book.wirds[1];
+      await p.evaluate((pg) => window.A.R.goTo(pg, false), w.from);
+      await T(500);
+      const seen = [];
+      for (let pg = w.from; pg <= w.to; pg++) {
+        await p.evaluate((x) => window.A.R._markSeen(x), pg);
+        await T(60);
+        const s = await p.evaluate(() => window.A.R._wird());
+        if (s.cheer && seen[seen.length - 1] !== s.cheer) seen.push(s.cheer);
+        if (pg === Math.floor((w.from + w.to) / 2)) await H.shot(p, 'r08c-portion-progress');
+      }
+      const s = await p.evaluate(() => window.A.R._wird());
+      assert(s.width === '100%', 'bar not full at the end: ' + s.width);
+      const joined = seen.join(' | ');
+      assert(/نص الورد/.test(joined) && /فاضل/.test(joined) && /خلّصت صفحات الورد/.test(joined), 'cheers: ' + joined);
+      await showBars(p);
+      return `${w.to - w.from + 1} pages; ${seen.length} cheers`;
     }, ['open', 'cdp']);
 
     await step('Close and reopen: resumes on the same page, opens from the device cache', async () => {

@@ -324,6 +324,8 @@
     });
   };
 
+  /* My private document (private notes, bookmarks, notes I moved or hid on my screen): fn gets a copy. */
+  D.privUpdate = (fn) => D.mutate(`data/users/${S.me}/priv`, () => fn(Object.assign({}, S.priv || {})));
   D.updateMe = async (patchFn) => {
     if (!D.canWrite()) return;
     await D.mutate(`members/${S.me}`, () => {

@@ -194,11 +194,14 @@
         <div class="nt-head">${D.avatar(n.by, 'md')}<div><b>${esc(D.name(n.by))}</b><small>${L.ago(n.at)} • ${n.page ? `${L('ص', 'p.')} ${L.num(n.page)}` : ''} ${V.editedTag(n)}</small></div><span class="kind k-${esc(n.kind)}">${V.kindLabel(n.kind)}</span>${n.priv ? `<span class="kind">${icon('lock')}${L('خاصة', 'Private')}</span>` : ''}</div>
         ${n.crop ? `<figure class="nt-crop" style="--c:${U.col(n.color)}"><img src="${esc(n.crop)}" alt=""></figure>` : ''}
         ${n.text ? `<p class="nt-text" dir="auto">${esc(n.text)}</p>` : ''}
+        ${n.rect && !(n.rect.w > 0.012) && D.canWrite() ? `<p class="nt-movehint">${icon('pin')}<span>${mine ? L('عشان تحرّكها: دوس عليها مطوّل في الصفحة واسحبها — هتتحرك عند الكل.', 'To move it: long-press it on the page and drag — it moves for everyone.') : L('مغطّية على الكلام؟ دوس عليها مطوّل واسحبها — هتتحرك عندك بس.', 'Covering the text? Long-press and drag it — it moves on your screen only.')}</span></p>` : ''}
         <div class="nt-acts">
           ${!n.priv ? `<button class="pill${liked ? ' on' : ''}" data-like>${icon('heart')}<span>${L.num(likers.length)}</span></button><span class="likers">${likers.slice(0, 6).map((u) => D.avatar(u, 'xs')).join('')}</span>` : ''}
           ${book && n.page && !(A.R.isOpen() && A.R.bookId() === n.b) ? `<button class="pill" data-gopage>${icon('books')}<span>${L('افتح الصفحة', 'Open page')}</span></button>` : ''}
           ${book && n.page && A.R.isOpen() && A.R.bookId() === n.b ? `<button class="pill" data-gopage>${icon('fwd', 'flip')}<span>${L('روح للمكان', 'Jump there')}</span></button>` : ''}
           ${mine && D.canWrite() ? `<button class="pill ghost" data-editnote>${icon('edit')}<span>${L('عدّل', 'Edit')}</span></button>` : ''}
+          ${!mine && n.rect && S.priv && S.priv.moved && S.priv.moved[n.id] ? `<button class="pill ghost" data-unmove>${icon('pin')}<span>${L('رجّعها مكانها', 'Put it back')}</span></button>` : ''}
+          ${!mine && n.rect && D.canWrite() ? `<button class="pill ghost" data-hideme>${icon('eyeoff')}<span>${L('اخفيها عندي', 'Hide for me')}</span></button>` : ''}
           ${mine ? `<button class="pill ghost" data-del>${icon('trash')}<span>${L('امسح', 'Delete')}</span></button>` : ''}
         </div>
         ${!n.priv ? `<div class="replies" id="nt-replies" data-keep-scroll>${rs.length ? rs.map((r) => `<div class="rep">${D.avatar(r.by, 'sm')}<div class="rep-b"><b>${esc(D.name(r.by))}</b><small>${L.ago(r.at)} ${V.editedTag(r)}</small><p dir="auto">${esc(r.text)}</p></div>${r.by === S.me ? `<span class="rep-acts"><button class="ib sm" data-editrep="${esc(r.id)}" aria-label="${L('عدّل', 'Edit')}">${icon('edit')}</button><button class="ib sm" data-delrep="${esc(r.id)}" aria-label="${L('امسح', 'Delete')}">${icon('trash')}</button></span>` : ''}</div>`).join('') : `<p class="muted sm">${L('محدش رد لسه. ابدأ النقاش!', 'No replies yet. Start the conversation!')}</p>`}</div>
@@ -213,13 +216,18 @@
         el.addEventListener('click', async (e) => {
           const n = get();
           if (!n) return;
-          if (e.target.closest('[data-like]')) V.like(n.id);
-          if (e.target.closest('[data-gopage]')) {
+          // Decide what was tapped before anything is saved: saving redraws this sheet, and the redraw can turn
+          // the tapped button into a different one.
+          const q = (sel) => e.target.closest(sel);
+          const hit = { like: q('[data-like]'), gopage: q('[data-gopage]'), del: q('[data-del]'), unmove: q('[data-unmove]'), hideme: q('[data-hideme]'), editnote: q('[data-editnote]'), editrep: q('[data-editrep]'), delrep: q('[data-delrep]') };
+          if (hit.like) return V.like(n.id);
+          if (hit.gopage) {
             api.close();
             if (A.R.isOpen() && A.R.bookId() === n.b) A.R.goTo(n.page, n.id);
             else A.R.open(n.b, { page: n.page, flash: n.id });
+            return;
           }
-          if (e.target.closest('[data-del]')) {
+          if (hit.del) {
             if (!(await V.confirm(L('هتمسح الملاحظة دي وكل الردود عليها.', 'This deletes the note and its replies.'), L('امسح', 'Delete'), true))) return;
             api.close();
             if (n.priv) {
@@ -230,24 +238,38 @@
                 return Object.assign({}, cur, { notes });
               });
             } else await D.del(`notes/${n.id}`);
+            return;
           }
-          if (e.target.closest('[data-editnote]')) {
+          if (hit.unmove) {
+            await D.privUpdate((cur) => {
+              const m = Object.assign({}, cur.moved);
+              delete m[n.id];
+              return Object.assign(cur, { moved: m });
+            });
+            return U.toast(L('رجعت مكانها ✓', 'Back in place ✓'));
+          }
+          if (hit.hideme) {
             api.close();
-            V.editNote(n);
+            await D.privUpdate((cur) => Object.assign(cur, { hidden: Object.assign({}, cur.hidden, { [n.id]: U.nowIso() }) }));
+            return U.toast(L('اتخبّت عندك بس. ترجّعها من ⋯ في القارئ.', 'Hidden on your screen only. Bring it back from ⋯ in the reader.'));
           }
-          const er = e.target.closest('[data-editrep]');
-          if (er) {
-            const r = (n.replies || {})[er.dataset.editrep];
+          if (hit.editnote) {
+            api.close();
+            return V.editNote(n);
+          }
+          if (hit.editrep) {
+            const rid = hit.editrep.dataset.editrep;
+            const r = (n.replies || {})[rid];
             if (r && r.by === S.me)
               V.editText({
                 title: L('عدّل ردك', 'Edit your reply'),
                 value: r.text,
                 max: U.MAX.reply,
-                onSave: (text) => D.update(`notes/${n.id}`, { replies: { [er.dataset.editrep]: { by: S.me, text, at: r.at, edited: U.nowIso() } } }),
+                onSave: (text) => D.update(`notes/${n.id}`, { replies: { [rid]: { by: S.me, text, at: r.at, edited: U.nowIso() } } }),
               });
+            return;
           }
-          const dr = e.target.closest('[data-delrep]');
-          if (dr) await D.update(`notes/${n.id}`, { replies: { [dr.dataset.delrep]: { by: S.me, text: '', at: U.nowIso() } } });
+          if (hit.delrep) await D.update(`notes/${n.id}`, { replies: { [hit.delrep.dataset.delrep]: { by: S.me, text: '', at: U.nowIso() } } });
         });
         el.addEventListener('submit', async (e) => {
           if (!e.target.closest('[data-reply]')) return;

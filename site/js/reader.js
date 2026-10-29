@@ -564,6 +564,7 @@
       void chip.offsetWidth;
       chip.classList.add('pop');
     }
+    chrome();
   }
   async function flush() {
     if (!st || !D.canWrite() || !D.joined()) return;
@@ -607,15 +608,19 @@
     const marks = S.priv && S.priv.marks && S.priv.marks[st.bookId];
     let html = marks && marks[p] ? `<span class="pg-mark" title="${U.esc(L('علامة', 'Bookmark'))}">${U.icon('bookmark')}</span>` : '';
     const show = R.marksPref();
+    const moved = (S.priv && S.priv.moved) || {};
+    const hidden = (S.priv && S.priv.hidden) || {};
     for (const n of ns) {
       if (show === 'none' || (show === 'mine' && n.by !== S.me)) continue;
-      const r = n.rect;
+      if (n.by !== S.me && hidden[n.id]) continue;
+      const mv = n.by !== S.me && moved[n.id];
+      const r = mv ? Object.assign({}, n.rect, { x: mv.x, y: mv.y }) : n.rect;
       const col = U.col(n.color, COLORS[0]);
       const rc = n.replies ? Object.values(n.replies).filter(Boolean).length : 0;
       const likes = n.likes ? Object.values(n.likes).filter(Boolean).length : 0;
       const label = U.esc(D.name(n.by) + (n.text ? ': ' + n.text.slice(0, 80) : ''));
       if (r.w < 0.012 && r.h < 0.012) {
-        html += `<button class="pinb${n.priv ? ' priv' : ''}" data-nid="${U.esc(n.id)}" data-priv="${n.priv ? 1 : ''}" style="left:${r.x * 100}%;top:${r.y * 100}%;--c:${U.esc(col)}" aria-label="${label}">${D.avatar(n.by, 'xs')}${rc ? `<i>${L.num(rc)}</i>` : ''}</button>`;
+        html += `<button class="pinb${n.priv ? ' priv' : ''}${mv ? ' moved' : ''}" data-nid="${U.esc(n.id)}" data-priv="${n.priv ? 1 : ''}" style="left:${r.x * 100}%;top:${r.y * 100}%;--c:${U.esc(col)}" aria-label="${label}">${D.avatar(n.by, 'xs')}${rc ? `<i>${L.num(rc)}</i>` : ''}</button>`;
       } else {
         html += `<button class="hlb k-${U.esc(n.kind || 'hl')}${n.priv ? ' priv' : ''}" data-nid="${U.esc(n.id)}" data-priv="${n.priv ? 1 : ''}" style="left:${r.x * 100}%;top:${r.y * 100}%;width:${r.w * 100}%;height:${r.h * 100}%;--c:${U.esc(col)};--a:${U.esc(D.color(n.by))}" aria-label="${label}"><span class="hl-tag">${D.avatar(n.by, 'xs')}${n.kind === 'q' ? '<b>؟</b>' : ''}${rc + likes ? `<i>${L.num(rc + likes)}</i>` : ''}</span></button>`;
       }
@@ -701,6 +706,95 @@
   }
   const r4 = (v) => Math.round(v * 10000) / 10000;
   /* After a tap opens the note sheet, the browser still sends a click to the same spot: drop that one click. */
+  /* Long-press a pin, then drag it. My note moves for everyone; someone else's moves only on my screen
+     (saved in my private document), so nobody can move or change another person's note for others. */
+  function bindMove() {
+    let mv = null;
+    const hint = (t) => {
+      const h = st.root.querySelector('#rd-hint');
+      h.hidden = !t;
+      h.innerHTML = t ? `${U.icon('pin')}<span>${t}</span>` : '';
+    };
+    const cancel = () => {
+      if (!mv) return;
+      clearTimeout(mv.t);
+      if (mv.on) {
+        mv.pin.classList.remove('moving');
+        hint('');
+        redrawOverlays();
+      }
+      mv = null;
+    };
+    st.pagesEl.addEventListener('contextmenu', (e) => e.target.closest('.pinb') && e.preventDefault());
+    st.pagesEl.addEventListener('pointerdown', (e) => {
+      if (st.mode !== 'none' || !D.canWrite()) return;
+      const pin = e.target.closest('.pinb');
+      if (!pin) return;
+      mv = { pin, ov: pin.closest('.pg-ov'), id: e.pointerId, x0: e.clientX, y0: e.clientY, on: false };
+      mv.t = setTimeout(() => {
+        if (!mv) return;
+        const nid = mv.pin.dataset.nid;
+        const priv = !!mv.pin.dataset.priv;
+        mv.n = priv ? Object.assign({ id: nid, by: S.me, priv: true }, (S.priv && S.priv.notes && S.priv.notes[nid]) || {}) : S.notes.get(nid);
+        if (!mv.n) return cancel();
+        mv.mine = mv.n.by === S.me;
+        mv.on = true;
+        try {
+          mv.pin.setPointerCapture(mv.id);
+        } catch (er) {}
+        mv.pin.classList.add('moving');
+        if (navigator.vibrate) try { navigator.vibrate(12); } catch (er) {}
+        hint(mv.mine ? L('اسحبها لمكانها الجديد — هتتحرك عند الكل', 'Drag it to its new place — it moves for everyone') : L('بتحرّكها عندك بس — عند الباقيين هتفضل مكانها', 'Moving it on your screen only — it stays put for everyone else'));
+      }, 420);
+    });
+    st.pagesEl.addEventListener('pointermove', (e) => {
+      if (!mv || e.pointerId !== mv.id) return;
+      if (!mv.on) {
+        if (Math.hypot(e.clientX - mv.x0, e.clientY - mv.y0) > 8) cancel();
+        return;
+      }
+      e.preventDefault();
+      const r = mv.ov.getBoundingClientRect();
+      mv.x = U.clamp((e.clientX - r.left) / r.width, 0.03, 0.97);
+      mv.y = U.clamp((e.clientY - r.top) / r.height, 0.04, 0.99);
+      mv.pin.style.left = mv.x * 100 + '%';
+      mv.pin.style.top = mv.y * 100 + '%';
+    });
+    const end = async (e) => {
+      if (!mv || e.pointerId !== mv.id) return;
+      const m = mv;
+      clearTimeout(m.t);
+      mv = null;
+      if (!m.on) return;
+      st.movedAt = Date.now();
+      m.pin.classList.remove('moving');
+      hint('');
+      if (m.x == null) return;
+      const x = r4(m.x), y = r4(m.y);
+      try {
+        if (!m.mine) {
+          await D.privUpdate((cur) => Object.assign(cur, { moved: Object.assign({}, cur.moved, { [m.n.id]: { x, y } }) }));
+          U.toast(L('اتحرّكت عندك بس. ترجّعها من الملاحظة نفسها.', 'Moved on your screen only. Put it back from the note itself.'));
+        } else if (m.n.priv) {
+          await D.privUpdate((cur) => {
+            const notes = Object.assign({}, cur.notes);
+            if (!notes[m.n.id]) return null;
+            notes[m.n.id] = Object.assign({}, notes[m.n.id], { rect: Object.assign({}, notes[m.n.id].rect, { x, y }) });
+            return Object.assign(cur, { notes });
+          });
+        } else await D.update(`notes/${m.n.id}`, { rect: { x, y } });
+      } catch (er) {
+        redrawOverlays();
+      }
+    };
+    st.pagesEl.addEventListener('pointerup', end);
+    st.pagesEl.addEventListener('pointercancel', cancel);
+  }
+  R.hiddenHere = () => {
+    const h = (S.priv && S.priv.hidden) || {};
+    return Object.keys(h).filter((id) => h[id] && S.notes.has(id) && S.notes.get(id).b === (st && st.bookId));
+  };
+
   function swallowGhostClick(x, y) {
     const f = (ev) => {
       if (Math.hypot(ev.clientX - x, ev.clientY - y) > 30) return;
@@ -757,7 +851,7 @@
     return `<div class="rd" data-theme="${st.theme}" data-mode="none">
       <header class="rd-top">
         <button class="ib" data-act="close" aria-label="${L('رجوع', 'Back')}">${U.icon('back', 'flip')}</button>
-        <div class="rd-title"><b dir="auto">${U.esc(b.title)}</b><span id="rd-wird"></span></div>
+        <div class="rd-title"><b dir="auto">${U.esc(b.title)}</b><span id="rd-wird"></span><span class="rd-wprog" id="rd-wprog" hidden><i></i></span></div>
         <span class="rd-today" id="rd-today" title="${L('صفحات قريتها في الجلسة دي', 'Pages read this session')}">${U.icon('scroll')}<b>+${L.num(0)}</b></span>
         <label class="rd-pg"><input id="rd-pgin" inputmode="numeric" aria-label="${L('رقم الصفحة', 'Page number')}" value="${L.num(st.cur, { useGrouping: false })}"><span>/ ${L.num(st.N, { useGrouping: false })}</span></label>
         <div class="rd-acts">
@@ -771,6 +865,8 @@
       </header>
       <div class="rd-scroll" id="rd-scroll" tabindex="-1"><div class="rd-pages" id="rd-pages"></div></div>
       <div class="rd-hint" id="rd-hint" hidden></div>
+      <div class="rd-wline" id="rd-wline" hidden aria-hidden="true"><i></i></div>
+      <div class="rd-cheer" id="rd-cheer" role="status" aria-live="polite" hidden></div>
       <div class="rd-load" id="rd-load" hidden><div class="rd-load-card"><div class="spin8"></div><b id="rd-load-t">${L('بنجهّز الكتاب…', 'Preparing the book…')}</b><div class="bar"><i id="rd-load-bar"></i></div><small id="rd-load-s"></small></div></div>
       <footer class="rd-bot">
         <div class="rd-prompt" id="rd-prompt" hidden></div>
@@ -786,6 +882,63 @@
       <aside class="rd-panel" id="rd-panel" hidden></aside>
     </div>`;
   }
+
+  /* Progress through the portion you are on: a bar under the title, a thin line along the top edge while the
+     bars are hidden, and a few words of encouragement at the start, half-way and the last pages. */
+  function wirdProgress(w, prog) {
+    const bar = st.root.querySelector('#rd-wprog');
+    const line = st.root.querySelector('#rd-wline');
+    if (!w) {
+      bar.hidden = line.hidden = true;
+      return;
+    }
+    const total = w.to - w.from + 1;
+    let read = 0;
+    for (let p = w.from; p <= w.to; p++) if (st.pending.has(p) || (prog && U.rangesHas(prog.seen, p))) read++;
+    const f = total ? read / total : 0;
+    const pct = Math.round(f * 100) + '%';
+    bar.hidden = line.hidden = false;
+    bar.firstChild.style.width = line.firstChild.style.width = pct;
+    bar.classList.toggle('done', read >= total);
+    line.classList.toggle('done', read >= total);
+    // cheers: once per portion and moment, only for pages counted in this session
+    st.cheered = st.cheered || {};
+    const seenBefore = (st.cheerBase = st.cheerBase || {});
+    if (seenBefore[w.id] === undefined) seenBefore[w.id] = read; // where this portion stood when we got here
+    const c = (st.cheered[w.id] = st.cheered[w.id] || {});
+    const left = total - read;
+    const wn = L.num(w.n);
+    let msg = '';
+    if (read >= total) {
+      if (!c.done && seenBefore[w.id] < total) msg = c.done = L(`خلّصت صفحات الورد ${wn}! 🎉`, `You read every page of portion ${w.n}! 🎉`);
+    } else if (left <= 3 && total >= 6 && !c.last && read > seenBefore[w.id]) {
+      msg = c.last = L(`فاضل ${L.count(left, 'page')} بس على الورد ${wn} 💪`, `Just ${left} page${left > 1 ? 's' : ''} left in portion ${w.n} 💪`);
+    } else if (f >= 0.5 && seenBefore[w.id] < total / 2 && !c.half) {
+      msg = c.half = L(`نص الورد ${wn} خلص — كمّل كده! ✨`, `Half of portion ${w.n} done — keep going! ✨`);
+    } else if (read > 0 && seenBefore[w.id] === 0 && !c.start && read === 1 && total >= 4) {
+      msg = c.start = L(`بدأت الورد ${wn} • ${L.count(total, 'page')}`, `Portion ${w.n} started • ${total} pages`);
+    }
+    if (msg) cheer(msg);
+  }
+  function cheer(msg) {
+    const el = st.root.querySelector('#rd-cheer');
+    if (!el) return;
+    el.textContent = msg;
+    el.hidden = false;
+    el.classList.remove('in');
+    void el.offsetWidth;
+    el.classList.add('in');
+    clearTimeout(st.cheerT);
+    st.cheerT = setTimeout(() => {
+      el.classList.remove('in');
+      setTimeout(() => st && (el.hidden = true), 300);
+    }, 2800);
+  }
+  R._wird = () => {
+    const w = G.wirds(st.book).find((x) => st.cur >= x.from && st.cur <= x.to);
+    const bar = st.root.querySelector('#rd-wprog i');
+    return { w: w && w.id, width: bar && bar.style.width, cheer: st.root.querySelector('#rd-cheer').textContent };
+  };
 
   /* The eye button: shows whether other people's marks are on the pages. */
   function marksUi() {
@@ -822,6 +975,7 @@
           ? L(`الورد ${L.num(curW.n)} • فاضل ${L.count(left, 'page')}`, `Portion ${curW.n} • ${left} pages left`)
           : L(`الورد ${L.num(curW.n)} • ص ${L.num(curW.from)}–${L.num(curW.to)} ✓`, `Portion ${curW.n} • p. ${curW.from}–${curW.to} ✓`);
     }
+    wirdProgress(curW, prog);
     // finish prompt
     const pr = st.root.querySelector('#rd-prompt');
     let html = '';
@@ -986,6 +1140,7 @@
     root.addEventListener('click', (e) => {
       if (!st) return;
       const nb = e.target.closest('[data-nid]');
+      if (nb && Date.now() - (st.movedAt || 0) < 600) return;
       if (nb && st.mode === 'none' && nb.closest('.pg-ov')) {
         A.V.openNote(nb.dataset.nid, { priv: !!nb.dataset.priv });
         return;
@@ -1129,6 +1284,7 @@
 
     document.addEventListener('keydown', onKey);
     bindDraw();
+    bindMove();
   }
 
   function onKey(e) {
@@ -1222,6 +1378,7 @@
         };
         return MARKS.filter((k) => k !== v).map((k) => o[k]);
       })(),
+      R.hiddenHere().length ? { ic: 'eye', t: L(`رجّع الملاحظات اللي خبّيتها (${L.num(R.hiddenHere().length)})`, `Show the notes you hid (${R.hiddenHere().length})`), fn: () => { const ids = R.hiddenHere(); D.privUpdate((cur) => { const h = Object.assign({}, cur.hidden); for (const id of ids) delete h[id]; return Object.assign(cur, { hidden: h }); }); } } : null,
       st.land ? { ic: 'swap', t: R.toolsSide() === 'left' ? L('انقل الأدوات لليمين', 'Move the tools to the right') : L('انقل الأدوات للشمال', 'Move the tools to the left'), fn: () => R.setToolsSide(R.toolsSide() === 'left' ? 'right' : 'left') } : null,
       { ic: 'zin', t: L('تكبير', 'Zoom in'), fn: () => setZoom(st.zoom * 1.25), cls: 'show-sm' },
       { ic: 'zout', t: L('تصغير', 'Zoom out'), fn: () => setZoom(st.zoom / 1.25), cls: 'show-sm' },
@@ -1325,6 +1482,7 @@
       if (wakeLock === 'pending') wakeLock = null;
     }
   }
+  R._markSeen = (p) => st && markSeen(p); // for tests: count a page as read now
   R._awake = () => !!st && (nativeAwake || (!!wakeLock && wakeLock !== 'pending') || !!st.awakeTried);
 
   /* ---------- live data ---------- */

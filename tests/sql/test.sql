@@ -477,6 +477,64 @@ select t.throws($$select doc_merge(t.id('c1'), 'notes', 'n1', '[1]')$$, '22023',
 select t.throws($$select doc_merge(t.id('c1'), 'notes', 'n1', null)$$, '22023', 'doc_merge: null patch rejected');
 rollback;
 
+-- author guard: only the author changes or deletes a note / message / suggestion; others only their own like,
+-- reply, reaction or vote (circle owner/admin may delete)
+begin;
+select t.login('D');
+select t.lives(format($$insert into docs (circle_id, col, id, data) values (t.id('c1'), 'notes', 'gn',
+                 '{"by": "%s", "text": "D''s note", "rect": {"x": 0.5, "y": 0.5, "w": 0, "h": 0}, "likes": {}, "replies": {}}')$$, t.v('D')),
+               'guard: D posts a note');
+select t.throws(format($$insert into docs (circle_id, col, id, data) values (t.id('c1'), 'notes', 'forged',
+                 '{"by": "%s", "text": "pretending"}')$$, t.v('B')), '42501', 'guard: cannot post in someone else''s name');
+select t.lives($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"rect": {"x": 0.2, "y": 0.3}, "text": "D''s note, edited"}')$$,
+               'guard: the author moves and edits the note');
+select t.lives(format($$insert into docs (circle_id, col, id, data) values (t.id('c1'), 'msgs', 'gm',
+                 '{"by": "%s", "text": "hello", "react": {}}')$$, t.v('D')), 'guard: D posts a message');
+select t.lives(format($$insert into docs (circle_id, col, id, data) values (t.id('c1'), 'proposals', 'gp',
+                 '{"by": "%s", "title": "A book", "votes": {}}')$$, t.v('D')), 'guard: D suggests a book');
+commit;
+
+begin;
+select t.login('B');
+select t.throws($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"rect": {"x": 0.9}}')$$, '42501', 'guard: B cannot move D''s note');
+select t.throws($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"text": "hacked"}')$$, '42501', 'guard: B cannot edit D''s note');
+select t.throws(format($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"by": "%s"}')$$, t.v('B')), '42501', 'guard: B cannot take over D''s note');
+select t.throws($$update docs set deleted = true where circle_id = t.id('c1') and col = 'notes' and id = 'gn'$$, '42501',
+                'guard: B cannot delete D''s note');
+select t.lives(format($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"likes": {"%s": "2026-10-29"}}')$$, t.v('B')), 'guard: B likes it');
+select t.throws(format($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"likes": {"%s": "2026-10-29"}}')$$, t.v('A')), '42501',
+                'guard: B cannot like in A''s name');
+select t.lives(format($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"replies": {"rd": {"by": "%s", "text": "nice"}}}')$$, t.v('B')),
+               'guard: B replies');
+select t.lives(format($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"replies": {"rd": {"by": "%s", "text": "nice!", "edited": "x"}}}')$$, t.v('B')),
+               'guard: B edits own reply');
+select t.throws(format($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"replies": {"rx": {"by": "%s", "text": "fake"}}}')$$, t.v('A')), '42501',
+                'guard: B cannot reply in A''s name');
+select t.throws($$select doc_merge(t.id('c1'), 'msgs', 'gm', '{"text": "hacked"}')$$, '42501', 'guard: B cannot edit D''s message');
+select t.lives(format($$select doc_merge(t.id('c1'), 'msgs', 'gm', '{"react": {"heart": {"%s": true}}}')$$, t.v('B')), 'guard: B reacts');
+select t.throws(format($$select doc_merge(t.id('c1'), 'msgs', 'gm', '{"react": {"heart": {"%s": true}}}')$$, t.v('A')), '42501',
+                'guard: B cannot react in A''s name');
+select t.lives(format($$select doc_merge(t.id('c1'), 'proposals', 'gp', '{"votes": {"%s": "2026-10-29"}}')$$, t.v('B')), 'guard: B votes');
+select t.throws($$select doc_merge(t.id('c1'), 'proposals', 'gp', '{"title": "Another"}')$$, '42501', 'guard: B cannot rename D''s suggestion');
+commit;
+
+begin;
+select t.login('D');
+select t.throws(format($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"replies": {"rd": {"by": "%s", "text": "edited by B"}}}')$$, t.v('B')), '42501',
+                'guard: the note''s author cannot rewrite B''s reply');
+select t.throws(format($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"likes": {"%s": false}}')$$, t.v('B')), '42501',
+                'guard: the note''s author cannot remove B''s like');
+select t.lives($$select doc_merge(t.id('c1'), 'msgs', 'gm', '{"text": "hello, edited", "edited": "x"}')$$, 'guard: D edits own message');
+select t.is((select data ->> 'text' from docs where circle_id = t.id('c1') and col = 'notes' and id = 'gn'), 'D''s note, edited',
+            'guard: D''s note is as D left it');
+commit;
+
+begin;
+select t.login('A');  -- A owns circle c1: may delete (moderate), not rewrite
+select t.throws($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"text": "owner rewrite"}')$$, '42501', 'guard: the owner cannot rewrite D''s note');
+select t.lives($$update docs set deleted = true where circle_id = t.id('c1') and col = 'msgs' and id = 'gm'$$, 'guard: the owner can delete D''s message');
+commit;
+
 
 -- =====================================================================
 -- 7. Soft delete and incremental sync

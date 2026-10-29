@@ -12,7 +12,8 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
-MIGRATION="${MIGRATION:-$ROOT/supabase/migrations/20261028000000_init.sql}"
+# All migrations in order (or just the one in $MIGRATION).
+MIGRATIONS="${MIGRATION:-$(ls "$ROOT"/supabase/migrations/*.sql | sort | tr '\n' ' ')}"
 PG_BIN="${PG_BIN:-/usr/lib/postgresql/16/bin}"
 PG_OS_USER="${PG_OS_USER:-postgres}"
 PORT=5432  # unix socket only, in a private dir: never clashes
@@ -71,12 +72,16 @@ echo "== Supabase stubs"
 psql_admin -v ON_ERROR_STOP=1 -f "$HERE/supabase_stubs.sql" >/dev/null 2>"$TMP/stubs.err" \
   || { cat "$TMP/stubs.err"; exit 1; }
 
-echo "== migration, as postgres (1st run)"
-psql_pg -v ON_ERROR_STOP=1 --single-transaction -f "$MIGRATION" >/dev/null 2>"$TMP/run1.err" \
-  || { cat "$TMP/run1.err"; exit 1; }
-echo "== migration, as postgres (2nd run: must be re-runnable)"
-psql_pg -v ON_ERROR_STOP=1 --single-transaction -f "$MIGRATION" >/dev/null 2>"$TMP/rerun.err" \
-  || { cat "$TMP/rerun.err"; exit 1; }
+for MIGRATION in $MIGRATIONS; do
+  echo "== $(basename "$MIGRATION"), as postgres (1st run)"
+  psql_pg -v ON_ERROR_STOP=1 --single-transaction -f "$MIGRATION" >/dev/null 2>"$TMP/run1.err" \
+    || { cat "$TMP/run1.err"; exit 1; }
+done
+for MIGRATION in $MIGRATIONS; do
+  echo "== $(basename "$MIGRATION"), as postgres (2nd run: must be re-runnable)"
+  psql_pg -v ON_ERROR_STOP=1 --single-transaction -f "$MIGRATION" >/dev/null 2>"$TMP/rerun.err" \
+    || { cat "$TMP/rerun.err"; exit 1; }
+done
 
 echo "== test.sql"
 OUT="$TMP/out.txt"

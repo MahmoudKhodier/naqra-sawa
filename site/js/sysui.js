@@ -1,5 +1,6 @@
 /* Android app: the strips around the page (status bar, navigation bar, camera cut-out) take the colour of what
-   they border — the app background (light or dark), or the reader's bars and page — and reading can go fullscreen.
+   they border — the app background (light or dark), or the reader's bars and page — and the clock bar can hide while
+   reading (the phone's navigation bar never hides).
    Nothing happens on the web. */
 (function () {
   'use strict';
