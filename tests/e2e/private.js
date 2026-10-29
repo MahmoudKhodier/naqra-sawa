@@ -144,6 +144,8 @@ const watchStorage = (p) => {
       const form = await a.textContent('#ab-form');
       assert(/محدش في الحلقة/.test(form) && /موبايلك/.test(form) && /احفظ نسخة على السيرفر/.test(form), 'the form does not say who sees it / where the file is: ' + form);
       await H.shot(a, 'p02-add-form');
+      await a.$eval('#ab-cloud', (e) => e.closest('.my-up').scrollIntoView({ block: 'center' }));
+      await H.shot(a, 'p02-add-form-switch');
       await a.click('#ab-form button.btn.gold');
       await until(a, 'private book saved', () => window.A.S.myBooks.size === 1, null, 30000);
       await readerReady(a);
@@ -317,7 +319,12 @@ const watchStorage = (p) => {
       await a.click('.sheet [data-yes]');
       await until(a, 'book gone', () => window.A.S.myBooks.size === 0 && window.A.S.myProg.size === 0, null, 10000);
       await until(a, 'note gone', (id) => !Object.values((window.A.S.priv && window.A.S.priv.notes) || {}).some((n) => n.b === id), ctx.book.id, 10000);
-      assert(!(await deviceCopy(a, ctx.book.id)).bytes, 'the device copy is still there');
+      let copy = 1;
+      for (let i = 0; i < 50 && copy; i++) {
+        copy = (await deviceCopy(a, ctx.book.id)).bytes; // removed right after the docs
+        if (copy) await T(200);
+      }
+      assert(!copy, 'the device copy is still there');
       const live = await env.fake.sql(`select col, id from public.docs where circle_id = $1 and not deleted and col like 'data/users/%/my/%'`, [ctx.circle]);
       assert(!live.length, 'rows left: ' + JSON.stringify(live));
       const days = await a.evaluate(() => ((window.A.S.members.get(window.A.S.me) || {}).days || {})[window.A.U.today()] || 0);

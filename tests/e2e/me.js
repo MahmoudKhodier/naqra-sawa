@@ -90,6 +90,7 @@ const cards = (p) => p.$$eval('.qn-list .qn', (x) => x.length);
       await p.fill('#join-name', 'منى');
       await p.click('#join-form button[type=submit]');
       await p.waitForSelector('.shell #screen .home', { timeout: 15000 });
+      await p.evaluate(() => window.A.Goals && (window.A.Goals.off = true)); // firsts and the daily goal: goals.js tests them
       await p.locator('[data-act="add-book"]:visible').first().click();
       await p.setInputFiles('#ab-file', PDF);
       await p.waitForSelector('#ab-form', { timeout: 30000 });

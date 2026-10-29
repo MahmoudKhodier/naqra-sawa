@@ -547,7 +547,7 @@
     let file = null, info = null, cloud = false; // cloud: a private book also kept on the server (off by default)
     const canUpload = priv ? !!(S.assets && D.canUploadPrivate()) : !!S.assets;
     const api = V.sheet({
-      title: priv ? `${icon('lock')} ${L('ارفع كتاب ليك لوحدك', 'Add a book just for you', 'ارفع كتابًا لك وحدك')}` : L('ضيف كتاب للحلقة', 'Add a book to the circle', 'أضف كتابًا إلى الحلقة'),
+      title: priv ? `${icon('lock')} ${L('ضيف كتاب ليك لوحدك', 'Add a book just for you', 'أضف كتابًا لك وحدك')}` : L('ضيف كتاب للحلقة', 'Add a book to the circle', 'أضف كتابًا إلى الحلقة'),
       wide: true,
       html: `<div id="ab-step">${pickHtml()}</div>`,
       onMount: (body) => {
@@ -560,6 +560,12 @@
             el.innerHTML = `${icon('layers')}<span>${L(`مساحة الحلقة: مستخدم ${mb(u.bytes)} من ${mb(u.maxBytes)} ميجا`, `Circle storage: ${mb(u.bytes)} of ${mb(u.maxBytes)} MB used`, `مساحة الحلقة: المستخدم ${mb(u.bytes)} من ${mb(u.maxBytes)} ميغابايت`)}</span>${V.bar(u.bytes / u.maxBytes, u.bytes / u.maxBytes > 0.85 ? 'rubric' : 'lapis')}`;
           }).catch(() => {});
         body.addEventListener('change', async (e) => {
+          if (e.target.id === 'ab-cloud') {
+            cloud = e.target.checked;
+            const w = body.querySelector('#ab-where');
+            if (w) w.textContent = whereNote();
+            return;
+          }
           if (e.target.id !== 'ab-file' || !e.target.files[0]) return;
           file = e.target.files[0];
           await analyze();
@@ -587,6 +593,7 @@
         });
       },
     });
+    const whereNote = () => (cloud ? L('وهيتحفظ منه نسخة في فولدر خاص بيك على السيرفر.', 'A copy is kept in your private folder on the server.', 'وتُحفظ منه نسخة في مجلد خاص بك على الخادم.') : L('الملف بيفضل على موبايلك ده بس.', 'The file stays on this phone only.', 'ويبقى الملف على هاتفك هذا فقط.'));
     function pickHtml() {
       return `<label class="drop" for="ab-file">${icon('upload')}<b>${L('اختار ملف PDF', 'Choose a PDF file', 'اختر ملف PDF')}</b><span>${L('أو اسحبه هنا', 'or drop it here')}</span><input type="file" id="ab-file" accept="application/pdf,.pdf" hidden></label>
         <ul class="hints">
@@ -708,7 +715,7 @@
           <label for="ab-title">${L('اسم الكتاب', 'Title')}</label><input id="ab-title" required maxlength="140" dir="auto" value="${esc(info.title)}">
           <label for="ab-author">${L('المؤلف', 'Author')}</label><input id="ab-author" maxlength="100" dir="auto" value="${esc(info.author)}">
           <label for="ab-lang">${L('اتجاه الكتاب', 'Book direction')}</label><select id="ab-lang"><option value="ar" ${ar ? 'selected' : ''}>${L('عربي (يمين لشمال)', 'Arabic (right to left)', 'عربي (من اليمين إلى اليسار)')}</option><option value="en" ${ar ? '' : 'selected'}>${L('إنجليزي (شمال ليمين)', 'English (left to right)', 'إنجليزي (من اليسار إلى اليمين)')}</option></select>
-          ${priv ? `<p class="my-note">${icon('lock')}<span>${privacyNote()} ${L('الملف بيفضل على موبايلك ده بس.', 'The file stays on this phone only.', 'ويبقى الملف على هاتفك هذا فقط.')}</span></p>
+          ${priv ? `<p class="my-note">${icon('lock')}<span>${privacyNote()} <span id="ab-where">${whereNote()}</span></span></p>
           <label class="my-up"><span class="my-up-t"><b>${L('احفظ نسخة على السيرفر عشان أفتحه من أي جهاز', 'Keep a copy on the server so I can open it on any device', 'احفظ نسخة على الخادم لأفتحه من أي جهاز')}</b><small class="muted">${canUpload ? L('في فولدر خاص بيك، محدش غيرك يقدر يفتحه. الملفات الكبيرة بتتقسّم أجزاء.', 'In a private folder of yours that nobody else can open. Big files are split into parts.', 'في مجلد خاص بك لا يستطيع أحد غيرك فتحه. وتُقسَّم الملفات الكبيرة إلى أجزاء.') : L('مش متاح دلوقتي.', 'Not available right now.', 'غير متاح الآن.')}</small></span><span class="switch"><input type="checkbox" id="ab-cloud" ${!canUpload ? 'disabled' : cloud ? 'checked' : ''}><i></i></span></label>
           <div class="row-btns end"><button class="btn gold big">${icon('lock')}${L('ضيفه ليا أنا بس', 'Add it just for me', 'أضفه لي وحدي')}</button></div>` : `<span class="lbl">${L('هنبدأه إمتى؟', 'When do we start?', 'متى نبدؤه؟')}</span>
           <div class="seg-pick"><label class="sp on"><input type="radio" name="ab-status" value="reading" checked>${icon('play', 'flip-rtl')}<span>${L('دلوقتي', 'Now', 'الآن')}</span></label><label class="sp"><input type="radio" name="ab-status" value="planned">${icon('calendar')}<span>${L('بعدين', 'Later', 'لاحقًا')}</span></label></div>
