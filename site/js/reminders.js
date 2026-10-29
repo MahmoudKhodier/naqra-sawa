@@ -28,12 +28,12 @@
     } catch (e) {}
     if (late)
       return {
-        title: L('يلا نلحق الحلقة 📖', "Let's catch up with the circle 📖"),
-        body: L(`فاضلك ${L.count(late, 'wird')} (${L.count(pages, 'page')}). شوية كل يوم وهتلحقهم.`, `${late} portion${late > 1 ? 's' : ''} (${pages} pages) to go. A little every day and you'll catch up.`),
+        title: L('يلا نلحق الحلقة 📖', "Let's catch up with the circle 📖", 'هيا نلحق بالحلقة 📖'),
+        body: L(`فاضلك ${L.count(late, 'wird')} (${L.count(pages, 'page')}). شوية كل يوم وهتلحقهم.`, `${late} portion${late > 1 ? 's' : ''} (${pages} pages) to go. A little every day and you'll catch up.`, `بقي لك ${L.count(late, 'wird', 'nom')} (${L.count(pages, 'page', 'nom')}). اقرأ قليلًا كل يوم وستلحق بها.`),
       };
     return {
-      title: L('وردك مستنيك 📖', 'Your reading is waiting 📖'),
-      body: L('صفحات قليلة النهارده بتحافظ على سلسلتك 🔥 وبتقرّب الحلقة من هدفها.', 'A few pages today keep your streak alive 🔥 and move the circle closer to its goal.'),
+      title: L('وردك مستنيك 📖', 'Your reading is waiting 📖', 'وردك بانتظارك 📖'),
+      body: L('صفحات قليلة النهارده بتحافظ على سلسلتك 🔥 وبتقرّب الحلقة من هدفها.', 'A few pages today keep your streak alive 🔥 and move the circle closer to its goal.', 'صفحات قليلة اليوم تحافظ على سلسلتك 🔥 وتقرّب الحلقة من هدفها.'),
     };
   };
 
@@ -76,10 +76,10 @@
       if (P.native) on ? await scheduleNative(hour) : await cancelNative();
       else on ? await subscribeWeb(hour) : await unsubscribeWeb();
       U.store.set('remind', { on, hour });
-      if (on) U.toast(L(`هنفكّرك كل يوم الساعة ${L.num(hour)}:٠٠`, `We'll remind you every day at ${hour}:00`));
+      if (on) U.toast(L(`هنفكّرك كل يوم الساعة ${L.num(hour)}:٠٠`, `We'll remind you every day at ${hour}:00`, `سنذكّرك كل يوم في الساعة ${L.num(hour)}:٠٠`));
     } catch (e) {
       console.warn(e);
-      U.toast(e && e.message === 'denied' ? L('لازم توافق على الإشعارات من إعدادات الموبايل', 'Allow notifications in your phone settings first') : L('مقدرتش أفعّل التذكير', "Couldn't turn on reminders"), 'warn');
+      U.toast(e && e.message === 'denied' ? L('لازم توافق على الإشعارات من إعدادات الموبايل', 'Allow notifications in your phone settings first', 'اسمح بالإشعارات من إعدادات الهاتف أولًا') : L('مقدرتش أفعّل التذكير', "Couldn't turn on reminders", 'تعذّر تفعيل التذكير'), 'warn');
     }
     V.render();
   };
@@ -93,7 +93,7 @@
   V.reminderSettings = () => {
     if (!R.available()) {
       if (!P.native && isIOS && !standalone() && P.cfg.vapidPublicKey)
-        return `<div class="set-row"><span>${icon('clock')}${L('عشان التذكير يشتغل على آيفون: من Safari دوس مشاركة ← «إضافة إلى الشاشة الرئيسية» وافتح التطبيق من هناك.', 'For reminders on iPhone: in Safari tap Share → “Add to Home Screen”, then open the app from there.')}</span></div>`;
+        return `<div class="set-row"><span>${icon('clock')}${L('عشان التذكير يشتغل على آيفون: من Safari دوس مشاركة ← «إضافة إلى الشاشة الرئيسية» وافتح التطبيق من هناك.', 'For reminders on iPhone: in Safari tap Share → “Add to Home Screen”, then open the app from there.', 'لتفعيل التذكير على آيفون: في Safari اضغط مشاركة ← «إضافة إلى الشاشة الرئيسية» ثم افتح التطبيق من هناك.')}</span></div>`;
       return '';
     }
     const p = pref();

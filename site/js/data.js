@@ -148,19 +148,19 @@
       D.bump();
       if (!warnedRO) {
         warnedRO = true;
-        U.toast(L('مقدرتش أحفظ. يمكن اتشلت من الحلقة — جرّب تفتح التطبيق تاني.', "Couldn't save. You may have been removed from the circle — try reopening the app."), 'warn');
+        U.toast(L('مقدرتش أحفظ. يمكن اتشلت من الحلقة — جرّب تفتح التطبيق تاني.', "Couldn't save. You may have been removed from the circle — try reopening the app.", 'تعذّر الحفظ. ربما لم تعد عضوًا في الحلقة — جرّب فتح التطبيق من جديد.'), 'warn');
       }
     } else if (code === 'invalid_argument') {
-      U.toast(L('مقدرتش أحفظ — يمكن التعديل ده مش مسموح لك.', "Couldn't save — you may not be allowed to make this change."), 'warn');
+      U.toast(L('مقدرتش أحفظ — يمكن التعديل ده مش مسموح لك.', "Couldn't save — you may not be allowed to make this change.", 'تعذّر الحفظ — ربما هذا التعديل غير مسموح لك.'), 'warn');
     } else if (code === 'too_large') {
-      U.toast(L('الكلام ده أطول من اللي ينفع يتحفظ في مكان واحد. قسّمه على جزئين — اللي كتبته محفوظ كمسودة.', "That's too long to save in one place. Split it in two — what you wrote is kept as a draft."), 'warn');
+      U.toast(L('الكلام ده أطول من اللي ينفع يتحفظ في مكان واحد. قسّمه على جزئين — اللي كتبته محفوظ كمسودة.', "That's too long to save in one place. Split it in two — what you wrote is kept as a draft.", 'هذا النص أطول مما يمكن حفظه في مكان واحد. قسّمه إلى جزأين — ما كتبته محفوظ كمسودة.'), 'warn');
     } else if (code === 'quota_exceeded') {
-      U.toast(L('المساحة المتاحة للحلقة خلصت. امسحوا حاجات قديمة وجرّبوا تاني', 'The circle is out of space. Delete some old items and try again'), 'warn');
+      U.toast(L('المساحة المتاحة للحلقة خلصت. امسحوا حاجات قديمة وجرّبوا تاني', 'The circle is out of space. Delete some old items and try again', 'نفدت المساحة المتاحة للحلقة. احذفوا بعض العناصر القديمة وحاولوا مجددًا'), 'warn');
     } else if (code === 'resource_exhausted') {
-      U.toast(L('براحة شوية… جرّب تاني بعد ثواني', 'Too fast — try again in a few seconds'), 'warn');
+      U.toast(L('براحة شوية… جرّب تاني بعد ثواني', 'Too fast — try again in a few seconds', 'مهلًا… حاول مجددًا بعد بضع ثوان'), 'warn');
     } else if (Date.now() - (handleWriteError.last || 0) > 60000) {
       handleWriteError.last = Date.now();
-      U.toast(L('ماتحفظش. اتأكد من النت وجرّب تاني', 'Not saved. Check your connection and try again'), 'warn');
+      U.toast(L('ماتحفظش. اتأكد من النت وجرّب تاني', 'Not saved. Check your connection and try again', 'لم يتم الحفظ. تأكد من اتصالك بالإنترنت وحاول مجددًا'), 'warn');
     }
   }
   D.set = (path, body) => queue(path, () => S.db.doc(path).set(body));
@@ -177,7 +177,7 @@
     [...S.members.values()].sort((a, b) => String(a.joinedAt).localeCompare(String(b.joinedAt))).map((m) => m.id);
 
   D.name = (uid) => {
-    if (!uid) return L('حد', 'Someone');
+    if (!uid) return L('حد', 'Someone', 'شخص ما');
     const m = S.members.get(uid);
     const p = S.profiles[uid];
     return (m && m.nick) || (p && p.name) || L('قارئ', 'Reader');

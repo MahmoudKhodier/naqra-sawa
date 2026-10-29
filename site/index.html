@@ -1362,6 +1362,44 @@ textarea { resize: vertical; line-height: 1.55; }
 .rd.land .rd-panel { inset: 0; inset-inline-start: auto; width: min(380px, 55vw); height: auto; border-radius: 0; }
 .rd.paged .rd-scroll { scroll-snap-type: y mandatory; }
 .rd.paged .pg { scroll-snap-align: center; scroll-snap-stop: always; }
+/* Reading bars: frosted glass, quieter lines, round icon buttons. On phones the bottom bar floats as a dock;
+   in landscape both bars are floating rails that leave the page room around them. */
+.rd { --rd-glass: color-mix(in srgb, var(--rd-bar) 86%, transparent); --rd-btn: color-mix(in srgb, var(--rd-ink) 6%, transparent); --rd-btn-h: color-mix(in srgb, var(--rd-ink) 11%, transparent); --rd-sep: color-mix(in srgb, var(--rd-line) 75%, transparent); --rd-float: 0 1px 2px rgb(0 0 0 / .06), 0 8px 28px rgb(0 0 0 / .12); }
+.rd[data-theme="night"] { --rd-float: 0 1px 2px rgb(0 0 0 / .4), 0 10px 30px rgb(0 0 0 / .45); }
+.rd-top, .rd-bot { background: var(--rd-glass); backdrop-filter: blur(18px) saturate(1.5); -webkit-backdrop-filter: blur(18px) saturate(1.5); transition: transform .28s cubic-bezier(.2, .8, .2, 1), opacity .2s; }
+.rd-top { border-bottom-color: var(--rd-sep); box-shadow: 0 6px 18px rgb(0 0 0 / .05); }
+.rd-top .ib, .rd-bot .ib { border-radius: 14px; }
+.rd-top .ib:hover, .rd-top .ib:focus-visible, .rd-bot .ib:hover { background: var(--rd-btn-h); }
+.rd-top .ib:active, .rd-bot .ib:active, .tool:active { transform: scale(.92); }
+.rd-acts .zl { min-width: 46px; height: 30px; border-radius: 99px; background: var(--rd-btn); font-variant-numeric: tabular-nums; }
+.rd-pg input { border-radius: 99px !important; border-color: transparent !important; background: var(--rd-btn) !important; font-weight: 700; }
+.rd-pg input:focus { border-color: var(--lapis) !important; }
+.rd-bm[aria-pressed="true"], .rd-bm.on { color: var(--rubric); }
+.tool { border-radius: 14px; background: var(--rd-btn); transition: background .15s, color .15s, transform .1s; }
+.tool:hover { background: var(--rd-btn-h); }
+.tool.on { box-shadow: 0 4px 12px color-mix(in srgb, var(--lapis) 35%, transparent); }
+@media (max-width: 760px) {
+  .rd:not(.land) .rd-bot { inset: auto 8px calc(8px + env(safe-area-inset-bottom, 0px)); padding: 6px 8px; border: 1px solid var(--rd-sep); border-radius: 22px; box-shadow: var(--rd-float); }
+  .rd:not(.land).ui-off .rd-bot { transform: translateY(calc(100% + 24px + env(safe-area-inset-bottom, 0px))); opacity: 0; }
+  .rd:not(.land) .rd-botrow { gap: 10px; }
+  .rd:not(.land) .tool { min-width: 44px; min-height: 44px; justify-content: center; }
+}
+.rd.land .rd-top, .rd.land .rd-bot, .rd.land.swap .rd-top, .rd.land.swap .rd-bot { margin: max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); width: 60px; min-width: 0; padding: 8px 6px; border: 1px solid var(--rd-sep); border-radius: 26px; box-shadow: var(--rd-float); align-items: center; }
+.rd.land .rd-top { gap: 6px; }
+.rd.land .rd-top > .ib:first-child { background: var(--rd-btn); }
+.rd.land .rd-pg { padding: 4px 0; border-block: 1px solid var(--rd-sep); width: 100%; align-items: center; }
+.rd.land .rd-pg input { width: 46px !important; padding: 5px 2px !important; }
+.rd.land .rd-pg span { display: block; margin-top: 2px; color: var(--rd-ink3); }
+.rd.land .rd-acts { gap: 4px; align-items: center; }
+.rd.land .rd-acts .zl { min-width: 44px; height: 26px; font-size: .72rem; }
+.rd.land .rd-bot .rd-botrow { align-items: center; gap: 8px; width: 100%; }
+.rd.land .rd-tools { gap: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--rd-sep); }
+.rd.land .tool { width: 44px; height: 44px; min-height: 0; padding: 0; border-radius: 50%; }
+.rd.land .rd-scrub { width: 44px; }
+[dir="rtl"] .rd.land.ui-off .rd-top, [dir="ltr"] .rd.land.ui-off .rd-bot, [dir="ltr"] .rd.land.swap.ui-off .rd-top, [dir="rtl"] .rd.land.swap.ui-off .rd-bot { transform: translateX(calc(100% + 24px)); opacity: 0; }
+[dir="ltr"] .rd.land.ui-off .rd-top, [dir="rtl"] .rd.land.ui-off .rd-bot, [dir="rtl"] .rd.land.swap.ui-off .rd-top, [dir="ltr"] .rd.land.swap.ui-off .rd-bot { transform: translateX(calc(-100% - 24px)); opacity: 0; }
+.rd.land .rd-panel { box-shadow: var(--shadow-lg); }
+@media (prefers-reduced-motion: reduce) { .rd-top, .rd-bot, .tool { transition: none; } }
 .inbox { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
 .inbox button { display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: start; padding: 10px; border-radius: 14px; }
 .inbox button:hover { background: var(--bg2); }

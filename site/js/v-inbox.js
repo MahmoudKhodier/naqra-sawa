@@ -65,14 +65,14 @@
     U.store.set(seenKey(), U.nowIso());
     V.render();
     V.sheet({
-      title: `${icon('bell')} ${L('الجديد ليك', 'For you')}`,
+      title: `${icon('bell')} ${L('الجديد ليك', 'For you', 'الجديد لك')}`,
       html: items.length
         ? `<ul class="inbox">${items
             .map(
               (x, i) => `<li class="${x.t > seen ? 'new' : ''}"><button data-i="${i}"><span class="ib-ic k-${x.kind}">${icon(ICON[x.kind])}</span>${D.avatar(x.who, 'sm')}<span class="ib-t"><span>${line(x)}</span>${x.text ? `<small class="ib-q" dir="auto">${esc(String(x.text).slice(0, 90))}</small>` : ''}<small>${L.ago(x.t)}</small></span></button></li>`
             )
             .join('')}</ul>`
-        : V.empty(L('مفيش جديد لسه', 'Nothing new yet'), L('لما حد يرد عليك أو يشجعك هتلاقيه هنا.', 'Replies, likes and cheers for you will show up here.')),
+        : V.empty(L('مفيش جديد لسه', 'Nothing new yet', 'لا جديد بعد'), L('لما حد يرد عليك أو يشجعك هتلاقيه هنا.', 'Replies, likes and cheers for you will show up here.', 'عندما يرد عليك أحد أو يشجعك ستجد ذلك هنا.')),
       onMount: (body, api) =>
         body.addEventListener('click', (e) => {
           const b = e.target.closest('[data-i]');

@@ -216,20 +216,20 @@
     const flame = s.streak ? (s.atRisk ? 'risk' : 'hot') : 'cold';
     const pct = s.span ? s.cur / s.span : 0;
     const unread = V.inboxUnread ? V.inboxUnread() : 0;
-    const flameTitle = s.atRisk ? L('اقرأ النهارده عشان السلسلة متقطعش', 'Read today to keep your streak') : L('أيام القراءة المتتالية', 'Reading streak');
+    const flameTitle = s.atRisk ? L('اقرأ النهارده عشان السلسلة متقطعش', 'Read today to keep your streak', 'اقرأ اليوم كي لا تنقطع سلسلتك') : L('أيام القراءة المتتالية', 'Reading streak');
     const me = `<button class="hud-me" data-go="me" aria-label="${L('ملفي', 'My profile')}">${D.avatar(S.me, 'md')}${V.star(L.num(s.lv), 'gold lvl')}</button>`;
-    const btns = `${V.themeBtn ? V.themeBtn('data-act="theme-toggle"') : ''}${V.inboxUnread ? `<button class="ib round hud-bell" data-act="inbox" aria-label="${L('الجديد ليك', 'For you')}">${icon('bell')}${unread ? `<i class="nv-b">${L.num(Math.min(unread, 99))}</i>` : ''}</button>` : ''}`;
+    const btns = `${V.themeBtn ? V.themeBtn('data-act="theme-toggle"') : ''}${V.inboxUnread ? `<button class="ib round hud-bell" data-act="inbox" aria-label="${L('الجديد ليك', 'For you', 'الجديد لك')}">${icon('bell')}${unread ? `<i class="nv-b">${L.num(Math.min(unread, 99))}</i>` : ''}</button>` : ''}`;
     const flameChip = `<span class="hchip flame ${flame}" title="${flameTitle}">${icon('flame')}<b>${L.num(s.streak)}</b>${home ? `<span>${L('يوم', s.streak === 1 ? 'day' : 'days')}</span>` : ''}</span>`;
     let html;
     if (home) {
       const date = `${esc(L.day(U.today()))}${V.showHijri && V.showHijri() && L.hijriShort ? ` • ${esc(L.hijriShort())}` : ''}`;
       html = `<div class="hud-row">${me}<div class="hud-hi"><h1 class="hud-greet">${greeting()}${L('، ', ', ')}<span dir="auto">${esc(D.name(S.me))}</span></h1><small class="hijri">${date}</small></div>${btns}</div>
         <div class="hud-chips">${flameChip}
-          <span class="hchip lvl" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`)}">${V.star('', 'gold xs')}<b>${L(`المستوى ${L.num(s.lv)}`, `Level ${s.lv}`)}</b>${V.bar(pct, 'gold')}</span>
-          ${s.freezes ? `<span class="hchip fz" title="${L('حماية للسلسلة: لو فوّت يوم بتحميها', 'Streak freeze: protects a missed day')}">${icon('snow')}<b>×${L.num(s.freezes)}</b></span>` : ''}
+          <span class="hchip lvl" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`, `بقي ${L.num(s.toNext)} XP للمستوى التالي`)}">${V.star('', 'gold xs')}<b>${L(`المستوى ${L.num(s.lv)}`, `Level ${s.lv}`)}</b>${V.bar(pct, 'gold')}</span>
+          ${s.freezes ? `<span class="hchip fz" title="${L('حماية للسلسلة: لو فوّت يوم بتحميها', 'Streak freeze: protects a missed day', 'حماية للسلسلة: تحميها إن فاتك يوم')}">${icon('snow')}<b>×${L.num(s.freezes)}</b></span>` : ''}
         </div>`;
     } else {
-      html = `<div class="hud-row">${me}<div class="hud-xp" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`)}"><span class="hud-t">${esc(G.title(s.lv))}</span>${V.bar(pct, 'gold')}<small>${L.num(s.cur)} / ${L.num(s.span)} XP</small></div>${flameChip}${btns}</div>`;
+      html = `<div class="hud-row">${me}<div class="hud-xp" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`, `بقي ${L.num(s.toNext)} XP للمستوى التالي`)}"><span class="hud-t">${esc(G.title(s.lv))}</span>${V.bar(pct, 'gold')}<small>${L.num(s.cur)} / ${L.num(s.span)} XP</small></div>${flameChip}${btns}</div>`;
     }
     el.classList.toggle('is-home', home);
     if (el.dataset.rtH !== html) {
@@ -240,7 +240,7 @@
       const b = document.createElement('div');
       b.id = 'ro-banner';
       b.className = 'ro-banner';
-      b.innerHTML = `${icon('eye')}<span>${L('التغييرات مش بتتحفظ دلوقتي. اتأكد من النت، ولو اتشلت من الحلقة اطلب لينك دعوة جديد.', 'Changes are not saving right now. Check your connection; if you were removed from the circle, ask for a new invite link.')}</span>`;
+      b.innerHTML = `${icon('eye')}<span>${L('التغييرات مش بتتحفظ دلوقتي. اتأكد من النت، ولو اتشلت من الحلقة اطلب لينك دعوة جديد.', 'Changes are not saving right now. Check your connection; if you were removed from the circle, ask for a new invite link.', 'حفظ التغييرات متوقف الآن. تأكد من اتصالك بالإنترنت، وإن لم تعد عضوًا في الحلقة فاطلب رابط دعوة جديدًا.')}</span>`;
       el.after(b);
     }
   }
@@ -263,7 +263,7 @@
       ta.after(c);
     }
     c.classList.toggle('full', n >= max);
-    c.textContent = n >= max ? L(`وصلت للحد (${L.num(max)} حرف)`, `Limit reached (${max} characters)`) : L(`فاضل ${L.num(max - n)} حرف`, `${max - n} characters left`);
+    c.textContent = n >= max ? L(`وصلت للحد (${L.num(max)} حرف)`, `Limit reached (${max} characters)`, `بلغت الحد الأقصى (${L.num(max)} حرف)`) : L(`فاضل ${L.num(max - n)} حرف`, `${max - n} characters left`, `الأحرف المتبقية: ${L.num(max - n)}`);
   }
   document.addEventListener('input', (e) => e.target.matches && e.target.matches('textarea[maxlength]') && lenNote(e.target));
   document.addEventListener('paste', (e) => {
@@ -273,7 +273,7 @@
     const add = ((e.clipboardData && e.clipboardData.getData('text')) || '').length;
     const room = max - ta.value.length + ((ta.selectionEnd || 0) - (ta.selectionStart || 0));
     if (max && add > room) {
-      U.toast(L(`النص اللي لزقته أطول من المسموح هنا (${L.num(max)} حرف) — اتقص آخره. قسّمه على جزئين.`, `What you pasted is longer than fits here (${max} characters) — the end was cut. Split it in two.`), 'warn');
+      U.toast(L(`النص اللي لزقته أطول من المسموح هنا (${L.num(max)} حرف) — اتقص آخره. قسّمه على جزئين.`, `What you pasted is longer than fits here (${max} characters) — the end was cut. Split it in two.`, `النص الذي لصقته أطول من المسموح هنا (${L.num(max)} حرف) — لم يدخل آخره. قسّمه إلى جزأين.`), 'warn');
       setTimeout(() => lenNote(ta), 0);
     }
   });
@@ -282,7 +282,7 @@
     const wrap = document.createElement('div');
     wrap.className = 'sheet-wrap';
     wrap.innerHTML = `<div class="sheet-bg" data-close></div><section class="sheet ${wide ? 'wide' : ''} ${cls}" role="dialog" aria-modal="true" aria-label="${esc(title.replace(/<[^>]+>/g, ''))}">
-      <header class="sh-head"><b>${title}</b><button class="ib" data-close aria-label="${L('قفل', 'Close')}">${icon('close')}</button></header>
+      <header class="sh-head"><b>${title}</b><button class="ib" data-close aria-label="${L('قفل', 'Close', 'إغلاق')}">${icon('close')}</button></header>
       <div class="sh-body">${html}</div></section>`;
     document.getElementById('layers').appendChild(wrap);
     const prevFocus = document.activeElement;
@@ -327,7 +327,7 @@
       .map((it, i) => `<button class="mi ${it.cls || ''} ${it.danger ? 'danger' : ''}" data-i="${i}">${icon(it.ic || 'fwd')}<span>${it.t}</span></button>`)
       .join('')}</div>`;
     V.sheet({
-      title: L('اختيارات', 'Options'),
+      title: L('اختيارات', 'Options', 'خيارات'),
       html,
       cls: 'menu-sheet',
       onMount: (body, api) =>
@@ -340,12 +340,12 @@
     });
   };
 
-  V.confirm = (text, ok = L('تمام', 'OK'), danger = false) =>
+  V.confirm = (text, ok = L('تمام', 'OK', 'حسنًا'), danger = false) =>
     new Promise((res) => {
       let done = false;
       const api = V.sheet({
-        title: L('متأكد؟', 'Are you sure?'),
-        html: `<p class="lead">${text}</p><div class="row-btns end"><button class="btn ghost" data-no>${L('لأ', 'No')}</button><button class="btn ${danger ? 'rubric' : ''}" data-yes autofocus>${ok}</button></div>`,
+        title: L('متأكد؟', 'Are you sure?', 'هل أنت متأكد؟'),
+        html: `<p class="lead">${text}</p><div class="row-btns end"><button class="btn ghost" data-no>${L('لأ', 'No', 'لا')}</button><button class="btn ${danger ? 'rubric' : ''}" data-yes autofocus>${ok}</button></div>`,
         onMount: (body, a) =>
           body.addEventListener('click', (e) => {
             if (e.target.closest('[data-yes]')) {
@@ -386,13 +386,13 @@
     const today = U.today();
     const dup = [...S.pokes.values()].some((p) => p.from === S.me && p.to === to && p.kind === kind && U.isoKey(p.at) === today && (p.b || '') === (ctx.b || ''));
     if (dup) {
-      U.toast(L('اتبعت النهارده خلاص 🙂', 'Already sent today 🙂'));
+      U.toast(L('اتبعت النهارده خلاص 🙂', 'Already sent today 🙂', 'أرسلته اليوم بالفعل 🙂'));
       return;
     }
     const id = D.newId();
     await D.set(`pokes/${id}`, { to, from: S.me, kind, at: U.nowIso(), b: ctx.b || '', wid: ctx.wid || '' });
     U.chime('soft');
-    U.toast(kind === 'cheer' ? L(`التشجيع وصل لـ${esc(D.name(to))} 👏`, `You cheered ${esc(D.name(to))} 👏`) : L(`التذكير وصل لـ${esc(D.name(to))} 👋`, `You nudged ${esc(D.name(to))} 👋`));
+    U.toast(kind === 'cheer' ? L(`التشجيع وصل لـ${esc(D.name(to))} 👏`, `You cheered ${esc(D.name(to))} 👏`, `وصل التشجيع إلى ${esc(D.name(to))} 👏`) : L(`التذكير وصل لـ${esc(D.name(to))} 👋`, `You nudged ${esc(D.name(to))} 👋`, `وصل التذكير إلى ${esc(D.name(to))} 👋`));
   };
 
   /* ---------- celebrations derived from data changes ---------- */
@@ -419,7 +419,7 @@
     if (newB.length > 3) {
       setTimeout(() => {
         U.chime('ok');
-        U.toast(`${icon('trophy')}<span><b>${L(`${L.num(newB.length)} أوسمة جديدة!`, `${newB.length} new badges!`)}</b> ${L('شوفهم في صفحة «أنا»', 'See them on your profile')}</span>`, 'badge');
+        U.toast(`${icon('trophy')}<span><b>${L(`${L.num(newB.length)} أوسمة جديدة!`, `${newB.length} new badges!`, `أوسمة جديدة: ${L.num(newB.length)}!`)}</b> ${L('شوفهم في صفحة «أنا»', 'See them on your profile', 'شاهدها في صفحة «أنا»')}</span>`, 'badge');
       }, 900);
       return;
     }
@@ -427,13 +427,13 @@
       const b = G.BADGES.find((x) => x.id === id);
       setTimeout(() => {
         U.chime('ok');
-        U.toast(`${V.badgeIcon(b, true, 'xs')}<span><b>${L('وسام جديد!', 'New badge!')}</b> ${esc(L(b.t[0], b.t[1]))}</span>`, 'badge');
+        U.toast(`${V.badgeIcon(b, true, 'xs')}<span><b>${L('وسام جديد!', 'New badge!')}</b> ${esc(L(...b.t))}</span>`, 'badge');
       }, 900 + i * 1200);
     });
     if (now.qdone && !(prev.qday === now.qday && prev.qdone)) {
       setTimeout(() => {
         U.chime('big');
-        U.toast(`${icon('chest')}<span><b>${L('خلّصت مهام النهارده!', 'Daily quests complete!')}</b> ${L('افتح الصندوق في صفحة اليوم', 'Open your chest on Today')}</span>`, 'gold');
+        U.toast(`${icon('chest')}<span><b>${L('خلّصت مهام النهارده!', 'Daily quests complete!', 'أنهيت مهام اليوم!')}</b> ${L('افتح الصندوق في صفحة اليوم', 'Open your chest on Today')}</span>`, 'gold');
       }, 600);
     }
   };
@@ -444,7 +444,7 @@
     V.sheet({
       title: L('مستوى جديد!', 'Level up!'),
       cls: 'celebrate',
-      html: `<div class="celeb">${V.star(L.num(lv), 'gold huge spin-in')}<h2>${esc(G.title(lv))}</h2><p>${L(`وصلت للمستوى ${L.num(lv)}. كمّل كده!`, `You reached level ${lv}. Keep going!`)}</p><button class="btn gold" data-close autofocus>${L('يلا بينا', "Let's go")}</button></div>`,
+      html: `<div class="celeb">${V.star(L.num(lv), 'gold huge spin-in')}<h2>${esc(G.title(lv))}</h2><p>${L(`وصلت للمستوى ${L.num(lv)}. كمّل كده!`, `You reached level ${lv}. Keep going!`, `وصلت إلى المستوى ${L.num(lv)}. واصل!`)}</p><button class="btn gold" data-close autofocus>${L('يلا بينا', "Let's go", 'هيا بنا')}</button></div>`,
     });
   };
 
@@ -472,11 +472,11 @@
           try {
             await onSave(text);
             api.close();
-            U.toast(L('اتعدّلت ✓', 'Updated ✓'));
+            U.toast(L('اتعدّلت ✓', 'Updated ✓', 'تم التعديل ✓'));
           } catch (x) {
             btn.disabled = false;
             const er = f.querySelector('.err-t');
-            er.textContent = L('ماتحفظش. اتأكد من النت وجرّب تاني.', 'Not saved. Check your connection and try again.');
+            er.textContent = L('ماتحفظش. اتأكد من النت وجرّب تاني.', 'Not saved. Check your connection and try again.', 'تعذّر الحفظ. تأكد من اتصالك وحاول مجددًا.');
             er.hidden = false;
           }
         });
@@ -497,9 +497,9 @@
     const nx = grp.next;
     return `<button class="bdg${grp.top ? ' got' : ''}" data-act="badge" data-g="${esc(grp.g)}" data-uid="${esc(uid)}">
       ${V.badgeIcon(show.b, !!grp.top)}
-      <b>${esc(L(show.b.t[0], show.b.t[1]))}</b>
+      <b>${esc(L(...show.b.t))}</b>
       <span class="bdg-dots" aria-label="${L(`${L.num(grp.tiers.filter((x) => x.got).length)} من ${L.num(grp.tiers.length)}`, `${grp.tiers.filter((x) => x.got).length} of ${grp.tiers.length}`)}">${grp.tiers.map((x) => `<i class="tier${x.b.tier}${x.got ? ' on' : ''}"></i>`).join('')}</span>
-      ${nx ? `<small>${L.num(nx.v)} / ${L.num(nx.b.n)}</small>${V.bar(nx.v / nx.b.n, 'gold')}` : `<small class="gold-t">${L('خلّصت كل المستويات ✓', 'All levels done ✓')}</small>`}
+      ${nx ? `<small>${L.num(nx.v)} / ${L.num(nx.b.n)}</small>${V.bar(nx.v / nx.b.n, 'gold')}` : `<small class="gold-t">${L('خلّصت كل المستويات ✓', 'All levels done ✓', 'أنهيت كل المستويات ✓')}</small>`}
     </button>`;
   };
 
@@ -521,15 +521,15 @@
       title: L(`الورد ${L.num(w.n)} ✓`, `Portion ${w.n} ✓`),
       cls: 'celebrate',
       html: `<div class="celeb">${V.star(L.num(w.n), 'jade huge spin-in')}
-        <h2>${L('برافو! خلّصت الورد', 'Well done — portion complete!')}</h2>
+        <h2>${L('برافو! خلّصت الورد', 'Well done — portion complete!', 'أحسنت! أنهيت الورد')}</h2>
         <div class="xp-lines">
           <span>${L('الورد', 'Portion')} <b>+${L.num(G.XP.wird)} XP</b></span>
-          ${onTime ? `<span>${L('في الميعاد', 'On time')} <b>+${L.num(G.XP.onTime)} XP</b></span>` : ''}
-          ${!someoneFirst ? `<span class="gold-t">${L('أول واحد يخلّص!', 'First to finish!')} <b>+${L.num(G.XP.first)} XP</b></span>` : ''}
+          ${onTime ? `<span>${L('في الميعاد', 'On time', 'في الموعد')} <b>+${L.num(G.XP.onTime)} XP</b></span>` : ''}
+          ${!someoneFirst ? `<span class="gold-t">${L('أول واحد يخلّص!', 'First to finish!', 'أول من أنهاه!')} <b>+${L.num(G.XP.first)} XP</b></span>` : ''}
         </div>
-        <p>${L('اكتب خلاصتك في سطرين عشان أصحابك يستفيدوا', 'Share your takeaway in a couple of lines so friends can learn from it')} (+${L.num(G.XP.take)} XP)</p>
-        <div class="row-btns center"><button class="btn gold" data-take autofocus>${icon('sparkle')}${L('اكتب خلاصتي', 'Write my takeaway')}</button><button class="btn ghost" data-close>${L('بعدين', 'Later')}</button></div>
-        ${others ? `<small class="muted">${L('شوف مين لسه، وشجّعهم من صفحة الكتاب', 'See who is still reading and cheer them on from the book page')}</small>` : ''}
+        <p>${L('اكتب خلاصتك في سطرين عشان أصحابك يستفيدوا', 'Share your takeaway in a couple of lines so friends can learn from it', 'اكتب خلاصتك في سطرين ليستفيد منها أصدقاؤك')} (+${L.num(G.XP.take)} XP)</p>
+        <div class="row-btns center"><button class="btn gold" data-take autofocus>${icon('sparkle')}${L('اكتب خلاصتي', 'Write my takeaway')}</button><button class="btn ghost" data-close>${L('بعدين', 'Later', 'لاحقًا')}</button></div>
+        ${others ? `<small class="muted">${L('شوف مين لسه، وشجّعهم من صفحة الكتاب', 'See who is still reading and cheer them on from the book page', 'شاهد من ما زالوا يقرؤون، وشجّعهم من صفحة الكتاب')}</small>` : ''}
       </div>`,
       onMount: (body, api) =>
         body.addEventListener('click', (e) => {
@@ -557,17 +557,17 @@
     U.confetti(1.3);
     U.chime('big');
     V.sheet({
-      title: L('لحقت! ✓', 'Caught up! ✓'),
+      title: L('لحقت! ✓', 'Caught up! ✓', 'تداركت ما فاتك! ✓'),
       cls: 'celebrate',
       html: `<div class="celeb">${V.star(L.num(ws.length), 'jade huge spin-in')}
-        <h2>${L(`علّمت ${L.count(ws.length, 'wird')} خلصوا`, `${ws.length} portions marked done`)}</h2>
+        <h2>${L(`خلّصت ${L.count(ws.length, 'wird')}`, `${ws.length} portions marked done`, `أنهيت ${L.count(ws.length, 'wird')}`)}</h2>
         <div class="xp-lines"><span>${L('الأوراد', 'Portions')} <b>+${L.num(G.XP.wird * ws.length)} XP</b></span></div>
-        <button class="btn gold" data-close autofocus>${L('يلا نكمّل', 'Keep going')}</button></div>`,
+        <button class="btn gold" data-close autofocus>${L('يلا نكمّل', 'Keep going', 'هيا نواصل')}</button></div>`,
     });
   };
 
   V.unmarkWird = async (bookId, wid) => {
-    if (!(await V.confirm(L('هتشيل علامة «خلّصت» من الورد ده.', 'This removes the done mark from this portion.'), L('شيل العلامة', 'Remove mark'), true))) return;
+    if (!(await V.confirm(L('هتشيل علامة «خلّصته» من الورد ده.', 'This removes the done mark from this portion.', 'ستزيل علامة «أنهيته» من هذا الورد.'), L('شيل العلامة', 'Remove mark', 'أزل العلامة'), true))) return;
     await D.saveProg(bookId, (c) => {
       const done = Object.assign({}, c.done);
       delete done[wid];
@@ -580,7 +580,7 @@
     const w = G.wirds(book).find((x) => x.id === wid);
     V.sheet({
       title: L(`خلاصتي في الورد ${L.num(w ? w.n : '')}`, `My takeaway • portion ${w ? w.n : ''}`),
-      html: `<p class="muted">${L('إيه أكتر فكرة عجبتك أو فرقت معاك في الورد ده؟', 'What idea stood out or stayed with you in this portion?')}</p>
+      html: `<p class="muted">${L('إيه أكتر فكرة عجبتك أو فرقت معاك في الورد ده؟', 'What idea stood out or stayed with you in this portion?', 'ما أكثر فكرة أعجبتك أو أثّرت فيك في هذا الورد؟')}</p>
         <textarea id="take-text" rows="5" dir="auto" maxlength="${U.MAX.take}" autofocus placeholder="${L('اكتب هنا…', 'Write here…')}">${esc(existing ? existing.text : U.store.get(`draft:take:${bookId}:${wid}`, ''))}</textarea>
         <div class="row-btns end"><button class="btn gold" data-save>${icon('sparkle')}${L('انشر الخلاصة', 'Share takeaway')}</button></div>`,
       onMount: (body, api) =>
@@ -606,11 +606,11 @@
     U.confetti(1.6);
     U.chime('big');
     V.sheet({
-      title: L('خلّصت الكتاب!', 'Book finished!'),
+      title: L('خلّصت الكتاب!', 'Book finished!', 'أنهيت الكتاب!'),
       cls: 'celebrate',
       html: `<div class="celeb">${V.cover(book, 'lg spin-in')}<h2 dir="auto">${esc(book.title)}</h2>
         <div class="xp-lines"><span class="gold-t">${L('خاتم الكتاب', 'Book finisher')} <b>+${L.num(G.XP.book)} XP</b></span></div>
-        <p>${L('قيّم الكتاب واكتب رأيك — هيتحط في مكتبتك تحت «قرأناه سوا»', "Rate it and add a review — it goes on your shelf under 'Read together'")}</p>
+        <p>${L('قيّم الكتاب واكتب رأيك — هيتحط في مكتبتك تحت «قرأناه سوا»', "Rate it and add a review — it goes on your shelf under 'Read together'", 'قيّم الكتاب واكتب رأيك — سنضعه في مكتبتك تحت «قرأناه معًا»')}</p>
         ${V.stars(0, true, 'fin-stars')}
         <textarea id="fin-review" rows="3" dir="auto" maxlength="${U.MAX.review}" placeholder="${L('رأيك في سطرين (اختياري)', 'Your review (optional)')}"></textarea>
         <div class="row-btns center"><button class="btn gold" data-save autofocus>${L('احفظ في مكتبتي', 'Save to my shelf')}</button></div></div>`,
@@ -649,7 +649,7 @@
       marks[bookId] = bm;
       return Object.assign({}, cur, { marks });
     });
-    if (!quiet) U.toast(L('اتحفظت', 'Saved'));
+    if (!quiet) U.toast(L('اتحفظت', 'Saved', 'تم الحفظ'));
   };
 
   /* ---------- global click handling for data-go / data-act shared actions ---------- */
@@ -669,7 +669,8 @@
     if (!a || a.closest('#reader')) return;
     const act = a.dataset.act;
     if (act === 'lang') {
-      L.set(L.isAr() ? 'en' : 'ar');
+      if (a.dataset.l) L.set(a.dataset.l);
+      else L.toggle();
       const app = document.getElementById('app');
       app.innerHTML = '';
       if (A.R.isOpen()) {
@@ -703,15 +704,15 @@
     V.sheet({
       title: L('وسام', 'Badge'),
       html: `<div class="bd-sheet">
-        <div class="bd-hero">${V.badgeIcon(show.b, !!grp.top, 'lg')}<h2>${esc(L(show.b.t[0], show.b.t[1]))}</h2>
-          <p class="muted">${grp.top ? L(`أعلى مستوى اتفتح: ${V.tierName(grp.top.b.tier)}`, `Highest level earned: ${V.tierName(grp.top.b.tier)}`) : mine ? L('لسه ما اتفتحش — شوف إزاي تاخده تحت', 'Not earned yet — see how below') : L('لسه ما اتفتحش', 'Not earned yet')}</p></div>
-        <p class="bd-tip">${icon('info')}<span>${esc(L(grp.tip[0], grp.tip[1]))}</span></p>
+        <div class="bd-hero">${V.badgeIcon(show.b, !!grp.top, 'lg')}<h2>${esc(L(...show.b.t))}</h2>
+          <p class="muted">${grp.top ? L(`أعلى مستوى اتفتح: ${V.tierName(grp.top.b.tier)}`, `Highest level earned: ${V.tierName(grp.top.b.tier)}`, `أعلى مستوى مفتوح: ${V.tierName(grp.top.b.tier)}`) : mine ? L('لسه ما اتفتحش — شوف إزاي تاخده تحت', 'Not earned yet — see how below', 'مغلق حتى الآن — اعرف كيف تفتحه في الأسفل') : L('لسه ما اتفتحش', 'Not earned yet', 'مغلق حتى الآن')}</p></div>
+        <p class="bd-tip">${icon('info')}<span>${esc(L(...grp.tip))}</span></p>
         <ol class="bd-tiers">${grp.tiers
           .map((x) => {
             const h = holders(x.b);
             return `<li class="${x.got ? 'got' : ''}">${V.badgeIcon(x.b, x.got, 'sm')}
-              <div><b>${esc(L(x.b.t[0], x.b.t[1]))} <small class="muted">• ${V.tierName(x.b.tier)}</small></b><small>${esc(L(x.b.d[0], x.b.d[1]))}</small>
-                ${x.got ? `<small class="jade-t">${icon('check')}${L('اتفتح', 'Earned')}</small>` : `<div class="bd-prog">${V.bar(x.v / x.b.n, 'gold')}<small>${L.num(x.v)} / ${L.num(x.b.n)}</small></div>`}
+              <div><b>${esc(L(...x.b.t))} <small class="muted">• ${V.tierName(x.b.tier)}</small></b><small>${esc(L(...x.b.d))}</small>
+                ${x.got ? `<small class="jade-t">${icon('check')}${L('اتفتح', 'Earned', 'مفتوح')}</small>` : `<div class="bd-prog">${V.bar(x.v / x.b.n, 'gold')}<small>${L.num(x.v)} / ${L.num(x.b.n)}</small></div>`}
                 ${h.length ? `<span class="bd-who">${h.slice(0, 6).map((u) => D.avatar(u, 'xs')).join('')}<small>${h.length === 1 ? esc(D.name(h[0])) : L(`${L.num(h.length)} من الحلقة`, `${h.length} in the circle`)}</small></span>` : ''}
               </div></li>`;
           })

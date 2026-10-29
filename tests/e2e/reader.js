@@ -684,8 +684,8 @@ async function menu(p, text) {
       });
       await H.shot(p, 'r09-landscape');
       assert(info.land, 'no landscape layout');
-      assert(info.top.w < 100 && info.top.h > 300 && info.top.r >= 840, 'top rail not on the right side: ' + JSON.stringify(info.top));
-      assert(info.bot.w < 100 && info.bot.l <= 4, 'bottom rail not on the left side: ' + JSON.stringify(info.bot));
+      assert(info.top.w < 100 && info.top.h > 300 && info.top.r >= 820, 'top rail not on the right side: ' + JSON.stringify(info.top));
+      assert(info.bot.w < 100 && info.bot.l <= 24, 'bottom rail not on the left side: ' + JSON.stringify(info.bot));
       assert(info.scrub.h > info.scrub.w * 2, 'slider is not vertical: ' + JSON.stringify(info.scrub));
       assert(info.page.w > 700, 'page does not use the width: ' + JSON.stringify(info.page));
       // drag the vertical slider to ~80% of the book
@@ -706,14 +706,14 @@ async function menu(p, text) {
         return { topL: Math.round(t.left), botR: Math.round(b.right), store: window.A.U.store.get('rdTools') };
       });
       await H.shot(p, 'r09b-landscape-swapped');
-      assert(sw.topL <= 4 && sw.botR >= 840 && sw.store === 'right', 'rails did not swap: ' + JSON.stringify(sw));
+      assert(sw.topL <= 24 && sw.botR >= 820 && sw.store === 'right', 'rails did not swap: ' + JSON.stringify(sw));
       await tap(ctx.cdp, 420, 200);
       await T(700);
       const swHidden = await p.evaluate(() => document.querySelector('.rd-bot').getBoundingClientRect().left >= 840 && document.querySelector('.rd-top').getBoundingClientRect().right <= 4);
       assert(swHidden, 'swapped rails did not slide off their own edges');
       await menu(p, 'انقل الأدوات للشمال');
       await T(500);
-      const unsw = await p.evaluate(() => document.querySelector('.rd-top').getBoundingClientRect().right >= 840);
+      const unsw = await p.evaluate(() => document.querySelector('.rd-top').getBoundingClientRect().right >= 820);
       assert(unsw, 'rails did not go back');
       await tap(ctx.cdp, 420, 200);
       await T(700);

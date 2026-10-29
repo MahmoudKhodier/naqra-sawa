@@ -55,11 +55,11 @@
     const sec = (title, list, empty, rows) =>
       `<section class="lib-sec"><h2>${title} <small class="muted">${L.num(list.length)}</small></h2>${list.length ? (rows ? `<div class="rcards">${list.map(rcard).join('')}</div>` : `<div class="tiles">${list.map(tile).join('')}</div>`) : `<p class="muted sm">${empty}</p>`}</section>`;
     return `<div class="books">
-      <header class="page-head"><div><h1>${L('كتبنا', 'Our books')}</h1><p class="muted">${L('الكتب اللي الحلقة بتقرأها أو هتقرأها', 'What the circle is reading and will read')}</p></div>
-        ${D.canWrite() ? `<button class="btn gold" data-act="add-book">${icon('upload')}${L('ضيف كتاب', 'Add a book')}</button>` : ''}</header>
-      ${sec(L('بنقرأ دلوقتي', 'Reading now'), by('reading'), L('مفيش كتاب شغال دلوقتي.', 'Nothing in progress right now.'), true)}
-      ${sec(L('الجاي', 'Up next'), by('planned'), L('ضيف كتاب واختار «بعدين».', 'Add a book and choose “Later”.'))}
-      ${by('done').length ? sec(L('خلّصناها', 'Finished together'), by('done'), '') : ''}
+      <header class="page-head"><div><h1>${L('كتبنا', 'Our books')}</h1><p class="muted">${L('الكتب اللي الحلقة بتقرأها أو هتقرأها', 'What the circle is reading and will read', 'الكتب التي تقرؤها الحلقة أو ستقرؤها')}</p></div>
+        ${D.canWrite() ? `<button class="btn gold" data-act="add-book">${icon('upload')}${L('ضيف كتاب', 'Add a book', 'أضف كتابًا')}</button>` : ''}</header>
+      ${sec(L('بنقرأ دلوقتي', 'Reading now', 'نقرأ الآن'), by('reading'), L('مفيش كتاب شغال دلوقتي.', 'Nothing in progress right now.', 'لا يوجد كتاب قيد القراءة الآن.'), true)}
+      ${sec(L('الجاي', 'Up next', 'التالي'), by('planned'), L('ضيف كتاب واختار «بعدين».', 'Add a book and choose “Later”.', 'أضف كتابًا واختر «لاحقًا».'))}
+      ${by('done').length ? sec(L('خلّصناها', 'Finished together', 'أنهيناها'), by('done'), '') : ''}
       ${proposalsBlock()}
     </div>`;
   };
@@ -74,7 +74,7 @@
     return `<button class="rcard" data-go="book-${esc(b.id)}">
       ${V.cover(b, 'sm')}
       <span class="rc-b"><b class="t-title" dir="auto">${esc(b.title)}</b>${b.author ? `<small dir="auto">${esc(b.author)}</small>` : ''}
-        <small class="rc-w">${ws.length ? (w ? `${L(`الورد ${L.num(w.n)} من ${L.num(ws.length)}`, `Portion ${w.n} of ${ws.length}`)} • <span class="due ${st}">${L.due(w.due)}</span>` : L('خلّصت الأوراد', 'All portions done')) : L('من غير خطة لسه', 'No plan yet')}</small>
+        <small class="rc-w">${ws.length ? (w ? `${L(`الورد ${L.num(w.n)} من ${L.num(ws.length)}`, `Portion ${w.n} of ${ws.length}`)} • <span class="due ${st}">${L.due(w.due)}</span>` : L('خلّصت الأوراد', 'All portions done', 'أنهيت الأوراد')) : L('لسه مفيش خطة', 'No plan yet', 'لا خطة بعد')}</small>
         <span class="rc-p">${V.bar(pct, pct >= 1 ? 'jade' : 'lapis')}<small>${L.num(Math.round(pct * 100))}${L.isAr() ? '٪' : '%'}</small></span></span>
       ${readers ? `<span class="t-live"><span class="pulse"></span>${L.num(readers)}</span>` : ''}
     </button>`;
@@ -89,7 +89,7 @@
       ${V.cover(b, 'md')}
       <span class="t-title" dir="auto">${esc(b.title)}</span>
       ${b.author ? `<span class="t-auth" dir="auto">${esc(b.author)}</span>` : ''}
-      <span class="t-meta">${V.bar(pct, pct >= 1 ? 'jade' : 'lapis')}<small>${ws.length ? (w ? L(`الورد ${L.num(w.n)}/${L.num(ws.length)}`, `Portion ${w.n}/${ws.length}`) : L('خلّصت الأوراد', 'All portions done')) : L.count(b.pages || 0, 'page')}</small></span>
+      <span class="t-meta">${V.bar(pct, pct >= 1 ? 'jade' : 'lapis')}<small>${ws.length ? (w ? L(`الورد ${L.num(w.n)}/${L.num(ws.length)}`, `Portion ${w.n}/${ws.length}`) : L('خلّصت الأوراد', 'All portions done', 'أنهيت الأوراد')) : L.count(b.pages || 0, 'page')}</small></span>
       ${readers ? `<span class="t-live"><span class="pulse"></span>${L.num(readers)}</span>` : ''}
     </button>`;
   }
@@ -98,26 +98,26 @@
   function proposalsBlock() {
     const list = [...S.proposals.values()].filter((p) => !p.chosen).sort((a, b) => votes(b) - votes(a) || String(a.at).localeCompare(String(b.at)));
     return `<section class="card props">
-      <header><div><h2>${L('نقرأ إيه بعد كده؟', 'What should we read next?')}</h2><p class="muted sm">${L('اقترح كتاب وصوّتوا. الأعلى صوت بيكسب.', 'Suggest a book and vote. Most votes wins.')}</p></div>${D.canWrite() ? `<button class="btn ghost sm" data-act="propose">${icon('plus')}${L('اقترح', 'Suggest')}</button>` : ''}</header>
+      <header><div><h2>${L('نقرأ إيه بعد كده؟', 'What should we read next?', 'ماذا نقرأ بعد ذلك؟')}</h2><p class="muted sm">${L('اقترح كتاب وصوّتوا. الأكتر أصوات يكسب.', 'Suggest a book and vote. Most votes wins.', 'اقترح كتابًا وصوّتوا. يفوز الأكثر أصواتًا.')}</p></div>${D.canWrite() ? `<button class="btn ghost sm" data-act="propose">${icon('plus')}${L('اقترح', 'Suggest')}</button>` : ''}</header>
       ${list.length ? `<ul class="plist">${list.map((p, i) => {
         const mine = p.votes && p.votes[S.me];
         const n = votes(p);
         return `<li>${V.coverOf ? V.coverOf(p, 'xs') : V.genCover(p.title, p.author, 'xs')}<div class="pl-t"><b dir="auto">${esc(p.title)}</b><small>${p.author ? `<span dir="auto">${esc(p.author)}</span> • ` : ''}${L('اقتراح', 'by')} ${esc(D.name(p.by))}</small>${p.note ? `<p dir="auto">${esc(p.note)}</p>` : ''}</div>
           <div class="pl-v">${i === 0 && n ? `<span class="lead-tag">${L('في المقدمة', 'Leading')}</span>` : ''}<button class="vote${mine ? ' on' : ''}" data-act="vote" data-id="${esc(p.id)}" ${D.canWrite() ? '' : 'disabled'}>${icon('vote')}<b>${L.num(n)}</b></button>
-          ${S.canEdit || p.by === S.me ? `<button class="ib sm" data-act="prop-menu" data-id="${esc(p.id)}" aria-label="${L('اختيارات', 'Options')}">${icon('more')}</button>` : ''}</div></li>`;
-      }).join('')}</ul>` : `<p class="muted sm">${L('مفيش اقتراحات لسه. ممكن تقترح من مكتبتك كمان.', 'No suggestions yet. You can also suggest from your shelf.')}</p>`}
+          ${S.canEdit || p.by === S.me ? `<button class="ib sm" data-act="prop-menu" data-id="${esc(p.id)}" aria-label="${L('اختيارات', 'Options', 'خيارات')}">${icon('more')}</button>` : ''}</div></li>`;
+      }).join('')}</ul>` : `<p class="muted sm">${L('مفيش اقتراحات لسه. ممكن تقترح من مكتبتك كمان.', 'No suggestions yet. You can also suggest from your shelf.', 'لا توجد اقتراحات بعد. يمكنك الاقتراح من مكتبتك أيضًا.')}</p>`}
     </section>`;
   }
   const votes = (p) => Object.values(p.votes || {}).filter(Boolean).length;
 
   V.propose = (pre = {}) => {
     V.sheet({
-      title: pre.editId ? L('عدّل الاقتراح', 'Edit suggestion') : L('اقترح كتاب للحلقة', 'Suggest a book'),
+      title: pre.editId ? L('عدّل الاقتراح', 'Edit suggestion') : L('اقترح كتاب للحلقة', 'Suggest a book', 'اقترح كتابًا للحلقة'),
       html: `${A.B ? A.B.box('pr-bs') : ''}<form id="prop-form" class="form">
         ${A.B ? A.B.coverField('pr-cover', pre.cover, pre.title) : ''}
         <label for="pr-title">${L('اسم الكتاب', 'Title')}</label><input id="pr-title" required maxlength="140" dir="auto" value="${esc(pre.title || '')}" autofocus>
         <label for="pr-author">${L('المؤلف', 'Author')}</label><input id="pr-author" maxlength="100" dir="auto" value="${esc(pre.author || '')}">
-        <label for="pr-note">${L('ليه الكتاب ده؟', 'Why this book?')}</label><textarea id="pr-note" rows="3" maxlength="${U.MAX.suggest}" dir="auto">${esc(pre.note || '')}</textarea>
+        <label for="pr-note">${L('ليه الكتاب ده؟', 'Why this book?', 'لماذا هذا الكتاب؟')}</label><textarea id="pr-note" rows="3" maxlength="${U.MAX.suggest}" dir="auto">${esc(pre.note || '')}</textarea>
         <div class="row-btns end"><button class="btn gold">${icon(pre.editId ? 'check' : 'vote')}${pre.editId ? L('احفظ', 'Save') : L('اقترح', 'Suggest')}</button></div></form>`,
       onMount: (body, api) => {
         if (A.B) {
@@ -136,11 +136,11 @@
           api.close();
           if (pre.editId) {
             await D.update(`proposals/${pre.editId}`, { title, author: body.querySelector('#pr-author').value.trim(), cover, note: body.querySelector('#pr-note').value.trim(), edited: U.nowIso() });
-            return U.toast(L('اتعدّل ✓', 'Updated ✓'));
+            return U.toast(L('اتعدّل ✓', 'Updated ✓', 'تم التعديل ✓'));
           }
           const id = D.newId();
           await D.set(`proposals/${id}`, { title, author: body.querySelector('#pr-author').value.trim(), cover, note: body.querySelector('#pr-note').value.trim(), by: S.me, at: U.nowIso(), votes: { [S.me]: U.nowIso() } });
-          U.toast(L('الاقتراح نزل! خلّي أصحابك يصوّتوا', 'Suggested! Get your friends to vote'));
+          U.toast(L('الاقتراح نزل! خلّي أصحابك يصوّتوا', 'Suggested! Get your friends to vote', 'تم نشر الاقتراح! اطلب من أصدقائك أن يصوّتوا'));
         });
       },
     });
@@ -158,16 +158,16 @@
     if (!p) return;
     const items = [];
     if (S.canEdit || S.isOwner)
-      items.push({ ic: 'books', t: L('نبدأ الكتاب ده (ارفع الملف)', 'Start this book (upload the file)'), fn: () => V.addBook({ title: p.title, author: p.author, proposal: p.id }) });
+      items.push({ ic: 'books', t: L('نبدأ الكتاب ده (ارفع الملف)', 'Start this book (upload the file)', 'ابدأ هذا الكتاب (ارفع الملف)'), fn: () => V.addBook({ title: p.title, author: p.author, proposal: p.id }) });
     if (p.by === S.me || S.canEdit || S.isOwner) items.push({ ic: 'edit', t: L('عدّل الاقتراح', 'Edit suggestion'), fn: () => V.propose(Object.assign({}, p, { editId: p.id })) });
-    items.push({ ic: 'trash', danger: true, t: L('امسح الاقتراح', 'Delete suggestion'), fn: async () => (await V.confirm(L('هتمسح الاقتراح ده.', 'Delete this suggestion?'), L('امسح', 'Delete'), true)) && D.del(`proposals/${p.id}`) });
+    items.push({ ic: 'trash', danger: true, t: L('امسح الاقتراح', 'Delete suggestion', 'احذف الاقتراح'), fn: async () => (await V.confirm(L('هتمسح الاقتراح ده.', 'Delete this suggestion?', 'سيُحذف هذا الاقتراح.'), L('امسح', 'Delete', 'احذف'), true)) && D.del(`proposals/${p.id}`) });
     V.menu(items);
   };
 
   /* ---------- book page ---------- */
   V.screens.book = (id, opts = {}) => {
     const b = S.books.get(id);
-    if (!b) return V.empty(L('الكتاب ده مش موجود', 'Book not found'), L('يمكن اتمسح.', 'It may have been deleted.'), `<button class="btn" data-go="books">${L('كتبنا', 'Our books')}</button>`);
+    if (!b) return V.empty(L('الكتاب ده مش موجود', 'Book not found', 'هذا الكتاب غير موجود'), L('يمكن اتمسح.', 'It may have been deleted.', 'ربما حُذف.'), `<button class="btn" data-go="books">${L('كتبنا', 'Our books')}</button>`);
     const tab = opts.tab || 'plan';
     const prog = D.prog(b.id);
     const last = (prog && prog.last) || 1;
@@ -186,17 +186,17 @@
       <header class="bp-hero">
         ${V.cover(b, 'lg')}
         <div class="bp-info">
-          <small class="eyebrow">${{ reading: L('بنقرأه دلوقتي', 'Reading now'), planned: L('الجاي', 'Up next'), done: L('خلّصناه', 'Finished') }[b.status || 'reading']}</small>
+          <small class="eyebrow">${{ reading: L('بنقرأه دلوقتي', 'Reading now', 'نقرؤه الآن'), planned: L('الجاي', 'Up next', 'التالي'), done: L('خلّصناه', 'Finished', 'أنهيناه') }[b.status || 'reading']}</small>
           <h1 dir="auto">${esc(b.title)}${D.canWrite() ? ` <button class="ib sm bp-edit" data-act="edit-book" data-b="${esc(b.id)}" aria-label="${L('عدّل اسم الكتاب', 'Edit the title')}">${icon('edit')}</button>` : ''}</h1>
           ${b.author ? `<p class="muted" dir="auto">${esc(b.author)}</p>` : ''}
-          <div class="meta-chips"><span>${icon('scroll')}${L.count(b.pages || 0, 'page')}</span>${ws.length ? `<span>${icon('calendar')}${L.count(ws.length, 'wird')}</span>` : ''}<span>${icon('user')}${L('بواسطة', 'Added by')} ${esc(D.name(b.addedBy))}</span>${(b.parts || []).length ? '' : `<span class="warn">${icon('info')}${L('كل واحد بيفتح نسخته', 'Everyone opens their own copy')}</span>`}</div>
-          <div class="bp-prog">${V.bar(pct, pct >= 1 ? 'jade' : 'lapis')}<small>${L(`قريت ${L.num(Math.round(pct * 100))}٪`, `${Math.round(pct * 100)}% read`)}</small></div>
+          <div class="meta-chips"><span>${icon('scroll')}${L.count(b.pages || 0, 'page')}</span>${ws.length ? `<span>${icon('calendar')}${L.count(ws.length, 'wird')}</span>` : ''}<span>${icon('user')}${L('إضافة', 'Added by')} ${esc(D.name(b.addedBy))}</span>${(b.parts || []).length ? '' : `<span class="warn">${icon('info')}${L('كل واحد بيفتح نسخته', 'Everyone opens their own copy', 'كل عضو يفتح نسخته')}</span>`}</div>
+          <div class="bp-prog">${V.bar(pct, pct >= 1 ? 'jade' : 'lapis')}<small>${L(`قريت ${L.num(Math.round(pct * 100))}٪`, `${Math.round(pct * 100)}% read`, `قرأت ${L.num(Math.round(pct * 100))}٪`)}</small></div>
         </div>
       </header>
           <div class="row-btns bp-actions">
-            <button class="btn big" data-act="read" data-b="${esc(b.id)}">${icon('play', 'flip-rtl')}${last > 1 ? L(`كمّل من ص ${L.num(last)}`, `Continue from p. ${last}`) : L('ابدأ القراية', 'Start reading')}</button>
+            <button class="btn big" data-act="read" data-b="${esc(b.id)}">${icon('play', 'flip-rtl')}${last > 1 ? L(`كمّل من ص ${L.num(last)}`, `Continue from p. ${last}`, `تابِع من ص ${L.num(last)}`) : L('ابدأ القراية', 'Start reading', 'ابدأ القراءة')}</button>
             ${(b.parts || []).length ? `<button class="btn ghost" data-act="download" data-b="${esc(b.id)}">${icon('download')}<span class="hide-xs">${L('حمّل', 'Download')}</span></button>` : ''}
-            <button class="btn ghost icon-only" data-act="book-menu" data-b="${esc(b.id)}" aria-label="${L('اختيارات', 'Options')}">${icon('more')}</button>
+            <button class="btn ghost icon-only" data-act="book-menu" data-b="${esc(b.id)}" aria-label="${L('اختيارات', 'Options', 'خيارات')}">${icon('more')}</button>
           </div>
       <nav class="tabs" role="tablist">${tabs
         .map(([k, ic, t]) => `<button role="tab" class="tab${k === tab ? ' on' : ''}" aria-selected="${k === tab}" data-act="book-tab" data-b="${esc(b.id)}" data-tab="${k}">${icon(ic)}<span>${t}</span>${k === 'talk' && talkUnread ? `<i class="nv-b">${L.num(talkUnread)}</i>` : ''}${k === 'notes' && noteCount ? `<small>${L.num(noteCount)}</small>` : ''}</button>`)
@@ -223,11 +223,11 @@
   function planTab(b) {
     const ws = G.wirds(b);
     if (!ws.length)
-      return V.empty(L('مفيش خطة لسه', 'No reading plan yet'), L('قسّموا الكتاب أوراد بعدد صفحات ومواعيد، وكل واحد يعلّم لما يخلّص.', 'Split the book into portions with page ranges and dates; everyone marks theirs when done.'), D.canWrite() ? `<button class="btn gold" data-act="plan" data-b="${esc(b.id)}">${icon('calendar')}${L('اعمل خطة', 'Make a plan')}</button>` : '');
+      return V.empty(L('مفيش خطة لسه', 'No reading plan yet', 'لا توجد خطة بعد'), L('قسّموا الكتاب أوراد بعدد صفحات ومواعيد، وكل واحد يعلّم لما يخلّص.', 'Split the book into portions with page ranges and dates; everyone marks theirs when done.', 'قسّموا الكتاب إلى أوراد بصفحات ومواعيد، ويعلّم كل عضو ورده عندما ينهيه.'), D.canWrite() ? `<button class="btn gold" data-act="plan" data-b="${esc(b.id)}">${icon('calendar')}${L('اعمل خطة', 'Make a plan', 'أنشئ خطة')}</button>` : '');
     const members = D.memberIds();
     const per = ws[0].to - ws[0].from + 1;
     const every = U.diffDays(ws[0].start, ws[0].due) + 1;
-    return `<div class="plan-head"><p>${L(`${L.count(per, 'page')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} لـ ${L.dayShort(ws[ws.length - 1].due)}`, `${per} pages ${every === 1 ? 'a day' : every === 7 ? 'a week' : `every ${every} days`} • ${L.dayShort(ws[0].start)} – ${L.dayShort(ws[ws.length - 1].due)}`)}</p>${D.canWrite() ? `<button class="btn ghost sm" data-act="plan" data-b="${esc(b.id)}">${icon('edit')}${L('عدّل الخطة', 'Edit plan')}</button>` : ''}</div>
+    return `<div class="plan-head"><p>${L(`${L.count(per, 'page')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} لـ ${L.dayShort(ws[ws.length - 1].due)}`, `${per} pages ${every === 1 ? 'a day' : every === 7 ? 'a week' : `every ${every} days`} • ${L.dayShort(ws[0].start)} – ${L.dayShort(ws[ws.length - 1].due)}`, `${L.count(per, 'page', 'nom')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} إلى ${L.dayShort(ws[ws.length - 1].due)}`)}</p>${D.canWrite() ? `<button class="btn ghost sm" data-act="plan" data-b="${esc(b.id)}">${icon('edit')}${L('عدّل الخطة', 'Edit plan')}</button>` : ''}</div>
       ${wirdPath(b, ws, members)}`;
   }
 
@@ -264,10 +264,10 @@
       const state = done ? `✓ ${L(`${L.num(fins)} من ${L.num(members.length)}`, `${fins} of ${members.length}`)}` : st === 'soon' ? L.dayShort(w.start) : L.due(w.due);
       const node = done ? icon('check') : cur ? '<span class="star8 sm"></span>' : lastOne ? icon('trophy') : L.num(w.n);
       html += `<li class="wpv s-${st}${cur ? ' cur' : ''} ${side}" style="--x:${x}px"><div class="wpv-in">
-        ${cur ? `<span class="wpv-bub">${st === 'late' ? L('متأخر', 'Late') : L('دلوقتي', 'Now')}</span>` : ''}
+        ${cur ? `<span class="wpv-bub">${st === 'late' ? L('متأخر', 'Late') : L('دلوقتي', 'Now', 'الآن')}</span>` : ''}
         <button class="wpv-n" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" aria-label="${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)}: ${state}">${node}</button>
         ${others.length ? `<span class="wpv-avs" aria-hidden="true">${others.map((u) => D.avatar(u, 'xs')).join('')}</span>` : ''}
-        ${unread ? `<i class="wpv-dot" title="${L('رسايل جديدة في نقاش الورد', 'New messages in this portion')}"></i>` : ''}
+        ${unread ? `<i class="wpv-dot" title="${L('رسايل جديدة في نقاش الورد', 'New messages in this portion', 'رسائل جديدة في نقاش الورد')}"></i>` : ''}
         <span class="wpv-l"><b>${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)}</b><small>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</small><small class="due ${done ? 'done' : st}">${state}</small></span>
       </div></li>`;
     });
@@ -296,13 +296,13 @@
     V.sheet({
       title: L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`),
       html: `<div class="wsheet">
-        <p class="ws-meta">${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)} • ${L.day(w.start)}${w.due !== w.start ? ' → ' + L.day(w.due) : ''} • <span class="due ${done ? 'done' : st}">${done ? L('خلّصته ✓', 'Done ✓') : st === 'soon' ? L('لسه', 'Upcoming') : L.due(w.due)}</span></p>
-        <div class="ws-prog">${V.bar(seen / total, done ? 'jade' : 'lapis')}<small>${L(`قريت ${L.num(seen)} من ${L.count(total, 'page')}`, `${seen} of ${total} pages read`)}</small></div>
-        <div class="ws-fins"><b>${L('خلّصوه', 'Finished')}</b>${fins.length ? `<span class="mavs">${fins.map((x, i) => `<span class="fin${i === 0 ? ' first' : ''}" title="${esc(D.name(x.u))}">${D.avatar(x.u, 'sm')}</span>`).join('')}</span><small>${L.num(fins.length)}/${L.num(members.length)}</small>` : `<small>${L('لسه محدش', 'Nobody yet')}</small>`}</div>
+        <p class="ws-meta">${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)} • ${L.day(w.start)}${w.due !== w.start ? ' → ' + L.day(w.due) : ''} • <span class="due ${done ? 'done' : st}">${done ? L('خلّصته ✓', 'Done ✓', 'أنهيته ✓') : st === 'soon' ? L('لسه', 'Upcoming', 'قادم') : L.due(w.due)}</span></p>
+        <div class="ws-prog">${V.bar(seen / total, done ? 'jade' : 'lapis')}<small>${L(`قريت ${L.num(seen)} من ${L.count(total, 'page')}`, `${seen} of ${total} pages read`, `قرأت ${L.num(seen)} من ${L.count(total, 'page')}`)}</small></div>
+        <div class="ws-fins"><b>${L('خلّصوه', 'Finished', 'أنهوه')}</b>${fins.length ? `<span class="mavs">${fins.map((x, i) => `<span class="fin${i === 0 ? ' first' : ''}" title="${esc(D.name(x.u))}">${D.avatar(x.u, 'sm')}</span>`).join('')}</span><small>${L.num(fins.length)}/${L.num(members.length)}</small>` : `<small>${L('لسه محدش', 'Nobody yet', 'لا أحد بعد')}</small>`}</div>
         <div class="row-btns">
-          <button class="btn big" data-act="read" data-b="${esc(b.id)}" data-p="${startAt}" data-close>${icon('play', 'flip-rtl')}${startAt > w.from ? L(`كمّل من ص ${L.num(startAt)}`, `Continue from p. ${startAt}`) : L('اقرأ الورد', 'Read it')}</button>
+          <button class="btn big" data-act="read" data-b="${esc(b.id)}" data-p="${startAt}" data-close>${icon('play', 'flip-rtl')}${startAt > w.from ? L(`كمّل من ص ${L.num(startAt)}`, `Continue from p. ${startAt}`, `تابِع من ص ${L.num(startAt)}`) : L('اقرأ الورد', 'Read it')}</button>
           <button class="btn ghost" data-act="book-tab" data-b="${esc(b.id)}" data-tab="talk" data-ch="${esc(w.id)}" data-close>${icon('chat')}${L('نقاش الورد', 'Discussion')}${talk ? ` (${L.num(talk)})` : ''}</button>
-          ${D.canWrite() ? (done ? `<button class="btn ghost" data-act="unmark-wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-close>${icon('close')}${L('شيل علامة خلّصته', 'Unmark done')}</button>` : `<button class="btn jade" data-act="mark-wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-close>${icon('check')}${L('خلّصته', 'Done')}</button>`) : ''}
+          ${D.canWrite() ? (done ? `<button class="btn ghost" data-act="unmark-wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-close>${icon('close')}${L('شيل علامة خلّصته', 'Unmark done', 'إلغاء علامة الإنهاء')}</button>` : `<button class="btn jade" data-act="mark-wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-close>${icon('check')}${L('خلّصته', 'Done', 'أنهيته')}</button>`) : ''}
         </div></div>`,
     });
   };
@@ -326,17 +326,17 @@
           <p dir="auto">${esc(m.text)}</p>
           ${reacts.length ? `<div class="reacts">${reacts.map(([k, us]) => `<button class="rx${us.includes(S.me) ? ' on' : ''}" data-act="react" data-mid="${esc(m.id)}" data-r="${k}" title="${esc(us.map((u) => D.name(u)).join('، '))}">${REACTS[k] || ''}<span>${L.num(us.length)}</span></button>`).join('')}</div>` : ''}
         </div>
-        ${D.canWrite() ? `<button class="ib sm msg-more" data-act="msg-menu" data-mid="${esc(m.id)}" aria-label="${L('اختيارات', 'Options')}">${icon('more')}</button>` : ''}
+        ${D.canWrite() ? `<button class="ib sm msg-more" data-act="msg-menu" data-mid="${esc(m.id)}" aria-label="${L('اختيارات', 'Options', 'خيارات')}">${icon('more')}</button>` : ''}
       </div>`;
     });
     const key = `${b}-${ch}`.replace(/[^a-z0-9_-]/gi, '');
     const replyTo = V.replyTo && V.replyTo.key === key ? S.msgs.find((x) => x.id === V.replyTo.mid) : null;
     return `<div class="thread ${opts.cls || ''}">
-      <div class="msgs" id="msgs-${key}" data-keep-scroll>${rows.length ? rows.join('') : `<div class="empty sm"><span class="star8 faint"></span><p>${opts.empty || L('لسه محدش كتب. قول رأيك!', 'No messages yet. Say something!')}</p></div>`}</div>
+      <div class="msgs" id="msgs-${key}" data-keep-scroll>${rows.length ? rows.join('') : `<div class="empty sm"><span class="star8 faint"></span><p>${opts.empty || L('لسه محدش كتب. قول رأيك!', 'No messages yet. Say something!', 'لم يكتب أحد بعد. شارك برأيك!')}</p></div>`}</div>
       ${D.canWrite() ? `<form class="composer" data-send data-b="${esc(b)}" data-ch="${esc(ch)}" data-key="${key}">
-        ${replyTo ? `<div class="replying">${icon('chat')}<span dir="auto">${L('رد على', 'Replying to')} <b>${esc(D.name(replyTo.by))}</b>: ${esc(String(replyTo.text).slice(0, 60))}</span><button type="button" class="ib sm" data-act="cancel-reply" aria-label="${L('إلغاء', 'Cancel')}">${icon('close')}</button></div>` : ''}
+        ${replyTo ? `<div class="replying">${icon('chat')}<span dir="auto">${L('رد على', 'Replying to', 'ردًا على')} <b>${esc(D.name(replyTo.by))}</b>: ${esc(String(replyTo.text).slice(0, 60))}</span><button type="button" class="ib sm" data-act="cancel-reply" aria-label="${L('إلغاء', 'Cancel')}">${icon('close')}</button></div>` : ''}
         <textarea id="in-${key}" rows="1" dir="auto" maxlength="${U.MAX.msg}" placeholder="${opts.placeholder || L('اكتب رسالة…', 'Write a message…')}"></textarea>
-        <button class="btn icon-only" aria-label="${L('ابعت', 'Send')}">${icon('send', 'flip-rtl')}</button></form>` : ''}
+        <button class="btn icon-only" aria-label="${L('ابعت', 'Send', 'أرسل')}">${icon('send', 'flip-rtl')}</button></form>` : ''}
     </div>`;
   };
   V.after = V.after || [];
@@ -387,7 +387,7 @@
     const items = Object.entries(REACTS).map(([k, e]) => ({ ic: 'heart', t: `${e} ${L('تفاعل', 'React')}`, fn: () => V.actions.react({ dataset: { mid: m.id, r: k } }) }));
     items.unshift({ ic: 'chat', t: L('رد', 'Reply'), fn: () => { V.replyTo = { key, mid: m.id }; V.render(); setTimeout(() => { const t = document.getElementById('in-' + key); t && t.focus(); }, 50); } });
     if (m.by === S.me && m.kind !== 'ai') items.push({ ic: 'edit', t: L('عدّل الرسالة', 'Edit message'), fn: () => V.editText({ title: L('عدّل رسالتك', 'Edit your message'), value: m.text, max: U.MAX.msg, onSave: (text) => D.update(`msgs/${m.id}`, { text, edited: U.nowIso() }) }) });
-    if (m.by === S.me) items.push({ ic: 'trash', danger: true, t: L('امسح الرسالة', 'Delete message'), fn: async () => (await V.confirm(L('هتمسح الرسالة دي.', 'Delete this message?'), L('امسح', 'Delete'), true)) && D.del(`msgs/${m.id}`) });
+    if (m.by === S.me) items.push({ ic: 'trash', danger: true, t: L('امسح الرسالة', 'Delete message', 'احذف الرسالة'), fn: async () => (await V.confirm(L('هتمسح الرسالة دي.', 'Delete this message?', 'ستُحذف هذه الرسالة.'), L('امسح', 'Delete', 'احذف'), true)) && D.del(`msgs/${m.id}`) });
     V.menu(items);
   };
   V.actions['cancel-reply'] = () => {
@@ -411,7 +411,7 @@
       })
       .join('')}</div>
       ${w ? `<section class="takes"><header><h3>${icon('sparkle')}${L(`خلاصات الورد ${L.num(w.n)}`, `Takeaways • portion ${w.n}`)}</h3><small class="muted">${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</small>${D.canWrite() ? `<button class="btn sm ${myTake ? 'ghost' : 'gold'}" data-act="write-take" data-b="${esc(b.id)}" data-w="${esc(w.id)}" ${myTake ? `data-nid="${esc(myTake.id)}"` : ''}>${myTake ? L('عدّل خلاصتي', 'Edit mine') : L('اكتب خلاصتك', 'Write yours')}</button>` : ''}</header>
-        ${takes.length ? `<div class="take-list">${takes.map((n) => V.noteCard(n)).join('')}</div>` : `<p class="muted sm">${L('لما تخلّص الورد اكتب أهم فكرة خرجت بيها.', 'When you finish the portion, share the main idea you took away.')}</p>`}</section>` : ''}
+        ${takes.length ? `<div class="take-list">${takes.map((n) => V.noteCard(n)).join('')}</div>` : `<p class="muted sm">${L('لما تخلّص الورد اكتب أهم فكرة خرجت بيها.', 'When you finish the portion, share the main idea you took away.', 'عندما تنهي الورد، اكتب أهم فكرة خرجت بها.')}</p>`}</section>` : ''}
       ${V.thread(b.id, ch, { placeholder: w ? L(`اكتب رأيك في الورد ${L.num(w.n)}…`, `Your thoughts on portion ${w.n}…`) : L('اكتب للحلقة عن الكتاب…', 'Write to the circle about this book…') })}`;
   }
   V.actions['write-take'] = (a) => V.writeTake(a.dataset.b, a.dataset.w, a.dataset.nid ? S.notes.get(a.dataset.nid) : null);
@@ -425,7 +425,7 @@
     const chip = (k, t) => `<button class="chip${f === k ? ' on' : ''}" data-act="notes-f" data-b="${esc(b.id)}" data-f="${k}">${t}</button>`;
     return `<div class="notes-bar"><div class="chips">${chip('all', L('الكل', 'All'))}${chip('quote', L('اقتباسات', 'Quotes'))}${chip('q', L('أسئلة', 'Questions'))}${chip('note', L('ملاحظات', 'Notes'))}${chip('hl', L('تظليلات', 'Highlights'))}</div>
       <button class="pill ghost" data-act="notes-s" data-b="${esc(b.id)}">${icon(sort === 'page' ? 'list' : 'clock')}<span>${sort === 'page' ? L('بالصفحة', 'By page') : L('الأحدث', 'Newest')}</span></button></div>
-      ${list.length ? `<div class="ngrid">${list.map((n) => V.noteCard(n)).join('')}</div>` : V.empty(L('مفيش ملاحظات هنا لسه', 'No notes here yet'), L('افتح الكتاب واستخدم «ظلّل» أو «ملاحظة» من تحت.', 'Open the book and use Highlight or Note at the bottom.'), `<button class="btn" data-act="read" data-b="${esc(b.id)}">${L('افتح الكتاب', 'Open the book')}</button>`)}`;
+      ${list.length ? `<div class="ngrid">${list.map((n) => V.noteCard(n)).join('')}</div>` : V.empty(L('مفيش ملاحظات هنا لسه', 'No notes here yet', 'لا توجد ملاحظات هنا بعد'), L('افتح الكتاب واستخدم «ظلّل» أو «ملاحظة» من تحت.', 'Open the book and use Highlight or Note at the bottom.', 'افتح الكتاب واستخدم «ظلّل» أو «ملاحظة» في الأسفل.'), `<button class="btn" data-act="read" data-b="${esc(b.id)}">${L('افتح الكتاب', 'Open the book')}</button>`)}`;
   }
   V.actions['notes-f'] = (a) => V.go('book-' + a.dataset.b, Object.assign({}, V.state.opts, { tab: 'notes', nf: a.dataset.f }));
   V.actions['notes-s'] = (a) => V.go('book-' + a.dataset.b, Object.assign({}, V.state.opts, { tab: 'notes', ns: (V.state.opts.ns || 'page') === 'page' ? 'new' : 'page' }));
@@ -445,12 +445,12 @@
         })
         .join('');
       const behind = ws.some((w) => G.wirdStatus(b, w, u) === 'late');
-      return `<tr><th scope="row"><button class="who" data-act="member" data-uid="${esc(u)}">${D.avatar(u, 'sm')}<span><b>${esc(D.name(u))}</b><small>${p && p.finished ? '🏆 ' + L('الكتاب خلص', 'Finished') : `${L.num(Math.round((seen / (b.pages || 1)) * 100))}٪ • ${L('ص', 'p.')} ${L.num((p && p.last) || 1)}`}${live.has(u) ? ` • <span class="live-t">${L('في القراية دلوقتي', 'reading now')}</span>` : ''}</small></span></button>
+      return `<tr><th scope="row"><button class="who" data-act="member" data-uid="${esc(u)}">${D.avatar(u, 'sm')}<span><b>${esc(D.name(u))}</b><small>${p && p.finished ? '🏆 ' + L('الكتاب خلص', 'Finished', 'انتهى الكتاب') : `${L.num(Math.round((seen / (b.pages || 1)) * 100))}٪ • ${L('ص', 'p.')} ${L.num((p && p.last) || 1)}`}${live.has(u) ? ` • <span class="live-t">${L('في القراية دلوقتي', 'reading now', 'في القراءة الآن')}</span>` : ''}</small></span></button>
         ${u !== S.me && D.canWrite() ? `<span class="who-acts">${behind ? `<button class="ib sm" data-act="poke" data-to="${esc(u)}" data-kind="poke" data-b="${esc(b.id)}" aria-label="${L('تذكير', 'Nudge')}">${icon('hand')}</button>` : ''}<button class="ib sm" data-act="poke" data-to="${esc(u)}" data-kind="cheer" data-b="${esc(b.id)}" aria-label="${L('تشجيع', 'Cheer')}">${icon('clap')}</button></span>` : ''}</th>${cells}</tr>`;
     });
-    return `${ws.length ? '' : `<p class="muted">${L('لما تعملوا خطة هتشوفوا هنا مين خلّص أنهي ورد.', 'Once you have a plan you will see who finished which portion here.')}</p>`}
+    return `${ws.length ? '' : `<p class="muted">${L('لما تعملوا خطة هتشوفوا هنا مين خلّص أنهي ورد.', 'Once you have a plan you will see who finished which portion here.', 'عندما تضعون خطة، سترون هنا تقدّم كل عضو في كل ورد.')}</p>`}
       <div class="matrix-wrap"><table class="matrix"><thead><tr><th></th>${ws.map((w) => `<th scope="col">${L.num(w.n)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>
-      <div class="legend"><span><i class="c-done"></i>${L('في الميعاد', 'On time')}</span><span><i class="c-late-done"></i>${L('بعد الميعاد', 'Late')}</span><span><i class="c-late"></i>${L('متأخر', 'Behind')}</span><span><i class="c-now"></i>${L('دلوقتي', 'Now')}</span><span><i class="first"></i>${L('الأول', 'First')}</span></div>`;
+      <div class="legend"><span><i class="c-done"></i>${L('في الميعاد', 'On time', 'في الموعد')}</span><span><i class="c-late-done"></i>${L('بعد الميعاد', 'Late', 'بعد الموعد')}</span><span><i class="c-late"></i>${L('متأخر', 'Behind')}</span><span><i class="c-now"></i>${L('دلوقتي', 'Now', 'الآن')}</span><span><i class="first"></i>${L('الأول', 'First')}</span></div>`;
   }
 
   V.actions['book-menu'] = (a) => {
@@ -461,9 +461,9 @@
       items.push({ ic: 'calendar', t: L('خطة القراءة', 'Reading plan'), fn: () => V.planWizard(b.id) });
       items.push({ ic: 'edit', t: L('عدّل بيانات الكتاب', 'Edit book details'), fn: () => V.editBook(b.id) });
     }
-    if (S.sample) items.push({ ic: 'claude', t: L('اسأل Claude يقترح أسئلة نقاش', 'Ask Claude for discussion questions'), fn: () => V.askBook(b.id) });
+    if (S.sample) items.push({ ic: 'claude', t: L('خلّي Claude يقترح أسئلة نقاش', 'Ask Claude for discussion questions', 'اطلب من Claude أسئلة للنقاش'), fn: () => V.askBook(b.id) });
     if ((b.parts || []).length) items.push({ ic: 'download', t: L('حمّل الكتاب', 'Download the book'), fn: () => V.download(b.id) });
-    if (b.addedBy === S.me || S.isOwner || S.canEdit) items.push({ ic: 'trash', danger: true, t: L('امسح الكتاب من الحلقة', 'Remove book from circle'), fn: () => V.deleteBook(b.id) });
+    if (b.addedBy === S.me || S.isOwner || S.canEdit) items.push({ ic: 'trash', danger: true, t: L('امسح الكتاب من الحلقة', 'Remove book from circle', 'احذف الكتاب من الحلقة'), fn: () => V.deleteBook(b.id) });
     V.menu(items);
   };
   V.actions.download = (a) => V.download(a.dataset.b);
@@ -479,8 +479,8 @@
         ${A.B ? A.B.coverField('eb-cover', b.cover, b.title) : ''}
         <label for="eb-title">${L('اسم الكتاب', 'Title')}</label><input id="eb-title" required maxlength="140" dir="auto" enterkeyhint="done" value="${esc(b.title)}">
         <label for="eb-author">${L('المؤلف', 'Author')}</label><input id="eb-author" maxlength="100" dir="auto" enterkeyhint="done" value="${esc(b.author || '')}">
-        <label for="eb-lang">${L('اتجاه الكتاب', 'Book direction')}</label><select id="eb-lang"><option value="ar" ${b.lang !== 'en' ? 'selected' : ''}>${L('عربي (يمين لشمال)', 'Arabic (right to left)')}</option><option value="en" ${b.lang === 'en' ? 'selected' : ''}>${L('إنجليزي (شمال ليمين)', 'English (left to right)')}</option></select>
-        <label for="eb-status">${L('الحالة', 'Status')}</label><select id="eb-status">${['reading', 'planned', 'done'].map((s) => `<option value="${s}" ${(b.status || 'reading') === s ? 'selected' : ''}>${{ reading: L('بنقرأه دلوقتي', 'Reading now'), planned: L('الجاي', 'Up next'), done: L('خلّصناه', 'Finished') }[s]}</option>`).join('')}</select>
+        <label for="eb-lang">${L('اتجاه الكتاب', 'Book direction')}</label><select id="eb-lang"><option value="ar" ${b.lang !== 'en' ? 'selected' : ''}>${L('عربي (يمين لشمال)', 'Arabic (right to left)', 'عربي (من اليمين إلى اليسار)')}</option><option value="en" ${b.lang === 'en' ? 'selected' : ''}>${L('إنجليزي (شمال ليمين)', 'English (left to right)', 'إنجليزي (من اليسار إلى اليمين)')}</option></select>
+        <label for="eb-status">${L('الحالة', 'Status')}</label><select id="eb-status">${['reading', 'planned', 'done'].map((s) => `<option value="${s}" ${(b.status || 'reading') === s ? 'selected' : ''}>${{ reading: L('بنقرأه دلوقتي', 'Reading now', 'نقرؤه الآن'), planned: L('الجاي', 'Up next', 'التالي'), done: L('خلّصناه', 'Finished', 'أنهيناه') }[s]}</option>`).join('')}</select>
         <p class="err-t" id="eb-err" hidden></p>
         <div class="row-btns end"><button class="btn gold">${icon('check')}${L('احفظ', 'Save')}</button></div></form>`,
       onMount: (body, api) => {
@@ -503,10 +503,10 @@
           try {
             await D.update(`books/${id}`, patch);
             api.close();
-            U.toast(L('اتحفظ ✓', 'Saved ✓'));
+            U.toast(L('اتحفظ ✓', 'Saved ✓', 'تم الحفظ ✓'));
           } catch (x) {
             btn.disabled = false;
-            err.textContent = L('ماتحفظش. اتأكد من النت وجرّب تاني.', "Not saved. Check your connection and try again.");
+            err.textContent = L('ماتحفظش. اتأكد من النت وجرّب تاني.', "Not saved. Check your connection and try again.", 'لم يُحفظ. تأكد من اتصالك وحاول مرة أخرى.');
             err.hidden = false;
           }
         });
@@ -517,7 +517,7 @@
 
   V.deleteBook = async (id) => {
     const b = S.books.get(id);
-    if (!(await V.confirm(L(`هتشيل «${esc(b.title)}» من الحلقة. الملاحظات والنقاش هيختفوا معاه.`, `Remove “${esc(b.title)}” from the circle? Its notes and discussion will disappear with it.`), L('امسح', 'Remove'), true))) return;
+    if (!(await V.confirm(L(`هتشيل «${esc(b.title)}» من الحلقة. الملاحظات والنقاش هيختفوا معاه.`, `Remove “${esc(b.title)}” from the circle? Its notes and discussion will disappear with it.`, `ستزيل «${esc(b.title)}» من الحلقة، وستختفي معه الملاحظات والنقاش.`), L('امسح', 'Remove', 'احذف'), true))) return;
     if (A.R.isOpen() && A.R.bookId() === id) A.R.close(true);
     await D.del(`books/${id}`);
     if (S.assets) for (const p of b.parts || []) S.assets.delete(p.id).catch(() => {});
@@ -529,7 +529,7 @@
     let file = null, info = null;
     const canUpload = !!S.assets;
     const api = V.sheet({
-      title: L('ضيف كتاب للحلقة', 'Add a book to the circle'),
+      title: L('ضيف كتاب للحلقة', 'Add a book to the circle', 'أضف كتابًا إلى الحلقة'),
       wide: true,
       html: `<div id="ab-step">${pickHtml()}</div>`,
       onMount: (body) => {
@@ -539,7 +539,7 @@
             const el = body.querySelector('#ab-usage');
             if (!u || !u.maxBytes || !el) return;
             const mb = (x) => L.num(Math.round(x / 1048576));
-            el.innerHTML = `${icon('layers')}<span>${L(`مساحة الحلقة: مستخدم ${mb(u.bytes)} من ${mb(u.maxBytes)} ميجا`, `Circle storage: ${mb(u.bytes)} of ${mb(u.maxBytes)} MB used`)}</span>${V.bar(u.bytes / u.maxBytes, u.bytes / u.maxBytes > 0.85 ? 'rubric' : 'lapis')}`;
+            el.innerHTML = `${icon('layers')}<span>${L(`مساحة الحلقة: مستخدم ${mb(u.bytes)} من ${mb(u.maxBytes)} ميجا`, `Circle storage: ${mb(u.bytes)} of ${mb(u.maxBytes)} MB used`, `مساحة الحلقة: المستخدم ${mb(u.bytes)} من ${mb(u.maxBytes)} ميغابايت`)}</span>${V.bar(u.bytes / u.maxBytes, u.bytes / u.maxBytes > 0.85 ? 'rubric' : 'lapis')}`;
           }).catch(() => {});
         body.addEventListener('change', async (e) => {
           if (e.target.id !== 'ab-file' || !e.target.files[0]) return;
@@ -570,10 +570,10 @@
       },
     });
     function pickHtml() {
-      return `<label class="drop" for="ab-file">${icon('upload')}<b>${L('اختار ملف PDF', 'Choose a PDF file')}</b><span>${L('أو اسحبه هنا', 'or drop it here')}</span><input type="file" id="ab-file" accept="application/pdf,.pdf" hidden></label>
+      return `<label class="drop" for="ab-file">${icon('upload')}<b>${L('اختار ملف PDF', 'Choose a PDF file', 'اختر ملف PDF')}</b><span>${L('أو اسحبه هنا', 'or drop it here')}</span><input type="file" id="ab-file" accept="application/pdf,.pdf" hidden></label>
         <ul class="hints">
-          <li>${icon('info')}${canUpload ? L('الكتاب هيترفع للحلقة وأي حد فيها يقدر يفتحه أو يحمّله.', 'The file is uploaded so everyone in the circle can read or download it.') : L('الرفع مش متاح دلوقتي. تقدر تضيف الكتاب وكل واحد يفتح نسخته من جهازه.', 'Uploading is unavailable right now. You can still add the book and everyone opens their own copy.')}</li>
-          <li>${icon('layers')}${L('الملفات الأكبر من ٢٠ ميجا بنقسّمها أجزاء أوتوماتيك. الكتب الكبيرة جدًا ارفعها من كمبيوتر.', 'Files over 20 MB are split into parts automatically. Upload very large books from a computer.')}</li>
+          <li>${icon('info')}${canUpload ? L('الكتاب هيترفع للحلقة وأي حد فيها يقدر يفتحه أو يحمّله.', 'The file is uploaded so everyone in the circle can read or download it.', 'سيُرفع الكتاب إلى الحلقة، ويستطيع أي عضو فيها فتحه أو تحميله.') : L('الرفع مش متاح دلوقتي. تقدر تضيف الكتاب وكل واحد يفتح نسخته من جهازه.', 'Uploading is unavailable right now. You can still add the book and everyone opens their own copy.', 'الرفع غير متاح الآن. يمكنك إضافة الكتاب، ويفتح كل عضو نسخته من جهازه.')}</li>
+          <li>${icon('layers')}${L('الملفات الأكبر من ٢٠ ميجا بتتقسّم أجزاء لوحدها. الكتب الكبيرة جدًا ارفعها من كمبيوتر.', 'Files over 20 MB are split into parts automatically. Upload very large books from a computer.', 'الملفات الأكبر من ٢٠ ميغابايت تُقسَّم إلى أجزاء تلقائيًا. ارفع الكتب الكبيرة جدًا من حاسوب.')}</li>
           <li class="usage" id="ab-usage"></li>
         </ul>`;
     }
@@ -585,8 +585,8 @@
       step(`<div class="ab-prog">${V.star('', 'gold spin')}<b>${title}</b>${V.bar(f, 'gold')}<small>${sub}</small></div>`);
 
     async function analyze() {
-      if (!/pdf$/i.test(file.type) && !/\.pdf$/i.test(file.name)) return U.toast(L('اختار ملف PDF', 'Please choose a PDF'), 'warn');
-      progress(L('بقرأ الملف…', 'Reading the file…'), 0.05);
+      if (!/pdf$/i.test(file.type) && !/\.pdf$/i.test(file.name)) return U.toast(L('اختار ملف PDF', 'Please choose a PDF', 'اختر ملف PDF'), 'warn');
+      progress(L('بقرأ الملف…', 'Reading the file…', 'أقرأ الملف…'), 0.05);
       try {
         const buf = await file.arrayBuffer();
         const pdf = await A.R.openPdf(new Uint8Array(buf.slice(0)));
@@ -600,7 +600,7 @@
           sizes.push([Math.round(vp.width), Math.round(vp.height)]);
           if (p === 1) info = { cover: await coverOf(page) };
           page.cleanup();
-          if (p % 25 === 0) progress(L('بقيس الصفحات…', 'Measuring pages…'), p / N, `${L.num(p)} / ${L.num(N)}`);
+          if (p % 25 === 0) progress(L('بقيس الصفحات…', 'Measuring pages…', 'أقيس الصفحات…'), p / N, `${L.num(p)} / ${L.num(N)}`);
         }
         const fp = (pdf.fingerprints && pdf.fingerprints[0]) || '';
         let toc = [];
@@ -644,7 +644,7 @@
           });
       } catch (e) {
         console.warn(e);
-        step(`${pickHtml()}<p class="err-t">${e && e.name === 'PasswordException' ? L('الملف ده عليه باسورد. افتحه واحفظه من غير باسورد وجرّب تاني.', 'This PDF is password protected. Save a copy without a password and try again.') : L('مش قادر أقرأ الملف ده. اتأكد إنه PDF سليم.', "Couldn't read this file. Make sure it's a valid PDF.")}</p>`);
+        step(`${pickHtml()}<p class="err-t">${e && e.name === 'PasswordException' ? L('الملف ده عليه كلمة سر. افتحه واحفظه من غيرها وجرّب تاني.', 'This PDF is password protected. Save a copy without a password and try again.', 'هذا الملف محمي بكلمة مرور. احفظ نسخة منه دون كلمة مرور وحاول مرة أخرى.') : L('مش قادر أقرأ الملف ده. اتأكد إنه PDF سليم.', "Couldn't read this file. Make sure it's a valid PDF.", 'تعذّرت قراءة هذا الملف. تأكد أنه ملف PDF سليم.')}</p>`);
       }
     }
     /* 'ar' or 'en' from the text of the first pages; null for scanned books without a text layer. */
@@ -682,16 +682,16 @@
       const big = info.buf.byteLength > MAXPART;
       const ar = (info.lang || 'ar') === 'ar';
       return `<form id="ab-form" class="ab-form">
-        <div class="ab-cover">${info.cover ? `<span class="cover lg"><img src="${esc(info.cover)}" alt=""></span>` : V.genCover(info.title, info.author, 'lg')}<small>${L.count(info.N, 'page')} • ${L.num(Math.round(info.buf.byteLength / 1048576))} MB${big && canUpload ? ' • ' + L('هيتقسّم أجزاء', 'will be split into parts') : ''}</small></div>
+        <div class="ab-cover">${info.cover ? `<span class="cover lg"><img src="${esc(info.cover)}" alt=""></span>` : V.genCover(info.title, info.author, 'lg')}<small>${L.count(info.N, 'page')} • ${L.num(Math.round(info.buf.byteLength / 1048576))} MB${big && canUpload ? ' • ' + L('هيتقسّم أجزاء', 'will be split into parts', 'سيُقسَّم إلى أجزاء') : ''}</small></div>
         <div class="form">
           ${A.B ? A.B.box('ab-bs') : ''}
           <label for="ab-title">${L('اسم الكتاب', 'Title')}</label><input id="ab-title" required maxlength="140" dir="auto" value="${esc(info.title)}">
           <label for="ab-author">${L('المؤلف', 'Author')}</label><input id="ab-author" maxlength="100" dir="auto" value="${esc(info.author)}">
-          <label for="ab-lang">${L('اتجاه الكتاب', 'Book direction')}</label><select id="ab-lang"><option value="ar" ${ar ? 'selected' : ''}>${L('عربي (يمين لشمال)', 'Arabic (right to left)')}</option><option value="en" ${ar ? '' : 'selected'}>${L('إنجليزي (شمال ليمين)', 'English (left to right)')}</option></select>
-          <span class="lbl">${L('هنبدأه إمتى؟', 'When do we start?')}</span>
-          <div class="seg-pick"><label class="sp on"><input type="radio" name="ab-status" value="reading" checked>${icon('play', 'flip-rtl')}<span>${L('دلوقتي', 'Now')}</span></label><label class="sp"><input type="radio" name="ab-status" value="planned">${icon('calendar')}<span>${L('بعدين', 'Later')}</span></label></div>
-          <label class="check"><input type="checkbox" id="ab-upload" ${canUpload ? 'checked' : 'disabled'}><span>${L('ارفع الملف للحلقة (مستحسن)', 'Upload the file to the circle (recommended)')}</span></label>
-          <div class="row-btns end"><button class="btn gold big">${icon('check')}${L('ضيف الكتاب', 'Add the book')}</button></div>
+          <label for="ab-lang">${L('اتجاه الكتاب', 'Book direction')}</label><select id="ab-lang"><option value="ar" ${ar ? 'selected' : ''}>${L('عربي (يمين لشمال)', 'Arabic (right to left)', 'عربي (من اليمين إلى اليسار)')}</option><option value="en" ${ar ? '' : 'selected'}>${L('إنجليزي (شمال ليمين)', 'English (left to right)', 'إنجليزي (من اليسار إلى اليمين)')}</option></select>
+          <span class="lbl">${L('هنبدأه إمتى؟', 'When do we start?', 'متى نبدؤه؟')}</span>
+          <div class="seg-pick"><label class="sp on"><input type="radio" name="ab-status" value="reading" checked>${icon('play', 'flip-rtl')}<span>${L('دلوقتي', 'Now', 'الآن')}</span></label><label class="sp"><input type="radio" name="ab-status" value="planned">${icon('calendar')}<span>${L('بعدين', 'Later', 'لاحقًا')}</span></label></div>
+          <label class="check"><input type="checkbox" id="ab-upload" ${canUpload ? 'checked' : 'disabled'}><span>${L('ارفع الملف للحلقة (أحسن)', 'Upload the file to the circle (recommended)', 'ارفع الملف إلى الحلقة (مستحسن)')}</span></label>
+          <div class="row-btns end"><button class="btn gold big">${icon('check')}${L('ضيف الكتاب', 'Add the book', 'أضف الكتاب')}</button></div>
         </div></form>`;
     }
     async function save() {
@@ -711,15 +711,15 @@
         console.warn(e);
         const code = e && e.code;
         const msg =
-          code === 'quota_or_state' ? L('مساحة الحلقة خلصت. امسحوا كتاب قديم أو ضيف الكتاب من غير رفع.', 'The circle is out of storage. Remove an old book or add this one without uploading.')
-            : code === 'too_large' ? L('صفحة واحدة في الملف أكبر من ٢٠ ميجا. صغّر الملف وجرّب تاني.', 'A single page is over 20 MB. Compress the PDF and try again.')
-              : code === 'rate_limited' ? L('رفعنا كتير ورا بعض. استنى دقيقة وجرّب تاني.', 'Too many uploads at once. Wait a minute and try again.')
-                : code === 'split' ? L('مقدرتش أقسّم الملف ده. صغّره لأقل من ٢٠ ميجا (مثلا بأداة ضغط PDF) أو ضيفه من غير رفع.', "Couldn't split this file. Compress it under 20 MB or add it without uploading.")
-                  : L('الرفع وقف. اتأكد من النت وجرّب تاني.', 'The upload stopped. Check your connection and try again.');
+          code === 'quota_or_state' ? L('مساحة الحلقة خلصت. امسحوا كتاب قديم أو ضيف الكتاب من غير رفع.', 'The circle is out of storage. Remove an old book or add this one without uploading.', 'نفدت مساحة الحلقة. احذفوا كتابًا قديمًا أو أضف الكتاب دون رفع.')
+            : code === 'too_large' ? L('صفحة واحدة في الملف أكبر من ٢٠ ميجا. صغّر الملف وجرّب تاني.', 'A single page is over 20 MB. Compress the PDF and try again.', 'إحدى صفحات الملف أكبر من ٢٠ ميغابايت. صغّر حجم الملف وحاول مرة أخرى.')
+              : code === 'rate_limited' ? L('رفعنا كتير ورا بعض. استنى دقيقة وجرّب تاني.', 'Too many uploads at once. Wait a minute and try again.', 'عمليات رفع كثيرة متتالية. انتظر دقيقة وحاول مرة أخرى.')
+                : code === 'split' ? L('مقدرتش أقسّم الملف ده. صغّره لأقل من ٢٠ ميجا (مثلا بأداة ضغط PDF) أو ضيفه من غير رفع.', "Couldn't split this file. Compress it under 20 MB or add it without uploading.", 'تعذّر تقسيم هذا الملف. صغّره إلى أقل من ٢٠ ميغابايت (بأداة ضغط PDF مثلًا) أو أضفه دون رفع.')
+                  : L('الرفع وقف. اتأكد من النت وجرّب تاني.', 'The upload stopped. Check your connection and try again.', 'توقّف الرفع. تأكد من اتصالك وحاول مرة أخرى.');
         step(`${formHtml()}<p class="err-t">${msg}</p>`);
         return;
       }
-      progress(L('بنحفظ الكتاب…', 'Saving the book…'), 1);
+      progress(L('بنحفظ الكتاب…', 'Saving the book…', 'نحفظ الكتاب…'), 1);
       const doc = { title, author, lang, pages: info.N, size: info.size, parts, bytes: info.buf.byteLength, cover: info.cover || null, addedBy: S.me, addedAt: U.nowIso(), status, wirds: [], fp: info.fp || '' };
       if (info.sizes) doc.sizes = info.sizes;
       if (info.toc && info.toc.length) doc.toc = info.toc;
@@ -734,13 +734,13 @@
     async function uploadParts() {
       const buf = info.buf;
       const one = async (bytes, from, to, label) => {
-        progress(L('برفع الكتاب…', 'Uploading…'), 0.5, label);
+        progress(L('برفع الكتاب…', 'Uploading…', 'أرفع الكتاب…'), 0.5, label);
         const res = await S.assets.upload(new Blob([bytes], { type: 'application/pdf' }), { type: 'application/pdf' });
         await U.cache.put('a:' + res.id, bytes instanceof ArrayBuffer ? bytes : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
         return { id: res.id, from, to, bytes: res.sizeBytes || bytes.byteLength };
       };
       if (buf.byteLength <= MAXPART) return [await one(buf, 1, info.N, '')];
-      progress(L('بقسّم الكتاب أجزاء…', 'Splitting into parts…'), 0.1);
+      progress(L('بقسّم الكتاب أجزاء…', 'Splitting into parts…', 'أقسّم الكتاب إلى أجزاء…'), 0.1);
       let PDFLib;
       try {
         await U.loadScript(U.CDN.pdflib);
@@ -774,7 +774,7 @@
         if (bytes.byteLength > MAXPART) throw { code: 'too_large' };
         const label = L(`الجزء ${L.num(parts.length + 1)} • ص ${L.num(start + 1)}–${L.num(start + cnt)}`, `Part ${parts.length + 1} • p. ${start + 1}–${start + cnt}`);
         parts.push(await one(bytes, start + 1, start + cnt, label));
-        progress(L('برفع الكتاب…', 'Uploading…'), (start + cnt) / N, label);
+        progress(L('برفع الكتاب…', 'Uploading…', 'أرفع الكتاب…'), (start + cnt) / N, label);
         start += cnt;
         per = cnt;
       }
@@ -813,7 +813,7 @@
       const { out, per } = gen();
       if (!out.length) return '';
       const show = out.length > 5 ? [...out.slice(0, 3), null, out[out.length - 1]] : out;
-      return `<div class="pv-sum">${V.star(L.num(out.length), 'gold')}<div><b>${L.count(out.length, 'wird')} • ${L.count(per, 'page')} ${L('للورد', 'each')}</b><small>${L(`آخر ورد: ${L.day(out[out.length - 1].due)}`, `Last one due ${L.day(out[out.length - 1].due)}`)}${V.showHijri && V.showHijri() && L.hijri ? ` (${L.hijri(out[out.length - 1].due)})` : ''} • ${L(`حوالي ${L.count(Math.ceil(per / Math.max(1, st.every)), 'page')} في اليوم`, `about ${Math.ceil(per / Math.max(1, st.every))} pages a day`)}</small></div></div>
+      return `<div class="pv-sum">${V.star(L.num(out.length), 'gold')}<div><b>${L.count(out.length, 'wird')} • ${L.count(per, 'page')} ${L('للورد', 'each')}</b><small>${L(`آخر ورد: ${L.day(out[out.length - 1].due)}`, `Last one due ${L.day(out[out.length - 1].due)}`)}${V.showHijri && V.showHijri() && L.hijri ? ` (${L.hijri(out[out.length - 1].due)})` : ''} • ${L(`حوالي ${L.count(Math.ceil(per / Math.max(1, st.every)), 'page')} في اليوم`, `about ${Math.ceil(per / Math.max(1, st.every))} pages a day`, `نحو ${L.count(Math.ceil(per / Math.max(1, st.every)), 'page')} يوميًا`)}</small></div></div>
         <ol class="pv-list">${show.map((w) => (w ? `<li><span class="star8 xs faint"><b>${L.num(w.n)}</b></span><span>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</span><small>${L.day(w.start)}${w.due !== w.start ? ' → ' + L.day(w.due) : ''}</small></li>` : '<li class="gap">⋯</li>')).join('')}</ol>`;
     };
     V.sheet({
@@ -823,16 +823,16 @@
         ${V.planPresets ? `<div class="chips wrap pl-presets">${V.planPresets(b.pages).map((p) => `<button type="button" class="chip" data-preset="${p.id}">${p.t}</button>`).join('')}</div>` : ''}
         <div class="form grid2">
           <div><label for="pl-from">${L('من صفحة', 'From page')}</label><input id="pl-from" type="number" min="1" max="${b.pages}" value="${st.from}"></div>
-          <div><label for="pl-to">${L('لحد صفحة', 'To page')}</label><input id="pl-to" type="number" min="1" max="${b.pages}" value="${st.to}"></div>
-          <div><label for="pl-start">${L('نبدأ يوم', 'Start date')}</label><input id="pl-start" type="date" value="${st.start}"></div>
-          <div><label for="pl-every">${L('كل ورد مدته', 'Each portion lasts')}</label><select id="pl-every">${[[1, L('يوم', '1 day')], [2, L('يومين', '2 days')], [3, L('٣ أيام', '3 days')], [7, L('أسبوع', '1 week')], [14, L('أسبوعين', '2 weeks')]].map(([v, t]) => `<option value="${v}" ${st.every === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+          <div><label for="pl-to">${L('لحد صفحة', 'To page', 'إلى صفحة')}</label><input id="pl-to" type="number" min="1" max="${b.pages}" value="${st.to}"></div>
+          <div><label for="pl-start">${L('نبدأ يوم', 'Start date', 'تاريخ البدء')}</label><input id="pl-start" type="date" value="${st.start}"></div>
+          <div><label for="pl-every">${L('كل ورد مدته', 'Each portion lasts', 'مدة كل ورد')}</label><select id="pl-every">${[[1, L('يوم', '1 day')], [2, L('يومين', '2 days', 'يومان')], [3, L('٣ أيام', '3 days')], [7, L('أسبوع', '1 week')], [14, L('أسبوعين', '2 weeks', 'أسبوعان')]].map(([v, t]) => `<option value="${v}" ${st.every === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
         </div>
-        <div class="seg-pick" role="radiogroup"><label class="sp on"><input type="radio" name="pl-mode" value="per" checked><span>${L('بعدد الصفحات', 'By pages')}</span></label><label class="sp"><input type="radio" name="pl-mode" value="end"><span>${L('نخلّص في ميعاد', 'By finish date')}</span></label></div>
+        <div class="seg-pick" role="radiogroup"><label class="sp on"><input type="radio" name="pl-mode" value="per" checked><span>${L('بعدد الصفحات', 'By pages', 'حسب عدد الصفحات')}</span></label><label class="sp"><input type="radio" name="pl-mode" value="end"><span>${L('نخلّص في ميعاد', 'By finish date', 'حسب موعد الانتهاء')}</span></label></div>
         <div class="form grid2"><div id="pl-per-w"><label for="pl-per">${L('صفحات كل ورد', 'Pages per portion')}</label><input id="pl-per" type="number" min="1" max="${b.pages}" value="${st.per}"></div>
-          <div id="pl-end-w" hidden><label for="pl-end">${L('نخلّص يوم', 'Finish by')}</label><input id="pl-end" type="date" value="${st.end}"></div></div>
+          <div id="pl-end-w" hidden><label for="pl-end">${L('نخلّص يوم', 'Finish by', 'تاريخ الانتهاء')}</label><input id="pl-end" type="date" value="${st.end}"></div></div>
         <div class="pv" id="pl-pv">${preview()}</div>
-        ${hadDone ? `<p class="warn-t">${icon('info')}${L('فيه ناس علّمت أوراد خلصانة. لو غيّرت الخطة، العلامات بتفضل على نفس رقم الورد.', 'Some portions are already marked done. Changing the plan keeps marks on the same portion numbers.')}</p>` : ''}
-        <div class="row-btns end"><button class="btn gold big">${icon('check')}${L('اعتمد الخطة', 'Save plan')}</button></div></form>`,
+        ${hadDone ? `<p class="warn-t">${icon('info')}${L('فيه ناس علّمت أوراد خلصانة. لو غيّرت الخطة، العلامات بتفضل على نفس رقم الورد.', 'Some portions are already marked done. Changing the plan keeps marks on the same portion numbers.', 'بعض الأوراد معلّمة كمنتهية. إذا غيّرت الخطة، تبقى العلامات على أرقام الأوراد نفسها.')}</p>` : ''}
+        <div class="row-btns end"><button class="btn gold big">${icon('check')}${L('احفظ الخطة', 'Save plan')}</button></div></form>`,
       onMount: (body, api) => {
         const read = () => {
           st.from = +body.querySelector('#pl-from').value;
@@ -870,7 +870,7 @@
           api.close();
           await D.update(`books/${id}`, { wirds: out, status: b.status === 'planned' && st.start <= U.today() ? 'reading' : b.status || 'reading' });
           U.chime('ok');
-          U.toast(L(`الخطة جاهزة: ${L.count(out.length, 'wird')}`, `Plan ready: ${out.length} portions`));
+          U.toast(L(`الخطة جاهزة: ${L.count(out.length, 'wird')}`, `Plan ready: ${out.length} portions`, `الخطة جاهزة: ${L.count(out.length, 'wird', 'nom')}`));
         });
       },
     });
@@ -880,16 +880,16 @@
   V.download = async (id) => {
     const b = S.books.get(id);
     if (!b) return;
-    if (!S.downloads) return U.toast(L('التحميل مش متاح في العرض ده', 'Downloads are not available in this view'), 'warn');
+    if (!S.downloads) return U.toast(L('التحميل مش متاح في العرض ده', 'Downloads are not available in this view', 'التحميل غير متاح في هذا العرض'), 'warn');
     const parts = b.parts || [];
-    if (!parts.length) return U.toast(L('الكتاب ده مش مرفوع', 'This book has no uploaded file'), 'warn');
+    if (!parts.length) return U.toast(L('الكتاب ده مش مرفوع', 'This book has no uploaded file', 'هذا الكتاب غير مرفوع'), 'warn');
     const name = (b.title || 'book').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 120) || 'book';
     const save = async (data, filename) => {
       try {
         await S.downloads.save({ filename, data });
       } catch (e) {
         if (e && e.code === 'declined') return;
-        U.toast(L('التحميل ماكملش', 'Download did not complete'), 'warn');
+        U.toast(L('التحميل ماكملش', 'Download did not complete', 'لم يكتمل التحميل'), 'warn');
       }
     };
     const getAll = async (onP) => {
@@ -898,18 +898,18 @@
       return bufs;
     };
     if (parts.length === 1) {
-      U.toast(L('بنجهّز الملف…', 'Preparing the file…'));
+      U.toast(L('بنجهّز الملف…', 'Preparing the file…', 'نجهّز الملف…'));
       try {
         const [buf] = await getAll();
         await save(new Blob([buf], { type: 'application/pdf' }), name + '.pdf');
       } catch (e) {
-        U.toast(L('مقدرتش أجيب الملف. اتأكد من النت.', "Couldn't fetch the file. Check your connection."), 'warn');
+        U.toast(L('مقدرتش أجيب الملف. اتأكد من النت.', "Couldn't fetch the file. Check your connection.", 'تعذّر جلب الملف. تأكد من اتصالك.'), 'warn');
       }
       return;
     }
     V.sheet({
       title: L('حمّل الكتاب', 'Download the book'),
-      html: `<p class="muted">${L(`الكتاب مترفع ${L.num(parts.length)} أجزاء. ممكن نجمّعهم ملف واحد أو تحمّل كل جزء لوحده.`, `This book is stored in ${parts.length} parts. Merge them into one file, or download each part.`)}</p>
+      html: `<p class="muted">${L(`الكتاب مترفع ${L.num(parts.length)} أجزاء. ممكن نجمّعهم ملف واحد أو تحمّل كل جزء لوحده.`, `This book is stored in ${parts.length} parts. Merge them into one file, or download each part.`, `الكتاب مرفوع في ${L.num(parts.length)} أجزاء. يمكن دمجها في ملف واحد أو تحميل كل جزء وحده.`)}</p>
         <button class="btn gold full" data-merge>${icon('layers')}${L('ملف واحد كامل', 'One complete file')}</button><div id="dl-prog"></div>
         <ul class="dl-parts">${parts.map((p, i) => `<li><span>${L(`الجزء ${L.num(i + 1)} • ص ${L.num(p.from)}–${L.num(p.to)}`, `Part ${i + 1} • p. ${p.from}–${p.to}`)}</span><button class="btn ghost sm" data-part="${i}">${icon('download')}</button></li>`).join('')}</ul>`,
       onMount: (body) =>
@@ -933,7 +933,7 @@
               await save(new Blob([bytes], { type: 'application/pdf' }), name + '.pdf');
             } catch (er) {
               console.warn(er);
-              U.toast(L('التجميع تقيل على الجهاز ده. حمّل الأجزاء واحد واحد.', 'Merging is too heavy for this device. Download the parts one by one.'), 'warn');
+              U.toast(L('التجميع تقيل على الجهاز ده. حمّل الأجزاء واحد واحد.', 'Merging is too heavy for this device. Download the parts one by one.', 'الدمج ثقيل على هذا الجهاز. حمّل الأجزاء واحدًا تلو الآخر.'), 'warn');
             }
           }
           const pb = e.target.closest('[data-part]');
@@ -943,7 +943,7 @@
               const buf = await A.R.partBytes(parts[i]);
               await save(new Blob([buf], { type: 'application/pdf' }), `${name} (${i + 1}).pdf`);
             } catch (er) {
-              U.toast(L('مقدرتش أجيب الجزء ده', "Couldn't fetch that part"), 'warn');
+              U.toast(L('مقدرتش أجيب الجزء ده', "Couldn't fetch that part", 'تعذّر جلب هذا الجزء'), 'warn');
             }
           }
         }),
@@ -954,10 +954,10 @@
   V.askPage = async (bookId, page) => {
     const b = S.books.get(bookId);
     const presets = [
-      [L('اشرحلي الصفحة دي ببساطة', 'Explain this page simply'), 'explain'],
-      [L('لخّص الصفحة في نقط', 'Summarise the page in bullet points'), 'sum'],
+      [L('اشرحلي الصفحة دي ببساطة', 'Explain this page simply', 'اشرح لي هذه الصفحة ببساطة'), 'explain'],
+      [L('لخّص الصفحة في نقط', 'Summarise the page in bullet points', 'لخّص الصفحة في نقاط'), 'sum'],
       [L('اقترح ٣ أسئلة للنقاش', 'Suggest 3 discussion questions'), 'qs'],
-      [L('عرّفني بالكلمات الصعبة', 'Define the difficult words'), 'words'],
+      [L('عرّفني بالكلمات الصعبة', 'Define the difficult words', 'اشرح لي الكلمات الصعبة'), 'words'],
     ];
     let busy = null;
     const api = V.sheet({
@@ -966,20 +966,20 @@
         <form id="ask-form" class="composer tall"><textarea id="ask-q" rows="2" dir="auto" placeholder="${L('أو اكتب سؤالك…', 'Or type your own question…')}"></textarea><button class="btn icon-only" aria-label="${L('اسأل', 'Ask')}">${icon('send', 'flip-rtl')}</button></form>
         <div class="ask-out" id="ask-out" dir="auto" hidden></div>
         <div class="row-btns" id="ask-acts" hidden><button class="btn ghost sm" data-copy>${L('انسخ', 'Copy')}</button>${D.canWrite() ? `<button class="btn sm" data-share>${icon('chat')}${L('شاركها في النقاش', 'Share in discussion')}</button>` : ''}</div>
-        <small class="muted">${L('Claude بيشوف صورة الصفحة بس. الإجابات ممكن تغلط، فراجعها.', 'Claude sees only an image of this page. Answers can be wrong, so double-check.')}</small>`,
+        <small class="muted">${L('Claude بيشوف صورة الصفحة بس. الإجابات ممكن تغلط، فراجعها.', 'Claude sees only an image of this page. Answers can be wrong, so double-check.', 'يرى Claude صورة الصفحة فقط. قد تكون الإجابات خاطئة، فراجعها.')}</small>`,
       onMount: (body) => {
         const run = async (q) => {
           if (busy) busy.abort();
           busy = new AbortController();
           const out = body.querySelector('#ask-out');
           out.hidden = false;
-          out.textContent = L('بفكّر…', 'Thinking…');
+          out.textContent = L('بفكّر…', 'Thinking…', 'أفكّر…');
           body.querySelector('#ask-acts').hidden = true;
           try {
             const limits = await S.sample.limits().catch(() => null);
             let img = limits && limits.images ? await A.R.pageImage() : null;
             const ask = (withImg) => {
-              const prompt = `You are helping a small reading circle of friends and family. ${withImg ? `The attached image is page ${page} of the book "${b.title}"${b.author ? ` by ${b.author}` : ''}.` : `We are on page ${page} of "${b.title}"${b.author ? ` by ${b.author}` : ''} (no page image is available, so rely on what you know about the book and say so if unsure).`}\nRequest: ${q}\nAnswer in ${L.isAr() ? 'clear, friendly Arabic (simple Modern Standard Arabic, Egyptian-friendly)' : 'clear, friendly English'}. Keep it short: a few short paragraphs or bullet points. Plain text only, no markdown headings.`;
+              const prompt = `You are helping a small reading circle of friends and family. ${withImg ? `The attached image is page ${page} of the book "${b.title}"${b.author ? ` by ${b.author}` : ''}.` : `We are on page ${page} of "${b.title}"${b.author ? ` by ${b.author}` : ''} (no page image is available, so rely on what you know about the book and say so if unsure).`}\nRequest: ${q}\nAnswer in ${L('clear, friendly Egyptian Arabic', 'clear, friendly English', 'clear, friendly Modern Standard Arabic')}. Keep it short: a few short paragraphs or bullet points. Plain text only, no markdown headings.`;
               const opts = { signal: busy.signal, cache: false, onText: ({ text }) => (out.textContent = text) };
               if (withImg) opts.images = [withImg];
               return S.sample(prompt, opts);
@@ -996,7 +996,7 @@
             out.dataset.q = q;
           } catch (e) {
             if (e && e.name === 'AbortError') return;
-            out.textContent = e && e.code === 'not_granted' ? L('محتاج توافق إن الصفحة تسأل Claude. جرّب تاني ووافق.', 'This page needs your permission to ask Claude. Try again and allow it.') : e && e.code === 'rate_limited' ? L('وصلت للحد بتاعك دلوقتي. جرّب بعد شوية.', 'You have hit your usage limit for now. Try again later.') : L('حصلت مشكلة. جرّب تاني.', 'Something went wrong. Try again.');
+            out.textContent = e && e.code === 'not_granted' ? L('محتاج توافق إن الصفحة تسأل Claude. جرّب تاني ووافق.', 'This page needs your permission to ask Claude. Try again and allow it.', 'تحتاج الصفحة إلى موافقتك لتسأل Claude. حاول مرة أخرى ووافق.') : e && e.code === 'rate_limited' ? L('وصلت للحد بتاعك دلوقتي. جرّب بعد شوية.', 'You have hit your usage limit for now. Try again later.', 'بلغت حد الاستخدام الآن. حاول لاحقًا.') : L('حصلت مشكلة. جرّب تاني.', 'Something went wrong. Try again.', 'حدثت مشكلة. حاول مرة أخرى.');
           }
         };
         body.addEventListener('click', async (e) => {
@@ -1004,14 +1004,14 @@
           if (c) run(c.dataset.q);
           if (e.target.closest('[data-copy]')) {
             const ok = await U.copy(body.querySelector('#ask-out').textContent, body.querySelector('#ask-out'));
-            U.toast(ok ? L('اتنسخ', 'Copied') : L('اختار النص وانسخه', 'Select the text to copy'));
+            U.toast(ok ? L('اتنسخ', 'Copied', 'تم النسخ') : L('اختار النص وانسخه', 'Select the text to copy', 'اختر النص وانسخه'));
           }
           if (e.target.closest('[data-share]')) {
             const w = G.wirds(b).find((x) => page >= x.from && page <= x.to);
             const out = body.querySelector('#ask-out');
             await D.set(`msgs/${D.newId()}`, { b: bookId, ch: w ? w.id : 'gen', by: S.me, kind: 'ai', text: `${L('سألت Claude عن ص', 'Asked Claude about p.')} ${L.num(page)}: «${out.dataset.q}»\n\n${out.textContent}`.slice(0, 2000), at: U.nowIso(), re: '', react: {} });
             api.close();
-            U.toast(L('اتشاركت في النقاش', 'Shared in the discussion'));
+            U.toast(L('اتشاركت في النقاش', 'Shared in the discussion', 'تمت المشاركة في النقاش'));
           }
         });
         body.addEventListener('submit', (e) => {
@@ -1029,16 +1029,16 @@
     const w = G.groupCurrent(b);
     V.sheet({
       title: `${icon('claude')} ${L('أسئلة للنقاش', 'Discussion questions')}`,
-      html: `<p class="muted">${w ? L(`لـلورد ${L.num(w.n)} (ص ${L.num(w.from)}–${L.num(w.to)})`, `For portion ${w.n} (p. ${w.from}–${w.to})`) : ''}</p><div class="ask-out" id="ab-out" dir="auto">${L('بفكّر…', 'Thinking…')}</div>`,
+      html: `<p class="muted">${w ? L(`للورد ${L.num(w.n)} (ص ${L.num(w.from)}–${L.num(w.to)})`, `For portion ${w.n} (p. ${w.from}–${w.to})`) : ''}</p><div class="ask-out" id="ab-out" dir="auto">${L('بفكّر…', 'Thinking…', 'أفكّر…')}</div>`,
       onMount: async (body) => {
         try {
           const takes = [...S.notes.values()].filter((n) => n.b === id && (!w || n.wid === w.id) && n.text).slice(-12).map((n) => `- ${n.text.slice(0, 200)}`).join('\n');
-          const prompt = `A reading circle is reading "${b.title}"${b.author ? ` by ${b.author}` : ''}${w ? `, currently pages ${w.from}-${w.to}` : ''}. ${takes ? `Some of their notes so far:\n${takes}\n` : ''}Suggest 4 thoughtful, open discussion questions for the group${w ? ' about this portion' : ''}. If you do not know the book, base them on the notes and keep them general. Answer in ${L.isAr() ? 'friendly Arabic' : 'friendly English'}, numbered, plain text.`;
+          const prompt = `A reading circle is reading "${b.title}"${b.author ? ` by ${b.author}` : ''}${w ? `, currently pages ${w.from}-${w.to}` : ''}. ${takes ? `Some of their notes so far:\n${takes}\n` : ''}Suggest 4 thoughtful, open discussion questions for the group${w ? ' about this portion' : ''}. If you do not know the book, base them on the notes and keep them general. Answer in ${L('friendly Egyptian Arabic', 'friendly English', 'friendly Modern Standard Arabic')}, numbered, plain text.`;
           const out = body.querySelector('#ab-out');
           const res = await S.sample(prompt, { cache: false, onText: ({ text }) => (out.textContent = text) });
           out.textContent = res.text;
         } catch (e) {
-          body.querySelector('#ab-out').textContent = L('مقدرتش أجيب أسئلة دلوقتي.', "Couldn't get questions right now.");
+          body.querySelector('#ab-out').textContent = L('مقدرتش أجيب أسئلة دلوقتي.', "Couldn't get questions right now.", 'تعذّر جلب الأسئلة الآن.');
         }
       },
     });

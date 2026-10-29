@@ -33,11 +33,11 @@
     return `<div class="circle">
       <header class="circle-head">
         <div class="ch-t"><h1 dir="auto">${esc(c.name || L('حلقة القراءة', 'Reading Circle'))}</h1>
-          <p>${L.count(S.members.size, 'member')}${online.size ? ` • <span class="live-t">${L(`${L.num(online.size)} أونلاين`, `${online.size} online`)}</span>` : ''}${c.motto ? ` • <span dir="auto">${esc(c.motto)}</span>` : ''}</p></div>
+          <p>${L.count(S.members.size, 'member')}${online.size ? ` • <span class="live-t">${L(`${L.num(online.size)} أونلاين`, `${online.size} online`, `متصل الآن: ${L.num(online.size)}`)}</span>` : ''}${c.motto ? ` • <span dir="auto">${esc(c.motto)}</span>` : ''}</p></div>
         <div class="ch-avs" aria-hidden="true">${ids.slice(0, 4).map((u) => D.avatar(u, 'sm')).join('')}</div>
         <button class="btn sm gold" data-act="invite">${icon('share')}${L('ادعُ', 'Invite')}</button>
         ${canAdmin && D.canWrite() ? `<button class="ib round" data-act="edit-circle" aria-label="${L('بيانات الحلقة والهدف الأسبوعي', 'Circle details & weekly goal')}">${icon('edit')}</button>` : ''}
-        <button class="ib round" data-act="circle-more" aria-label="${L('اختيارات الحلقة', 'Circle options')}">${icon('more')}</button>
+        <button class="ib round" data-act="circle-more" aria-label="${L('اختيارات الحلقة', 'Circle options', 'خيارات الحلقة')}">${icon('more')}</button>
       </header>
       <nav class="segs" role="tablist" aria-label="${L('أقسام الحلقة', 'Circle sections')}">${segs
         .map(([k, t, n]) => `<button role="tab" aria-selected="${k === seg}" class="${k === seg ? 'on' : ''}" data-act="circle-seg" data-seg="${k}">${t}${n ? `<i class="nv-b">${L.num(Math.min(n, 99))}</i>` : ''}</button>`)
@@ -50,9 +50,9 @@
     const canAdmin = (S.isOwner || S.canEdit) && D.canWrite();
     const items = [];
     if (canAdmin) items.push({ ic: 'edit', t: L('بيانات الحلقة والهدف الأسبوعي', 'Circle details & weekly goal'), fn: () => V.actions['edit-circle']() });
-    items.push({ ic: 'share', t: L('ادعُ أصحابك', 'Invite friends'), fn: () => V.actions.invite && V.actions.invite() });
-    if (V.circleMenu) items.push({ ic: 'users', t: L('حلقاتي (بدّل أو اعمل جديدة)', 'My circles (switch or create)'), fn: () => V.actions['circle-menu']() });
-    items.push({ ic: 'bolt', t: L('إزاي أكسب XP؟', 'How do I earn XP?'), fn: () => V.actions['xp-help']() });
+    items.push({ ic: 'share', t: L('ادعُ أصحابك', 'Invite friends', 'ادعُ أصدقاءك'), fn: () => V.actions.invite && V.actions.invite() });
+    if (V.circleMenu) items.push({ ic: 'users', t: L('حلقاتي (بدّل أو اعمل جديدة)', 'My circles (switch or create)', 'حلقاتي (بدّل أو أنشئ حلقة جديدة)'), fn: () => V.actions['circle-menu']() });
+    items.push({ ic: 'bolt', t: L('إزاي أكسب XP؟', 'How do I earn XP?', 'كيف أكسب XP؟'), fn: () => V.actions['xp-help']() });
     V.menu(items);
   };
 
@@ -63,26 +63,26 @@
     const feed = V.feedBlock ? V.feedBlock() : '';
     return `${V.liveBlock ? V.liveBlock() : ''}
       <section class="card cchal">
-        <header><h3>${L('تحدي الحلقة الأسبوع ده', "This week's circle challenge")}</h3><small class="muted">${pages >= goal ? L('خلص! 🎉', 'Done! 🎉') : L(`فاضل ${L.count(daysLeft, 'day')}`, `${daysLeft} days left`)}</small></header>
+        <header><h3>${L('تحدي الحلقة الأسبوع ده', "This week's circle challenge", 'تحدي الحلقة هذا الأسبوع')}</h3><small class="muted">${pages >= goal ? L('خلص! 🎉', 'Done! 🎉', 'اكتمل! 🎉') : L(`فاضل ${L.count(daysLeft, 'day')}`, `${daysLeft} days left`, `بقي ${L.count(daysLeft, 'day', 'nom')}`)}</small></header>
         ${V.bar(pages / goal, pages >= goal ? 'jade big' : 'gold big')}
-        <p class="muted sm">${L(`${L.num(pages)} من ${L.count(goal, 'page')} مع بعض`, `${pages} of ${goal} pages together`)}</p>
+        <p class="muted sm">${L(`${L.num(pages)} من ${L.count(goal, 'page')} مع بعض`, `${pages} of ${goal} pages together`, `${L.num(pages)} من ${L.count(goal, 'page')} معًا`)}</p>
         ${!board.some((s) => s.pagesWeek) ? '' : `<div class="contrib">${board.filter((s) => s.pagesWeek).sort((a, b) => b.pagesWeek - a.pagesWeek).map((s) => `<span style="flex:${s.pagesWeek};--c:${esc(D.color(s.uid))}" title="${esc(D.name(s.uid))}: ${L.num(s.pagesWeek)}"></span>`).join('')}</div>`}
       </section>
-      ${feed || V.empty(L('مفيش أخبار لسه', 'No news yet'), L('لما حد يخلّص ورد أو يكتب ملاحظة هتلاقيه هنا.', 'Finished portions and notes will show up here.'))}`;
+      ${feed || V.empty(L('مفيش أخبار لسه', 'No news yet', 'لا أخبار بعد'), L('لما حد يخلّص ورد أو يكتب ملاحظة هتلاقيه هنا.', 'Finished portions and notes will show up here.', 'عندما ينهي أحد وردًا أو يكتب ملاحظة ستجده هنا.'))}`;
   }
 
   function boardSeg(mode, online) {
     const board = G.board(mode);
     const medal = ['gold', 'silver', 'bronze'];
     return `<section class="card board">
-      <header><h2>${icon('trophy')}${L('الصدارة', 'Leaderboard')}</h2><div class="seg sm"><button class="${mode === 'week' ? 'on' : ''}" data-act="board" data-m="week">${L('الأسبوع ده', 'This week')}</button><button class="${mode === 'all' ? 'on' : ''}" data-act="board" data-m="all">${L('كل الوقت', 'All time')}</button></div></header>
+      <header><h2>${icon('trophy')}${L('الصدارة', 'Leaderboard')}</h2><div class="seg sm"><button class="${mode === 'week' ? 'on' : ''}" data-act="board" data-m="week">${L('الأسبوع ده', 'This week', 'هذا الأسبوع')}</button><button class="${mode === 'all' ? 'on' : ''}" data-act="board" data-m="all">${L('كل الوقت', 'All time', 'منذ البداية')}</button></div></header>
       ${board.length >= 3 ? podium(board.slice(0, 3), mode) : ''}
       <ol class="lb">${board
         .map((s, i) => `<li class="${s.uid === S.me ? 'me' : ''}"><button data-act="member" data-uid="${esc(s.uid)}"><span class="rank ${medal[i] || ''}">${L.num(i + 1)}</span>${D.avatar(s.uid, 'md')}${online.has(s.uid) ? '<i class="on-dot"></i>' : ''}
           <span class="lb-n"><b>${esc(D.name(s.uid))}</b><small>${V.star(L.num(s.lv), 'xs gold')} ${esc(G.title(s.lv))}${s.streak ? ` • <span class="flame-t">${icon('flame')}${L.num(s.streak)}</span>` : ''}</small></span>
           <span class="lb-xp"><b>${L.num(mode === 'week' ? s.week : s.xp)}</b><small>XP</small></span></button></li>`)
         .join('')}</ol>
-      <p class="muted sm">${L('الأسبوع بيبدأ السبت. الـXP بييجي من الصفحات، الأوراد، الملاحظات، الردود والإعجابات.', 'Weeks start on Saturday. XP comes from pages, portions, notes, replies and likes.')} <button class="lnk" data-act="xp-help">${L('إزاي أكسب XP؟', 'How do I earn XP?')}</button></p>
+      <p class="muted sm">${L('الأسبوع بيبدأ السبت. الـXP بييجي من الصفحات، الأوراد، الملاحظات، الردود والإعجابات.', 'Weeks start on Saturday. XP comes from pages, portions, notes, replies and likes.', 'يبدأ الأسبوع يوم السبت. يأتي الـXP من الصفحات، والأوراد، والملاحظات، والردود والإعجابات.')} <button class="lnk" data-act="xp-help">${L('إزاي أكسب XP؟', 'How do I earn XP?', 'كيف أكسب XP؟')}</button></p>
     </section>`;
   }
 
@@ -93,10 +93,10 @@
           const s = G.of(u);
           const reading = D.readingNow().find((x) => x.uid === u);
           const b = reading && S.books.get(reading.b);
-          return `<li><button data-act="${V.memberMenu ? 'member-menu' : 'member'}" data-uid="${esc(u)}">${D.avatar(u, 'md')}${online.has(u) ? '<i class="on-dot"></i>' : ''}<span><b>${esc(D.name(u))}${A.P && A.P.role && A.P.role(u) !== 'member' ? ` <i class="role-tag">${A.P.role(u) === 'owner' ? L('صاحب الحلقة', 'owner') : L('مشرف', 'admin')}</i>` : ''}</b><small>${reading ? `<span class="live-t">${L('في القراية:', 'Reading')}</span> <span dir="auto">${b ? esc(b.title) : ''}</span>` : `${L('مستوى', 'Level')} ${L.num(s.lv)} • ${s.streak ? `${icon('flame')}${L.num(s.streak)} • ` : ''}${L.count(s.badgeCount || 0, 'badge')}`}</small></span>${icon('more')}</button></li>`;
+          return `<li><button data-act="${V.memberMenu ? 'member-menu' : 'member'}" data-uid="${esc(u)}">${D.avatar(u, 'md')}${online.has(u) ? '<i class="on-dot"></i>' : ''}<span><b>${esc(D.name(u))}${A.P && A.P.role && A.P.role(u) !== 'member' ? ` <i class="role-tag">${A.P.role(u) === 'owner' ? L('صاحب الحلقة', 'owner') : L('مشرف', 'admin')}</i>` : ''}</b><small>${reading ? `<span class="live-t">${L('في القراية:', 'Reading', 'في القراءة:')}</span> <span dir="auto">${b ? esc(b.title) : ''}</span>` : `${L('مستوى', 'Level')} ${L.num(s.lv)} • ${s.streak ? `${icon('flame')}${L.num(s.streak)} • ` : ''}${L.count(s.badgeCount || 0, 'badge')}`}</small></span>${icon('more')}</button></li>`;
         })
         .join('')}</ul>
-      <button class="btn gold full" data-act="invite">${icon('share')}${L('ادعُ أصحابك أو عيلتك', 'Invite friends or family')}</button>
+      <button class="btn gold full" data-act="invite">${icon('share')}${L('ادعُ أصحابك أو عيلتك', 'Invite friends or family', 'ادعُ أصدقاءك أو عائلتك')}</button>
     </section>`;
   }
 
@@ -113,23 +113,23 @@
   V.actions['xp-help'] = () => {
     const X = G.XP;
     const rows = [
-      ['scroll', L('كل صفحة جديدة تقراها (تفضل عليها ٣ ثواني)', 'Each new page you read (stay ~3 seconds)'), X.page],
-      ['check', L('تخلّص ورد', 'Finish a portion'), X.wird],
-      ['clock', L('تخلّصه في الميعاد', 'Finish it on time'), X.onTime],
-      ['bolt', L('تكون أول واحد يخلّصه', 'Be the first to finish it'), X.first],
+      ['scroll', L('كل صفحة جديدة تقراها (تفضل عليها ٣ ثواني)', 'Each new page you read (stay ~3 seconds)', 'كل صفحة جديدة تقرؤها (تبقى عليها ٣ ثوان)'), X.page],
+      ['check', L('تخلّص ورد', 'Finish a portion', 'تنهي وردًا'), X.wird],
+      ['clock', L('تخلّصه في الميعاد', 'Finish it on time', 'تنهيه في موعده'), X.onTime],
+      ['bolt', L('تكون أول واحد يخلّصه', 'Be the first to finish it', 'تكون أول من ينهيه'), X.first],
       ['hl', L('ملاحظة أو تظليل للحلقة', 'A shared note or highlight'), X.note],
       ['sparkle', L('خلاصة الورد', 'A portion takeaway'), X.take],
       ['chat', L('رد على ملاحظة', 'Reply to a note'), X.reply],
-      ['heart', L('حد يعمل إعجاب لملاحظتك', 'Someone likes your note'), X.liked],
-      ['shelf', L('كتاب قريته تضيفه لمكتبتك', 'A book you have read, added to your shelf'), X.shelf],
+      ['heart', L('حد تعجبه ملاحظتك', 'Someone likes your note', 'إعجاب أحدهم بملاحظتك'), X.liked],
+      ['shelf', L('كتاب قريته تضيفه لمكتبتك', 'A book you have read, added to your shelf', 'كتاب قرأته تضيفه إلى مكتبتك'), X.shelf],
       ['edit', L('رأيك في كتاب', 'A book review'), X.review],
-      ['trophy', L('تخلّص الكتاب', 'Finish the book'), X.book],
-      ['chest', L('تخلّص مهام اليوم التلاتة', 'Complete all three daily quests'), X.quests],
+      ['trophy', L('تخلّص الكتاب', 'Finish the book', 'تنهي الكتاب'), X.book],
+      ['chest', L('تخلّص مهام اليوم التلاتة', 'Complete all three daily quests', 'تنهي مهام اليوم الثلاث'), X.quests],
     ];
     V.sheet({
-      title: L('إزاي أكسب XP؟', 'How to earn XP'),
+      title: L('إزاي أكسب XP؟', 'How to earn XP', 'كيف أكسب XP؟'),
       html: `<ul class="xp-help">${rows.map(([ic, t, n]) => `<li>${icon(ic)}<span>${t}</span><b>+${L.num(n)}</b></li>`).join('')}</ul>
-        <p class="muted sm">${L('المستويات بتعلى كل ما تجمع XP. والسلسلة بتزيد كل يوم تقرأ فيه أو تشارك.', 'Levels rise as XP adds up. Your streak grows every day you read or take part.')}</p>`,
+        <p class="muted sm">${L('المستويات بتعلى كل ما تجمع XP. والسلسلة بتزيد كل يوم تقرأ فيه أو تشارك.', 'Levels rise as XP adds up. Your streak grows every day you read or take part.', 'ترتفع المستويات كلما جمعت XP. وتزيد السلسلة كل يوم تقرأ فيه أو تشارك.')}</p>`,
     });
   };
 
@@ -139,7 +139,7 @@
       title: L('بيانات الحلقة', 'Circle details'),
       html: `<form id="ec-form" class="form">
         <label for="ec-name">${L('اسم الحلقة', 'Circle name')}</label><input id="ec-name" maxlength="60" dir="auto" value="${esc(c.name || L('حلقة القراءة', 'Reading Circle'))}" required>
-        <label for="ec-motto">${L('شعار أو جملة تعريف', 'Motto')}</label><input id="ec-motto" maxlength="120" dir="auto" value="${esc(c.motto || '')}" placeholder="${L('مثلا: كل يوم ورد، وكل شهر كتاب', 'e.g. A portion a day, a book a month')}">
+        <label for="ec-motto">${L('شعار أو جملة تعريف', 'Motto', 'شعار أو جملة تعريفية')}</label><input id="ec-motto" maxlength="120" dir="auto" value="${esc(c.motto || '')}" placeholder="${L('مثلا: كل يوم ورد، وكل شهر كتاب', 'e.g. A portion a day, a book a month', 'مثلًا: كل يوم ورد، وكل شهر كتاب')}">
         <label for="ec-goal">${L('هدف الصفحات الأسبوعي للحلقة', 'Weekly page goal for the circle')}</label><input id="ec-goal" type="number" min="10" max="100000" value="${esc(c.weeklyGoal || 300)}">
         <div class="row-btns end"><button class="btn">${L('احفظ', 'Save')}</button></div></form>`,
       onMount: (body, api) =>
@@ -164,18 +164,18 @@
       <header class="pf-hero">
         <div class="pf-av">${D.avatar(uid, 'xl')}${V.star(L.num(s.lv), 'gold lvl-big')}</div>
         <div class="pf-t"><h1 dir="auto">${esc(D.name(uid))}</h1><p class="pf-title">${esc(G.title(s.lv))}${rank ? ` • ${L(`المركز ${L.num(rank)} في الحلقة`, `#${rank} in the circle`)}` : ''}</p>
-          <div class="pf-xp">${V.bar(s.span ? s.cur / s.span : 0, 'gold big')}<small>${L.num(s.cur)} / ${L.num(s.span)} XP • ${L(`فاضل ${L.num(s.toNext)} للمستوى ${L.num(s.lv + 1)}`, `${s.toNext} to level ${s.lv + 1}`)}</small></div>
-          ${live ? `<p class="live-t"><span class="pulse"></span>${L('في القراية دلوقتي', 'Reading right now')}</p>` : ''}
-          ${!mine && D.canWrite() ? `<div class="row-btns"><button class="btn sm" data-act="poke" data-to="${esc(uid)}" data-kind="cheer">${icon('clap')}${L('ابعت تشجيع', 'Cheer')}</button><button class="btn ghost sm" data-go="shelf" data-uid="${esc(uid)}">${icon('shelf')}${L('المكتبة', 'Shelf')}</button></div>` : ''}
+          <div class="pf-xp">${V.bar(s.span ? s.cur / s.span : 0, 'gold big')}<small>${L.num(s.cur)} / ${L.num(s.span)} XP • ${L(`فاضل ${L.num(s.toNext)} للمستوى ${L.num(s.lv + 1)}`, `${s.toNext} to level ${s.lv + 1}`, `بقي ${L.num(s.toNext)} للمستوى ${L.num(s.lv + 1)}`)}</small></div>
+          ${live ? `<p class="live-t"><span class="pulse"></span>${L('في القراية دلوقتي', 'Reading right now', 'في القراءة الآن')}</p>` : ''}
+          ${!mine && D.canWrite() ? `<div class="row-btns"><button class="btn sm" data-act="poke" data-to="${esc(uid)}" data-kind="cheer">${icon('clap')}${L('ابعت تشجيع', 'Cheer', 'أرسل تشجيعًا')}</button><button class="btn ghost sm" data-go="shelf" data-uid="${esc(uid)}">${icon('shelf')}${L('المكتبة', 'Shelf')}</button></div>` : ''}
         </div>
       </header>
       <section class="stat-tiles">
-        <div class="stile flame ${s.streak ? (s.atRisk ? 'risk' : 'hot') : ''}">${icon('flame')}<b>${L.num(s.streak)}</b><small>${L('أيام ورا بعض', 'day streak')} • ${L('الأحسن', 'best')} ${L.num(s.best)}${s.freezes ? ` • ${L(`حماية ×${L.num(s.freezes)}`, `${s.freezes} freeze`)}` : ''}</small></div>
-        <div class="stile">${icon('clock')}<b>${L.duration ? esc(L.duration(s.secs)) : ''}</b><small>${L('وقت القراية', 'time reading')}${s.secsWeek ? ` • ${L('الأسبوع ده', 'this week')} ${esc(L.duration(s.secsWeek))}` : ''}</small></div>
-        <div class="stile">${icon('bolt')}<b>${L.num(s.xp)}</b><small>XP • ${L('الأسبوع ده', 'this week')} ${L.num(s.week)}</small></div>
+        <div class="stile flame ${s.streak ? (s.atRisk ? 'risk' : 'hot') : ''}">${icon('flame')}<b>${L.num(s.streak)}</b><small>${L('أيام ورا بعض', 'day streak', 'أيام متتالية')} • ${L('الأحسن', 'best', 'الأفضل')} ${L.num(s.best)}${s.freezes ? ` • ${L(`حماية ×${L.num(s.freezes)}`, `${s.freezes} freeze`)}` : ''}</small></div>
+        <div class="stile">${icon('clock')}<b>${L.duration ? esc(L.duration(s.secs)) : ''}</b><small>${L('وقت القراية', 'time reading', 'وقت القراءة')}${s.secsWeek ? ` • ${L('الأسبوع ده', 'this week', 'هذا الأسبوع')} ${esc(L.duration(s.secsWeek))}` : ''}</small></div>
+        <div class="stile">${icon('bolt')}<b>${L.num(s.xp)}</b><small>XP • ${L('الأسبوع ده', 'this week', 'هذا الأسبوع')} ${L.num(s.week)}</small></div>
         <div class="stile">${icon('scroll')}<b>${L.num(s.pages)}</b><small>${L('صفحة', 'pages')}</small></div>
         <div class="stile">${icon('shelf')}<b>${L.num(shelf.length)}</b><small>${L('كتب في المكتبة', 'books on shelf')}</small></div>
-        <div class="stile">${icon('check')}<b>${L.num(s.wirdsDone)}</b><small>${L('ورد خلّصه', 'portions done')}</small></div>
+        <div class="stile">${icon('check')}<b>${L.num(s.wirdsDone)}</b><small>${L('ورد خلص', 'portions done', 'ورد منجز')}</small></div>
         <div class="stile">${icon('heart')}<b>${L.num(s.likesRecv)}</b><small>${L('إعجاب', 'likes received')}</small></div>
       </section>
       <section class="card">
@@ -183,7 +183,7 @@
         <div class="badges">${G.badgeGroups(s).map((grp) => V.badgeCard(grp, uid)).join('')}</div>
       </section>
       <section class="card">
-        <header class="sec-h"><h2>${L('خريطة القراية', 'Reading map')}</h2><small class="muted">${L('آخر ١٨ أسبوع', 'Last 18 weeks')}</small></header>
+        <header class="sec-h"><h2>${L('خريطة القراية', 'Reading map', 'خريطة القراءة')}</h2><small class="muted">${L('آخر ١٨ أسبوع', 'Last 18 weeks', 'آخر ١٨ أسبوعًا')}</small></header>
         ${heatmap(s)}
       </section>
     </div>`;
@@ -212,7 +212,7 @@
       }
       cols += `<span class="hm-col">${cells}</span>`;
     }
-    return `<div class="heat" dir="ltr">${cols}</div><div class="hm-legend"><span>${L('أقل', 'Less')}</span><i class="hm l0"></i><i class="hm l1"></i><i class="hm l2"></i><i class="hm l3"></i><i class="hm l4"></i><span>${L('أكتر', 'More')}</span></div>`;
+    return `<div class="heat" dir="ltr">${cols}</div><div class="hm-legend"><span>${L('أقل', 'Less')}</span><i class="hm l0"></i><i class="hm l1"></i><i class="hm l2"></i><i class="hm l3"></i><i class="hm l4"></i><span>${L('أكتر', 'More', 'أكثر')}</span></div>`;
   }
 
   function settings() {
@@ -224,13 +224,13 @@
         <button class="set-me-av" data-go="me" aria-label="${L('ملفي', 'My profile')}">${D.avatar(S.me, 'xl')}</button>
         <form id="me-form" class="form inline"><label for="me-nick">${L('اسمك في الحلقة', 'Your name in the circle')}</label><div class="row"><input id="me-nick" maxlength="40" dir="auto" value="${esc(m.nick || '')}"><button class="btn sm">${L('احفظ', 'Save')}</button></div></form>
       </div>
-      <span class="lbl set-lbl">${L('علامتك (الصورة اللي بتظهر جنب اسمك)', 'Your mark (shown next to your name)')}</span>
+      <span class="lbl set-lbl">${L('علامتك (الصورة اللي بتظهر جنب اسمك)', 'Your mark (shown next to your name)', 'علامتك (الصورة التي تظهر بجانب اسمك)')}</span>
       <div class="emo emo-all" role="radiogroup" aria-label="${L('علامتك', 'Your mark')}">
         <button type="button" class="emo-b letter${m.emoji ? '' : ' on'}" data-act="set-emoji" data-emo="" role="radio" aria-checked="${!m.emoji}" aria-label="${L('أول حرف من اسمي', 'First letter of my name')}">${esc(Array.from(D.name(S.me).trim())[0] || '؟')}</button>
         ${V.EMOJI.map((e) => `<button type="button" class="emo-b${m.emoji === e ? ' on' : ''}" data-act="set-emoji" data-emo="${e}" role="radio" aria-checked="${m.emoji === e}" aria-label="${e}">${e}</button>`).join('')}
       </div>` : ''}
-      <div class="set-row"><span>${icon('lang')}${L('اللغة', 'Language')}</span><div class="seg sm"><button class="${L.isAr() ? 'on' : ''}" data-act="${L.isAr() ? '' : 'lang'}">العربية</button><button class="${L.isAr() ? '' : 'on'}" data-act="${L.isAr() ? 'lang' : ''}">English</button></div></div>
-      <div class="set-row"><span>${icon('moon')}${L('المظهر', 'Appearance')}</span><div class="seg sm">${[['system', L('تلقائي', 'Auto')], ['light', L('فاتح', 'Light')], ['dark', L('غامق', 'Dark')]].map(([k, t]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-t="${k}">${t}</button>`).join('')}</div></div>
+      <div class="set-row"><span>${icon('lang')}${L('اللغة', 'Language')}</span><div class="seg sm">${L.langs.map((l) => `<button class="${L.lang() === l ? 'on' : ''}" data-act="${L.lang() === l ? '' : 'lang'}" data-l="${l}" lang="${l === 'en' ? 'en' : 'ar'}">${L.names[l]}</button>`).join('')}</div></div>
+      <div class="set-row"><span>${icon('moon')}${L('المظهر', 'Appearance')}</span><div class="seg sm">${[['system', L('تلقائي', 'Auto')], ['light', L('فاتح', 'Light')], ['dark', L('غامق', 'Dark', 'داكن')]].map(([k, t]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-t="${k}">${t}</button>`).join('')}</div></div>
       <div class="set-row"><span>${icon('calendar')}${L('التاريخ الهجري', 'Hijri date')}</span><label class="switch"><input type="checkbox" id="set-hijri" ${U.store.get('hijri', true) ? 'checked' : ''}><i></i></label></div>
       <div class="set-row"><span>${icon('sparkle')}${L('أصوات الاحتفال', 'Celebration sounds')}</span><label class="switch"><input type="checkbox" id="set-sound" ${U.store.get('sound', true) ? 'checked' : ''}><i></i></label></div>
       ${readingSettings()}
@@ -245,23 +245,23 @@
     const paged = !!U.store.get('readerPrefs', {}).paged;
     const native = !!(A.Sys && A.Sys.canOrient && A.Sys.canOrient());
     return `<h3 class="set-h">${icon('book')}${L('القراءة', 'Reading')}</h3>
-      <div class="set-row"><span>${icon('book')}<span>${L('شكل الكتاب', 'Book look')}<small class="muted">${L('في وضع صفحة صفحة: غلاف وحافة ورق زي الكتاب', 'In page-by-page mode: a cover board and page edges, like a book')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdbook" ${R.bookPref() ? 'checked' : ''}><i></i></label></div>
-      <div class="set-row"><span>${icon('bookmark')}<span>${L('نقط «وقفت هنا» على الحافة', '«Stopped here» dots on the edge')}<small class="muted">${L('دوس على أي نقطة تعلّم السطر اللي وقفت عنده', 'Tap a dot to mark the line where you stopped')}</small></span></span>${seg('rd-pillshow', R.pillShow(), [['always', L('دايماً', 'Always')], ['bars', L('مع الأزرار', 'With the bars')], ['off', L('مخفية', 'Off')]])}</div>
-      ${R.pillShow() !== 'off' ? `<div class="set-row sub"><span>${L('عدد النقط', 'How many dots')}</span>${seg('rd-pillcount', String(R.pillCount()), [['8', L.num(8)], ['12', L.num(12)], ['20', L.num(20)]])}</div>
-      <div class="set-row sub"><span>${L('لون خط «وقفت هنا»', 'Colour of the «stopped here» line')}</span><div class="seg sm swatches">${[['green', 'var(--jade)', L('أخضر', 'Green')], ['gold', 'var(--gold)', L('دهبي', 'Gold')], ['red', 'var(--rubric)', L('أحمر', 'Red')], ['blue', 'var(--lapis)', L('أزرق', 'Blue')]].map(([k, c, t]) => `<button class="${R.lineColor() === k ? 'on' : ''}" data-act="rd-linecolor" data-v="${k}" aria-pressed="${R.lineColor() === k}" aria-label="${t}" title="${t}"><i style="--c:${c}"></i></button>`).join('')}</div></div>` : ''}
-      ${native ? `<div class="set-row"><span>${icon('swap')}${L('اتجاه القراية', 'Reading orientation')}</span>${seg('rd-orient', R.orientPref(), [['auto', L('حسب الموبايل', 'Follow phone')], ['portrait', L('بالطول', 'Upright')], ['landscape', L('بالعرض', 'Sideways')]])}</div>` : ''}
-      <div class="set-row"><span>${icon('swap')}<span>${L('اقترح القراية بالعرض', 'Suggest reading sideways')}<small class="muted">${L('تلميح صغير لما تفتح الكتاب والموبايل بالطول', 'A small hint when you open a book upright')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdask" ${R.orientAsk() ? 'checked' : ''}><i></i></label></div>
-      <div class="set-row"><span>${icon('swap')}<span>${L('مكان الأدوات لما الموبايل بالعرض', 'Tools side when the phone is sideways')}<small class="muted">${L('القلم والملاحظة وشريط الصفحات', 'Highlight, note and the page slider')}</small></span></span>${seg('rd-tools', R.toolsSide(), [['right', L('يمين', 'Right')], ['left', L('شمال', 'Left')]])}</div>
-      <div class="set-row"><span>${icon('eye')}<span>${L('الإضافات على الصفحات', 'Highlights and notes on pages')}<small class="muted">${L('تقدر تغيّرها كمان من زرار العين في القارئ', 'Also from the eye button in the reader')}</small></span></span>${seg('rd-marks', R.marksPref(), [['all', L('الكل', 'Everyone')], ['mine', L('بتاعتي', 'Mine')], ['none', L('ولا حاجة', 'None')]])}</div>
-      <div class="set-row"><span>${icon('scroll')}${L('التقليب', 'Page turning')}</span>${seg('rd-paged', paged ? 'page' : 'scroll', [['page', L('صفحة صفحة', 'Page by page')], ['scroll', L('متواصل', 'Continuous')]])}</div>
-      ${A.P && A.P.native ? `<div class="set-row"><span>${icon('fit')}<span>${L('اخفي شريط الساعة وقت القراية', 'Hide the clock bar while reading')}<small class="muted">${L('شريط التنقل بتاع الموبايل بيفضل ظاهر. اسحب من فوق تشوف الساعة.', "Your phone's navigation bar stays. Swipe down from the top to see the clock.")}</small></span></span><label class="switch"><input type="checkbox" id="set-rdfull" ${R.fullPref() ? 'checked' : ''}><i></i></label></div>` : ''}`;
+      <div class="set-row"><span>${icon('book')}<span>${L('شكل الكتاب', 'Book look')}<small class="muted">${L('في وضع صفحة صفحة: غلاف وحافة ورق زي الكتاب', 'In page-by-page mode: a cover board and page edges, like a book', 'في وضع صفحة بصفحة: غلاف وحافة أوراق مثل الكتاب')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdbook" ${R.bookPref() ? 'checked' : ''}><i></i></label></div>
+      <div class="set-row"><span>${icon('bookmark')}<span>${L('نقط «وقفت هنا» على الحافة', '«Stopped here» dots on the edge', 'نقاط «وقفت هنا» على الحافة')}<small class="muted">${L('دوس على أي نقطة تعلّم السطر اللي وقفت عنده', 'Tap a dot to mark the line where you stopped', 'اضغط على أي نقطة لتعلّم السطر الذي توقفت عنده')}</small></span></span>${seg('rd-pillshow', R.pillShow(), [['always', L('دايماً', 'Always', 'دائمًا')], ['bars', L('مع الأزرار', 'With the bars')], ['off', L('مخفية', 'Off')]])}</div>
+      ${R.pillShow() !== 'off' ? `<div class="set-row sub"><span>${L('عدد النقط', 'How many dots', 'عدد النقاط')}</span>${seg('rd-pillcount', String(R.pillCount()), [['8', L.num(8)], ['12', L.num(12)], ['20', L.num(20)]])}</div>
+      <div class="set-row sub"><span>${L('لون خط «وقفت هنا»', 'Colour of the «stopped here» line')}</span><div class="seg sm swatches">${[['green', 'var(--jade)', L('أخضر', 'Green')], ['gold', 'var(--gold)', L('دهبي', 'Gold', 'ذهبي')], ['red', 'var(--rubric)', L('أحمر', 'Red')], ['blue', 'var(--lapis)', L('أزرق', 'Blue')]].map(([k, c, t]) => `<button class="${R.lineColor() === k ? 'on' : ''}" data-act="rd-linecolor" data-v="${k}" aria-pressed="${R.lineColor() === k}" aria-label="${t}" title="${t}"><i style="--c:${c}"></i></button>`).join('')}</div></div>` : ''}
+      ${native ? `<div class="set-row"><span>${icon('swap')}${L('اتجاه القراية', 'Reading orientation', 'اتجاه القراءة')}</span>${seg('rd-orient', R.orientPref(), [['auto', L('حسب الموبايل', 'Follow phone', 'حسب الهاتف')], ['portrait', L('بالطول', 'Upright', 'عمودي')], ['landscape', L('بالعرض', 'Sideways', 'أفقي')]])}</div>` : ''}
+      <div class="set-row"><span>${icon('swap')}<span>${L('اقترح القراية بالعرض', 'Suggest reading sideways', 'اقترح القراءة الأفقية')}<small class="muted">${L('تلميح صغير لما تفتح الكتاب والموبايل بالطول', 'A small hint when you open a book upright', 'تلميح صغير عندما تفتح الكتاب والهاتف في الوضع العمودي')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdask" ${R.orientAsk() ? 'checked' : ''}><i></i></label></div>
+      <div class="set-row"><span>${icon('swap')}<span>${L('مكان الأدوات لما الموبايل بالعرض', 'Tools side when the phone is sideways', 'مكان الأدوات عندما يكون الهاتف أفقيًا')}<small class="muted">${L('القلم والملاحظة وشريط الصفحات', 'Highlight, note and the page slider')}</small></span></span>${seg('rd-tools', R.toolsSide(), [['right', L('يمين', 'Right')], ['left', L('شمال', 'Left', 'يسار')]])}</div>
+      <div class="set-row"><span>${icon('eye')}<span>${L('الإضافات على الصفحات', 'Highlights and notes on pages')}<small class="muted">${L('تقدر تغيّرها كمان من زرار العين في القارئ', 'Also from the eye button in the reader', 'يمكنك تغييرها أيضًا من زر العين في القارئ')}</small></span></span>${seg('rd-marks', R.marksPref(), [['all', L('الكل', 'Everyone')], ['mine', L('بتاعتي', 'Mine', 'إضافاتي')], ['none', L('ولا حاجة', 'None', 'لا شيء')]])}</div>
+      <div class="set-row"><span>${icon('scroll')}${L('التقليب', 'Page turning')}</span>${seg('rd-paged', paged ? 'page' : 'scroll', [['page', L('صفحة صفحة', 'Page by page', 'صفحة بصفحة')], ['scroll', L('متواصل', 'Continuous')]])}</div>
+      ${A.P && A.P.native ? `<div class="set-row"><span>${icon('fit')}<span>${L('اخفي شريط الساعة وقت القراية', 'Hide the clock bar while reading', 'أخفِ شريط الساعة أثناء القراءة')}<small class="muted">${L('شريط التنقل بتاع الموبايل بيفضل ظاهر. اسحب من فوق تشوف الساعة.', "Your phone's navigation bar stays. Swipe down from the top to see the clock.", 'يبقى شريط التنقل في الهاتف ظاهرًا. اسحب من الأعلى لترى الساعة.')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdfull" ${R.fullPref() ? 'checked' : ''}><i></i></label></div>` : ''}`;
   }
   V.actions['set-emoji'] = async (a) => {
     const emoji = a.dataset.emo || '';
     const m = S.members.get(S.me) || {};
     if ((m.emoji || '') === emoji) return;
     await D.updateMe(() => ({ emoji }));
-    U.toast(emoji ? L(`علامتك بقت ${emoji}`, `Your mark is now ${emoji}`) : L('هيظهر أول حرف من اسمك', 'Showing the first letter of your name'));
+    U.toast(emoji ? L(`علامتك بقت ${emoji}`, `Your mark is now ${emoji}`, `أصبحت علامتك ${emoji}`) : L('هيظهر أول حرف من اسمك', 'Showing the first letter of your name', 'سيظهر أول حرف من اسمك'));
   };
   V.actions['rd-tools'] = (a) => {
     A.R.setToolsSide(a.dataset.v);
@@ -316,7 +316,7 @@
     U.store.set('theme', V.isDark() ? 'light' : 'dark');
     V.applyTheme();
   };
-  V.themeBtn = (attr) => `<button class="ib round theme-t" ${attr} aria-label="${V.isDark() ? L('الوضع الفاتح', 'Light mode') : L('الوضع الغامق', 'Dark mode')}">${icon(V.isDark() ? 'sun' : 'moon')}</button>`;
+  V.themeBtn = (attr) => `<button class="ib round theme-t" ${attr} aria-label="${V.isDark() ? L('الوضع الفاتح', 'Light mode') : L('الوضع الغامق', 'Dark mode', 'الوضع الداكن')}">${icon(V.isDark() ? 'sun' : 'moon')}</button>`;
   V.actions['theme-toggle'] = () => {
     V.toggleTheme();
     V.render();
@@ -341,6 +341,6 @@
     const nick = e.target.querySelector('#me-nick').value.trim();
     if (!nick) return;
     await D.updateMe(() => ({ nick: nick.slice(0, 40) }));
-    U.toast(L('اتحفظ', 'Saved'));
+    U.toast(L('اتحفظ', 'Saved', 'تم الحفظ'));
   });
 })();
