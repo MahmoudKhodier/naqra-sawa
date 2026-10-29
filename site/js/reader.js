@@ -134,6 +134,7 @@
   R.back = () => {
     if (!st) return false;
     if (st.panel) return togglePanel(false), true;
+    if (st.focusPop) return focusPop(false), true;
     if (st.mode !== 'none') return setMode(st.mode), true;
     return false;
   };
@@ -191,7 +192,7 @@
     browseUi();
     chrome();
     D.presence({ b: bookId, p: start });
-    st.tick = setInterval(tick, 1000);
+    st.tick = setInterval(tick, 1000 / speed);
     st.flushT = setInterval(() => flush(), 12000);
     st.onVis = () => {
       if (document.hidden) {
@@ -216,6 +217,7 @@
     if (A.Sys && R.fullPref()) A.Sys.fullscreen(true);
     if (R.orientPref() !== 'auto' && A.Sys && A.Sys.orient(R.orientPref())) st.oriented = true;
     else askLandscape();
+    offerFocus();
     try {
       await prepareSource();
       if (!st) return;
@@ -231,6 +233,13 @@
     A.V.histDrop(R.hist);
     R.hist = null;
     const summary = !silent && (st.sessionPages >= 3 || st.activeSecs >= 60) ? { bookId: st.bookId, pages: st.sessionPages, secs: st.activeSecs } : null;
+    const focus = st.focus; // a focus session still on: count it, and let the messages it held show now
+    if (focus && !focus.ended) {
+      focus.pages = Math.max(0, st.sessionPages - focus.p0);
+      focusRecord();
+    }
+    clearTimeout(st.offerT);
+    clearTimeout(st.focusPopT);
     savePlace();
     flush();
     if (st.oriented && A.Sys) A.Sys.orient('auto');
@@ -254,6 +263,7 @@
     D.presence({ b: null, p: null });
     if (!silent) A.V && A.V.render();
     if (summary && A.V && A.V.sessionSummary) setTimeout(() => A.V.sessionSummary(summary), 250);
+    if (focus) releaseHeld(focus.held, summary ? 600 : 300);
   };
 
   /* Local copy previously opened from this device replaces the network parts. */
@@ -657,8 +667,10 @@
   /* A page counts as read after ~3 seconds as the current page. */
   function tick() {
     if (!st || document.hidden) return;
-    if (Date.now() - st.activeAt > 300000) keepAwake(false);
-    if (Date.now() - st.activeAt < 180000) {
+    const idle = Date.now() - st.activeAt;
+    if (idle > (st.focus && !st.focus.ended ? 600000 : 300000)) keepAwake(false); // a focus session keeps the screen on longer
+    const reading = idle < 180000; // not when the phone has been put down
+    if (reading) {
       st.activeSecs++;
       st.secsPending++;
     }
@@ -669,6 +681,7 @@
       st.dwellP = st.cur;
       st.dwellN = 0;
     }
+    if (st.focus) focusTick(reading);
   }
   function markSeen(p) {
     if (st.browsing) return; // looking around doesn't count
@@ -773,7 +786,7 @@
   function setMode(m) {
     if (!st) return;
     st.mode = st.mode === m ? 'none' : m;
-    if (st.mode !== 'none') hideOrient(); // the sideways hint never sits over a highlight or a note
+    if (st.mode !== 'none') hideOrient(), hideOffer(); // the sideways hint never sits over a highlight or a note
     if (st.mode !== 'none' && R.marksPref() === 'none') R.setMarks('mine', true);
     st.root.querySelector('.rd').dataset.mode = st.mode;
     const hint = st.root.querySelector('#rd-hint');
@@ -1007,6 +1020,8 @@
       <div class="rd-cheer" id="rd-cheer" role="status" aria-live="polite" hidden></div>
       <div class="rd-browse" id="rd-browse" role="status" hidden></div>
       <div class="rd-orient" id="rd-orient" hidden></div>
+      <div class="rd-foffer" id="rd-foffer" role="status" hidden></div>
+      <div class="rd-focus" id="rd-focus" hidden></div>
       <div class="rd-load" id="rd-load" hidden><div class="rd-load-card"><div class="spin8"></div><b id="rd-load-t">${L('بنجهّز الكتاب…', 'Preparing the book…', 'يجري تجهيز الكتاب…')}</b><div class="bar"><i id="rd-load-bar"></i></div><small id="rd-load-s"></small></div></div>
       <footer class="rd-bot">
         <div class="rd-prompt" id="rd-prompt" hidden></div>
@@ -1058,7 +1073,7 @@
     } else if (read > 0 && seenBefore[w.id] === 0 && !c.start && read === 1 && total >= 4) {
       msg = c.start = L(`بدأت الورد ${wn} • ${L.count(total, 'page')}`, `Portion ${w.n} started • ${total} pages`);
     }
-    if (msg) cheer(msg);
+    if (msg) R.isQuiet() ? holdMsg(U.esc(msg)) : cheer(msg); // a focus session keeps it for afterwards
   }
   function cheer(msg) {
     const el = st.root.querySelector('#rd-cheer');
@@ -1450,6 +1465,7 @@
     sc.addEventListener('touchmove', touched, { passive: true });
     sc.addEventListener('pointerdown', touched, { passive: true });
     sc.addEventListener('pointerdown', () => st && st.root.querySelector('#rd-orient.in') && hideOrient(), { passive: true });
+    sc.addEventListener('pointerdown', () => st && st.root.querySelector('#rd-foffer.in') && hideOffer(), { passive: true });
     // Page-by-page mode: horizontal swipe turns the page in the book's direction.
     let sw = null;
     sc.addEventListener('touchstart', (e) => {
@@ -1469,6 +1485,11 @@
 
     root.addEventListener('click', (e) => {
       if (!st) return;
+      if (st.focusPop && !e.target.closest('.rd-focus')) {
+        // a tap anywhere else folds the focus timer card away (and does nothing more, unless it hit a button)
+        focusPop(false);
+        if (!e.target.closest('[data-act]')) return;
+      }
       const nb = e.target.closest('[data-nid]');
       if (nb && Date.now() - (st.movedAt || 0) < 600) return;
       if (nb && st.mode === 'none' && nb.closest('.pg-ov')) {
@@ -1530,6 +1551,16 @@
       else if (act === 'bm-del') A.V.toggleMark(st.bookId, +t.dataset.p).then(() => renderPanel());
       else if (act === 'orient') orientTo(t.dataset.v);
       else if (act === 'orient-x') hideOrient();
+      else if (act === 'focus-pop') focusPop(!st.focusPop);
+      else if (act === 'focus-pause') focusPause();
+      else if (act === 'focus-end') focusEnd(false);
+      else if (act === 'foffer-go') focusSheet();
+      else if (act === 'foffer-x') hideOffer();
+      else if (act === 'foffer-never') {
+        U.store.set('rdFocusAsk', false);
+        hideOffer();
+        U.toast(L('تمام، مش هنعرضها تاني. تلاقيها في ⋯ وقت ما تحب.', "OK, we won't offer it again. It's always in the ⋯ menu.", 'حسنًا، لن نعرضها مجددًا. ستجدها في قائمة ⋯ متى شئت.'));
+      }
       else if (act === 'orient-never') {
         U.store.set('rdOrientAsk', false);
         hideOrient();
@@ -1659,7 +1690,8 @@
     st.userAt = st.activeAt = Date.now();
     keepAwake(true);
     if (k === 'Escape') {
-      if (st.mode !== 'none') setMode(st.mode);
+      if (st.focusPop) focusPop(false);
+      else if (st.mode !== 'none') setMode(st.mode);
       else if (st.panel) togglePanel(false);
       else R.close();
     } else if (st.paged && (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'PageDown' || k === 'PageUp' || k === ' ' || k === 'ArrowDown' || k === 'ArrowUp')) {
@@ -1730,6 +1762,7 @@
     A.V.menu([
       (b.toc && b.toc.length) || st.parts.length === 1 ? { ic: 'list', t: L('الفهرس', 'Contents'), fn: showToc } : null,
       { ic: 'bookmark', t: marked ? L('شيل العلامة من الصفحة دي', 'Remove bookmark here', 'أزل العلامة من هذه الصفحة') : L('علّم الصفحة دي', 'Bookmark this page', 'علّم هذه الصفحة'), fn: () => A.V.toggleMark(st.bookId, st.cur) },
+      st.focus ? { ic: 'clock', t: L('خلّص قعدة التركيز', 'End the focus session', 'أنهِ جلسة التركيز'), fn: () => focusEnd(false) } : { ic: 'clock', t: L('قعدة تركيز', 'Focus session', 'جلسة تركيز'), fn: focusSheet },
       st.pagedPref
         ? { ic: 'scroll', t: L('تمرير متواصل', 'Continuous scrolling'), fn: () => setPaged(false) }
         : { ic: 'book', t: L('صفحة صفحة (زي الكتاب)', 'Page by page (like a book)', 'صفحة صفحة (مثل الكتاب)'), fn: () => setPaged(true) },
@@ -1818,6 +1851,314 @@
       },
     });
   }
+
+  /* ---------- «قعدة تركيز»: a timed, quiet reading session ---------- */
+  /* The bars hide, a slim ring in the corner keeps the time, and messages from the app wait until it is over.
+     The clock runs only while you are actually reading (the active-seconds logic in tick(): not while the app is
+     in the background, nor once the phone has been put down). Each session counts in my private doc only:
+     priv.focus['YYYY-MM-DD'] = { n, secs }. */
+  const FOCUS_LENS = [10, 20, 30, 45];
+  let speed = 1; // ticks per second; tests speed the clock up with R._focusSpeed
+  let tapAt = 0;
+  document.addEventListener('pointerdown', () => (tapAt = Date.now()), true);
+  document.addEventListener('keydown', () => (tapAt = Date.now()), true);
+  R.focusAsk = () => U.store.get('rdFocusAsk', true) !== false;
+  R.isQuiet = () => !!(st && st.focus);
+  /* For U.toast: true = kept until the session is over. Warnings and answers to something just tapped still show. */
+  R.hold = (html, kind) => {
+    if (!R.isQuiet() || kind === 'warn' || Date.now() - tapAt < 1200) return false;
+    holdMsg(html, kind);
+    return true;
+  };
+  function holdMsg(html, kind = '') {
+    const q = st.focus.held;
+    if (!q.some((x) => x.html === html)) q.push({ html, kind });
+    if (q.length > 6) q.shift();
+  }
+  function releaseHeld(held, wait = 300) {
+    if (held && held.length) setTimeout(() => held.forEach((t) => U.toast(t.html, t.kind)), wait);
+  }
+  // Arabic or Latin digits typed into a number box
+  const digits = (v) => parseInt(String(v || '').replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)), 10) || 0;
+  const mmss = (s) => `<bdi dir="ltr">${L.num(Math.floor(s / 60))}:${L.num(s % 60, { minimumIntegerDigits: 2 })}</bdi>`;
+
+  function focusSheet() {
+    if (!st) return;
+    hideOffer();
+    const last = +U.store.get('rdFocusLen', 20) || 20;
+    const custom = !FOCUS_LENS.includes(last);
+    const chip = (m) => `<button type="button" class="chip${m === last ? ' on' : ''}" data-min="${m}" role="radio" aria-checked="${m === last}">${L.count(m, 'minute')}</button>`;
+    A.V.sheet({
+      title: L('قعدة تركيز', 'Focus session', 'جلسة تركيز'),
+      html: `<form class="form rf-form" id="rf-form">
+        <p class="muted">${L('هنخبّي كل حاجة ونسيبك مع الكتاب، والرسايل هتستناك لحد ما تخلّص. الوقت بيعدّ وإنت بتقرا بس.', "We'll hide everything and leave you with the book; messages wait until you're done. The clock only runs while you read.", 'سنخفي كل شيء ونتركك مع الكتاب، وستنتظرك الرسائل حتى تنتهي. لا يُحسب الوقت إلا وأنت تقرأ.')}</p>
+        <label id="rf-len-l">${L('المدة', 'How long', 'المدة')}</label>
+        <div class="chips rf-lens" role="radiogroup" aria-labelledby="rf-len-l">${FOCUS_LENS.map(chip).join('')}<button type="button" class="chip${custom ? ' on' : ''}" data-min="custom" role="radio" aria-checked="${custom}">${L('مدة تانية', 'Other', 'مدة أخرى')}</button></div>
+        <div class="rf-custom"${custom ? '' : ' hidden'}><label for="rf-mins">${L('كام دقيقة؟', 'How many minutes?', 'كم دقيقة؟')}</label><input id="rf-mins" inputmode="numeric" autocomplete="off" maxlength="3" value="${custom ? L.num(last, { useGrouping: false }) : ''}"></div>
+        <label for="rf-goal">${L('هدف صفحات (لو حابب)', 'Page goal (optional)', 'هدف صفحات (اختياري)')}</label>
+        <input id="rf-goal" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="${L(`مثلًا ${L.num(10)}`, 'e.g. 10', `مثلًا ${L.num(10)}`)}">
+        <div class="row-btns end"><button class="btn gold" type="submit">${U.icon('play', 'flip-rtl')}${L('يلا نبدأ', 'Start', 'ابدأ')}</button></div>
+      </form>`,
+      onMount: (body, api) => {
+        let sel = custom ? 'custom' : last;
+        const box = body.querySelector('.rf-custom');
+        const mins = body.querySelector('#rf-mins');
+        body.querySelector('.rf-lens').addEventListener('click', (e) => {
+          const b = e.target.closest('[data-min]');
+          if (!b) return;
+          sel = b.dataset.min === 'custom' ? 'custom' : +b.dataset.min;
+          for (const c of body.querySelectorAll('.rf-lens .chip')) {
+            c.classList.toggle('on', c === b);
+            c.setAttribute('aria-checked', String(c === b));
+          }
+          box.hidden = sel !== 'custom';
+          if (sel === 'custom') mins.focus();
+        });
+        body.querySelector('#rf-form').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const m = sel === 'custom' ? digits(mins.value) : sel;
+          if (!(m >= 1)) return mins.focus();
+          const g = digits(body.querySelector('#rf-goal').value);
+          api.close();
+          focusStart(Math.min(180, m), U.clamp(g, 0, st ? st.N : g));
+        });
+      },
+    });
+  }
+
+  function focusStart(mins, goal) {
+    if (!st) return;
+    hideOffer();
+    hideOrient();
+    if (st.mode !== 'none') setMode(st.mode);
+    if (st.panel) togglePanel(false);
+    U.store.set('rdFocusLen', mins);
+    st.focus = { target: mins * 60, goal: goal || 0, secs: 0, paused: false, idle: false, p0: st.sessionPages, pages: 0, held: [], rec: { n: 0, secs: 0 }, goalHit: false, ended: false };
+    const cheerEl = st.root.querySelector('#rd-cheer');
+    if (cheerEl) cheerEl.classList.remove('in'), (cheerEl.hidden = true);
+    focusBars();
+    st.activeAt = Date.now();
+    keepAwake(true);
+    focusUi();
+  }
+  /* The bars go away, like a tap in the middle of the page (a tap brings them back as usual). */
+  function focusBars() {
+    st.uiHidden = true;
+    st.root.querySelector('.rd').classList.add('ui-off');
+    sysRefresh();
+  }
+  function focusTick(reading) {
+    const f = st.focus;
+    if (f.ended) return;
+    f.idle = !reading;
+    if (!f.paused && reading) f.secs++;
+    f.pages = Math.max(0, st.sessionPages - f.p0);
+    if (f.goal && !f.goalHit && f.pages >= f.goal) {
+      f.goalHit = true;
+      U.buzz('soft');
+    }
+    if (f.secs >= f.target) return focusEnd(true);
+    focusUi();
+  }
+  function focusPause() {
+    const f = st && st.focus;
+    if (!f || f.ended) return;
+    f.paused = !f.paused;
+    if (!f.paused) st.activeAt = Date.now();
+    focusUi();
+    focusPopTimer();
+  }
+  function focusEnd(timeUp) {
+    const f = st && st.focus;
+    if (!f || f.ended) return;
+    f.ended = true;
+    f.timeUp = timeUp;
+    f.pages = Math.max(0, st.sessionPages - f.p0);
+    focusPop(false);
+    focusRecord();
+    U.chime('ok');
+    focusUi();
+    focusSummary();
+  }
+  /* Count it in my private doc: one more session today (once, even if it was stretched) and its seconds. */
+  function focusRecord() {
+    const f = st.focus;
+    const n = f.rec.n ? 0 : 1;
+    const secs = f.secs - f.rec.secs;
+    if (!D.canWrite() || secs <= 0 || (n && f.secs < 60)) return;
+    f.rec = { n: 1, secs: f.secs };
+    const day = U.today();
+    D.privUpdate((cur) => {
+      const all = Object.assign({}, cur.focus);
+      const d = all[day] || {};
+      all[day] = { n: (d.n || 0) + n, secs: (d.secs || 0) + secs };
+      return Object.assign(cur, { focus: all });
+    }).catch(() => {});
+  }
+  function focusDone() {
+    if (!st || !st.focus) return;
+    const held = st.focus.held;
+    st.focus = null;
+    focusUi();
+    releaseHeld(held);
+  }
+  function focusMore() {
+    const f = st && st.focus;
+    if (!f) return;
+    f.ended = false;
+    f.timeUp = false;
+    f.target = f.secs + 300;
+    st.activeAt = Date.now();
+    focusBars();
+    keepAwake(true);
+    focusUi();
+  }
+
+  /* Progress through the portion you are on (or the whole book when it has no portions), pages counted so far. */
+  function focusPortion() {
+    const b = st.book;
+    const prog = D.prog(st.bookId);
+    const has = (p) => st.pending.has(p) || (prog && U.rangesHas(prog.seen, p));
+    const w = G.wirds(b).find((x) => st.cur >= x.from && st.cur <= x.to) || G.myCurrent(b);
+    const from = w ? w.from : 1, to = w ? w.to : st.N;
+    let read = 0;
+    for (let p = from; p <= to; p++) if (has(p)) read++;
+    return { w, read, total: to - from + 1 };
+  }
+  function focusSummary() {
+    const f = st.focus;
+    const mins = Math.round(f.secs / 60);
+    const ppm = f.secs >= 30 ? f.pages / (f.secs / 60) : 0;
+    const pr = focusPortion();
+    const done = pr.read >= pr.total;
+    const goal = f.goal
+      ? `<p class="rf-goal${f.pages >= f.goal ? ' hit' : ''}">${U.icon(f.pages >= f.goal ? 'check' : 'target')}${f.pages >= f.goal ? L(`وصلت لهدفك: ${L.count(f.goal, 'page')}`, `Goal reached: ${f.goal} pages`, `بلغت هدفك: ${L.count(f.goal, 'page')}`) : L(`${L.num(f.pages)} من ${L.count(f.goal, 'page')} — قرّبت`, `${f.pages} of ${f.goal} pages — getting there`, `${L.num(f.pages)} من ${L.count(f.goal, 'page')} — اقتربت`)}</p>`
+      : '';
+    const portion = `<div class="ss-wird">${A.V.star(pr.w ? L.num(pr.w.n) : '', 'gold sm')}<div><b>${pr.w ? L(`الورد ${L.num(pr.w.n)}`, `Portion ${pr.w.n}`) : L('الكتاب', 'The book')}</b>${A.V.bar(pr.read / pr.total, done ? 'jade' : 'gold')}<small>${L(`${L.num(pr.read)} من ${L.count(pr.total, 'page')}`, `${pr.read} of ${pr.total} pages`)}</small></div></div>`;
+    let more = false;
+    const api = A.V.sheet({
+      title: L('قعدة تركيز ✓', 'Focus session ✓', 'جلسة تركيز ✓'),
+      cls: 'celebrate',
+      html: `<div class="ss rf-sum" id="rf-sum">
+        <p class="ss-book" dir="auto">${U.esc(st.book.title)}</p>
+        <p class="muted">${f.timeUp ? L('خلّصت الوقت اللي حددته — برافو عليك!', 'You made it to the end — well done!', 'أكملت الوقت الذي حددته — أحسنت!') : L('خلّصت بدري؟ ولا يهمك، كل دقيقة بتفرق.', 'Ended early? No problem, every minute counts.', 'أنهيت مبكرًا؟ لا بأس، كل دقيقة تُحدث فرقًا.')}</p>
+        <div class="ss-stats">
+          <div><b data-k="mins">${L.num(mins)}</b><small>${L('دقيقة تركيز', 'focused minutes', 'دقيقة تركيز')}</small></div>
+          <div><b data-k="pages">${L.num(f.pages)}</b><small>${L('صفحة في القعدة', 'pages this session', 'صفحة في الجلسة')}</small></div>
+          <div><b data-k="ppm">${ppm ? L.num(ppm, { maximumFractionDigits: 1 }) : '–'}</b><small>${L('صفحة في الدقيقة', 'pages a minute', 'صفحة في الدقيقة')}</small></div>
+        </div>
+        ${goal}${portion}
+        <div class="row-btns center"><button class="btn ghost" data-act="rf-more">${U.icon('clock')}${L(`كمّل ${L.num(5)} دقايق كمان`, 'Keep going, 5 more minutes', `تابِع ${L.num(5)} دقائق أخرى`)}</button><button class="btn gold" data-close autofocus>${L('خلاص', 'All done', 'انتهيت')}</button></div>
+      </div>`,
+      onMount: (body, a) =>
+        body.addEventListener('click', (e) => {
+          if (!e.target.closest('[data-act="rf-more"]')) return;
+          more = true;
+          a.close();
+        }),
+    });
+    api.onClose = () => (more ? focusMore() : focusDone());
+  }
+
+  /* The ring in the corner: minutes left inside, the arc fills as the time goes; a tap opens a small card. */
+  function focusUi() {
+    const el = st && st.root.querySelector('#rd-focus');
+    if (!el) return;
+    const rd = st.root.querySelector('.rd');
+    const f = st.focus;
+    rd.classList.toggle('focusing', !!f);
+    if (!f) {
+      el.hidden = true;
+      el.innerHTML = '';
+      st.focusPop = false;
+      return;
+    }
+    if (!el.firstElementChild)
+      el.innerHTML = `<button class="rf-ring" data-act="focus-pop" aria-expanded="false" aria-controls="rf-pop"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="rf-trk" cx="22" cy="22" r="19"/><circle class="rf-arc" cx="22" cy="22" r="19" pathLength="100"/></svg><b class="rf-n"></b></button>
+        <div class="rf-pop" id="rf-pop" hidden><div class="rf-time"><b class="rf-left"></b><small class="rf-state"></small></div><div class="rf-meta"></div><div class="rf-btns"></div></div>`;
+    el.hidden = false;
+    const left = Math.max(0, f.target - f.secs);
+    const m = Math.ceil(left / 60);
+    const ring = el.querySelector('.rf-ring');
+    ring.classList.toggle('paused', f.paused);
+    ring.classList.toggle('idle', f.idle && !f.paused);
+    ring.classList.toggle('goal', f.goalHit);
+    ring.classList.toggle('over', f.ended);
+    el.querySelector('.rf-arc').style.strokeDashoffset = String(100 - Math.min(1, f.secs / f.target) * 100);
+    const n = f.ended ? U.icon('check') : f.paused ? PAUSE : L.num(m);
+    const nEl = el.querySelector('.rf-n');
+    if (nEl.dataset.v !== n) nEl.innerHTML = nEl.dataset.v = n;
+    const label = f.paused
+      ? L('قعدة التركيز متوقفة مؤقتًا', 'Focus session paused', 'جلسة التركيز متوقفة مؤقتًا')
+      : L(`قعدة تركيز: فاضل ${L.count(m, 'minute')}`, `Focus session: ${L.count(m, 'minute')} left`, `جلسة تركيز: بقي ${L.count(m, 'minute', 'nom')}`);
+    if (ring.getAttribute('aria-label') !== label) ring.setAttribute('aria-label', label);
+    const pop = el.querySelector('.rf-pop');
+    pop.hidden = !st.focusPop;
+    ring.setAttribute('aria-expanded', String(!!st.focusPop));
+    if (!st.focusPop) return;
+    pop.querySelector('.rf-left').innerHTML = mmss(left);
+    pop.querySelector('.rf-state').textContent = f.paused
+      ? L('متوقفة مؤقتًا', 'Paused', 'متوقفة مؤقتًا')
+      : f.idle
+        ? L('الوقت مستنيك لحد ما ترجع تقرا', 'The clock waits until you read again', 'ينتظرك الوقت حتى تعود إلى القراءة')
+        : L('فاضل', 'left', 'المتبقي');
+    pop.querySelector('.rf-meta').innerHTML = `${U.icon('scroll')}<span>${f.goal ? L(`${L.num(f.pages)} من ${L.count(f.goal, 'page')}`, `${f.pages} of ${f.goal} pages`) : L(`${L.count(f.pages, 'page')} في القعدة دي`, `${f.pages} page${f.pages === 1 ? '' : 's'} this session`, `${L.count(f.pages, 'page')} في هذه الجلسة`)}</span>`;
+    const btns = pop.querySelector('.rf-btns');
+    const key = f.paused ? 'p' : 'r';
+    if (btns.dataset.k !== key) {
+      btns.dataset.k = key;
+      btns.innerHTML = `<button class="btn sm ghost" data-act="focus-pause">${f.paused ? U.icon('play', 'flip-rtl') + L('كمّل', 'Resume', 'تابِع') : PAUSE + L('وقّف شوية', 'Pause', 'أوقف مؤقتًا')}</button>
+        <button class="btn sm gold" data-act="focus-end">${U.icon('check')}${L('خلّص القعدة', 'End session', 'أنهِ الجلسة')}</button>`;
+    }
+  }
+  const PAUSE = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6v12M15 6v12"/></svg>';
+  function focusPop(on) {
+    if (!st) return;
+    st.focusPop = !!on && !!st.focus && !st.focus.ended;
+    focusUi();
+    focusPopTimer();
+  }
+  function focusPopTimer() {
+    clearTimeout(st.focusPopT);
+    if (st.focusPop) st.focusPopT = setTimeout(() => st && focusPop(false), 8000);
+  }
+
+  /* Offered once a day when a book opens (never over a tool, the sideways hint or a sheet). */
+  function offerFocus(tries = 0) {
+    if (!R.focusAsk() || U.store.get('rdFocusOffered', '') === U.today()) return;
+    clearTimeout(st.offerT);
+    st.offerT = setTimeout(() => {
+      if (!st || st.focus) return;
+      const orient = st.root.querySelector('#rd-orient');
+      const load = st.root.querySelector('#rd-load');
+      const busy = st.mode !== 'none' || st.panel || document.querySelector('.sheet-wrap') || (orient && !orient.hidden) || (load && !load.hidden) || Date.now() - (st.userAt || 0) < 1400;
+      if (busy) return tries < 3 && offerFocus(tries + 1);
+      U.store.set('rdFocusOffered', U.today());
+      const el = st.root.querySelector('#rd-foffer');
+      el.innerHTML = `<span class="rfo-t">${U.icon('clock')}<span>${L('قعدة تركيز؟ نخبّي كل حاجة ونسيبك تقرا', 'A focus session? We hide everything so you can read', 'جلسة تركيز؟ نخفي كل شيء لتقرأ')}</span></span>
+        <button class="btn sm gold" data-act="foffer-go">${L('يلا', 'Start', 'ابدأ')}</button>
+        <button class="ib sm" data-act="foffer-x" aria-label="${L('مش دلوقتي', 'Not now', 'ليس الآن')}">${U.icon('close')}</button>
+        <button class="lnk rfo-never" data-act="foffer-never">${L('ماتعرضهاش تاني', "Don't offer again", 'لا تعرضها مجددًا')}</button>`;
+      el.hidden = false;
+      requestAnimationFrame(() => el.classList.add('in'));
+      st.offerT = setTimeout(hideOffer, 10000);
+    }, tries ? 5000 : 2600);
+  }
+  function hideOffer() {
+    const el = st && st.root.querySelector('#rd-foffer');
+    if (!el || el.hidden) return;
+    clearTimeout(st.offerT);
+    el.classList.remove('in');
+    setTimeout(() => st && !el.classList.contains('in') && (el.hidden = true), 250);
+  }
+  // for tests
+  R._focusSpeed = (k) => {
+    speed = k > 0 ? k : 1;
+    if (!st) return;
+    clearInterval(st.tick);
+    st.tick = setInterval(tick, 1000 / speed);
+  };
+  R._focus = () => st && st.focus && { secs: st.focus.secs, target: st.focus.target, goal: st.focus.goal, pages: st.focus.pages, paused: st.focus.paused, ended: st.focus.ended, held: st.focus.held.length, goalHit: st.focus.goalHit };
 
   /* ---------- keep the screen on while reading (sleeps again after 5 idle minutes) ---------- */
   let wakeLock = null;

@@ -374,6 +374,7 @@
   document.addEventListener('pointerdown', () => (tappedAt = Date.now()), true);
   document.addEventListener('keydown', () => (tappedAt = Date.now()), true);
   U.toast = (html, kind = '') => {
+    if (A.R && A.R.hold && A.R.hold(html, kind)) return; // a focus session in the reader keeps it for later
     const last = toastQ[toastQ.length - 1] || toastOn;
     if (last && last.html === html) return;
     const now = kind === 'warn' || Date.now() - tappedAt < 1200;
