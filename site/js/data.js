@@ -29,6 +29,7 @@
     shelf: new Map(),
     proposals: new Map(),
     pokes: new Map(),
+    gone: new Map(), // removed books: just their portions, so the XP earned on them stays
     priv: null,
     peers: [],
     profiles: {},
@@ -123,6 +124,7 @@
     });
     listen(db.collection('shelf'), 'shelf', (s) => (S.shelf = toMap(s)));
     listen(db.collection('proposals'), 'proposals', (s) => (S.proposals = toMap(s)));
+    listen(db.collection('gone'), 'gone', (s) => (S.gone = toMap(s)));
     listen(db.collection('pokes').orderBy('at', 'desc').limit(20000), 'pokes', (s) => (S.pokes = toMap(s)));
     listen(db.doc(`data/users/${S.me}/priv`), 'priv', (s) => (S.priv = s.exists ? s.data() : null));
   }

@@ -559,13 +559,13 @@
       title: L(`الورد ${L.num(w.n)} ✓`, `Portion ${w.n} ✓`),
       cls: 'celebrate',
       html: `<div class="celeb">${V.star(L.num(w.n), 'jade huge spin-in')}
-        <h2>${L('برافو! خلّصت الورد', 'Well done — portion complete!', 'أحسنت! أنهيت الورد')}</h2>
+        <h2>${L('عاش! خلّصت الورد', 'Well done — portion complete!', 'أحسنت! أنهيت الورد')}</h2>
         <div class="xp-lines">
           <span>${L('الورد', 'Portion')} <b>+${L.num(G.XP.wird)} XP</b></span>
           ${onTime ? `<span>${L('في الميعاد', 'On time', 'في الموعد')} <b>+${L.num(G.XP.onTime)} XP</b></span>` : ''}
           ${!someoneFirst ? `<span class="gold-t">${L('أول واحد يخلّص!', 'First to finish!', 'أول من أنهاه!')} <b>+${L.num(G.XP.first)} XP</b></span>` : ''}
         </div>
-        <p>${L('اكتب خلاصتك في سطرين عشان أصحابك يستفيدوا', 'Share your takeaway in a couple of lines so friends can learn from it', 'اكتب خلاصتك في سطرين ليستفيد منها أصدقاؤك')} (+${L.num(G.XP.take)} XP)</p>
+        <p>${L('اكتب خلاصتك في سطرين عشان صحابك يستفيدوا', 'Share your takeaway in a couple of lines so friends can learn from it', 'اكتب خلاصتك في سطرين ليستفيد منها أصدقاؤك')} (+${L.num(G.XP.take)} XP)</p>
         <div class="row-btns center"><button class="btn gold" data-take autofocus>${icon('sparkle')}${L('اكتب خلاصتي', 'Write my takeaway')}</button><button class="btn ghost" data-close>${L('بعدين', 'Later', 'لاحقًا')}</button></div>
         ${others ? `<small class="muted">${L('شوف مين لسه، وشجّعهم من صفحة الكتاب', 'See who is still reading and cheer them on from the book page', 'شاهد من ما زالوا يقرؤون، وشجّعهم من صفحة الكتاب')}</small>` : ''}
       </div>`,

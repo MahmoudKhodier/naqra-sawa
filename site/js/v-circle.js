@@ -35,7 +35,7 @@
         <div class="ch-t"><h1 dir="auto">${esc(c.name || L('حلقة القراءة', 'Reading Circle'))}</h1>
           <p>${L.count(S.members.size, 'member')}${online.size ? ` • <span class="live-t">${L(`${L.num(online.size)} أونلاين`, `${online.size} online`, `متصل الآن: ${L.num(online.size)}`)}</span>` : ''}${c.motto ? ` • <span dir="auto">${esc(c.motto)}</span>` : ''}</p></div>
         <div class="ch-avs" aria-hidden="true">${ids.slice(0, 4).map((u) => D.avatar(u, 'sm')).join('')}</div>
-        <button class="btn sm gold" data-act="invite">${icon('share')}${L('ادعُ', 'Invite')}</button>
+        <button class="btn sm gold" data-act="invite">${icon('share')}${L('اعزم', 'Invite', 'ادعُ')}</button>
         ${canAdmin && D.canWrite() ? `<button class="ib round" data-act="edit-circle" aria-label="${L('بيانات الحلقة والهدف الأسبوعي', 'Circle details & weekly goal')}">${icon('edit')}</button>` : ''}
         <button class="ib round" data-act="circle-more" aria-label="${L('اختيارات الحلقة', 'Circle options', 'خيارات الحلقة')}">${icon('more')}</button>
       </header>
@@ -50,7 +50,7 @@
     const canAdmin = (S.isOwner || S.canEdit) && D.canWrite();
     const items = [];
     if (canAdmin) items.push({ ic: 'edit', t: L('بيانات الحلقة والهدف الأسبوعي', 'Circle details & weekly goal'), fn: () => V.actions['edit-circle']() });
-    items.push({ ic: 'share', t: L('ادعُ أصحابك', 'Invite friends', 'ادعُ أصدقاءك'), fn: () => V.actions.invite && V.actions.invite() });
+    items.push({ ic: 'share', t: L('اعزم صحابك', 'Invite friends', 'ادعُ أصدقاءك'), fn: () => V.actions.invite && V.actions.invite() });
     if (V.circleMenu) items.push({ ic: 'users', t: L('حلقاتي (بدّل أو اعمل جديدة)', 'My circles (switch or create)', 'حلقاتي (بدّل أو أنشئ حلقة جديدة)'), fn: () => V.actions['circle-menu']() });
     items.push({ ic: 'bolt', t: L('إزاي أكسب XP؟', 'How do I earn XP?', 'كيف أكسب XP؟'), fn: () => V.actions['xp-help']() });
     V.menu(items);
@@ -96,7 +96,7 @@
           return `<li><button data-act="${V.memberMenu ? 'member-menu' : 'member'}" data-uid="${esc(u)}">${D.avatar(u, 'md')}${online.has(u) ? '<i class="on-dot"></i>' : ''}<span><b>${esc(D.name(u))}${A.P && A.P.role && A.P.role(u) !== 'member' ? ` <i class="role-tag">${A.P.role(u) === 'owner' ? L('صاحب الحلقة', 'owner') : L('مشرف', 'admin')}</i>` : ''}</b><small>${reading ? `<span class="live-t">${L('في القراية:', 'Reading', 'في القراءة:')}</span> <span dir="auto">${b ? esc(b.title) : ''}</span>` : `${L('مستوى', 'Level')} ${L.num(s.lv)} • ${s.streak ? `${icon('flame')}${L.num(s.streak)} • ` : ''}${L.count(s.badgeCount || 0, 'badge')}`}</small></span>${icon('more')}</button></li>`;
         })
         .join('')}</ul>
-      <button class="btn gold full" data-act="invite">${icon('share')}${L('ادعُ أصحابك أو عيلتك', 'Invite friends or family', 'ادعُ أصدقاءك أو عائلتك')}</button>
+      <button class="btn gold full" data-act="invite">${icon('share')}${L('اعزم صحابك أو عيلتك', 'Invite friends or family', 'ادعُ أصدقاءك أو عائلتك')}</button>
     </section>`;
   }
 

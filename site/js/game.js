@@ -51,12 +51,12 @@
     { g: 'books', ic: 'trophy', tip: ['خلّص كتاب كامل مع الحلقة ودوس «خلّصت الكتاب».', 'Finish a whole book with the circle and tap “I finished it”.', 'أنهِ كتابًا كاملًا مع الحلقة واضغط «أنهيت الكتاب».'] },
     { g: 'notes', ic: 'note', tip: ['ظلّل جملة أو حط ملاحظة على الصفحة وإنت بتقرأ.', 'Highlight a sentence or pin a note while reading.', 'ظلّل جملة أو ضع ملاحظة على الصفحة أثناء القراءة.'] },
     { g: 'quotes', ic: 'quote', tip: ['لما تظلّل، اختار «اقتباس».', 'When highlighting, choose “Quote”.', 'عندما تظلّل، اختر «اقتباس».'] },
-    { g: 'questions', ic: 'question', tip: ['لما تحط ملاحظة، اختار «سؤال» عشان أصحابك يردّوا.', 'When adding a note, choose “Question” so friends can answer.', 'عندما تضع ملاحظة، اختر «سؤال» ليرد أصدقاؤك.'] },
+    { g: 'questions', ic: 'question', tip: ['لما تحط ملاحظة، اختار «سؤال» عشان صحابك يردّوا.', 'When adding a note, choose “Question” so friends can answer.', 'عندما تضع ملاحظة، اختر «سؤال» ليرد أصدقاؤك.'] },
     { g: 'takes', ic: 'sparkle', tip: ['بعد ما تخلّص الورد، اكتب أهم فكرة خرجت بيها في «خلاصات الورد».', 'After a portion, write the main idea you took away under “Takeaways”.', 'بعد أن تنهي الورد، اكتب أهم فكرة خرجت بها في «خلاصات الورد».'] },
     { g: 'talk', ic: 'chat', tip: ['ردود على الملاحظات ورسايل في النقاش.', 'Replies to notes and messages in discussions.', 'الردود على الملاحظات والرسائل في النقاش.'] },
     { g: 'loved', ic: 'heart', tip: ['الإعجابات اللي بتجيلك على ملاحظاتك.', 'Likes your notes receive.', 'الإعجابات التي تصلك على ملاحظاتك.'] },
-    { g: 'generous', ic: 'heart', tip: ['اعمل إعجاب لملاحظات أصحابك.', "Like your friends' notes.", 'سجّل إعجابك بملاحظات أصدقائك.'] },
-    { g: 'cheer', ic: 'clap', tip: ['شجّع أو فكّر أصحابك من صفحة الحلقة أو التقدّم.', 'Cheer on or nudge friends from the circle or progress pages.', 'شجّع أصدقاءك أو ذكّرهم من صفحة الحلقة أو التقدّم.'] },
+    { g: 'generous', ic: 'heart', tip: ['ادّي قلب لملاحظات صحابك.', "Like your friends' notes.", 'سجّل إعجابك بملاحظات أصدقائك.'] },
+    { g: 'cheer', ic: 'clap', tip: ['شجّع أو فكّر صحابك من صفحة الحلقة أو التقدّم.', 'Cheer on or nudge friends from the circle or progress pages.', 'شجّع أصدقاءك أو ذكّرهم من صفحة الحلقة أو التقدّم.'] },
     { g: 'voter', ic: 'vote', tip: ['صوّت على الكتب المقترحة للحلقة.', 'Vote on the books suggested to the circle.'] },
     { g: 'shelf', ic: 'shelf', tip: ['ضيف الكتب اللي قريتها قبل كده لمكتبتك (أو استوردها من Goodreads).', 'Add books you have read to your shelf (or import them from Goodreads).', 'أضف الكتب التي قرأتها من قبل إلى مكتبتك (أو استوردها من Goodreads).'] },
     { g: 'critic', ic: 'edit', tip: ['اكتب رأيك (أكتر من سطر) في كتب مكتبتك.', 'Write a review (more than a line) for books on your shelf.', 'اكتب رأيك (أكثر من سطر) في كتب مكتبتك.'] },
@@ -77,7 +77,7 @@
     B('days', 2, 'days100', 100, (s) => s.daysRead, ['عادة يومية', 'Daily habit'], ['اقرأ في ١٠٠ يوم مختلف', 'Read on 100 different days']),
     B('days', 3, 'days365', 365, (s) => s.daysRead, ['رفيق الكتاب', 'Book companion'], ['اقرأ في ٣٦٥ يوم مختلف', 'Read on 365 different days', 'اقرأ في ٣٦٥ يومًا مختلفًا']),
     B('marathon', 1, 'day50', 50, (s) => s.maxDay, ['ماراثون', 'Marathon'], ['اقرأ ٥٠ صفحة في يوم واحد', 'Read 50 pages in one day']),
-    B('marathon', 2, 'day100', 100, (s) => s.maxDay, ['ماراثون كبير', 'Ultra marathon'], ['اقرأ ١٠٠ صفحة في يوم واحد', 'Read 100 pages in one day']),
+    B('marathon', 2, 'day100', 100, (s) => s.maxDay, ['ماراثون جامد', 'Ultra marathon'], ['اقرأ ١٠٠ صفحة في يوم واحد', 'Read 100 pages in one day']),
     B('marathon', 3, 'day200', 200, (s) => s.maxDay, ['مقدرتش أسيب الكتاب', "Couldn't put it down", 'لم أستطع ترك الكتاب'], ['اقرأ ٢٠٠ صفحة في يوم واحد', 'Read 200 pages in one day']),
     B('hours', 1, 'hours10', 10, (s) => Math.floor(s.secs / 3600), ['عشر ساعات', '10 hours'], ['اقرأ ١٠ ساعات', 'Read for 10 hours']),
     B('hours', 2, 'hours50', 50, (s) => Math.floor(s.secs / 3600), ['خمسين ساعة', '50 hours', 'خمسون ساعة'], ['اقرأ ٥٠ ساعة', 'Read for 50 hours']),
@@ -113,11 +113,11 @@
     B('loved', 1, 'loved', 25, (s) => s.likesRecv, ['محبوب الحلقة', 'Circle favourite'], ['اجمع ٢٥ إعجاب على ملاحظاتك', 'Collect 25 likes on your notes', 'اجمع ٢٥ إعجابًا على ملاحظاتك']),
     B('loved', 2, 'loved100', 100, (s) => s.likesRecv, ['قلمه مسموع', 'A voice people follow', 'قلم مسموع'], ['اجمع ١٠٠ إعجاب', 'Collect 100 likes']),
     B('loved', 3, 'loved500', 500, (s) => s.likesRecv, ['نجم الحلقة', 'Circle star'], ['اجمع ٥٠٠ إعجاب', 'Collect 500 likes']),
-    B('generous', 1, 'generous10', 10, (s) => s.likesGiven, ['كريم', 'Generous'], ['اعمل إعجاب لـ١٠ ملاحظات من أصحابك', "Like 10 of your friends' notes", 'سجّل إعجابك بـ١٠ ملاحظات لأصدقائك']),
-    B('generous', 2, 'generous50', 50, (s) => s.likesGiven, ['قلبه كبير', 'Big-hearted', 'صاحب القلب الكبير'], ['اعمل إعجاب لـ٥٠ ملاحظة', 'Like 50 notes', 'سجّل إعجابك بـ٥٠ ملاحظة']),
-    B('generous', 3, 'generous200', 200, (s) => s.likesGiven, ['داعم الحلقة', 'Circle supporter'], ['اعمل إعجاب لـ٢٠٠ ملاحظة', 'Like 200 notes', 'سجّل إعجابك بـ٢٠٠ ملاحظة']),
-    B('cheer', 1, 'cheer', 10, (s) => s.cheers, ['المشجّع', 'Cheerleader'], ['شجّع أصحابك ١٠ مرات', 'Cheer or nudge friends 10 times', 'شجّع أصدقاءك ١٠ مرات']),
-    B('cheer', 2, 'cheer50', 50, (s) => s.cheers, ['المحفّز', 'The motivator'], ['شجّع أصحابك ٥٠ مرة', 'Cheer or nudge friends 50 times', 'شجّع أصدقاءك ٥٠ مرة']),
+    B('generous', 1, 'generous10', 10, (s) => s.likesGiven, ['كريم', 'Generous'], ['ادّي قلب لـ١٠ ملاحظات من صحابك', "Like 10 of your friends' notes", 'سجّل إعجابك بـ١٠ ملاحظات لأصدقائك']),
+    B('generous', 2, 'generous50', 50, (s) => s.likesGiven, ['قلبه كبير', 'Big-hearted', 'صاحب القلب الكبير'], ['ادّي قلب لـ٥٠ ملاحظة', 'Like 50 notes', 'سجّل إعجابك بـ٥٠ ملاحظة']),
+    B('generous', 3, 'generous200', 200, (s) => s.likesGiven, ['داعم الحلقة', 'Circle supporter'], ['ادّي قلب لـ٢٠٠ ملاحظة', 'Like 200 notes', 'سجّل إعجابك بـ٢٠٠ ملاحظة']),
+    B('cheer', 1, 'cheer', 10, (s) => s.cheers, ['المشجّع', 'Cheerleader'], ['شجّع صحابك ١٠ مرات', 'Cheer or nudge friends 10 times', 'شجّع أصدقاءك ١٠ مرات']),
+    B('cheer', 2, 'cheer50', 50, (s) => s.cheers, ['المحفّز', 'The motivator'], ['شجّع صحابك ٥٠ مرة', 'Cheer or nudge friends 50 times', 'شجّع أصدقاءك ٥٠ مرة']),
     B('voter', 1, 'voter5', 5, (s) => s.votes, ['صوتك مسموع', 'Your vote counts'], ['صوّت على ٥ كتب مقترحة', 'Vote on 5 suggested books']),
     B('voter', 2, 'voter20', 20, (s) => s.votes, ['ضمير الحلقة', 'Voice of the circle'], ['صوّت على ٢٠ كتاب مقترح', 'Vote on 20 suggested books', 'صوّت على ٢٠ كتابًا مقترحًا']),
     B('shelf', 1, 'shelf10', 10, (s) => s.shelfRead, ['مكتبة عامرة', 'Full shelf'], ['ضيف ١٠ كتب قرأتها لمكتبتك', 'Add 10 books you have read', 'أضف ١٠ كتب قرأتها إلى مكتبتك']),
@@ -187,9 +187,9 @@
       case 'read': return L(`اقرأ ${L.count(q.need, 'page')}`, `Read ${q.need} pages`);
       case 'note': return L('ظلّل أو اكتب ملاحظة في كتاب', 'Highlight or note something in a book');
       case 'talk': return L('شارك مرتين في النقاش أو الردود', 'Reply or post twice in a discussion');
-      case 'like': return L('اعمل إعجاب لـ٣ ملاحظات من أصحابك', "Like 3 of your friends' notes", 'سجّل إعجابك بـ٣ ملاحظات لأصدقائك');
+      case 'like': return L('ادّي قلب لـ٣ ملاحظات من صحابك', "Like 3 of your friends' notes", 'سجّل إعجابك بـ٣ ملاحظات لأصدقائك');
       case 'shelf': return L('ضيف كتاب لمكتبتك أو قيّم كتاب', 'Add or rate a book on your shelf', 'أضف كتابًا إلى مكتبتك أو قيّم كتابًا');
-      case 'cheer': return L('شجّع أو فكّر واحد من أصحابك', 'Cheer on or nudge a friend', 'شجّع أحد أصدقائك أو ذكّره');
+      case 'cheer': return L('شجّع أو فكّر واحد من صحابك', 'Cheer on or nudge a friend', 'شجّع أحد أصدقائك أو ذكّره');
     }
     return '';
   };
@@ -304,7 +304,7 @@
     }
     for (const p of S.prog.values()) {
       const s = get(p.u);
-      const book = S.books.get(p.b);
+      const book = S.books.get(p.b) || S.gone.get(p.b); // a removed book still counts for what was earned on it
       if (!s || !book) continue;
       for (const [wid, t] of Object.entries(p.done || {})) {
         if (!t) continue;

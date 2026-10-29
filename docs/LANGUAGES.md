@@ -60,4 +60,6 @@ These are referred to from other strings, so they keep exactly this wording.
 | هات مراجعاتي | اجلب مراجعاتي | Get my reviews |
 | قرأناه سوا | قرأناه معًا | Read together |
 | اخفي شريط الساعة وقت القراية | أخفِ شريط الساعة أثناء القراءة | Hide the clock bar while reading |
-| أصحابك | أصدقاؤك | your friends |
+| صحابك | أصدقاؤك | your friends |
+| اعزم | ادعُ | Invite |
+| ادّي قلب (a like) | سجّل إعجابك | Like |

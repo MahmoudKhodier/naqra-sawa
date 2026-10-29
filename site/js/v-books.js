@@ -140,7 +140,7 @@
           }
           const id = D.newId();
           await D.set(`proposals/${id}`, { title, author: body.querySelector('#pr-author').value.trim(), cover, note: body.querySelector('#pr-note').value.trim(), by: S.me, at: U.nowIso(), votes: { [S.me]: U.nowIso() } });
-          U.toast(L('الاقتراح نزل! خلّي أصحابك يصوّتوا', 'Suggested! Get your friends to vote', 'تم نشر الاقتراح! اطلب من أصدقائك أن يصوّتوا'));
+          U.toast(L('الاقتراح نزل! خلّي صحابك يصوّتوا', 'Suggested! Get your friends to vote', 'تم نشر الاقتراح! اطلب من أصدقائك أن يصوّتوا'));
         });
       },
     });
@@ -518,8 +518,9 @@
 
   V.deleteBook = async (id) => {
     const b = S.books.get(id);
-    if (!(await V.confirm(L(`هتشيل «${esc(b.title)}» من الحلقة. الملاحظات والنقاش هيختفوا معاه.`, `Remove “${esc(b.title)}” from the circle? Its notes and discussion will disappear with it.`, `ستزيل «${esc(b.title)}» من الحلقة، وستختفي معه الملاحظات والنقاش.`), L('امسح', 'Remove', 'احذف'), true))) return;
+    if (!(await V.confirm(L(`هتشيل «${esc(b.title)}» من الحلقة. الملاحظات والنقاش هيختفوا معاه، بس النقاط اللي الكل كسبها بتفضل.`, `Remove “${esc(b.title)}” from the circle? Its notes and discussion will disappear with it; the XP everyone earned stays.`, `ستزيل «${esc(b.title)}» من الحلقة، وستختفي معه الملاحظات والنقاش، أما النقاط التي كسبها الجميع فتبقى.`), L('امسح', 'Remove', 'احذف'), true))) return;
     if (A.R.isOpen() && A.R.bookId() === id) A.R.close(true);
+    await D.set(`gone/${id}`, { title: b.title || '', wirds: b.wirds || [], at: U.nowIso() }); // keeps the XP earned on it
     await D.del(`books/${id}`);
     if (S.assets) for (const p of b.parts || []) S.assets.delete(p.id).catch(() => {});
     V.go('books');
@@ -788,23 +789,32 @@
     const b = S.books.get(id);
     if (!b) return;
     const ws = G.wirds(b);
-    const hadDone = D.bookProgs(id).some((p) => Object.keys(p.done || {}).length);
+    // Portions up to the last one anybody marked done stay exactly as they are; a new plan only changes the rest,
+    // so done marks, takeaways and discussions never end up on other pages.
+    const progs = D.bookProgs(id);
+    let keepN = 0;
+    ws.forEach((w, i) => progs.some((p) => p.done && p.done[w.id]) && (keepN = i + 1));
+    const keep = ws.slice(0, keepN);
     const st = { from: ws.length ? ws[0].from : 1, to: ws.length ? ws[ws.length - 1].to : b.pages, start: ws.length ? ws[0].start : U.today(), every: ws.length ? U.diffDays(ws[0].start, ws[0].due) + 1 : 1, mode: 'per', per: ws.length ? ws[0].to - ws[0].from + 1 : Math.min(20, b.pages), end: U.addDays(U.today(), 30) };
     const gen = () => {
-      const from = U.clamp(st.from | 0, 1, b.pages), to = U.clamp(st.to | 0, from, b.pages);
+      const last = keep[keep.length - 1];
+      const from = U.clamp(Math.max(st.from | 0, last ? last.to + 1 : 1), 1, b.pages), to = U.clamp(st.to | 0, from, b.pages);
+      const start = last && st.start <= last.due ? U.addDays(last.due, 1) : st.start;
       const every = Math.max(1, st.every | 0);
       let per = Math.max(1, st.per | 0);
+      if (last && last.to >= Math.min(b.pages, st.to | 0)) return { out: keep.slice(), per }; // nothing left to plan
       if (st.mode === 'end') {
-        const days = Math.max(1, U.diffDays(st.start, st.end) + 1);
+        const days = Math.max(1, U.diffDays(start, st.end) + 1);
         const count = Math.max(1, Math.floor(days / every));
         per = Math.ceil((to - from + 1) / count);
       }
-      const out = [];
+      const out = keep.slice();
       let p = from, i = 0;
       while (p <= to && i < 400) {
         const a = p, z = Math.min(to, p + per - 1);
-        const s = U.addDays(st.start, i * every);
-        out.push({ id: 'w' + (i + 1), n: i + 1, from: a, to: z, start: s, due: U.addDays(s, every - 1) });
+        const s = U.addDays(start, i * every);
+        const n = keep.length + i + 1;
+        out.push({ id: 'w' + n, n, from: a, to: z, start: s, due: U.addDays(s, every - 1) });
         p = z + 1;
         i++;
       }
@@ -832,7 +842,7 @@
         <div class="form grid2"><div id="pl-per-w"><label for="pl-per">${L('صفحات كل ورد', 'Pages per portion')}</label><input id="pl-per" type="number" min="1" max="${b.pages}" value="${st.per}"></div>
           <div id="pl-end-w" hidden><label for="pl-end">${L('نخلّص يوم', 'Finish by', 'تاريخ الانتهاء')}</label><input id="pl-end" type="date" value="${st.end}"></div></div>
         <div class="pv" id="pl-pv">${preview()}</div>
-        ${hadDone ? `<p class="warn-t">${icon('info')}${L('فيه ناس علّمت أوراد خلصانة. لو غيّرت الخطة، العلامات بتفضل على نفس رقم الورد.', 'Some portions are already marked done. Changing the plan keeps marks on the same portion numbers.', 'بعض الأوراد معلّمة كمنتهية. إذا غيّرت الخطة، تبقى العلامات على أرقام الأوراد نفسها.')}</p>` : ''}
+        ${keepN ? `<p class="warn-t">${icon('info')}${L(`أوراد لحد الورد ${L.num(keepN)} متعلّم عليها «خلّصته»، فهتفضل زي ما هي. التغيير هيمشي على اللي بعدها بس.`, `Portions up to ${keepN} are already marked done, so they stay as they are; the change applies to the ones after.`, `توجد علامات «أنهيته» حتى الورد ${L.num(keepN)}، لذا ستبقى هذه الأوراد كما هي، ويسري التغيير على ما بعدها فقط.`)}</p>` : ''}
         <div class="row-btns end"><button class="btn gold big">${icon('check')}${L('احفظ الخطة', 'Save plan')}</button></div></form>`,
       onMount: (body, api) => {
         const read = () => {

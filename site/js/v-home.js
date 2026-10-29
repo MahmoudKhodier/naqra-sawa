@@ -164,7 +164,7 @@
     if (!w) return '';
     const members = D.memberIds();
     if (members.length < 2) {
-      return `<section class="card race solo">${icon('users')}<div><b>${L('القراية أحلى مع حد', 'Reading is better together', 'القراءة أجمل مع الآخرين')}</b><p class="muted sm">${L('ادعُ أصحابك أو عيلتك، وشوفوا مين وصل فين في الورد.', 'Invite friends or family and see who is where in each portion.', 'ادعُ أصدقاءك أو عائلتك، وشاهدوا أين وصل كل واحد في الورد.')}</p></div><button class="btn sm gold" data-act="invite">${icon('share')}${L('ادعُ', 'Invite')}</button></section>`;
+      return `<section class="card race solo">${icon('users')}<div><b>${L('القراية أحلى مع حد', 'Reading is better together', 'القراءة أجمل مع الآخرين')}</b><p class="muted sm">${L('اعزم صحابك أو عيلتك، وشوفوا مين وصل فين في الورد.', 'Invite friends or family and see who is where in each portion.', 'ادعُ أصدقاءك أو عائلتك، وشاهدوا أين وصل كل واحد في الورد.')}</p></div><button class="btn sm gold" data-act="invite">${icon('share')}${L('ادعُ', 'Invite')}</button></section>`;
     }
     const total = w.to - w.from + 1;
     const live = new Map(D.readingNow(b.id).map((x) => [x.uid, x.p]));
@@ -454,15 +454,15 @@
       <div class="ob-card">
         <small class="eyebrow">${circle ? esc(circle) : L('حلقة قراءة', 'A reading circle')}${n ? ' • ' + L.count(n, 'member') : ''}</small>
         <h1>${L('نقرأ سوا', 'Read Together')}</h1>
-        <p class="lead">${L('كتاب واحد، أوراد متقسمة، تعليقات على الصفحات، ونقاش مع أصحابك وعيلتك. وكل صفحة بتقراها بتكسبك XP.', 'One book, daily portions, notes in the margins and conversations with friends and family. Every page you read earns XP.', 'كتاب واحد، وأوراد مقسّمة، وتعليقات على الصفحات، ونقاش مع أصدقائك وعائلتك. وكل صفحة تقرؤها تكسبك XP.')}</p>
+        <p class="lead">${L('كتاب واحد، أوراد متقسمة، تعليقات على الصفحات، ونقاش مع صحابك وعيلتك. وكل صفحة بتقراها بتكسبك XP.', 'One book, daily portions, notes in the margins and conversations with friends and family. Every page you read earns XP.', 'كتاب واحد، وأوراد مقسّمة، وتعليقات على الصفحات، ونقاش مع أصدقائك وعائلتك. وكل صفحة تقرؤها تكسبك XP.')}</p>
         <ul class="ob-feats">
           <li>${icon('books')}<span>${L('اقرأ الـPDF جوه التطبيق من أي جهاز', 'Read the PDF right here on any device', 'اقرأ ملف PDF داخل التطبيق من أي جهاز')}</span></li>
-          <li>${icon('hl')}<span>${L('ظلّل وعلّق وشوف تعليقات أصحابك على نفس الصفحة', "Highlight, comment and see friends' notes on the same page", 'ظلّل وعلّق وشاهد تعليقات أصدقائك على الصفحة نفسها')}</span></li>
+          <li>${icon('hl')}<span>${L('ظلّل وعلّق وشوف تعليقات صحابك على نفس الصفحة', "Highlight, comment and see friends' notes on the same page", 'ظلّل وعلّق وشاهد تعليقات أصدقائك على الصفحة نفسها')}</span></li>
           <li>${icon('flame')}<span>${L('حافظ على سلسلتك، خلّص مهام اليوم، واطلع في الصدارة', 'Keep your streak, finish daily quests, climb the board', 'حافظ على سلسلتك، وأنهِ مهام اليوم، وتصدّر الترتيب')}</span></li>
         </ul>
         ${canJoin
           ? `<form id="join-form" class="ob-form">
-          <label for="join-name">${L('اسمك اللي أصحابك هيشوفوه', 'The name your friends will see', 'الاسم الذي سيراه أصدقاؤك')}</label>
+          <label for="join-name">${L('اسمك اللي صحابك هيشوفوه', 'The name your friends will see', 'الاسم الذي سيراه أصدقاؤك')}</label>
           <input id="join-name" maxlength="40" required autocomplete="nickname" dir="auto" value="${esc(pname)}" placeholder="${L('مثلا: محمود', 'e.g. Sam', 'مثلًا: محمود')}">
           <span class="lbl">${L('اختار علامة (اختياري — تقدر تغيّرها بعدين من الإعدادات)', 'Pick a mark (optional — you can change it later in Settings)', 'اختر علامة (اختياري — يمكنك تغييرها لاحقًا من الإعدادات)')}</span>
           <div class="emo" role="radiogroup">${V.EMOJI.slice(0, 16).map((e) => `<button type="button" class="emo-b" data-emo="${e}" aria-label="${e}">${e}</button>`).join('')}</div>

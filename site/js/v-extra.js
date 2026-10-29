@@ -116,7 +116,7 @@
     if (U.store.get('startDone:' + S.me, false) || !D.canWrite()) return '';
     const shelf = S.shelf.get(S.me);
     const steps = [
-      { id: 'invite', done: S.members.size > 1, t: L('ادعُ أصحابك أو عيلتك', 'Invite friends or family', 'ادعُ أصدقاءك أو عائلتك'), act: 'invite' },
+      { id: 'invite', done: S.members.size > 1, t: L('اعزم صحابك أو عيلتك', 'Invite friends or family', 'ادعُ أصدقاءك أو عائلتك'), act: 'invite' },
       { id: 'book', done: S.books.size > 0, t: L('ضيف أول كتاب', 'Add the first book', 'أضف أول كتاب'), act: 'add-book' },
       { id: 'plan', done: [...S.books.values()].some((b) => G.wirds(b).length), t: L('قسّم الكتاب أوراد', 'Split it into portions', 'قسّم الكتاب إلى أوراد'), act: 'first-plan' },
       { id: 'shelf', done: !!(shelf && Object.keys(shelf.items || {}).length), t: L('ضيف كتب قريتها قبل كده', 'Add books you have read', 'أضف كتبًا قرأتها من قبل'), act: 'bulk-shelf' },

@@ -266,6 +266,22 @@ const appState = (page) =>
       ctx.wirdDone = true;
     }, ['bookId']);
 
+    await step('A changes the plan: the portion B marked done stays as it was, only later ones change', async () => {
+      const p = pages.A;
+      const before = await p.evaluate((b) => window.A.S.books.get(b).wirds, ctx.bookId);
+      await p.evaluate((b) => window.A.V.planWizard(b), ctx.bookId);
+      await p.waitForSelector('#pl-form .warn-t', { timeout: 8000 });
+      await p.fill('#pl-per', '3');
+      await p.click('#pl-form button.btn.gold');
+      await until(p, 'new plan saved', ([b, n]) => window.A.S.books.get(b).wirds.length !== n, [ctx.bookId, before.length]);
+      const after = await p.evaluate((b) => window.A.S.books.get(b).wirds, ctx.bookId);
+      const w1a = JSON.stringify(after[0]), w1b = JSON.stringify(before[0]);
+      assert(w1a === w1b, `w1 changed: ${w1b} → ${w1a}`);
+      assert(after[1].from === before[0].to + 1 && after[1].to - after[1].from === 2 && after[1].id === 'w2', 'w2 does not continue after w1: ' + JSON.stringify(after[1]));
+      assert(after[after.length - 1].to === before[before.length - 1].to, 'the plan no longer reaches the same last page');
+      return `${before.length} → ${after.length} portions, w1 kept`;
+    }, ['wirdDone']);
+
     /* ---------------- C: an outsider ---------------- */
     await step('C (outsider) signs in and creates an own circle', async () => {
       const C = await H.newUser(browser, env, 'carim@test.local', { viewport: { width: 390, height: 844 } });

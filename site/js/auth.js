@@ -26,7 +26,7 @@
   Auth.signIn = (state = {}) => {
     const invited = !!U.store.get('pendingJoin', null);
     app().innerHTML = shell(`${topBtns()}
-      <small class="eyebrow">${invited ? L('عندك دعوة لحلقة قراءة 🎉', 'You have an invitation to a reading circle 🎉', 'لديك دعوة إلى حلقة قراءة 🎉') : L('حلقة قراءة لأصحابك وعيلتك', 'A reading circle for friends and family', 'حلقة قراءة لأصدقائك وعائلتك')}</small>
+      <small class="eyebrow">${invited ? L('عندك دعوة لحلقة قراءة 🎉', 'You have an invitation to a reading circle 🎉', 'لديك دعوة إلى حلقة قراءة 🎉') : L('حلقة قراءة لصحابك وعيلتك', 'A reading circle for friends and family', 'حلقة قراءة لأصدقائك وعائلتك')}</small>
       <h1>${L('نقرأ سوا', 'Read Together')}</h1>
       <p class="lead">${L('ادخل بإيميلك. هنبعتلك كود من أرقام تكتبه هنا — من غير باسورد.', "Sign in with your email. We'll send you a short code to type here — no password.", 'ادخل ببريدك الإلكتروني. سنرسل إليك رمزًا من أرقام تكتبه هنا — دون كلمة مرور.')}</p>
       ${state.sent
@@ -164,7 +164,7 @@
       <div class="circles-pick">
       <small class="eyebrow">${L('أهلا بيك 👋', 'Welcome 👋', 'أهلًا بك 👋')}</small>
       <h1>${L('الحلقات', 'Circles')}</h1>
-      <p class="lead">${L('الحلقة هي المجموعة اللي بتقرأ معاها: أصحابك، عيلتك، أو زمايلك. ممكن تكون في أكتر من حلقة.', 'A circle is the group you read with: friends, family or colleagues. You can be in more than one.', 'الحلقة هي المجموعة التي تقرأ معها: أصدقاؤك أو عائلتك أو زملاؤك. يمكنك أن تكون في أكثر من حلقة.')}</p>
+      <p class="lead">${L('الحلقة هي المجموعة اللي بتقرأ معاها: صحابك، عيلتك، أو زمايلك. ممكن تكون في أكتر من حلقة.', 'A circle is the group you read with: friends, family or colleagues. You can be in more than one.', 'الحلقة هي المجموعة التي تقرأ معها: أصدقاؤك أو عائلتك أو زملاؤك. يمكنك أن تكون في أكثر من حلقة.')}</p>
       ${circles.length ? `<div class="clist">${circles.map((c) => `<button class="citem" data-auth="pick" data-id="${esc(c.id)}"><span class="star8 sm ${c.role === 'owner' ? 'gold' : 'lapis'}"></span><b dir="auto">${esc(c.name)}</b><small>${{ owner: L('صاحب الحلقة', 'Owner'), admin: L('مشرف', 'Admin'), member: L('عضو', 'Member') }[c.role] || ''}</small></button>`).join('')}</div>` : ''}
       <form id="circle-join" class="ob-form">
         <label for="cj-code">${L('عندك لينك أو كود دعوة؟', 'Have an invite link or code?', 'لديك رابط أو رمز دعوة؟')}</label>
@@ -258,7 +258,7 @@
     const canAdmin = ['owner', 'admin'].includes(P.role());
     const msg = L(`تعالى نقرأ سوا في «${c.name}» 📚\n${link}`, `Come read with us in “${c.name}” 📚\n${link}`, `تعال نقرأ معًا في «${c.name}» 📚\n${link}`);
     V.sheet({
-      title: L('ادعُ أصحابك وعيلتك', 'Invite friends and family', 'ادعُ أصدقاءك وعائلتك'),
+      title: L('اعزم صحابك وعيلتك', 'Invite friends and family', 'ادعُ أصدقاءك وعائلتك'),
       html: `<p class="muted">${L('ابعت اللينك ده. اللي يفتحه يدخل بإيميله وينضم للحلقة على طول.', 'Send this link. Whoever opens it signs in with their email and joins straight away.', 'أرسل هذا الرابط. من يفتحه يدخل ببريده الإلكتروني وينضم إلى الحلقة مباشرة.')}</p>
         <div class="copy-row"><code id="inv-url">${esc(link)}</code></div>
         <div class="row-btns">${navigator.share ? `<button class="btn gold" data-share>${icon('share')}${L('شارك', 'Share')}</button>` : ''}<button class="btn" data-copy>${L('انسخ اللينك', 'Copy link', 'انسخ الرابط')}</button><a class="btn ghost" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">WhatsApp</a></div>
