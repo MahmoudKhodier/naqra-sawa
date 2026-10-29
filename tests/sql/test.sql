@@ -138,8 +138,9 @@ select t.ok(has_function_privilege('service_role', 'public.purge_deleted_docs(in
 select t.ok(has_function_privilege('postgres', 'public.purge_deleted_docs(int)', 'execute'),
             'structure: postgres (pg_cron job in supabase/setup/push.sql) can execute purge_deleted_docs');
 select t.is((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-              where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')),
-            0::bigint, 'structure: anon cannot execute any public function');
+              where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
+                and p.proname <> 'device_inbox'),  -- by design: the phone's background check has no session
+            0::bigint, 'structure: anon cannot execute any public function (but device_inbox)');
 select t.is((select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
               where n.nspname = 'public' and c.relkind = 'r'
                 and has_table_privilege('anon', c.oid, 'select,insert,update,delete,truncate')),

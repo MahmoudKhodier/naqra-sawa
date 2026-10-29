@@ -10,6 +10,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(KeepAwakePlugin.class);
         registerPlugin(AppUpdatePlugin.class);
         registerPlugin(SystemUiPlugin.class);
+        registerPlugin(InboxPlugin.class);
+        registerPlugin(WidgetPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

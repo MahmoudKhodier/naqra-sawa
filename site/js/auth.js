@@ -134,6 +134,8 @@
         const n = D.outboxCount();
         if (n && !(await V.confirm(L(`فيه قراية لسه ما اتحفظتش على النت (${L.count(n, 'page')}). لو خرجت دلوقتي هتضيع. استنى لما النت يرجع، ولا تخرج برضه؟`, `Some reading hasn't reached the server yet (${n} pages). Signing out now loses it. Wait until you're online, or sign out anyway?`, `توجد قراءة لم تُحفظ على الخادم بعد (${L.count(n, 'page')}). الخروج الآن يُضيّعها. انتظر عودة الاتصال، أم تخرج على أي حال؟`), L('اخرج برضه', 'Sign out anyway', 'اخرج على أي حال'), true))) return;
       }
+      // Android app: stop the cheer/reply notifications, forget this phone on the server, empty the widget.
+      if (A.Remind && A.Remind.beforeSignOut) await A.Remind.beforeSignOut();
       P.signOut();
     }
     else if (a === 'pick') {
@@ -260,43 +262,7 @@
   };
   V.actions['circle-menu'] = () => V.circleMenu();
 
-  V.actions.invite = () => {
-    const c = P.circle ? P.circle() : A.CIRCLE;
-    const link = P.inviteLink(c.invite_code);
-    const canAdmin = ['owner', 'admin'].includes(P.role());
-    const msg = L(`تعالى نقرأ سوا في «${c.name}» 📚\n${link}`, `Come read with us in “${c.name}” 📚\n${link}`, `تعال نقرأ معًا في «${c.name}» 📚\n${link}`);
-    V.sheet({
-      title: L('اعزم صحابك وعيلتك', 'Invite friends and family', 'ادعُ أصدقاءك وعائلتك'),
-      html: `<p class="muted">${L('ابعت اللينك ده. اللي يفتحه يدخل بإيميله وينضم للحلقة على طول.', 'Send this link. Whoever opens it signs in with their email and joins straight away.', 'أرسل هذا الرابط. من يفتحه يدخل ببريده الإلكتروني وينضم إلى الحلقة مباشرة.')}</p>
-        <div class="copy-row"><code id="inv-url">${esc(link)}</code></div>
-        <div class="row-btns">${navigator.share ? `<button class="btn gold" data-share>${icon('share')}${L('شارك', 'Share')}</button>` : ''}<button class="btn" data-copy>${L('انسخ اللينك', 'Copy link', 'انسخ الرابط')}</button><a class="btn ghost" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">WhatsApp</a></div>
-        <p class="muted sm">${L('أو الكود:', 'Or the code:', 'أو الرمز:')} <b class="code" dir="ltr">${esc(c.invite_code)}</b></p>
-        ${canAdmin ? `<button class="lnk sm" data-reset>${L('اعمل لينك جديد (القديم يبطل)', 'Make a new link (the old one stops working)', 'أنشئ رابطًا جديدًا (يتوقف القديم)')}</button>` : ''}`,
-      onMount: (body, api) =>
-        body.addEventListener('click', async (e) => {
-          if (e.target.closest('[data-share]')) {
-            try {
-              await navigator.share({ title: L('نقرأ سوا', 'Read Together'), text: msg });
-            } catch (er) {}
-          }
-          if (e.target.closest('[data-copy]')) {
-            const ok = await U.copy(link, body.querySelector('#inv-url'));
-            U.toast(ok ? L('اتنسخ اللينك', 'Link copied', 'تم نسخ الرابط') : L('اختار اللينك وانسخه', 'Select the link to copy', 'حدّد الرابط وانسخه'));
-          }
-          if (e.target.closest('[data-reset]')) {
-            if (!(await V.confirm(L('اللينك القديم هيبطل. اللي في الحلقة هيفضلوا فيها.', 'The old link stops working. Current members stay.', 'سيتوقف الرابط القديم، ويبقى أعضاء الحلقة فيها.'), L('اعمل لينك جديد', 'New link', 'أنشئ رابطًا جديدًا')))) return;
-            try {
-              await P.resetInvite(c.id);
-              await P.resync();
-              api.close();
-              V.actions.invite();
-            } catch (er) {
-              U.toast(L('مقدرتش أغيّر اللينك', "Couldn't change the link", 'تعذّر تغيير الرابط'), 'warn');
-            }
-          }
-        }),
-    });
-  };
+  // The invite sheet (with its picture card) lives in invite.js.
 
   V.memberMenu = (uid) => {
     const myRole = P.role();

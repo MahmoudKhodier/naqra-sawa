@@ -1,7 +1,19 @@
 <?xml version='1.0' encoding='utf-8'?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="app_name">نقرأ سوا</string>
     <string name="title_activity_main">نقرأ سوا</string>
     <string name="package_name">app.naqrasawa.reader</string>
     <string name="custom_url_scheme">app.naqrasawa.reader</string>
+    <!-- Home-screen widget «وردك النهارده» (values-en has the English). The samples show in the widget picker. -->
+    <string name="widget_label">وردك النهارده</string>
+    <string name="widget_small_label">وردك النهارده (صغير)</string>
+    <string name="widget_desc">الكتاب، ورد النهارده، السلسلة والهدف</string>
+    <string name="widget_empty">افتح نقرأ سوا عشان نجهّز الويدجت</string>
+    <string name="widget_sample_title">الأيام</string>
+    <string name="widget_sample_line">الورد ٣ • ص ٤١–٦٠</string>
+    <string name="widget_sample_short">الورد ٣ • ١٢ من ٢٠</string>
+    <string name="widget_sample_progress">١٢ من ٢٠ صفحة</string>
+    <string name="widget_sample_goal">٣ من ٥ صفحات النهارده</string>
+    <string name="widget_sample_streak">🔥 ٥</string>
+    <string name="widget_sample_cta">كمّل</string>
 </resources>

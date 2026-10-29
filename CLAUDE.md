@@ -20,6 +20,12 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - Private books: `data/users/<uid>/my/books|prog/<id>` (ids `my-…`), files in `<circle>/private/<uid>/…` (storage policies in `20261030002000_private_books.sql`). `D.book(id)` finds circle or private books.
 - Extension points in v-core.js: `V.addRoute`, `V.addSection('me'|'shelf')`, `V.addMenu('shelf')`; features in `v-me.js` (stats, «دفتر اقتباساتي») and `v-worm.js` (taste, pick, challenges).
 
+## Notifications and widget (Android, on the work branch)
+- No Firebase: the app registers a random device token (`register_device`, only its sha256 is stored in `devices`); `InboxWorker` (WorkManager, every ~15 min online) calls the anon RPC `device_inbox(token, since)` and posts cheers, nudges and replies in the member's language (`InboxPlugin`). Battery savers (Xiaomi/Oppo/Samsung) can delay or stop it. Web push for the installed web app still needs the `notify` function deployed (not done).
+- Widget «وردك النهارده» (`Widget*` classes): the app sends ready-made texts through the plugin (`site/js/widget.js`, after data changes and when leaving the app).
+- Local Android build: SDK in `~/android-sdk` (installs from dl.google.com); Maven Central can answer 429 from the sandbox, a `~/.gradle/init.d/mirror.gradle` pointing at Google's mirror fixes it; `./gradlew assembleDebug` in android/.
+- Invites: `site/js/invite.js` draws a picture card and shares it with the link; the link's preview is `site/icons/og.png` (`scripts/render-og.js`).
+
 ## Reader notes
 - Reading vs looking around: `st.front` is where reading goes on (resume point, saved as `prog.last`). Pages count only within ~2 pages of it; jumps further away are "looking around" (a bar offers «ارجع لمكانك» / «كمّل من هنا»). Opening the current portion counts. «وقفت هنا» (one line per book, private: `priv.place[bookId] = {p, y, manual}`) is placed with the edge dots and saved on leaving.
 - Book look (page-by-page): RTL even pages are right-hand pages; the cover board and page-edge stack are on the outer side only.
@@ -39,6 +45,7 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - `node tests/e2e/smoke.js` — full UI flow against the fake Supabase (see tests/e2e for details).
 - `node tests/e2e/reader.js` — the PDF reader on a phone (touch, 2× screen): scrolling, zoom, book mode, notes, contents, keep-awake.
 - `node tests/e2e/ui.js` — the app's frame on a phone: back steps, one message at a time, pull to refresh, shelf header, mark picker, sign-out warning.
+- Phase 3/4 suites: `together.js` (circle recap, «خلّصناها», invite card), `focus.js`, `goals.js` (daily goal, forecast, weekly streak, firsts), `native.js` (stand-in Android layer: notifications device, widget data).
 - Phase-2 suites: `node tests/e2e/library.js` (shelf_books rows, 3,000 books, legacy shelf), `goodreads.js` (RSS sync merge), `me.js` (stats, quotes notebook), `worm.js` (taste match, pick a book, challenges), `private.js` (private library).
 - `node tests/e2e/screens.js` — screenshots of every main screen for a visual review (`LANGS=eg,ar,en THEMES=light,dark LAND=1`), in `tests/e2e/shots/screens/`.
 - `node tests/e2e/shelf.js` — Goodreads import, shelf search/sort/status moves, badge levels and details, the Android update prompt (stand-in native layer).

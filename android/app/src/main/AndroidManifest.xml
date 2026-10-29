@@ -24,6 +24,30 @@
 
         </activity>
 
+        <!-- Home-screen widgets «وردك النهارده» (WidgetRender draws both from what the app last sent). -->
+        <receiver
+            android:name=".WidgetWide"
+            android:exported="false"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_wide_info" />
+        </receiver>
+        <receiver
+            android:name=".WidgetSmall"
+            android:exported="false"
+            android:label="@string/widget_small_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_small_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -44,6 +68,7 @@
 
     <!-- Local reading reminders (@capacitor/local-notifications). The plugin's own manifest declares these too;
          they are listed here so the app's needs are visible in one place. -->
+    <!-- Also used by InboxPlugin: cheers, nudges and replies, fetched every ~15 minutes by WorkManager (InboxWorker). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />

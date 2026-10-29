@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the widget's texts have an English version (values/strings.xml ignores MissingTranslation for the rest). -->
+<resources>
+    <string name="widget_label">Today\'s reading</string>
+    <string name="widget_small_label">Today\'s reading (small)</string>
+    <string name="widget_desc">Your book, today\'s portion, your streak and goal</string>
+    <string name="widget_empty">Open Read Together to set up the widget</string>
+    <string name="widget_sample_title">The Days</string>
+    <string name="widget_sample_line">Portion 3 • p. 41–60</string>
+    <string name="widget_sample_short">Portion 3 • 12 of 20</string>
+    <string name="widget_sample_progress">12 of 20 pages</string>
+    <string name="widget_sample_goal">3 of 5 pages today</string>
+    <string name="widget_sample_streak">🔥 5</string>
+    <string name="widget_sample_cta">Continue</string>
+</resources>

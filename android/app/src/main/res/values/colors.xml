@@ -6,4 +6,17 @@
     <color name="naqra_gold">#E0A526</color>
     <color name="splash_background">#2441A3</color>
     <color name="naqra_bg">#F6F4EF</color>
+    <!-- Home-screen widget (light; values-night has the dark ones): the web app's card, ink, bg2, gold, jade and flame tokens. -->
+    <color name="widget_bg">#FFFFFF</color>
+    <color name="widget_line">#E7E2D8</color>
+    <color name="widget_ink">#1B1F2A</color>
+    <color name="widget_ink2">#4F5465</color>
+    <color name="widget_track">#ECE7DD</color>
+    <color name="widget_gold">#E0A526</color>
+    <color name="widget_gold_t">#8A5A00</color>
+    <color name="widget_jade">#1A9A58</color>
+    <color name="widget_flame">#B8470A</color>
+    <color name="widget_flame_s">#FFEDE2</color>
+    <color name="widget_cta">#2441A3</color>
+    <color name="widget_on_cta">#FFFFFF</color>
 </resources>

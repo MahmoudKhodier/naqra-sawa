@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home-screen widget in dark mode: the web app's dark card, ink, bg2, gold, jade and flame tokens. -->
+    <color name="widget_bg">#181B22</color>
+    <color name="widget_line">#282C35</color>
+    <color name="widget_ink">#F1ECE2</color>
+    <color name="widget_ink2">#B4AEA3</color>
+    <color name="widget_track">#282C35</color>
+    <color name="widget_gold">#F0B35A</color>
+    <color name="widget_gold_t">#F0B35A</color>
+    <color name="widget_jade">#3FBF7A</color>
+    <color name="widget_flame">#FF9A5A</color>
+    <color name="widget_flame_s">#2D1C12</color>
+    <color name="widget_cta">#8EA2FF</color>
+    <color name="widget_on_cta">#0B1020</color>
+</resources>
