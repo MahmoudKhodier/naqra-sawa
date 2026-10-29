@@ -30,6 +30,8 @@
     proposals: new Map(),
     pokes: new Map(),
     gone: new Map(), // removed books: just their portions, so the XP earned on them stays
+    myBooks: new Map(), // «مكتبتي الخاصة»: books only I can see (data/users/<me>/my/books)
+    myProg: new Map(), // my progress in them (data/users/<me>/my/prog), never in the circle's prog
     priv: null,
     peers: [],
     profiles: {},
@@ -127,6 +129,8 @@
     listen(db.collection('gone'), 'gone', (s) => (S.gone = toMap(s)));
     listen(db.collection('pokes').orderBy('at', 'desc').limit(20000), 'pokes', (s) => (S.pokes = toMap(s)));
     listen(db.doc(`data/users/${S.me}/priv`), 'priv', (s) => (S.priv = s.exists ? s.data() : null));
+    listen(db.collection(`data/users/${S.me}/my/books`), 'myBooks', (s) => (S.myBooks = toMap(s)));
+    listen(db.collection(`data/users/${S.me}/my/prog`), 'myProg', (s) => (S.myProg = toMap(s)));
   }
 
   /* ---------- writes (one at a time per document) ---------- */
@@ -169,14 +173,23 @@
       U.toast(L('ماتحفظش. اتأكد من النت وجرّب تاني', 'Not saved. Check your connection and try again', 'لم يتم الحفظ. تأكد من اتصالك بالإنترنت وحاول مجددًا'), 'warn');
     }
   }
-  D.set = (path, body) => queue(path, () => S.db.doc(path).set(body));
+  // Safety net: nothing about a private book goes into the circle's shared notes or messages.
+  const leaks = (path, body) => /^(notes|msgs)\//.test(path) && body && D.isPrivate(body.b);
+  D.set = (path, body) => (leaks(path, body) ? Promise.reject(Object.assign(new Error('private book'), { code: 'invalid_argument' })) : queue(path, () => S.db.doc(path).set(body)));
   D.update = (path, patch) => queue(path, () => S.db.doc(path).update(patch));
   D.del = (path) => queue(path, () => S.db.doc(path).delete());
   D.canWrite = () => !!S.db && !S.readOnly;
 
   /* ---------- lookups ---------- */
   D.progKey = (b, u) => `${b}~${u}`;
-  D.prog = (b, u = S.me) => S.prog.get(D.progKey(b, u)) || null;
+  /* Private books («مكتبتي الخاصة») have ids starting with "my-"; their details and my progress in them live in
+     my private document tree, so the circle never sees the book, its file, its notes or how far I got. */
+  D.isPrivate = (b) => typeof b === 'string' && b.startsWith('my-');
+  D.myBookPath = (b) => `data/users/${S.me}/my/books/${b}`;
+  const myProgPath = (b) => `data/users/${S.me}/my/prog/${b}`;
+  /* A book by id: the circle's, or one of mine. */
+  D.book = (id) => (id && (S.books.get(id) || S.myBooks.get(id))) || null;
+  D.prog = (b, u = S.me) => (D.isPrivate(b) ? (u === S.me && S.myProg.get(b)) || null : S.prog.get(D.progKey(b, u)) || null);
   D.bookProgs = (b) => [...S.prog.values()].filter((p) => p.b === b);
   D.joined = () => !!(S.me && S.members.has(S.me));
   D.memberIds = () =>
@@ -254,6 +267,7 @@
   let lastPresence = '';
   D.presence = (patch) => {
     if (!S.room) return;
+    if (patch && D.isPrivate(patch.b)) patch = Object.assign({}, patch, { b: null, p: null }); // a private book is never announced
     const k = JSON.stringify(patch);
     if (k === lastPresence) return;
     lastPresence = k;
@@ -264,7 +278,7 @@
     const seen = new Map();
     for (const p of S.peers) {
       const uid = p.by || (p.presence && p.presence.uid);
-      if (!uid || !p.presence || !p.presence.b) continue;
+      if (!uid || !p.presence || !p.presence.b || D.isPrivate(p.presence.b)) continue;
       if (bookId && p.presence.b !== bookId) continue;
       if (p.isMe) continue;
       seen.set(uid, { uid, b: p.presence.b, p: p.presence.p });
@@ -320,7 +334,7 @@
   /* patch may be a function (cur) => patch */
   D.saveProg = async (bookId, patch) => {
     if (!D.canWrite()) return;
-    await D.mutate(`prog/${D.progKey(bookId, S.me)}`, () => {
+    await D.mutate(D.isPrivate(bookId) ? myProgPath(bookId) : `prog/${D.progKey(bookId, S.me)}`, () => {
       const cur = D.prog(bookId) || { b: bookId, u: S.me, seen: [], done: {}, last: 1, joined: U.nowIso() };
       const p = typeof patch === 'function' ? patch(cur) : patch;
       if (!p) return null;
@@ -368,6 +382,74 @@
   window.addEventListener('online', obxSoon);
   document.addEventListener('visibilitychange', () => !document.hidden && obxSoon());
   setInterval(() => navigator.onLine !== false && U.store.get(obxKey(), []).length && D.flushOutbox(), 60000);
+
+  /* ---------- «مكتبتي الخاصة»: files only I can read ---------- */
+  /* Stored at '<circle>/private/<me>/<random>.pdf' in the books bucket; the storage policies
+     (migrations/…_private_books.sql) let only me read or delete them. Reading and deleting go through the
+     usual S.assets / A.P.fetchAsset (they take any path); only the upload needs its own folder. */
+  const sbOf = () => (A.P && A.P.sb && A.P.circle && A.P.circle() ? A.P.sb() : null);
+  D.canUploadPrivate = () => !!(sbOf() && S.me && D.canWrite());
+  D.uploadPrivate = async (blob) => {
+    const sb = sbOf();
+    if (!sb) throw Object.assign(new Error('unavailable'), { code: 'unavailable' });
+    if (!(blob instanceof Blob) || !blob.size) throw Object.assign(new Error('invalid_request'), { code: 'invalid_request' });
+    if (blob.size > 50 * 1024 * 1024) throw Object.assign(new Error('too_large'), { code: 'too_large' });
+    const id = `${A.P.circle().id}/private/${S.me}/${U.rid(24)}.pdf`;
+    const { error } = await sb.storage.from('books').upload(id, blob, { contentType: 'application/pdf', upsert: false, cacheControl: '31536000' });
+    if (error) {
+      const m = String(error.message || '') + ' ' + String(error.statusCode || '');
+      const code = /413|too large|exceeded the maximum/i.test(m) ? 'too_large' : /quota|storage.*limit/i.test(m) ? 'quota_or_state' : 'upstream_error';
+      throw Object.assign(new Error(error.message || code), { code });
+    }
+    return { id, sizeBytes: blob.size };
+  };
+  /* Forget cached copies on this device (U.cache has no delete). */
+  D.cacheDel = (keys) =>
+    new Promise((res) => {
+      try {
+        const ix = U.store.get('cacheIndex', {});
+        for (const k of keys) delete ix[k];
+        U.store.set('cacheIndex', ix);
+        const r = indexedDB.open('qs-books', 1);
+        r.onupgradeneeded = () => r.result.createObjectStore('blobs');
+        r.onerror = () => res();
+        r.onsuccess = () => {
+          try {
+            const t = r.result.transaction('blobs', 'readwrite');
+            for (const k of keys) t.objectStore('blobs').delete(k);
+            t.oncomplete = t.onerror = t.onabort = () => (r.result.close(), res());
+          } catch (e) {
+            res();
+          }
+        };
+      } catch (e) {
+        res();
+      }
+    });
+  /* Remove one of my private books: its files first (so nothing is left behind if that fails), then its
+     details, my progress, and my notes, bookmarks and «وقفت هنا» on it. */
+  D.deletePrivateBook = async (id) => {
+    const b = S.myBooks.get(id);
+    if (!D.isPrivate(id) || !b) return;
+    if ((b.parts || []).length && !S.assets) throw Object.assign(new Error('unavailable'), { code: 'unavailable' });
+    for (const p of b.parts || []) await S.assets.delete(p.id);
+    await D.del(D.myBookPath(id));
+    if (S.myProg.has(id)) await D.del(myProgPath(id)).catch(() => {});
+    const p = S.priv || {};
+    const hasNotes = Object.values(p.notes || {}).some((n) => n && n.b === id);
+    if (hasNotes || (p.marks && p.marks[id]) || (p.place && p.place[id]))
+      await D.privUpdate((cur) => {
+        const notes = {};
+        for (const [k, n] of Object.entries(cur.notes || {})) if (!(n && n.b === id)) notes[k] = n;
+        const marks = Object.assign({}, cur.marks);
+        const place = Object.assign({}, cur.place);
+        delete marks[id];
+        delete place[id];
+        return Object.assign(cur, { notes, marks, place });
+      }).catch(() => {});
+    await D.cacheDel(['lb:' + id, ...(b.parts || []).map((x) => 'a:' + x.id)]);
+    U.store.del('last:' + id);
+  };
 
   /* My private document (private notes, bookmarks, notes I moved or hid on my screen): fn gets a copy. */
   D.privUpdate = (fn) => D.mutate(`data/users/${S.me}/priv`, () => fn(Object.assign({}, S.priv || {})));

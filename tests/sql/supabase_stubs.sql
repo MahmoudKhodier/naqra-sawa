@@ -39,6 +39,45 @@ create extension pgcrypto with schema extensions;
 grant usage on schema extensions to postgres, anon, authenticated, service_role;
 
 -- ---------------------------------------------------------------------
+-- http extension (pgsql-http) stand-in, for public.goodreads_feed.
+-- Supabase offers the real one; here http_get answers from a table of
+-- canned responses that tests fill in (as supabase_admin):
+--   insert into extensions.http_stub (url, status, body) values (<exact URL>, 200, '<rss>…');
+--   url may also be a regular expression starting with '^' (longest one wins);
+--   status 0 = the request fails (timeout). No match = 404.
+-- Every call is logged in extensions.http_stub_log.
+-- ---------------------------------------------------------------------
+create type extensions.http_response as (status integer, content_type varchar, headers jsonb, content varchar);
+create table extensions.http_stub (url text primary key, status int not null default 200, body text);
+create table extensions.http_stub_log (n bigserial primary key, at timestamptz not null default clock_timestamp(), url text);
+create table extensions.http_stub_opts (k text primary key, v text);
+grant select on extensions.http_stub_log, extensions.http_stub_opts to public;  -- for assertions
+create function extensions.http_get(uri varchar) returns extensions.http_response
+language plpgsql security definer set search_path = '' as $$
+declare
+  r extensions.http_stub;
+begin
+  insert into extensions.http_stub_log (url) values (uri);
+  select * into r from extensions.http_stub s where s.url = uri;
+  if not found then
+    select * into r from extensions.http_stub s where s.url like '^%' and uri ~ s.url order by length(s.url) desc limit 1;
+  end if;
+  if not found then
+    return row(404, 'text/plain', null, 'not found')::extensions.http_response;
+  end if;
+  if r.status = 0 then
+    raise exception 'Operation timed out after 6500 milliseconds';
+  end if;
+  return row(r.status, 'application/rss+xml; charset=utf-8', null, r.body)::extensions.http_response;
+end $$;
+create function extensions.http_set_curlopt(curlopt varchar, value varchar) returns boolean
+language plpgsql security definer set search_path = '' as $$
+begin
+  insert into extensions.http_stub_opts values (curlopt, value) on conflict (k) do update set v = excluded.v;
+  return true;
+end $$;
+
+-- ---------------------------------------------------------------------
 -- auth
 -- ---------------------------------------------------------------------
 create schema auth authorization supabase_auth_admin;

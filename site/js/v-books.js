@@ -527,15 +527,19 @@
   };
 
   /* ---------- add a book (upload, split, plan) ---------- */
-  V.addBook = (pre = {}) => {
+  /* One path for both: a circle book (uploaded for everyone, then a reading plan), or a private one
+     («مكتبتي الخاصة»: uploaded to my own folder, details in my private tree, no plan). */
+  V.addBook = (pre = {}) => bookUploader(pre, false);
+  V.addPrivateBook = (pre = {}) => bookUploader(pre, true);
+  function bookUploader(pre, priv) {
     let file = null, info = null;
-    const canUpload = !!S.assets;
+    const canUpload = priv ? !!(S.assets && D.canUploadPrivate()) : !!S.assets;
     const api = V.sheet({
-      title: L('ضيف كتاب للحلقة', 'Add a book to the circle', 'أضف كتابًا إلى الحلقة'),
+      title: priv ? `${icon('lock')} ${L('ارفع كتاب ليك لوحدك', 'Add a book just for you', 'ارفع كتابًا لك وحدك')}` : L('ضيف كتاب للحلقة', 'Add a book to the circle', 'أضف كتابًا إلى الحلقة'),
       wide: true,
       html: `<div id="ab-step">${pickHtml()}</div>`,
       onMount: (body) => {
-        if (S.assets && S.assets.list)
+        if (!priv && S.assets && S.assets.list)
           S.assets.list().then((r) => {
             const u = r && r.usage;
             const el = body.querySelector('#ab-usage');
@@ -574,7 +578,7 @@
     function pickHtml() {
       return `<label class="drop" for="ab-file">${icon('upload')}<b>${L('اختار ملف PDF', 'Choose a PDF file', 'اختر ملف PDF')}</b><span>${L('أو اسحبه هنا', 'or drop it here')}</span><input type="file" id="ab-file" accept="application/pdf,.pdf" hidden></label>
         <ul class="hints">
-          <li>${icon('info')}${canUpload ? L('الكتاب هيترفع للحلقة وأي حد فيها يقدر يفتحه أو يحمّله.', 'The file is uploaded so everyone in the circle can read or download it.', 'سيُرفع الكتاب إلى الحلقة، ويستطيع أي عضو فيها فتحه أو تحميله.') : L('الرفع مش متاح دلوقتي. تقدر تضيف الكتاب وكل واحد يفتح نسخته من جهازه.', 'Uploading is unavailable right now. You can still add the book and everyone opens their own copy.', 'الرفع غير متاح الآن. يمكنك إضافة الكتاب، ويفتح كل عضو نسخته من جهازه.')}</li>
+          ${priv ? `<li>${icon('lock')}${canUpload ? privacyNote() : L('الرفع مش متاح دلوقتي. الكتاب هيتحفظ على الجهاز ده بس، ومحدش غيرك هيشوفه.', 'Uploading is unavailable right now. The book will be kept on this device only, and nobody else will see it.', 'الرفع غير متاح الآن. سيُحفظ الكتاب على هذا الجهاز فقط، ولن يراه أحد غيرك.')}</li>` : `<li>${icon('info')}${canUpload ? L('الكتاب هيترفع للحلقة وأي حد فيها يقدر يفتحه أو يحمّله.', 'The file is uploaded so everyone in the circle can read or download it.', 'سيُرفع الكتاب إلى الحلقة، ويستطيع أي عضو فيها فتحه أو تحميله.') : L('الرفع مش متاح دلوقتي. تقدر تضيف الكتاب وكل واحد يفتح نسخته من جهازه.', 'Uploading is unavailable right now. You can still add the book and everyone opens their own copy.', 'الرفع غير متاح الآن. يمكنك إضافة الكتاب، ويفتح كل عضو نسخته من جهازه.')}</li>`}
           <li>${icon('layers')}${L('الملفات الأكبر من ٢٠ ميجا بتتقسّم أجزاء لوحدها. الكتب الكبيرة جدًا ارفعها من كمبيوتر.', 'Files over 20 MB are split into parts automatically. Upload very large books from a computer.', 'الملفات الأكبر من ٢٠ ميغابايت تُقسَّم إلى أجزاء تلقائيًا. ارفع الكتب الكبيرة جدًا من حاسوب.')}</li>
           <li class="usage" id="ab-usage"></li>
         </ul>`;
@@ -690,10 +694,11 @@
           <label for="ab-title">${L('اسم الكتاب', 'Title')}</label><input id="ab-title" required maxlength="140" dir="auto" value="${esc(info.title)}">
           <label for="ab-author">${L('المؤلف', 'Author')}</label><input id="ab-author" maxlength="100" dir="auto" value="${esc(info.author)}">
           <label for="ab-lang">${L('اتجاه الكتاب', 'Book direction')}</label><select id="ab-lang"><option value="ar" ${ar ? 'selected' : ''}>${L('عربي (يمين لشمال)', 'Arabic (right to left)', 'عربي (من اليمين إلى اليسار)')}</option><option value="en" ${ar ? '' : 'selected'}>${L('إنجليزي (شمال ليمين)', 'English (left to right)', 'إنجليزي (من اليسار إلى اليمين)')}</option></select>
-          <span class="lbl">${L('هنبدأه إمتى؟', 'When do we start?', 'متى نبدؤه؟')}</span>
+          ${priv ? `<p class="my-note">${icon('lock')}<span>${canUpload ? privacyNote() : L('هيتحفظ على الجهاز ده بس.', 'It will be kept on this device only.', 'سيُحفظ على هذا الجهاز فقط.')}</span></p>
+          <div class="row-btns end"><button class="btn gold big">${icon('lock')}${L('ضيفه ليا أنا بس', 'Add it just for me', 'أضفه لي وحدي')}</button></div>` : `<span class="lbl">${L('هنبدأه إمتى؟', 'When do we start?', 'متى نبدؤه؟')}</span>
           <div class="seg-pick"><label class="sp on"><input type="radio" name="ab-status" value="reading" checked>${icon('play', 'flip-rtl')}<span>${L('دلوقتي', 'Now', 'الآن')}</span></label><label class="sp"><input type="radio" name="ab-status" value="planned">${icon('calendar')}<span>${L('بعدين', 'Later', 'لاحقًا')}</span></label></div>
           <label class="check"><input type="checkbox" id="ab-upload" ${canUpload ? 'checked' : 'disabled'}><span>${L('ارفع الملف للحلقة (أحسن)', 'Upload the file to the circle (recommended)', 'ارفع الملف إلى الحلقة (مستحسن)')}</span></label>
-          <div class="row-btns end"><button class="btn gold big">${icon('check')}${L('ضيف الكتاب', 'Add the book', 'أضف الكتاب')}</button></div>
+          <div class="row-btns end"><button class="btn gold big">${icon('check')}${L('ضيف الكتاب', 'Add the book', 'أضف الكتاب')}</button></div>`}
         </div></form>`;
     }
     async function save() {
@@ -703,8 +708,8 @@
       const author = f.querySelector('#ab-author').value.trim();
       const lang = f.querySelector('#ab-lang').value;
       const status = (f.querySelector('input[name=ab-status]:checked') || {}).value || 'reading';
-      const upload = canUpload && f.querySelector('#ab-upload').checked;
-      const id = U.rid(10);
+      const upload = canUpload && (priv || f.querySelector('#ab-upload').checked);
+      const id = (priv ? 'my-' : '') + U.rid(10);
       let parts = [];
       try {
         if (upload) parts = await uploadParts();
@@ -713,7 +718,8 @@
         console.warn(e);
         const code = e && e.code;
         const msg =
-          code === 'quota_or_state' ? L('مساحة الحلقة خلصت. امسحوا كتاب قديم أو ضيف الكتاب من غير رفع.', 'The circle is out of storage. Remove an old book or add this one without uploading.', 'نفدت مساحة الحلقة. احذفوا كتابًا قديمًا أو أضف الكتاب دون رفع.')
+          code === 'quota_or_state' && priv ? L('المساحة خلصت. امسح كتاب قديم من كتبك وجرّب تاني.', 'Out of storage. Delete an old book of yours and try again.', 'نفدت المساحة. احذف كتابًا قديمًا من كتبك وحاول مرة أخرى.')
+          : code === 'quota_or_state' ? L('مساحة الحلقة خلصت. امسحوا كتاب قديم أو ضيف الكتاب من غير رفع.', 'The circle is out of storage. Remove an old book or add this one without uploading.', 'نفدت مساحة الحلقة. احذفوا كتابًا قديمًا أو أضف الكتاب دون رفع.')
             : code === 'too_large' ? L('صفحة واحدة في الملف أكبر من ٢٠ ميجا. صغّر الملف وجرّب تاني.', 'A single page is over 20 MB. Compress the PDF and try again.', 'إحدى صفحات الملف أكبر من ٢٠ ميغابايت. صغّر حجم الملف وحاول مرة أخرى.')
               : code === 'rate_limited' ? L('رفعنا كتير ورا بعض. استنى دقيقة وجرّب تاني.', 'Too many uploads at once. Wait a minute and try again.', 'عمليات رفع كثيرة متتالية. انتظر دقيقة وحاول مرة أخرى.')
                 : code === 'split' ? L('مقدرتش أقسّم الملف ده. صغّره لأقل من ٢٠ ميجا (مثلا بأداة ضغط PDF) أو ضيفه من غير رفع.', "Couldn't split this file. Compress it under 20 MB or add it without uploading.", 'تعذّر تقسيم هذا الملف. صغّره إلى أقل من ٢٠ ميغابايت (بأداة ضغط PDF مثلًا) أو أضفه دون رفع.')
@@ -722,6 +728,24 @@
         return;
       }
       progress(L('بنحفظ الكتاب…', 'Saving the book…', 'نحفظ الكتاب…'), 1);
+      if (priv) {
+        const mine = { title, author, lang, pages: info.N, size: info.size, parts, bytes: info.buf.byteLength, cover: info.cover || null, addedAt: U.nowIso(), fp: info.fp || '' };
+        if (info.sizes) mine.sizes = info.sizes;
+        if (info.toc && info.toc.length) mine.toc = info.toc;
+        try {
+          await D.set(D.myBookPath(id), mine);
+        } catch (e) {
+          for (const p of parts) S.assets.delete(p.id).catch(() => {}); // nothing left behind
+          step(`${formHtml()}<p class="err-t">${L('ماتحفظش. اتأكد من النت وجرّب تاني.', 'Not saved. Check your connection and try again.', 'لم يُحفظ. تأكد من اتصالك وحاول مرة أخرى.')}</p>`);
+          return;
+        }
+        api.close();
+        U.chime('ok');
+        U.toast(`${icon('lock')} ${L('الكتاب اتضاف ليك لوحدك', 'Added — only you can see it', 'أُضيف الكتاب لك وحدك')}`);
+        if (V.state.route !== 'shelf') V.go('shelf');
+        setTimeout(() => A.R.open(id), 300);
+        return;
+      }
       const doc = { title, author, lang, pages: info.N, size: info.size, parts, bytes: info.buf.byteLength, cover: info.cover || null, addedBy: S.me, addedAt: U.nowIso(), status, wirds: [], fp: info.fp || '' };
       if (info.sizes) doc.sizes = info.sizes;
       if (info.toc && info.toc.length) doc.toc = info.toc;
@@ -736,7 +760,8 @@
       const buf = info.buf;
       const one = async (bytes, from, to, label) => {
         progress(L('برفع الكتاب…', 'Uploading…', 'أرفع الكتاب…'), 0.5, label);
-        const res = await S.assets.upload(new Blob([bytes], { type: 'application/pdf' }), { type: 'application/pdf' });
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        const res = priv ? await D.uploadPrivate(blob) : await S.assets.upload(blob, { type: 'application/pdf' });
         await U.cache.put('a:' + res.id, bytes instanceof ArrayBuffer ? bytes : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
         return { id: res.id, from, to, bytes: res.sizeBytes || bytes.byteLength };
       };
@@ -781,7 +806,7 @@
       }
       return parts;
     }
-  };
+  }
 
   /* ---------- reading plan wizard ---------- */
   V.planWizard = (id) => {
@@ -888,7 +913,7 @@
 
   /* ---------- download ---------- */
   V.download = async (id) => {
-    const b = S.books.get(id);
+    const b = D.book(id);
     if (!b) return;
     if (!S.downloads) return U.toast(L('التحميل مش متاح في العرض ده', 'Downloads are not available in this view', 'التحميل غير متاح في هذا العرض'), 'warn');
     const parts = b.parts || [];
@@ -957,6 +982,136 @@
             }
           }
         }),
+    });
+  };
+
+  /* ---------- «مكتبتي الخاصة»: books I read on my own ---------- */
+  function privacyNote() {
+    return L('الكتاب ده ليك لوحدك: محدش في الحلقة يقدر يشوفه أو يفتح ملفه، ولا يشوف ملاحظاتك عليه ولا إنك بتقرأه. الصفحات بتتحسب في يومك وسلسلتك والـXP.', 'This book is only yours: nobody in the circle can see it, open its file, see your notes on it or that you are reading it. Its pages still count for your day, your streak and XP.', 'هذا الكتاب لك وحدك: لا يستطيع أحد في الحلقة رؤيته أو فتح ملفه، ولا رؤية ملاحظاتك عليه ولا أنك تقرؤه. وتُحسب صفحاته في يومك وسلسلتك ونقاطك.');
+  }
+  V.myBooks = () => [...S.myBooks.values()].sort((a, b) => String((D.prog(b.id) || {}).updatedAt || b.addedAt).localeCompare(String((D.prog(a.id) || {}).updatedAt || a.addedAt)));
+
+  V.addSection('shelf', {
+    order: 10,
+    render: (ctx) => {
+      if (!ctx.mine) return '';
+      const list = V.myBooks();
+      const add = D.canWrite() ? `<button class="btn ghost sm" data-act="my-add">${icon('upload')}${L('ارفع كتاب ليا أنا بس', 'Add a book just for me', 'ارفع كتابًا لي وحدي')}</button>` : '';
+      return `<section class="card mylib" id="mylib">
+        <header><div><h2>${icon('lock')}${L('كتب بقراها لوحدي', 'Books I read on my own', 'كتب أقرؤها وحدي')} ${list.length ? `<small class="muted">${L.num(list.length)}</small>` : ''}</h2>
+          <p class="muted sm">${L('ليك أنت بس — محدش في الحلقة بيشوفها ولا بيشوف ملاحظاتك عليها. صفحاتها بتتحسب في يومك وسلسلتك.', 'Only you see these — nobody in the circle sees them or your notes on them. Their pages count for your day and streak.', 'لك وحدك — لا يراها أحد في الحلقة ولا يرى ملاحظاتك عليها. وتُحسب صفحاتها في يومك وسلسلتك.')}</p></div>${list.length ? add : ''}</header>
+        ${list.length ? `<ul class="my-list">${list.map(myRow).join('')}</ul>` : `<div class="my-empty"><p class="muted sm">${L('عندك PDF عايز تقراه لنفسك؟ ارفعه هنا واقراه في نفس القارئ.', 'Have a PDF you want to read for yourself? Add it here and read it in the same reader.', 'لديك ملف PDF تريد قراءته لنفسك؟ ارفعه هنا واقرأه في القارئ نفسه.')}</p>${add}</div>`}
+      </section>`;
+    },
+  });
+  function myRow(b) {
+    const pct = bookPct(b);
+    const p = D.prog(b.id);
+    const last = (p && p.last) || 1;
+    const done = !!(p && p.finished);
+    return `<li class="my-it" data-b="${esc(b.id)}">
+      <button class="my-cv" data-act="my-read" data-b="${esc(b.id)}" aria-label="${esc(b.title)}">${V.cover(b, 'sm')}</button>
+      <span class="my-b"><b class="t-title" dir="auto">${esc(b.title)}</b>${b.author ? `<small dir="auto">${esc(b.author)}</small>` : ''}
+        <span class="rc-p">${V.bar(pct, pct >= 1 || done ? 'jade' : 'lapis')}<small>${done ? L('خلّصته ✓', 'Finished ✓', 'أنهيته ✓') : `${L.num(Math.round(pct * 100))}${L.isAr() ? '٪' : '%'}`}</small></span></span>
+      <span class="my-acts"><button class="btn sm" data-act="my-read" data-b="${esc(b.id)}">${icon('play', 'flip-rtl')}${last > 1 && !done ? L('كمّل', 'Continue', 'تابِع') : done ? L('افتح', 'Open', 'افتح') : L('ابدأ', 'Start', 'ابدأ')}</button>
+        <button class="ib sm" data-act="my-menu" data-b="${esc(b.id)}" aria-label="${L('اختيارات', 'Options', 'خيارات')}">${icon('more')}</button></span>
+    </li>`;
+  }
+  V.addMenu('shelf', () => (D.canWrite() ? { ic: 'lock', t: L('ارفع كتاب ليا أنا بس', 'Add a book just for me', 'ارفع كتابًا لي وحدي'), fn: () => V.addPrivateBook() } : null));
+  V.actions['my-add'] = () => V.addPrivateBook();
+  V.actions['my-read'] = (a) => A.R.open(a.dataset.b);
+  V.actions['my-menu'] = (a) => {
+    const b = S.myBooks.get(a.dataset.b);
+    if (!b) return;
+    const p = D.prog(b.id);
+    const items = [{ ic: 'play', t: L('افتح الكتاب', 'Open the book'), fn: () => A.R.open(b.id) }];
+    if (D.canWrite()) {
+      items.push({ ic: 'edit', t: L('غيّر الاسم', 'Rename', 'غيّر الاسم'), fn: () => V.renamePrivate(b.id) });
+      if (p && p.finished) items.push({ ic: 'books', t: L('حطه على رفّي كـ«قرأته»', 'Put it on my shelf as read', 'ضعه على رفّي كـ«قرأته»'), fn: () => V.shelvePrivate(b.id) });
+    }
+    if ((b.parts || []).length) items.push({ ic: 'download', t: L('حمّل الكتاب', 'Download the book'), fn: () => V.download(b.id) });
+    if (D.canWrite()) items.push({ ic: 'trash', danger: true, t: L('امسح الكتاب', 'Delete the book', 'احذف الكتاب'), fn: () => V.deletePrivate(b.id) });
+    V.menu(items);
+  };
+
+  V.renamePrivate = (id) => {
+    const b = S.myBooks.get(id);
+    if (!b) return;
+    V.sheet({
+      title: L('اسم الكتاب', 'Book title', 'عنوان الكتاب'),
+      html: `<form class="form" id="mr-form">
+        <label for="mr-title">${L('اسم الكتاب', 'Title')}</label><input id="mr-title" required maxlength="140" dir="auto" enterkeyhint="done" value="${esc(b.title)}">
+        <label for="mr-author">${L('المؤلف', 'Author')}</label><input id="mr-author" maxlength="100" dir="auto" enterkeyhint="done" value="${esc(b.author || '')}">
+        <p class="err-t" id="mr-err" hidden></p>
+        <div class="row-btns end"><button class="btn gold">${icon('check')}${L('احفظ', 'Save')}</button></div></form>`,
+      onMount: (body, api) => {
+        const f = body.querySelector('#mr-form');
+        f.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const patch = { title: f.querySelector('#mr-title').value.replace(/\s+/g, ' ').trim() || b.title, author: f.querySelector('#mr-author').value.replace(/\s+/g, ' ').trim() };
+          const btn = f.querySelector('button.btn');
+          btn.disabled = true;
+          try {
+            await D.update(D.myBookPath(id), patch);
+            api.close();
+            U.toast(L('اتحفظ ✓', 'Saved ✓', 'تم الحفظ ✓'));
+          } catch (x) {
+            btn.disabled = false;
+            const err = f.querySelector('#mr-err');
+            err.textContent = L('ماتحفظش. اتأكد من النت وجرّب تاني.', 'Not saved. Check your connection and try again.', 'لم يُحفظ. تأكد من اتصالك وحاول مرة أخرى.');
+            err.hidden = false;
+          }
+        });
+      },
+    });
+  };
+
+  V.deletePrivate = async (id) => {
+    const b = S.myBooks.get(id);
+    if (!b) return;
+    if (!(await V.confirm(L(`هتمسح «${esc(b.title)}» وملفه وملاحظاتك عليه. الصفحات اللي قريتها بتفضل محسوبة في أيامك.`, `Delete “${esc(b.title)}”, its file and your notes on it? The pages you read stay counted in your days.`, `ستحذف «${esc(b.title)}» وملفه وملاحظاتك عليه. وتبقى الصفحات التي قرأتها محسوبة في أيامك.`), L('امسح', 'Delete', 'احذف'), true))) return;
+    if (A.R.isOpen() && A.R.bookId() === id) A.R.close(true);
+    try {
+      await D.deletePrivateBook(id);
+      U.toast(L('اتمسح', 'Deleted', 'تم الحذف'));
+    } catch (e) {
+      console.warn(e);
+      U.toast(L('مقدرتش أمسحه دلوقتي. اتأكد من النت وجرّب تاني.', "Couldn't delete it right now. Check your connection and try again.", 'تعذّر الحذف الآن. تأكد من اتصالك وحاول مرة أخرى.'), 'warn');
+    }
+  };
+
+  /* Finished a private book: celebrate, and offer to put it on my (shared) shelf as read — only its title and
+     author go there, never the file or the notes. */
+  V.finishPrivate = async (id) => {
+    const b = S.myBooks.get(id);
+    if (!b || !D.canWrite()) return;
+    await D.saveProg(id, () => ({ finished: U.nowIso(), last: b.pages }));
+    U.confetti(1.2);
+    U.chime('big');
+    V.shelvePrivate(id, true);
+  };
+  V.shelvePrivate = (id, justDone) => {
+    const b = S.myBooks.get(id);
+    if (!b) return;
+    V.sheet({
+      title: justDone ? L('خلّصت الكتاب!', 'Book finished!', 'أنهيت الكتاب!') : L('حطه على رفّك', 'Put it on your shelf', 'ضعه على رفّك'),
+      cls: justDone ? 'celebrate' : '',
+      html: `<div class="celeb">${V.cover(b, 'lg' + (justDone ? ' spin-in' : ''))}<h2 dir="auto">${esc(b.title)}</h2>
+        <p>${L('تحب تحطه على رفّك كـ«قرأته»؟ هيظهر للحلقة اسم الكتاب وتقييمك بس — الملف وملاحظاتك بيفضلوا ليك لوحدك.', 'Put it on your shelf as read? The circle will see only the title and your rating — the file and your notes stay yours alone.', 'هل تضعه على رفّك كـ«قرأته»؟ سيرى أعضاء الحلقة العنوان وتقييمك فقط — ويبقى الملف وملاحظاتك لك وحدك.')}</p>
+        ${V.stars(0, true, 'mf-stars')}
+        <textarea id="mf-review" rows="3" dir="auto" maxlength="${U.MAX.review}" placeholder="${L('رأيك في سطرين (اختياري)', 'Your review (optional)')}"></textarea>
+        <div class="row-btns center"><button class="btn ghost" data-close>${L('لأ، خليه ليا', 'No, keep it to myself', 'لا، أبقِه لي')}</button><button class="btn gold" data-save autofocus>${icon('books')}${L('حطه على رفّي', 'Put it on my shelf', 'ضعه على رفّي')}</button></div></div>`,
+      onMount: (body, api) => {
+        V.bindStars(body);
+        body.addEventListener('click', async (e) => {
+          if (!e.target.closest('[data-save]')) return;
+          const rating = +body.querySelector('#mf-stars').dataset.v || 0;
+          const review = body.querySelector('#mf-review').value.trim();
+          api.close();
+          await V.saveShelfItem(null, { title: b.title, author: b.author || '', status: 'read', rating, review, finished: U.today().slice(0, 7), pages: b.pages, tags: [] });
+          D.saveProg(id, () => ({ shelved: U.nowIso() })).catch(() => {});
+        });
+      },
     });
   };
 

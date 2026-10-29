@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A Goodreads shelf feed (review/list_rss/777?shelf=#ALL#) in the shape Goodreads serves it, for tests/e2e/goodreads.js.
+     Compared with goodreads_library_export.csv, on Goodreads since the export:
+       34 Fellowship: rating 5 → 4 (the member also changed it in the app, to 3)
+       101 ثلاثية غرناطة: rating 4 → 5
+       6 Sapiens: to-read → read (May 2024, ★4)
+       8 Man's Search for Meaning: read again (Jan 2025)
+       7 A Book I Gave Up On: on did-not-finish (not in the CSV import)
+       999 Project Hail Mary: new
+       234 Dune: added by hand in the app before, without a Goodreads id -->
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+  <channel>
+    <xhtml:meta xmlns:xhtml="http://www.w3.org/1999/xhtml" name="robots" content="noindex" />
+    <title>Mahmoud's bookshelf: all</title>
+    <copyright><![CDATA[Copyright (C) 2026 Goodreads Inc. All rights reserved.]]></copyright>
+    <link><![CDATA[https://www.goodreads.com/review/list_rss/777]]></link>
+    <atom:link href="https://www.goodreads.com/review/list_rss/777" rel="self" type="application/rss+xml"/>
+    <description><![CDATA[Mahmoud's bookshelf: all]]></description>
+    <language>en-US</language>
+    <lastBuildDate>Thu, 29 Oct 2026 03:13:42 -0700</lastBuildDate>
+    <ttl>60</ttl>
+    <image>
+      <title>Mahmoud's bookshelf: all</title>
+      <link><![CDATA[https://www.goodreads.com/review/list_rss/777]]></link>
+      <width>144</width>
+      <height>41</height>
+      <url>https://s.gr-assets.com/images/layout/goodreads_logo_144.jpg</url>
+    </image>
+    <item>
+      <guid><![CDATA[https://www.goodreads.com/review/show/9000999?utm_medium=api&utm_source=rss]]></guid>
+      <pubDate><![CDATA[Sat, 14 Jun 2025 09:12:00 -0700]]></pubDate>
+      <title>Project Hail Mary</title>
+      <link><![CDATA[https://www.goodreads.com/review/show/9000999?utm_medium=api&utm_source=rss]]></link>
+      <book_id>999</book_id>
+      <book_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1597695864l/999._SY75_.jpg]]></book_image_url>
+      <book_small_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1597695864l/999._SY75_.jpg]]></book_small_image_url>
+      <book_medium_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1597695864l/999._SX98_.jpg]]></book_medium_image_url>
+      <book_large_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1597695864l/999._SY475_.jpg]]></book_large_image_url>
+      <book_description><![CDATA[A lone astronaut must save the earth from disaster.<br />]]></book_description>
+      <book id="999">
+        <num_pages>476</num_pages>
+      </book>
+      <author_name>Andy Weir</author_name>
+      <isbn>0593135202</isbn>
+      <user_name>Mahmoud</user_name>
+      <user_rating>5</user_rating>
+      <user_read_at><![CDATA[Sat, 14 Jun 2025 00:00:00 +0000]]></user_read_at>
+      <user_date_added><![CDATA[Sat, 01 Mar 2025 10:00:00 -0800]]></user_date_added>
+      <user_date_created><![CDATA[Sat, 01 Mar 2025 10:00:00 -0800]]></user_date_created>
+      <user_shelves>sci-fi, favorites</user_shelves>
+      <user_review><![CDATA[Funny &amp; clever.<br/><br/>Rocky!]]></user_review>
+      <average_rating>4.52</average_rating>
+      <book_published>2021</book_published>
+      <description><![CDATA[<a href="https://www.goodreads.com/book/show/999?utm_medium=api&amp;utm_source=rss"><img alt="Project Hail Mary" src="https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1597695864l/999._SY75_.jpg" /></a><br/>author: Andy Weir<br/>]]></description>
+    </item>
+    <item>
+      <guid><![CDATA[https://www.goodreads.com/review/show/9000006?utm_medium=api&utm_source=rss]]></guid>
+      <pubDate><![CDATA[Wed, 01 Feb 2023 10:00:00 -0800]]></pubDate>
+      <title>Sapiens: A Brief History of Humankind</title>
+      <link><![CDATA[https://www.goodreads.com/review/show/9000006?utm_medium=api&utm_source=rss]]></link>
+      <book_id>6</book_id>
+      <book_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1420585954l/6._SY75_.jpg]]></book_image_url>
+      <book_small_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1420585954l/6._SY75_.jpg]]></book_small_image_url>
+      <book_medium_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1420585954l/6._SX98_.jpg]]></book_medium_image_url>
+      <book_large_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1420585954l/6._SY475_.jpg]]></book_large_image_url>
+      <book_description><![CDATA[]]></book_description>
+      <book id="6">
+        <num_pages>464</num_pages>
+      </book>
+      <author_name>Yuval Noah Harari</author_name>
+      <isbn>0062316095</isbn>
+      <user_name>Mahmoud</user_name>
+      <user_rating>4</user_rating>
+      <user_read_at><![CDATA[Fri, 31 May 2024 23:30:00 -0700]]></user_read_at>
+      <user_date_added><![CDATA[Wed, 01 Feb 2023 10:00:00 -0800]]></user_date_added>
+      <user_date_created><![CDATA[Wed, 01 Feb 2023 10:00:00 -0800]]></user_date_created>
+      <user_shelves>read</user_shelves>
+      <user_review><![CDATA[]]></user_review>
+      <average_rating>4.39</average_rating>
+      <book_published>2011</book_published>
+      <description><![CDATA[]]></description>
+    </item>
+    <item>
+      <guid><![CDATA[https://www.goodreads.com/review/show/9000005?utm_medium=api&utm_source=rss]]></guid>
+      <pubDate><![CDATA[Thu, 05 Jan 2023 10:00:00 -0800]]></pubDate>
+      <title>Atomic Habits: An Easy &amp; Proven Way to Build Good Habits &amp; Break Bad Ones</title>
+      <link><![CDATA[https://www.goodreads.com/review/show/9000005?utm_medium=api&utm_source=rss]]></link>
+      <book_id>5</book_id>
+      <book_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1655988385l/5._SY75_.jpg]]></book_image_url>
+      <book_small_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1655988385l/5._SY75_.jpg]]></book_small_image_url>
+      <book_medium_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1655988385l/5._SX98_.jpg]]></book_medium_image_url>
+      <book_large_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1655988385l/5._SY475_.jpg]]></book_large_image_url>
+      <book_description><![CDATA[]]></book_description>
+      <book id="5">
+        <num_pages>320</num_pages>
+      </book>
+      <author_name>James Clear</author_name>
+      <isbn>0735211299</isbn>
+      <user_name>Mahmoud</user_name>
+      <user_rating>0</user_rating>
+      <user_read_at><![CDATA[]]></user_read_at>
+      <user_date_added><![CDATA[Thu, 05 Jan 2023 10:00:00 -0800]]></user_date_added>
+      <user_date_created><![CDATA[Thu, 05 Jan 2023 10:00:00 -0800]]></user_date_created>
+      <user_shelves>currently-reading</user_shelves>
+      <user_review><![CDATA[]]></user_review>
+      <average_rating>4.37</average_rating>
+      <book_published>2018</book_published>
+      <description><![CDATA[]]></description>
+    </item>
+    <item>
+      <guid><![CDATA[https://www.goodreads.com/review/show/9000007?utm_medium=api&utm_source=rss]]></guid>
+      <pubDate><![CDATA[Wed, 01 Mar 2023 10:00:00 -0800]]></pubDate>
+      <title>A Book I Gave Up On</title>
+      <link><![CDATA[https://www.goodreads.com/review/show/9000007?utm_medium=api&utm_source=rss]]></link>
+      <book_id>7</book_id>
+      <book_image_url><![CDATA[https://s.gr-assets.com/assets/nophoto/book/111x148-bcc042a9c91a29c1d680899eff700a03.png]]></book_image_url>
+      <book_small_image_url><![CDATA[https://s.gr-assets.com/assets/nophoto/book/50x75-a91bf249278a81aabab721ef782c4a74.png]]></book_small_image_url>
+      <book_medium_image_url><![CDATA[https://s.gr-assets.com/assets/nophoto/book/111x148-bcc042a9c91a29c1d680899eff700a03.png]]></book_medium_image_url>
+      <book_large_image_url><![CDATA[https://s.gr-assets.com/assets/nophoto/book/blank133x187-4c2e3b2b0b4e1e86a6f0fbd8f1a1e5a5.png]]></book_large_image_url>
+      <book id="7">
+        <num_pages>300</num_pages>
+      </book>
+      <author_name>Some Author</author_name>
+      <isbn></isbn>
+      <user_name>Mahmoud</user_name>
+      <user_rating>2</user_rating>
+      <user_read_at></user_read_at>
+      <user_date_added><![CDATA[Wed, 01 Mar 2023 10:00:00 -0800]]></user_date_added>
+      <user_shelves>did-not-finish</user_shelves>
+      <average_rating>3.10</average_rating>
+      <book_published>2010</book_published>
+    </item>
+    <item>
+      <guid><![CDATA[https://www.goodreads.com/review/show/9000101?utm_medium=api&utm_source=rss]]></guid>
+      <pubDate><![CDATA[Sat, 02 Jul 2022 10:00:00 -0700]]></pubDate>
+      <title>ثلاثية غرناطة</title>
+      <link><![CDATA[https://www.goodreads.com/review/show/9000101?utm_medium=api&utm_source=rss]]></link>
+      <book_id>101</book_id>
+      <book_image_url><![CDATA[https://s.gr-assets.com/assets/nophoto/book/111x148-bcc042a9c91a29c1d680899eff700a03.png]]></book_image_url>
+      <book_large_image_url><![CDATA[https://s.gr-assets.com/assets/nophoto/book/111x148-bcc042a9c91a29c1d680899eff700a03.png]]></book_large_image_url>
+      <book id="101">
+        <num_pages>503</num_pages>
+      </book>
+      <author_name>رضوى عاشور</author_name>
+      <isbn><![CDATA[]]></isbn>
+      <user_name>Mahmoud</user_name>
+      <user_rating>5</user_rating>
+      <user_read_at><![CDATA[Sat, 02 Jul 2022 00:00:00 +0000]]></user_read_at>
+      <user_date_added><![CDATA[Wed, 01 Jun 2022 10:00:00 -0700]]></user_date_added>
+      <user_shelves></user_shelves>
+      <user_review><![CDATA[رواية جميلة،<br />فيها حزن كتير.]]></user_review>
+      <average_rating>4.20</average_rating>
+      <book_published>1994</book_published>
+    </item>
+    <item>
+      <guid><![CDATA[https://www.goodreads.com/review/show/9000102?utm_medium=api&utm_source=rss]]></guid>
+      <pubDate><![CDATA[Mon, 20 May 2019 10:00:00 -0700]]></pubDate>
+      <title>الأيام</title>
+      <link><![CDATA[https://www.goodreads.com/review/show/9000102?utm_medium=api&utm_source=rss]]></link>
+      <book_id>102</book_id>
+      <book_image_url><![CDATA[https://s.gr-assets.com/assets/nophoto/book/111x148-bcc042a9c91a29c1d680899eff700a03.png]]></book_image_url>
+      <book id="102">
+        <num_pages>220</num_pages>
+      </book>
+      <author_name>طه حسين</author_name>
+      <user_name>Mahmoud</user_name>
+      <user_rating>5</user_rating>
+      <user_read_at><![CDATA[Mon, 20 May 2019 00:00:00 +0000]]></user_read_at>
+      <user_shelves></user_shelves>
+      <user_review><![CDATA[]]></user_review>
+      <book_published>1929</book_published>
+    </item>
+    <item>
+      <guid><![CDATA[https://www.goodreads.com/review/show/9000034?utm_medium=api&utm_source=rss]]></guid>
+      <pubDate><![CDATA[Tue, 01 Dec 2020 10:00:00 -0800]]></pubDate>
+      <title>The Fellowship of the Ring (The Lord of the Rings, #1)</title>
+      <link><![CDATA[https://www.goodreads.com/review/show/9000034?utm_medium=api&utm_source=rss]]></link>
+      <book_id>34</book_id>
+      <book_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1298411339l/34._SY75_.jpg]]></book_image_url>
+      <book_large_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1298411339l/34._SY475_.jpg]]></book_large_image_url>
+      <book id="34">
+        <num_pages>398</num_pages>
+      </book>
+      <author_name>J.R.R. Tolkien</author_name>
+      <isbn>0618346252</isbn>
+      <user_name>Mahmoud</user_name>
+      <user_rating>4</user_rating>
+      <user_read_at><![CDATA[Sun, 14 Mar 2021 00:00:00 +0000]]></user_read_at>
+      <user_date_added><![CDATA[Tue, 01 Dec 2020 10:00:00 -0800]]></user_date_added>
+      <user_shelves>fantasy</user_shelves>
+      <user_review><![CDATA[Loved it.<br/><br/>"Not all those who wander are lost", truly &amp; deeply.]]></user_review>
+      <average_rating>4.38</average_rating>
+      <book_published>1954</book_published>
+    </item>
+    <item>
+      <guid><![CDATA[https://www.goodreads.com/review/show/9000008?utm_medium=api&utm_source=rss]]></guid>
+      <pubDate><![CDATA[Sat, 01 Aug 2020 10:00:00 -0700]]></pubDate>
+      <title>Man's Search for Meaning</title>
+      <link><![CDATA[https://www.goodreads.com/review/show/9000008?utm_medium=api&utm_source=rss]]></link>
+      <book_id>8</book_id>
+      <book_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1535419394l/8._SY75_.jpg]]></book_image_url>
+      <book id="8">
+        <num_pages>165</num_pages>
+      </book>
+      <author_name>Viktor E. Frankl</author_name>
+      <isbn>080701429X</isbn>
+      <user_name>Mahmoud</user_name>
+      <user_rating>5</user_rating>
+      <user_read_at><![CDATA[Wed, 15 Jan 2025 00:00:00 +0000]]></user_read_at>
+      <user_date_added><![CDATA[Sat, 01 Aug 2020 10:00:00 -0700]]></user_date_added>
+      <user_shelves></user_shelves>
+      <user_review><![CDATA[Short, but it stays with you.]]></user_review>
+      <book_published>1946</book_published>
+    </item>
+    <item>
+      <guid><![CDATA[https://www.goodreads.com/review/show/9000234?utm_medium=api&utm_source=rss]]></guid>
+      <pubDate><![CDATA[Mon, 10 Oct 2016 10:00:00 -0700]]></pubDate>
+      <title>Dune (Dune, #1)</title>
+      <link><![CDATA[https://www.goodreads.com/review/show/9000234?utm_medium=api&utm_source=rss]]></link>
+      <book_id>234</book_id>
+      <book_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1555447414l/234._SY75_.jpg]]></book_image_url>
+      <book_large_image_url><![CDATA[https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1555447414l/234._SY475_.jpg]]></book_large_image_url>
+      <book id="234">
+        <num_pages>412</num_pages>
+      </book>
+      <author_name>Frank Herbert</author_name>
+      <isbn>0441172717</isbn>
+      <user_name>Mahmoud</user_name>
+      <user_rating>5</user_rating>
+      <user_read_at><![CDATA[Mon, 10 Oct 2016 00:00:00 +0000]]></user_read_at>
+      <user_shelves>sci-fi</user_shelves>
+      <user_review><![CDATA[]]></user_review>
+      <book_published>1965</book_published>
+    </item>
+  </channel>
+</rss>

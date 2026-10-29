@@ -140,7 +140,7 @@
   R.bookId = () => st && st.bookId;
 
   R.open = async (bookId, opts = {}) => {
-    const book = S.books.get(bookId);
+    const book = D.book(bookId); // a circle book, or one of mine («مكتبتي الخاصة»)
     if (!book) return;
     if (st) R.close(true);
     const root = document.getElementById('reader');
@@ -163,6 +163,7 @@
       notesVer: -1, panel: null, filter: 'wird', lastTop: 0,
       pagedPref: !!prefs.paged, paged: !!prefs.paged && !((prefs.zoom || 1) > 1.01), startedAt: Date.now(), activeSecs: 0, secsPending: 0, userAt: 0, activeAt: Date.now(),
       front, browsing: false, counted: new Set(),
+      priv: D.isPrivate(bookId), // only mine: no portions, no presence, every note private
     };
     root.hidden = false;
     document.body.classList.add('reading');
@@ -829,16 +830,26 @@
       }
       const crop = rect.w ? cropOf(d.p, rect) : null;
       if (st.mode === 'pin' && e.pointerType !== 'mouse') swallowGhostClick(e.clientX, e.clientY);
-      A.V.composeNote({ bookId: st.bookId, page: d.p, rect, crop }, () => {
+      A.V.composeNote({ bookId: st.bookId, page: d.p, rect, crop, onlyMe: st.priv }, () => {
         if (d.el) d.el.remove();
         if (st && st.mode !== 'none') setMode(st.mode);
       });
+      if (st.priv) onlyMe();
     };
     st.pagesEl.addEventListener('pointerup', end);
     st.pagesEl.addEventListener('pointercancel', (e) => {
       if (drag && drag.el) drag.el.remove();
       drag = null;
     });
+  }
+  /* In a private book every note is private: pick «ليا بس» in the note sheet and take the choice away. */
+  function onlyMe() {
+    const sh = A.V.sheets[A.V.sheets.length - 1];
+    const me = sh && sh.body.querySelector('[data-vis="me"]');
+    if (!me) return; // the sheet handles ctx.onlyMe itself
+    me.click();
+    const vis = me.closest('.vis');
+    if (vis) vis.outerHTML = `<p class="rd-onlyme">${U.icon('lock')}<span>${L('الكتاب ده ليك لوحدك، فالملاحظة كمان ليك لوحدك — محدش في الحلقة هيشوفها.', 'This book is only yours, so the note is only yours too — nobody in the circle will see it.', 'هذا الكتاب لك وحدك، فالملاحظة لك وحدك أيضًا — لن يراها أحد في الحلقة.')}</span></p>`;
   }
   const r4 = (v) => Math.round(v * 10000) / 10000;
   /* After a tap opens the note sheet, the browser still sends a click to the same spot: drop that one click. */
@@ -987,7 +998,7 @@
     return `<div class="rd" data-theme="${st.theme}" data-mode="none">
       <header class="rd-top">
         <button class="ib" data-act="close" aria-label="${L('رجوع', 'Back')}">${U.icon('back', 'flip')}</button>
-        <div class="rd-title"><b dir="auto">${U.esc(b.title)}</b><span id="rd-wird"></span><span class="rd-wprog" id="rd-wprog" hidden><i></i></span></div>
+        <div class="rd-title"><b dir="auto">${st.priv ? `<span class="rd-lock" title="${L('كتاب ليك لوحدك', 'A book only you can see', 'كتاب لك وحدك')}">${U.icon('lock')}</span>` : ''}${U.esc(b.title)}</b><span id="rd-wird"></span><span class="rd-wprog" id="rd-wprog" hidden><i></i></span></div>
         <span class="rd-today" id="rd-today" title="${L('صفحات قريتها في الجلسة دي', 'Pages read this session', 'صفحات قرأتها في هذه الجلسة')}">${U.icon('scroll')}<b>+${L.num(0)}</b></span>
         <label class="rd-pg"><input id="rd-pgin" inputmode="numeric" aria-label="${L('رقم الصفحة', 'Page number')}" value="${L.num(st.cur, { useGrouping: false })}"><span>/ ${L.num(st.N, { useGrouping: false })}</span></label>
         <div class="rd-acts">
@@ -1381,7 +1392,9 @@
     el.hidden = false;
     const status = e && e.status;
     const msg =
-      e && e.code === 'noparts'
+      e && e.code === 'noparts' && st.priv
+        ? L('الكتاب ده متخزّن على الجهاز اللي ضفته منه بس. افتح نفس الملف من الجهاز ده.', 'This book is kept only on the device you added it from. Open the same file on this device.', 'هذا الكتاب محفوظ على الجهاز الذي أضفته منه فقط. افتح الملف نفسه على هذا الجهاز.')
+        : e && e.code === 'noparts'
         ? L('الكتاب ده مالوش ملف مرفوع. افتح نسختك من جهازك.', 'This book has no uploaded file. Open your own copy.', 'لا يوجد ملف مرفوع لهذا الكتاب. افتح نسختك من جهازك.')
         : status === 403 || status === 404 || status === 401
           ? L('مش قادر أجيب ملف الكتاب. يمكن اتمسح من الحلقة — جرّب تاني أو افتح نسختك من جهازك.', "Couldn't fetch the book file. It may have been removed — try again or open your own copy.", 'تعذّر جلب ملف الكتاب. ربما لم يعد موجودًا في الحلقة — حاول مجددًا أو افتح نسختك من جهازك.')
@@ -1537,7 +1550,7 @@
         R.close(true);
         R.open(id, { page: p });
       } else if (act === 'wird-done') A.V.markWird(st.bookId, t.dataset.wid);
-      else if (act === 'book-done') A.V.finishBook(st.bookId);
+      else if (act === 'book-done') (st.priv && A.V.finishPrivate ? A.V.finishPrivate : A.V.finishBook)(st.bookId);
       else if (act === 'dismiss') {
         st.dismissed = t.dataset.what === 'book' ? 'book' : (G.myCurrent(st.book) || {}).id;
         chrome();
@@ -1731,7 +1744,7 @@
         ? { ic: 'scroll', t: L('تمرير متواصل', 'Continuous scrolling'), fn: () => setPaged(false) }
         : { ic: 'book', t: L('صفحة صفحة (زي الكتاب)', 'Page by page (like a book)', 'صفحة صفحة (مثل الكتاب)'), fn: () => setPaged(true) },
       S.sample ? { ic: 'claude', t: L('اسأل Claude عن الصفحة دي', 'Ask Claude about this page', 'اسأل Claude عن هذه الصفحة'), fn: () => A.V.askPage(st.bookId, st.cur) } : null,
-      { ic: 'chat', t: L('نقاش الكتاب', 'Book discussion'), fn: () => { R.close(); A.V.go('book-' + b.id, { tab: 'talk' }); } },
+      st.priv ? null : { ic: 'chat', t: L('نقاش الكتاب', 'Book discussion'), fn: () => { R.close(); A.V.go('book-' + b.id, { tab: 'talk' }); } },
       (b.parts || []).length ? { ic: 'download', t: L('حمّل الكتاب على جهازك', 'Download the book'), fn: () => A.V.download(b.id) } : null,
       ...(() => {
         const v = R.marksPref();
@@ -1791,7 +1804,7 @@
     } catch (e) {}
     if (s0 !== st) return [];
     st.toc = list;
-    if (list.length && st.parts[0].id !== 'local' && D.canWrite()) D.update(`books/${st.bookId}`, { toc: list }).catch(() => {});
+    if (list.length && st.parts[0].id !== 'local' && D.canWrite()) D.update(st.priv ? D.myBookPath(st.bookId) : `books/${st.bookId}`, { toc: list }).catch(() => {});
     return list;
   }
   async function showToc() {
@@ -1856,7 +1869,7 @@
   /* ---------- live data ---------- */
   R.onData = () => {
     if (!st) return;
-    const nb = S.books.get(st.bookId);
+    const nb = D.book(st.bookId);
     if (!nb) return R.close();
     st.book = nb;
     if (st.notesRef !== S.notes || st.privRef !== S.priv || st.profVer !== S.profiles) {

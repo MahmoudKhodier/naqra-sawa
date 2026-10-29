@@ -8,7 +8,8 @@
  * plus an HTTP/WebSocket server that client.js (a stand-in for supabase-js
  * v2 in the browser) talks to:
  *
- *   POST /rest/v1/__query          PostgREST-like select/insert/upsert/update/delete (JSON plan)
+ *   POST /rest/v1/__query          PostgREST-like select/insert/upsert/update/delete (JSON plan);
+ *                                  a select returns at most opts.maxRows rows (default 1000, like Supabase's max-rows)
  *   POST /rest/v1/rpc/<fn>         call public.<fn>(name => value, ...)
  *   POST /auth/v1/otp              "send" an email code (logged, see /__test/otp)
  *   POST /auth/v1/verify           code 123456 → session (creates auth.users row)
@@ -525,9 +526,12 @@ async function startServer(opts = {}) {
         .join(', ')
     );
   }
+  // PostgREST's max-rows (Supabase default 1000): a select never returns more rows than this, whatever it asks for.
+  const maxRows = opts.maxRows !== undefined ? opts.maxRows : process.env.FAKE_MAX_ROWS ? +process.env.FAKE_MAX_ROWS : 1000;
   function limitSql(q) {
     let s = '';
-    const lim = q.range ? q.range[1] - q.range[0] + 1 : q.limit;
+    let lim = q.range ? q.range[1] - q.range[0] + 1 : q.limit;
+    if (maxRows && (lim == null || (Number.isInteger(lim) && lim > maxRows))) lim = maxRows;
     if (lim != null) {
       if (!Number.isInteger(lim) || lim < 0) throw pgrst(400, 'PGRST103', 'Requested range not satisfiable');
       s += ' limit ' + lim;

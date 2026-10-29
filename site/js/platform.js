@@ -180,6 +180,21 @@
   };
   const getField = (o, f) => f.split('.').reduce((x, k) => (x == null ? undefined : x[k]), o);
 
+  /* Shelf books: one row each in shelf_books (see migrations/…_shelf_books.sql). */
+  const BOOK_ID = /^[A-Za-z0-9_.~:@+-]{1,64}$/;
+  const BOOK_PAGE = 1000; // Supabase answers at most 1000 rows per request
+  const BOOK_BATCH = 500; // rows per upsert request
+  const BOOK_BATCH_CHARS = 1500000; // …and at most this much JSON
+  const BOOK_MAX_BYTES = 32000; // per-row cap in the database is 32768 (pg_column_size)
+  const noTable = (e) => !!e && (e.code === 'PGRST205' || e.code === '42P01' || (e.code === 'PGRST200' && /shelf_books/.test(e.message || '')));
+  const itemTime = (x) => (x && Date.parse(x.updatedAt || x.at)) || 0;
+  const utf8Len = (s) => (typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(s).length : unescape(encodeURIComponent(s)).length);
+  const legacyOf = (leg) => {
+    const { items, ...other } = (leg && leg.data) || {};
+    return { other, items: isObj(items) ? items : {} };
+  };
+  const rowable = (id, v) => BOOK_ID.test(id) && isObj(v);
+
   P.open = async (circle, me) => {
     const client = P.sb();
     const C = circle.id;
@@ -188,12 +203,29 @@
       docs: new Map(), // "col|id" -> {col, id, data, at}
       roles: new Map(), // uid -> role
       profiles: new Map(), // uid -> {data, at}
-      shelves: new Map(), // uid -> {data, at}
+      shelves: new Map(), // uid -> {data, at}: the shelves row (other keys, plus items an older app version wrote there)
+      books: new Map(), // uid -> Map(id -> {data, at, deleted}): shelf_books rows (tombstones too: they hide legacy items)
+      bookSince: '1970-01-01T00:00:00Z', // newest shelf_books updated_at fetched for the members in bookUsers
+      bookUsers: new Set(), // members whose rows were fully fetched up to bookSince
       circle: Object.assign({}, circle),
       since: '1970-01-01T00:00:00Z',
     };
+    const views = new Map(); // uid -> frozen shelf/<uid> view (legacy items ∪ rows), rebuilt after a change
+    let booksReady = false; // my own rows were fetched in this session (gates moving legacy items into rows)
+    let booksMissing = false; // the shelf_books table is not there yet: fall back to the one-row shelf
+    let migrating = false; // moving my legacy shelf items into rows right now
     const listeners = new Set();
     let ready = false;
+
+    /* ---------- writes are serialised per document (also the legacy shelf move) ---------- */
+    const chains = new Map();
+    const serial = (key, fn) => {
+      const prev = chains.get(key) || Promise.resolve();
+      const next = prev.catch(() => {}).then(fn);
+      chains.set(key, next);
+      next.finally(() => chains.get(key) === next && chains.delete(key)).catch(() => {});
+      return next;
+    };
 
     /* Path routing: some collections live in their own tables. */
     const route = (path) => {
@@ -220,16 +252,38 @@
         return circleView;
       }
       if (r.kind === 'profile') return st.roles.has(r.uid) && st.profiles.has(r.uid) ? st.profiles.get(r.uid).data : undefined;
-      if (r.kind === 'shelf') return st.roles.has(r.uid) && st.shelves.has(r.uid) ? st.shelves.get(r.uid).data : undefined;
+      if (r.kind === 'shelf') return st.roles.has(r.uid) ? shelfView(r.uid) : undefined;
       const d = st.docs.get(r.col + '|' + r.id);
       return d ? d.data : undefined;
     };
+    /* shelf/<uid> = the shelves row's other keys + items: legacy shelves.data.items ∪ shelf_books rows
+       (a row wins over a legacy item with the same id; a deleted row removes it). Built once per change. */
+    function shelfView(uid) {
+      if (views.has(uid)) return views.get(uid);
+      const leg = st.shelves.get(uid);
+      const rows = st.books.get(uid);
+      let v;
+      if (leg || (rows && rows.size)) {
+        const { items: li, ...other } = (leg && leg.data) || {};
+        const items = isObj(li) ? Object.assign({}, li) : {};
+        if (rows) for (const [id, b] of rows) {
+          if (b.deleted) delete items[id];
+          else items[id] = b.data;
+        }
+        v = freeze(Object.assign(other, { items }));
+      }
+      views.set(uid, v);
+      return v;
+    }
     const readCol = (col) => {
       const out = [];
       if (col === 'members') {
         for (const uid of st.roles.keys()) if (st.profiles.has(uid)) out.push([uid, st.profiles.get(uid).data]);
       } else if (col === 'shelf') {
-        for (const uid of st.roles.keys()) if (st.shelves.has(uid)) out.push([uid, st.shelves.get(uid).data]);
+        for (const uid of st.roles.keys()) {
+          const v = shelfView(uid);
+          if (v) out.push([uid, v]);
+        }
       } else {
         for (const d of st.docs.values()) if (d.col === col) out.push([d.id, d.data]);
       }
@@ -314,9 +368,45 @@
       if (!row || !row.user_id) return;
       const cur = map.get(row.user_id);
       if (cur && cur.at && row.updated_at && cur.at > row.updated_at) return;
+      if (map === st.shelves) views.delete(row.user_id);
       map.set(row.user_id, { data: freeze(row.data || {}), at: row.updated_at });
       touch(col);
     };
+    const applyShelf = (row) => {
+      applyProfile(row, st.shelves, 'shelf');
+      if (row && row.user_id === me) maybeMigrate();
+    };
+    // One shelf_books row; true if it changed something. The caller touches 'shelf'.
+    const putBook = (row) => {
+      if (!row || !row.user_id || typeof row.id !== 'string') return false;
+      let m = st.books.get(row.user_id);
+      const cur = m && m.get(row.id);
+      if (cur && cur.at && row.updated_at && cur.at >= row.updated_at) return false; // older or the same (an echo)
+      if (!m) st.books.set(row.user_id, (m = new Map()));
+      m.set(row.id, { data: row.deleted ? null : freeze(row.data || {}), at: row.updated_at || null, deleted: !!row.deleted });
+      views.delete(row.user_id);
+      return true;
+    };
+    // Live rows come one message each (an import is thousands): apply them together, a moment later.
+    // They do not move bookSince (Realtime may drop events under load); after a burst, a delta fetch
+    // a little later picks up anything missed and moves it.
+    let rtBooks = [], rtBooksT = 0, burstT = 0;
+    const queueBook = (row) => {
+      rtBooks.push(row);
+      if (!rtBooksT) rtBooksT = setTimeout(flushBooks, 80);
+    };
+    function flushBooks() {
+      rtBooksT = 0;
+      const rows = rtBooks;
+      rtBooks = [];
+      let changed = false;
+      for (const r of rows) if (st.roles.has(r.user_id) || r.user_id === me) changed = putBook(r) || changed;
+      if (changed) touch('shelf');
+      if (rows.length >= 50 && ready) {
+        clearTimeout(burstT);
+        burstT = setTimeout(() => fetchBooks().catch(() => {}), 3000);
+      }
+    }
 
     /* ---------- cache ---------- */
     let saveT = 0;
@@ -324,7 +414,10 @@
       if (!ready) return;
       clearTimeout(saveT);
       saveT = setTimeout(() => {
-        idb.put(cacheKey, { v: 1, me, since: st.since, docs: [...st.docs.values()], profiles: [...st.profiles], shelves: [...st.shelves], roles: [...st.roles], circle: st.circle });
+        idb.put(cacheKey, {
+          v: 1, me, since: st.since, docs: [...st.docs.values()], profiles: [...st.profiles], shelves: [...st.shelves], roles: [...st.roles], circle: st.circle,
+          books: [...st.books].map(([u, m]) => [u, [...m]]), bookSince: st.bookSince, bookUsers: [...st.bookUsers],
+        });
       }, 1500);
     }
     const cached = await idb.get(cacheKey);
@@ -332,6 +425,11 @@
       for (const d of cached.docs || []) st.docs.set(d.col + '|' + d.id, Object.assign(d, { data: freeze(d.data || {}) }));
       st.profiles = new Map(cached.profiles || []);
       st.shelves = new Map(cached.shelves || []);
+      if (Array.isArray(cached.books)) {
+        for (const [u, list] of cached.books) st.books.set(u, new Map(list.map(([id, b]) => [id, Object.assign(b, { data: b.data ? freeze(b.data) : null })])));
+        st.bookSince = cached.bookSince || st.bookSince;
+        st.bookUsers = new Set(cached.bookUsers || []);
+      }
       st.roles = new Map(cached.roles || []);
       st.since = cached.since || st.since;
       if (cached.circle) st.circle = Object.assign({}, cached.circle, circle);
@@ -348,11 +446,86 @@
         if (p.error) throw p.error;
         if (s.error) throw s.error;
         for (const r of p.data) applyProfile(r, st.profiles, 'members');
-        for (const r of s.data) applyProfile(r, st.shelves, 'shelf');
+        for (const r of s.data) applyShelf(r);
       }
       touch('members');
       touch('shelf');
     }
+    /* Shelf rows of every current member: only what changed since the last fetch for members we already
+       have, everything for members new to this device; pages of 1000 by (updated_at, user_id, id). */
+    let bookSync = null, bookAgain = false;
+    function fetchBooks() {
+      if (bookSync) {
+        bookAgain = true; // e.g. someone joined while a fetch runs: fetch again after it
+        return bookSync;
+      }
+      bookSync = (async () => {
+        for (const u of [...st.books.keys()]) if (!st.roles.has(u)) {
+          st.books.delete(u);
+          views.delete(u);
+        }
+        for (const u of [...st.bookUsers]) if (!st.roles.has(u)) st.bookUsers.delete(u);
+        const ids = [...st.roles.keys()];
+        const known = ids.filter((u) => st.bookUsers.has(u));
+        const fresh = ids.filter((u) => !st.bookUsers.has(u));
+        let newest = st.bookSince;
+        const pull = async (uids, from) => {
+          for (let k = 0; k < uids.length; k += 100) {
+            const part = uids.slice(k, k + 100);
+            let cursor = from, skip = 0;
+            for (let guard = 0; guard < 5000; guard++) {
+              const { data, error } = await client
+                .from('shelf_books')
+                .select('user_id, id, data, deleted, updated_at')
+                .in('user_id', part)
+                .gte('updated_at', cursor)
+                .order('updated_at', { ascending: true })
+                .order('user_id', { ascending: true })
+                .order('id', { ascending: true })
+                .range(skip, skip + BOOK_PAGE - 1);
+              if (error) throw error;
+              let changed = false;
+              for (const r of data) {
+                changed = putBook(r) || changed;
+                if (r.updated_at > newest) newest = r.updated_at;
+              }
+              if (changed) touch('shelf');
+              if (data.length < BOOK_PAGE) break;
+              const last = data[data.length - 1].updated_at;
+              // A full page on one timestamp: step through it by offset (keyset alone would not move).
+              if (last === cursor) skip += BOOK_PAGE;
+              else {
+                cursor = last;
+                skip = 0;
+              }
+            }
+          }
+        };
+        try {
+          // Re-read a small window before the newest row we have, to tolerate clock skew and slow commits.
+          if (known.length) await pull(known, new Date(new Date(st.bookSince).getTime() - 5000).toISOString());
+          if (fresh.length) await pull(fresh, '1970-01-01T00:00:00Z');
+          booksMissing = false;
+        } catch (e) {
+          if (!noTable(e)) throw e;
+          booksMissing = true; // the migration is not applied yet: shelves stay one row each, as before
+          return;
+        }
+        for (const u of fresh) st.bookUsers.add(u);
+        if (newest > st.bookSince) st.bookSince = newest;
+        if (st.roles.has(me)) booksReady = true;
+        touch('shelf');
+        maybeMigrate();
+      })().finally(() => {
+        bookSync = null;
+        if (bookAgain) {
+          bookAgain = false;
+          fetchBooks().catch(() => {});
+        }
+      });
+      return bookSync;
+    }
+    const fetchPeopleAndBooks = () => fetchPeople().then(fetchBooks);
     async function fetchCircle() {
       const { data, error } = await client.from('circles').select('id, name, settings, invite_code').eq('id', C).maybeSingle();
       if (error) throw error;
@@ -384,7 +557,7 @@
       })().finally(() => (syncing = null));
       return syncing;
     }
-    P.resync = () => Promise.all([fetchCircle(), fetchPeople(), deltaSync()]).catch((e) => console.warn('resync', e));
+    P.resync = () => Promise.all([fetchCircle(), fetchPeopleAndBooks(), deltaSync()]).catch((e) => console.warn('resync', e));
 
     /* ---------- realtime ---------- */
     let kicked = false;
@@ -409,12 +582,13 @@
           const changedMine = p.new.user_id === me && st.roles.get(me) !== p.new.role;
           st.roles.set(p.new.user_id, p.new.role);
           if (changedMine && P.onRoleChange) P.onRoleChange(p.new.role);
-          if (isNew) fetchPeople().catch(() => {});
+          if (isNew) fetchPeopleAndBooks().catch(() => {});
           touch('members');
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (p) => p.new && applyProfile(p.new, st.profiles, 'members'))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'shelves' }, (p) => p.new && applyProfile(p.new, st.shelves, 'shelf'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shelves' }, (p) => p.new && applyShelf(p.new))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shelf_books' }, (p) => p.new && p.new.user_id && queueBook(p.new))
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'circles', filter: `id=eq.${C}` }, (p) => {
         if (p.new) {
           st.circle = Object.assign({}, st.circle, p.new);
@@ -429,12 +603,15 @@
       }
     });
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && ready) deltaSync().catch(() => {});
+      if (!document.hidden && ready) {
+        deltaSync().catch(() => {});
+        fetchBooks().catch(() => {});
+      }
     });
     window.addEventListener('online', () => ready && P.resync());
 
     // First load: with a cache we show it at once and refresh in the background; without one we wait.
-    const first = Promise.all([fetchCircle(), fetchPeople(), deltaSync()]);
+    const first = Promise.all([fetchCircle(), fetchPeopleAndBooks(), deltaSync()]);
     const hasCache = !!(cached && cached.v === 1 && cached.me === me);
     if (hasCache) {
       first
@@ -453,21 +630,192 @@
     }
     ready = true;
     touch('*');
+    maybeMigrate();
 
     /* ---------- writes (optimistic, one at a time per document) ---------- */
-    const chains = new Map();
-    const serial = (key, fn) => {
-      const prev = chains.get(key) || Promise.resolve();
-      const next = prev.catch(() => {}).then(fn);
-      chains.set(key, next);
-      next.finally(() => chains.get(key) === next && chains.delete(key)).catch(() => {});
-      return next;
-    };
     const role = () => st.roles.get(me);
+
+    /* ---------- my shelf: one row per book ---------- */
+
+    /* Optimistic: rows show at once; sent in batches; a failed batch and the ones after it are put back
+       (earlier batches are saved). ups = [{id, data (frozen) | null, deleted}] */
+    async function pushRows(ups) {
+      if (!ups.length) return;
+      let m = st.books.get(me);
+      if (!m) st.books.set(me, (m = new Map()));
+      const prev = new Map(ups.map((u) => [u.id, m.get(u.id)]));
+      for (const u of ups) {
+        const p = prev.get(u.id);
+        m.set(u.id, { data: u.deleted ? null : u.data, at: p ? p.at : null, deleted: u.deleted });
+      }
+      views.delete(me);
+      touch('shelf');
+      const batches = [];
+      let cur = [], chars = 0;
+      for (const u of ups) {
+        const row = { user_id: me, id: u.id, data: u.deleted ? {} : u.data, deleted: u.deleted };
+        const n = u.deleted ? 80 : JSON.stringify(row).length;
+        if (cur.length && (cur.length >= BOOK_BATCH || chars + n > BOOK_BATCH_CHARS)) {
+          batches.push(cur);
+          cur = [];
+          chars = 0;
+        }
+        cur.push(row);
+        chars += n;
+      }
+      if (cur.length) batches.push(cur);
+      for (let i = 0; i < batches.length; i++) {
+        const { data: back, error } = await client.from('shelf_books').upsert(batches[i], { onConflict: 'user_id,id' }).select('id, updated_at');
+        if (error) {
+          for (const b of batches.slice(i)) for (const r of b) {
+            const p = prev.get(r.id);
+            if (p) m.set(r.id, p);
+            else m.delete(r.id);
+          }
+          views.delete(me);
+          touch('shelf');
+          throw mapErr(error);
+        }
+        for (const r of back || []) {
+          const e = m.get(r.id);
+          if (e && (!e.at || e.at < r.updated_at)) e.at = r.updated_at;
+        }
+      }
+    }
+    /* The shelves row (everything but the books). With `ifAt`, only if nobody wrote it since we read it
+       (an older app version may have just written items there): then it is left alone and read again. */
+    async function saveShelfRow(data, ifAt) {
+      const prev = st.shelves.get(me);
+      views.delete(me);
+      st.shelves.set(me, { data: freeze(data), at: prev && prev.at });
+      touch('shelf');
+      const q = ifAt
+        ? client.from('shelves').update({ data }).eq('user_id', me).eq('updated_at', ifAt).select('user_id, data, updated_at')
+        : client.from('shelves').upsert({ user_id: me, data }).select('user_id, data, updated_at');
+      const { data: rows, error } = await q;
+      if (error || !rows || !rows.length) {
+        views.delete(me);
+        if (prev) st.shelves.set(me, prev);
+        else st.shelves.delete(me);
+        touch('shelf');
+        if (error) throw mapErr(error);
+        fetchPeople().catch(() => {});
+        return;
+      }
+      applyShelf(rows[0]);
+    }
+
+    async function writeShelf(body) {
+      if (booksMissing) {
+        // Not migrated yet: the whole shelf is one row, as before.
+        const data = freeze(clone(body));
+        const prev = st.shelves.get(me);
+        views.delete(me);
+        st.shelves.set(me, { data, at: prev && prev.at });
+        touch('shelf');
+        const { data: row, error } = await client.from('shelves').upsert({ user_id: me, data }).select('user_id, data, updated_at').single();
+        if (error) {
+          views.delete(me);
+          if (prev) st.shelves.set(me, prev);
+          else st.shelves.delete(me);
+          touch('shelf');
+          throw mapErr(error);
+        }
+        applyShelf(row);
+        return;
+      }
+      const leg = st.shelves.get(me);
+      const L0 = legacyOf(leg);
+      const hasItems = Object.prototype.hasOwnProperty.call(body, 'items');
+      const { items: nextItems, ...other } = body;
+      if (hasItems && !isObj(nextItems)) throw err('invalid_argument', 'items must be an object');
+      const view = shelfView(me);
+      const cur = (view && view.items) || {};
+      const rows = st.books.get(me) || new Map();
+      // Once my rows are known, legacy items are moved into rows by this write (never before: a stale
+      // legacy copy must not overwrite a newer row).
+      const migrate = booksReady;
+      const ups = [];
+      const keepLegacy = {}; // items that cannot be rows (odd ids) stay in shelves.data.items
+      if (!migrate) for (const id of Object.keys(L0.items)) if (rowable(id, L0.items[id])) keepLegacy[id] = L0.items[id];
+      if (hasItems) {
+        for (const id of Object.keys(nextItems)) {
+          const v = nextItems[id];
+          if (!rowable(id, v)) {
+            keepLegacy[id] = v;
+            continue;
+          }
+          const c = cur[id];
+          const live = rows.get(id);
+          const legacyOnly = !(live && !live.deleted) && Object.prototype.hasOwnProperty.call(L0.items, id);
+          const same = c !== undefined && (v === c || JSON.stringify(v) === JSON.stringify(c));
+          if (same && !(migrate && legacyOnly)) continue;
+          const data = same ? c : freeze(clone(v));
+          if (utf8Len(JSON.stringify(data)) > BOOK_MAX_BYTES) {
+            if (!same) throw err('too_large', 'a shelf item is too large');
+            keepLegacy[id] = v; // an old oversized item: it stays where it is
+            continue;
+          }
+          ups.push({ id, data, deleted: false });
+        }
+        for (const id of Object.keys(cur)) if (!Object.prototype.hasOwnProperty.call(nextItems, id) && BOOK_ID.test(id)) ups.push({ id, data: null, deleted: true });
+      } else for (const id of Object.keys(L0.items)) if (!rowable(id, L0.items[id])) keepLegacy[id] = L0.items[id];
+      await pushRows(ups);
+      const data = Object.assign({}, other, Object.keys(keepLegacy).length ? { items: keepLegacy } : {});
+      const otherChanged = JSON.stringify(other) !== JSON.stringify(L0.other);
+      const legacyChanged = JSON.stringify(keepLegacy) !== JSON.stringify(L0.items);
+      if (!otherChanged && !legacyChanged) return;
+      if (!leg && !Object.keys(data).length) return;
+      await saveShelfRow(data, !otherChanged && leg && leg.at ? leg.at : null);
+    }
+
+    /* Move my legacy shelves.data.items into rows. Repeatable: an older app version on another phone may
+       write items there again; the newer copy of a book wins (by its updatedAt / at), a book deleted after
+       that copy was made stays deleted. Then items are cleared from the row, unless it changed meanwhile. */
+    function maybeMigrate() {
+      if (!ready || !booksReady || booksMissing || migrating) return;
+      const L0 = legacyOf(st.shelves.get(me));
+      if (!Object.keys(L0.items).some((id) => rowable(id, L0.items[id]))) return;
+      migrating = true;
+      serial('shelf/' + me, migrateLegacy)
+        .catch((e) => console.warn('shelf move', e))
+        .finally(() => (migrating = false));
+    }
+    async function migrateLegacy() {
+      const leg = st.shelves.get(me);
+      if (!leg || !leg.at || booksMissing) return;
+      const L0 = legacyOf(leg);
+      const rows = st.books.get(me) || new Map();
+      const ups = [];
+      const keep = {};
+      for (const id of Object.keys(L0.items)) {
+        const v = L0.items[id];
+        if (!rowable(id, v)) {
+          keep[id] = v;
+          continue;
+        }
+        const row = rows.get(id);
+        const take = !row ? true : row.deleted ? itemTime(v) > (Date.parse(row.at) || 0) : itemTime(v) > itemTime(row.data) && JSON.stringify(v) !== JSON.stringify(row.data);
+        if (!take) continue;
+        const data = freeze(clone(v));
+        if (utf8Len(JSON.stringify(data)) > BOOK_MAX_BYTES) {
+          keep[id] = v; // too big for a row: leave it where it is
+          continue;
+        }
+        ups.push({ id, data, deleted: false });
+      }
+      if (!ups.length && JSON.stringify(keep) === JSON.stringify(L0.items)) return;
+      await pushRows(ups);
+      await saveShelfRow(Object.assign({}, L0.other, Object.keys(keep).length ? { items: keep } : {}), leg.at);
+    }
 
     async function writeSet(path, body) {
       if (!isObj(body)) throw err('invalid_argument', 'body must be an object');
       const r = route(path);
+      if (r.kind === 'shelf') {
+        if (r.uid !== me) throw err('invalid_argument', 'not yours');
+        return writeShelf(body);
+      }
       const data = freeze(clone(body));
       if (r.kind === 'circle') {
         if (!['owner', 'admin'].includes(role())) throw err('invalid_argument', 'only owners and admins');
