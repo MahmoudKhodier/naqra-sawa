@@ -661,6 +661,30 @@ const appState = (page) =>
       await H.shot(p, '14-B-kicked');
     }, ['Buid']);
 
+    await step('A switches مصري → العربية (فصحى) → English and back; the choice survives a reload', async () => {
+      const p = pages.A;
+      await p.keyboard.press('Escape');
+      await p.click('[data-go="settings"]');
+      const state = () => p.evaluate(() => ({ lang: document.documentElement.lang, dir: document.documentElement.dir, text: document.querySelector('#app').innerText, saved: localStorage.getItem('qs:uiLang') }));
+      const eg = await state();
+      assert(eg.lang === 'ar-EG' && eg.dir === 'rtl', `default should be مصري: ${eg.lang}`);
+      await p.click('[data-act="lang"][data-l="ar"]');
+      await p.waitForFunction(() => document.documentElement.lang === 'ar');
+      const ar = await state();
+      assert(ar.dir === 'rtl' && JSON.parse(ar.saved) === 'ar', `فصحى not saved: ${ar.saved}`);
+      const changed = ar.text.split('\n').filter((l) => l.trim() && !eg.text.includes(l)).length;
+      assert(changed >= 3, `Settings barely changed in فصحى (${changed} lines)`);
+      await p.reload();
+      await p.waitForSelector('[data-go="settings"]');
+      assert((await p.evaluate(() => document.documentElement.lang)) === 'ar', 'فصحى lost on reload');
+      await p.click('[data-go="settings"]');
+      await p.click('[data-act="lang"][data-l="en"]');
+      await p.waitForFunction(() => document.documentElement.dir === 'ltr');
+      await p.click('[data-act="lang"][data-l="eg"]');
+      await p.waitForFunction(() => document.documentElement.lang === 'ar-EG');
+      return `${changed} lines differ between مصري and فصحى on Settings`;
+    }, ['circleId']);
+
     await step('A signs out: back to sign-in, session and synced cache cleared', async () => {
       const p = pages.A;
       await p.keyboard.press('Escape');
@@ -668,7 +692,7 @@ const appState = (page) =>
       await p.click('[data-auth="signout"]');
       await p.waitForSelector('#auth-mail', { timeout: 15000 });
       const left = await p.evaluate(async () => ({ keys: Object.keys(localStorage), dbs: indexedDB.databases ? (await indexedDB.databases()).map((d) => d.name) : null }));
-      const bad = left.keys.filter((k) => k === 'qs-auth' || (k.startsWith('qs:') && !/^qs:(lang|theme|sound)$/.test(k)));
+      const bad = left.keys.filter((k) => k === 'qs-auth' || (k.startsWith('qs:') && !/^qs:(lang|uiLang|uiLangAr|theme|sound)$/.test(k)));
       assert(!left.dbs || !left.dbs.includes('qs-sync'), 'IndexedDB qs-sync still there');
       assert(!bad.length, `left in localStorage: ${bad.join(', ')} (IndexedDB after sign-out: ${JSON.stringify(left.dbs)})`);
       return `remaining IndexedDB: ${JSON.stringify(left.dbs)}`;

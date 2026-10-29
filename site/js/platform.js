@@ -82,7 +82,7 @@
       await P.sb().auth.signOut();
     } catch (e) {}
     try {
-      for (const k of Object.keys(localStorage)) if ((k.startsWith('qs:') && !/^qs:(lang|theme|sound)$/.test(k)) || k === 'qs-auth') localStorage.removeItem(k);
+      for (const k of Object.keys(localStorage)) if ((k.startsWith('qs:') && !/^qs:(lang|uiLang|uiLangAr|theme|sound)$/.test(k)) || k === 'qs-auth') localStorage.removeItem(k);
     } catch (e) {}
     try {
       indexedDB.deleteDatabase('qs-sync');

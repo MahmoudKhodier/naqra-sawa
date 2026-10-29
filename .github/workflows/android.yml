@@ -167,12 +167,12 @@ jobs:
           kind=$([ "$SOURCE" = "secrets" ] && echo "release keystore" || echo "app key from the build cache")
           cert=$(cat "$RUNNER_TEMP/cert-sha256.txt" 2>/dev/null || true)
           notes="$RUNNER_TEMP/notes.md"
-          # What's new: "Whats-New: عربي || English" lines in the commit messages since the previous APK
+          # What's new: "Whats-New: مصري || English || فصحى" lines (the فصحى part is optional) in the commit messages since the previous APK
           # (the android-latest tag), added on top of the earlier builds' lines (kept for 40 lines), so the
           # app can show everything someone missed since their own build.
           prev=$(git rev-parse -q --verify "refs/tags/$tag^{commit}" || true)
           range=$([ -n "$prev" ] && echo "$prev..$GITHUB_SHA" || echo "$GITHUB_SHA~1..$GITHUB_SHA")
-          new=$(git log --format=%B "$range" | sed -n 's/^Whats-New: *//p' | awk -v b="$BUILD" -F ' [|][|] ' 'NF { gsub(/[|]/, "/", $1); gsub(/[|]/, "/", $2); print b "|" $1 "|" ($2 == "" ? $1 : $2) }')
+          new=$(git log --format=%B "$range" | sed -n 's/^Whats-New: *//p' | awk -v b="$BUILD" -F ' [|][|] ' 'NF { gsub(/[|]/, "/", $1); gsub(/[|]/, "/", $2); gsub(/[|]/, "/", $3); print b "|" $1 "|" ($2 == "" ? $1 : $2) ($3 == "" ? "" : "|" $3) }')
           old=$(gh release view "$tag" --json body -q .body 2>/dev/null | sed -n '/^<!-- whats-new/,/^-->/p' | grep -E '^[0-9]+[|]' || true)
           news=$(printf '%s\n%s\n' "$new" "$old" | grep -E '^[0-9]+[|]' | head -40 || true)
           {

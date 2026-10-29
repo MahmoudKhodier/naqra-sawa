@@ -19,7 +19,8 @@ webpush.setVapidDetails(
 
 type Sub = { endpoint: string; user_id: string; keys: { p256dh: string; auth: string }; remind_hour: number | null; tz: string | null; lang: string | null };
 
-const t = (lang: string | null, ar: string, en: string) => (lang === "en" ? en : ar);
+// lang: "eg" (مصري), "ar" (فصحى) or "en"; strings are t(lang, مصري, English, فصحى).
+const t = (lang: string | null, eg: string, en: string, ar?: string) => (lang === "en" ? en : lang === "ar" && ar ? ar : eg);
 
 async function send(sub: Sub, payload: Record<string, unknown>) {
   try {
@@ -52,10 +53,10 @@ async function remind() {
     if (prof.days && prof.days[day] > 0) continue; // already read today
     const streakAtRisk = prof.lastActive && prof.lastActive !== day;
     await send(s, {
-      title: t(s.lang, "وردك مستنيك 📖", "Your reading is waiting 📖"),
+      title: t(s.lang, "وردك مستنيك 📖", "Your reading is waiting 📖", "وردك في انتظارك 📖"),
       body: streakAtRisk
-        ? t(s.lang, "اقرأ كام صفحة النهارده عشان سلسلتك متقطعش 🔥", "Read a few pages today to keep your streak 🔥")
-        : t(s.lang, "صفحات قليلة النهارده بتقرّب الحلقة من هدفها.", "A few pages today move the circle closer to its goal."),
+        ? t(s.lang, "اقرأ كام صفحة النهارده عشان سلسلتك متقطعش 🔥", "Read a few pages today to keep your streak 🔥", "اقرأ بضع صفحات اليوم حتى لا تنقطع سلسلتك 🔥")
+        : t(s.lang, "صفحات قليلة النهارده بتقرّب الحلقة من هدفها.", "A few pages today move the circle closer to its goal.", "صفحات قليلة اليوم تقرّب الحلقة من هدفها."),
       url: "./",
       tag: "daily-reminder",
     });
@@ -75,8 +76,8 @@ async function poke(body: { circle_id: string; from?: string; data: Record<strin
   const { data: subs } = await sb.from("push_subscriptions").select("*").eq("user_id", d.to);
   for (const s of (subs ?? []) as Sub[]) {
     await send(s, d.kind === "cheer"
-      ? { title: t(s.lang, `تشجيع من ${name} 👏`, `${name} cheered you on 👏`), body: t(s.lang, "كمّل كده!", "Keep going!"), url: "./", tag: "cheer" }
-      : { title: t(s.lang, `تذكير من ${name} 👋`, `${name} nudged you 👋`), body: t(s.lang, "الحلقة مستنياك تخلّص الورد.", "The circle is waiting for you to finish the portion."), url: "./", tag: "nudge" });
+      ? { title: t(s.lang, `تشجيع من ${name} 👏`, `${name} cheered you on 👏`, `تشجيع من ${name} 👏`), body: t(s.lang, "كمّل كده!", "Keep going!", "واصل على هذا النحو!"), url: "./", tag: "cheer" }
+      : { title: t(s.lang, `تذكير من ${name} 👋`, `${name} nudged you 👋`, `تذكير من ${name} 👋`), body: t(s.lang, "الحلقة مستنياك تخلّص الورد.", "The circle is waiting for you to finish the portion.", "الحلقة في انتظارك لتُتمّ الورد."), url: "./", tag: "nudge" });
   }
   return (subs ?? []).length;
 }

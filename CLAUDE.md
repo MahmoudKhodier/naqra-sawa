@@ -36,7 +36,7 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - Supabase and most of the internet are not reachable from the cloud sandbox; test against the fakes, then verify live with the user.
 
 ## Conventions
-- Commits with user-visible changes carry `Whats-New: عربي || English` lines; `android.yml` collects them since the last APK into the release notes, and the app's update prompt shows the ones newer than the installed build. Keep them short and friendly.
-- All user-facing strings go through `L('عربي', 'English')`. Avoid gendered third-person verbs about other members (use nouns like «تشجيع من سارة»).
+- Commits with user-visible changes carry `Whats-New: مصري || English || فصحى` lines (فصحى optional); `android.yml` collects them since the last APK into the release notes, and the app's update prompt shows the ones newer than the installed build. Keep them short and friendly.
+- Three languages: مصري (default, `eg`), العربية فصحى (`ar`), English. All user-facing strings go through `L('مصري', 'English', 'فصحى')` (third optional, falls back to the first); style guide and fixed names in `docs/LANGUAGES.md`. Avoid gendered third-person verbs about other members (use nouns like «تشجيع من سارة»).
 - Never store names/emails from auth in shared docs except the user's own chosen `nick` in their profile.
 - Keep every relative path relative (the site is served from a GitHub Pages sub-path and from `https://localhost` inside the APK).
