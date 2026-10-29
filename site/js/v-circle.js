@@ -234,6 +234,7 @@
         ${V.EMOJI.map((e) => `<button type="button" class="emo-b${m.emoji === e ? ' on' : ''}" data-act="set-emoji" data-emo="${e}" role="radio" aria-checked="${m.emoji === e}" aria-label="${e}">${e}</button>`).join('')}
       </div></details>` : ''}
       <div class="set-row"><span>${icon('lang')}${L('اللغة', 'Language')}</span><div class="seg sm">${L.langs.map((l) => `<button class="${L.lang() === l ? 'on' : ''}" data-act="${L.lang() === l ? '' : 'lang'}" data-l="${l}" lang="${l === 'en' ? 'en' : 'ar'}">${L.names[l]}</button>`).join('')}</div></div>
+      ${L.isAr() ? `<div class="set-row"><span>${icon('list')}${L('الأرقام', 'Digits', 'الأرقام')}</span><div class="seg sm"><button class="${L.digits() === 'arab' ? 'on' : ''}" data-act="digits" data-d="arab" lang="ar">١٢٣</button><button class="${L.digits() === 'latn' ? 'on' : ''}" data-act="digits" data-d="latn" lang="en">123</button></div></div>` : ''}
       <div class="set-row"><span>${icon('moon')}${L('المظهر', 'Appearance')}</span><div class="seg sm">${[['system', L('تلقائي', 'Auto')], ['light', L('فاتح', 'Light')], ['dark', L('غامق', 'Dark', 'داكن')]].map(([k, t]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-t="${k}">${t}</button>`).join('')}</div></div>
       <div class="set-row"><span>${icon('calendar')}${L('التاريخ الهجري', 'Hijri date')}</span><label class="switch"><input type="checkbox" id="set-hijri" ${U.store.get('hijri', true) ? 'checked' : ''}><i></i></label></div>
       <div class="set-row"><span>${icon('sparkle')}${L('أصوات الاحتفال', 'Celebration sounds')}</span><label class="switch"><input type="checkbox" id="set-sound" ${U.store.get('sound', true) ? 'checked' : ''}><i></i></label></div>
@@ -263,6 +264,10 @@
       <div class="set-row"><span>${icon('scroll')}${L('التقليب', 'Page turning')}</span>${seg('rd-paged', paged ? 'page' : 'scroll', [['page', L('صفحة صفحة', 'Page by page', 'صفحة بصفحة')], ['scroll', L('متواصل', 'Continuous')]])}</div>
       ${A.P && A.P.native ? `<div class="set-row"><span>${icon('fit')}<span>${L('اخفي شريط الساعة وقت القراية', 'Hide the clock bar while reading', 'أخفِ شريط الساعة أثناء القراءة')}<small class="muted">${L('شريط التنقل بتاع الموبايل بيفضل ظاهر. اسحب من فوق تشوف الساعة.', "Your phone's navigation bar stays. Swipe down from the top to see the clock.", 'يبقى شريط التنقل في الهاتف ظاهرًا. اسحب من الأعلى لترى الساعة.')}</small></span></span><label class="switch"><input type="checkbox" id="set-rdfull" ${R.fullPref() ? 'checked' : ''}><i></i></label></div>` : ''}`;
   }
+  V.actions.digits = (a) => {
+    L.setDigits(a.dataset.d);
+    V.render(true);
+  };
   V.actions['set-emoji'] = async (a) => {
     const emoji = a.dataset.emo || '';
     const m = S.members.get(S.me) || {};
