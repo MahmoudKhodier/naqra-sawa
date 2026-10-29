@@ -10,12 +10,27 @@
   let lang = U.store.get('uiLang', null) || (U.store.get('lang', null) === 'en' ? 'en' : 'eg');
   if (!LANGS.includes(lang)) lang = 'eg';
 
-  const L = (eg, en, ar) => (lang === 'en' ? en : lang === 'ar' && ar != null ? ar : eg);
+  /* Digits in Arabic: ١٢٣ (default) or 123 (Settings → الأرقام). Typed digits in the texts follow too. */
+  let digits = U.store.get('digits', 'arab') === 'latn' ? 'latn' : 'arab';
+  const toLatn = (t) => (typeof t === 'string' ? t.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660)) : t);
+  const L = (eg, en, ar) => {
+    if (lang === 'en') return en;
+    const t = lang === 'ar' && ar != null ? ar : eg;
+    return digits === 'latn' ? toLatn(t) : t;
+  };
   A.L = L;
   L.langs = LANGS;
   L.names = { eg: 'مصري', ar: 'العربية', en: 'English' };
   L.lang = () => lang;
   L.isAr = () => lang !== 'en';
+  L.digits = () => digits;
+  L.setDigits = (d) => {
+    digits = d === 'latn' ? 'latn' : 'arab';
+    U.store.set('digits', digits);
+    for (const k of Object.keys(nf)) delete nf[k];
+    for (const k of Object.keys(dtf)) delete dtf[k];
+  };
+  const arLoc = () => (digits === 'latn' ? 'ar-EG-u-nu-latn' : 'ar-EG');
   L.apply = () => {
     const h = document.documentElement;
     h.lang = lang === 'eg' ? 'ar-EG' : lang;
@@ -34,7 +49,7 @@
   const nf = {};
   L.num = (n, opts) => {
     const key = lang + JSON.stringify(opts || {});
-    nf[key] = nf[key] || new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'ar-EG', opts);
+    nf[key] = nf[key] || new Intl.NumberFormat(lang === 'en' ? 'en-US' : arLoc(), opts);
     return nf[key].format(n || 0);
   };
 
@@ -115,7 +130,7 @@
   const dtf = {};
   const fmt = (opts) => {
     const key = lang + JSON.stringify(opts);
-    dtf[key] = dtf[key] || new Intl.DateTimeFormat(lang === 'en' ? 'en-GB' : 'ar-EG', opts);
+    dtf[key] = dtf[key] || new Intl.DateTimeFormat(lang === 'en' ? 'en-GB' : arLoc(), opts);
     return dtf[key];
   };
   L.day = (k) => (k ? fmt({ weekday: 'short', day: 'numeric', month: 'short' }).format(U.parseD(k)) : '');

@@ -19,7 +19,7 @@
   let hfmt = null;
   L.hijri = (k) => {
     try {
-      hfmt = hfmt && hfmt.lang === L.lang() ? hfmt : Object.assign(new Intl.DateTimeFormat(L.isAr() ? 'ar-SA-u-ca-islamic-umalqura-nu-arab' : 'en-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }), { lang: L.lang() });
+      hfmt = hfmt && hfmt.lang === L.lang() + L.digits() ? hfmt : Object.assign(new Intl.DateTimeFormat(L.isAr() ? 'ar-SA-u-ca-islamic-umalqura-nu-' + L.digits() : 'en-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }), { lang: L.lang() + L.digits() });
       return hfmt.format(U.parseD(k || U.today()));
     } catch (e) {
       return '';
@@ -28,7 +28,7 @@
   let hsfmt = null;
   L.hijriShort = (k) => {
     try {
-      hsfmt = hsfmt && hsfmt.lang === L.lang() ? hsfmt : Object.assign(new Intl.DateTimeFormat(L.isAr() ? 'ar-SA-u-ca-islamic-umalqura-nu-arab' : 'en-u-ca-islamic-umalqura', { day: 'numeric', month: 'long' }), { lang: L.lang() });
+      hsfmt = hsfmt && hsfmt.lang === L.lang() + L.digits() ? hsfmt : Object.assign(new Intl.DateTimeFormat(L.isAr() ? 'ar-SA-u-ca-islamic-umalqura-nu-' + L.digits() : 'en-u-ca-islamic-umalqura', { day: 'numeric', month: 'long' }), { lang: L.lang() + L.digits() });
       return hsfmt.format(U.parseD(k || U.today()));
     } catch (e) {
       return '';

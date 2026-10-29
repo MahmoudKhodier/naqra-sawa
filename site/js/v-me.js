@@ -19,8 +19,8 @@
 
   const lf = {};
   const dfmt = (opts) => {
-    const k = L.lang() + JSON.stringify(opts);
-    lf[k] = lf[k] || new Intl.DateTimeFormat(L.lang() === 'en' ? 'en-GB' : 'ar-EG', opts);
+    const k = L.lang() + L.digits() + JSON.stringify(opts);
+    lf[k] = lf[k] || new Intl.DateTimeFormat(L.lang() === 'en' ? 'en-GB' : L.digits() === 'latn' ? 'ar-EG-u-nu-latn' : 'ar-EG', opts);
     return lf[k];
   };
   const monthShort = (ym) => dfmt({ month: 'short' }).format(U.parseD(ym + '-01'));

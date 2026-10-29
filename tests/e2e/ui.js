@@ -143,6 +143,20 @@ async function touchDrag(cdp, pts, stepMs = 16) {
       assert(!(await p.$('.hud .theme-t')), 'light/dark is still in the header');
     });
 
+    await step('Digits: ١٢٣ or 123 from Settings, in numbers, dates and texts', async () => {
+      await p.click('[data-go="settings"]');
+      await p.click('[data-act="digits"][data-d="latn"]');
+      await T(300);
+      const t = await p.evaluate(() => ({ n: window.A.L.num(1234), d: window.A.L.dayShort('2026-10-30'), s: window.A.L('٣ صفحات', '3 pages'), page: document.querySelector('#screen').innerText }));
+      assert(t.n === '1,234' || t.n === '1٬234' || /^1.?234$/.test(t.n), 'number: ' + t.n);
+      assert(/30/.test(t.d) && !/[٠-٩]/.test(t.d + t.s), 'still Arabic digits: ' + t.d + ' / ' + t.s);
+      const left = (t.page.match(/[^\n]*[٠-٩][^\n]*/g) || []).filter((l) => !/١٢٣/.test(l));
+      assert(!left.length, 'Arabic digits left on Settings: ' + left.slice(0, 5).join(' | '));
+      await p.click('[data-act="digits"][data-d="arab"]');
+      await T(300);
+      assert((await p.evaluate(() => window.A.L.num(12))) === '١٢', 'back to ١٢٣');
+    });
+
     await step('Sign-out warns about reading not saved yet, and can stay', async () => {
       await p.context().route(/\/rest\/v1\//, (r) => r.abort('internetdisconnected'));
       try {
