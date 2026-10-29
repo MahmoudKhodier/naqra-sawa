@@ -353,7 +353,8 @@
          filled; Goodreads having nothing never blanks a field. Without item.gr yet: a book from the CSV import
          that was never edited counts its current values as the last word from Goodreads; any other book
          (added by hand, or edited since) only gets its empty fields filled — and is linked by grId.
-       - re-reads: a later read date (≥ 6 months after a finish both sides agreed on) keeps the old one in reads.
+       - re-reads: a new finish after the book went back to reading (or a read date ≥ 6 months later) keeps the
+         old finish in reads.
        - lists (other Goodreads shelves): shelves added on Goodreads are added, ones removed there are removed,
          the member's own lists stay. */
   Imp.mergeGoodreads = (cur, feed, opts = {}) => {
@@ -427,7 +428,9 @@
         const untouched = base && sv(f, cv) === base[f] && !(f === 'cover' && !ex.gr); // a cover is only filled before the first sync
         if (!blank(f, cv) && !untouched) continue; // the member's own value wins
         patch[f] = nv;
-        if (f === 'finished' && cv && base && base.status === 'read' && g.status === 'read' && monthNo(nv) - monthNo(cv) >= 6) {
+        // a re-read: finished again after reading it anew on Goodreads, or a read date ≥ 6 months later (not a fix)
+        const again = base && g.status === 'read' && monthNo(nv) > monthNo(cv) && (base.status !== 'read' || monthNo(nv) - monthNo(cv) >= 6);
+        if (f === 'finished' && cv && again) {
           const reads = Array.isArray(ex.reads) ? ex.reads.filter(Boolean) : [];
           if (!reads.some((r) => r.finished === cv)) {
             reads.push({ finished: cv });
@@ -649,7 +652,7 @@
             return grSay(grErrText(e.code));
           }
           if (lastRes.added || lastRes.updated) U.chime('ok');
-          U.toast(lastRes.added || lastRes.updated ? grSummary(lastRes) : L('Goodreads: كله زي ما هو', 'Goodreads: all up to date', 'Goodreads: لا جديد'));
+          U.toast(lastRes.added || lastRes.updated ? grSummary(lastRes) : L('Goodreads — كله زي ما هو', 'Goodreads — all up to date', 'Goodreads — لا جديد'));
           grShow();
         }
         body.addEventListener('change', async (e) => {

@@ -157,6 +157,47 @@ const item = (id, rest) => `<item><title>${rest.title}</title><book_id>${id}</bo
       assert(JSON.stringify(r) === JSON.stringify(want), JSON.stringify(r));
     }, ['csv']);
 
+    await step('Feed parsing is tolerant: CDATA or not, stray HTML entities, missing fields; a web page is not a feed', async () => {
+      const r = await p.evaluate(() => {
+        const f = window.A.Imp.readFeed;
+        const loose = `<rss><channel><item><title>Caf&eacute; &amp; Co&nbsp;(Series, #2)</title><author_name>A. Writer</author_name>
+          <user_review>Line one<br/>line &quot;two&quot;</user_review><user_rating>4</user_rating><user_shelves>to-read, owned</user_shelves>
+          <book id="55"><num_pages>120</num_pages></book></item><item><title><![CDATA[Bare]]></title></item></channel></rss>`;
+        return {
+          loose: f(loose),
+          html: f('<!DOCTYPE html><html><head><title>Sign in</title></head><body><form></form></body></html>'),
+          empty: f('<rss version="2.0"><channel><title>x</title></channel></rss>'),
+          junk: f('goodreads_error:http_500'),
+        };
+      });
+      const [a, b] = r.loose || [];
+      assert(a && a.title === 'Café & Co' && a.author === 'A. Writer' && a.status === 'want' && a.rating === 4 && a.pages === 120 && a.grId === '55', 'loose item: ' + JSON.stringify(a));
+      assert(a.review === 'Line one\nline "two"' && JSON.stringify(a.lists) === '["owned"]' && a.finished === '', 'loose item fields: ' + JSON.stringify(a));
+      assert(b && b.title === 'Bare' && b.status === 'read' && b.rating === 0 && !b.grId && !b.cover, 'bare item: ' + JSON.stringify(b));
+      assert(r.html === null && r.junk === null && Array.isArray(r.empty) && !r.empty.length, 'not feeds: ' + JSON.stringify([r.html, r.empty, r.junk]));
+    }, ['csv']);
+
+    await step('Re-reads: back to reading on Goodreads, then finished again, keeps the first finish; a date fix does not', async () => {
+      const r = await p.evaluate(() => {
+        const M = window.A.Imp.mergeGoodreads;
+        let n = 0;
+        const o = { id: '1', newId: () => 'n' + n++ };
+        const g = (x) => Object.assign({ title: 'Book', author: 'A B', status: 'read', rating: 0, review: '', finished: '', pages: 0, cover: '', isbn: '', grId: '9', lists: [], tags: [], src: 'goodreads' }, x);
+        let cur = { items: {} };
+        cur = M(cur, [g({ finished: '2024-01' })], o);
+        cur = M(cur, [g({ status: 'reading' })], o);
+        const mid = Object.assign({}, cur.items.n0);
+        cur = M(cur, [g({ finished: '2024-03' })], o);
+        const again = cur.items.n0;
+        let fix = M({ items: {} }, [g({ finished: '2024-01' })], o);
+        fix = M(fix, [g({ finished: '2024-02' })], o);
+        return { mid, again, fix: fix.items.n1 };
+      });
+      assert(r.mid.status === 'reading' && r.mid.finished === '2024-01', 'while re-reading: ' + JSON.stringify(r.mid));
+      assert(r.again.status === 'read' && r.again.finished === '2024-03' && JSON.stringify(r.again.reads) === '[{"finished":"2024-01"}]', 'finished again: ' + JSON.stringify(r.again));
+      assert(r.fix.finished === '2024-02' && !r.fix.reads, 'a date fixed on Goodreads is not a re-read: ' + JSON.stringify(r.fix));
+    }, ['csv']);
+
     await step('A wrong account number gives a clear message and links nothing', async () => {
       await closeSheets(p);
       await p.click('[data-act="shelf-more"]');
