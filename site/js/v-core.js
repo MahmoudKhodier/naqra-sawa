@@ -448,6 +448,43 @@
     });
   };
 
+  /* Edit one text (a message, a reply…): saves before closing; a failed save keeps the sheet open. */
+  V.editText = ({ title, value = '', max = 5000, rows = 5, onSave }) => {
+    V.sheet({
+      title,
+      html: `<form class="form" data-edit-text><textarea id="et-text" rows="${rows}" dir="auto" maxlength="${max}" autofocus>${esc(value)}</textarea>
+        <p class="err-t" hidden></p>
+        <div class="row-btns end"><button type="button" class="btn ghost" data-close>${L('إلغاء', 'Cancel')}</button><button class="btn gold">${icon('check')}${L('احفظ', 'Save')}</button></div></form>`,
+      onMount: (body, api) => {
+        const f = body.querySelector('form');
+        const ta = f.querySelector('textarea');
+        setTimeout(() => {
+          ta.focus();
+          ta.setSelectionRange(ta.value.length, ta.value.length);
+        }, 80);
+        f.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const text = ta.value.trim();
+          if (!text) return ta.focus();
+          if (text === String(value).trim()) return api.close();
+          const btn = f.querySelector('button.gold');
+          btn.disabled = true;
+          try {
+            await onSave(text);
+            api.close();
+            U.toast(L('اتعدّلت ✓', 'Updated ✓'));
+          } catch (x) {
+            btn.disabled = false;
+            const er = f.querySelector('.err-t');
+            er.textContent = L('ماتحفظش. اتأكد من النت وجرّب تاني.', 'Not saved. Check your connection and try again.');
+            er.hidden = false;
+          }
+        });
+      },
+    });
+  };
+  V.editedTag = (x) => (x && x.edited ? `<small class="edited" title="${esc(L.ago(x.edited))}">${L('معدّلة', 'edited')}</small>` : '');
+
   /* Medal colour = level: 1 bronze, 2 silver, 3 gold, 4 diamond. */
   V.badgeIcon = (b, got, size = '') => `<span class="badge8 tier${b.tier || 1} ${got ? 'got' : ''} ${size}">${icon(b.ic)}</span>`;
   const TIER = [null, ['برونزي', 'Bronze'], ['فضي', 'Silver'], ['ذهبي', 'Gold'], ['ماسي', 'Diamond']];

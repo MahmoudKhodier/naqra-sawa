@@ -286,6 +286,92 @@ const items = (p) => p.evaluate(() => Object.values((window.A.S.shelf.get(window
       assert(req.minBuild === 15 && /android-latest/.test(req.url), 'install request: ' + JSON.stringify(req));
       return 'prompt with builds 13–15, «Later» respected, installs build ≥ 15';
     }, ['joined']);
+    await step('Edit what I wrote: a note, a reply, a chat message, a suggestion, the book title and cover', async () => {
+      await p.unroute('https://api.github.com/**').catch(() => {});
+      await p.evaluate(() => {
+        window.A.P.native = false; // back to the web app for the rest
+        window.A.V.go('books');
+      });
+      await closeSheets(p);
+      await p.locator('[data-act="add-book"]:visible').first().click();
+      await p.setInputFiles('#ab-file', path.join(H.FIXTURES, 'arabic-40.pdf'));
+      await p.waitForSelector('#ab-form');
+      await p.click('#ab-form button.btn.gold');
+      await p.waitForSelector('#pl-form');
+      await p.click('#pl-form [data-preset="p10"]');
+      await T(200);
+      await p.click('#pl-form button.btn.gold');
+      await T(1000);
+      await closeSheets(p);
+      const bid = await p.evaluate(() => [...window.A.S.books.keys()][0]);
+      // a note
+      await p.evaluate((bid) => window.A.V.composeNote({ bookId: bid, page: 2, rect: { x: 0.5, y: 0.5, w: 0, h: 0 }, crop: null }), bid);
+      await p.waitForSelector('.sheet-wrap.in #nk-text');
+      await p.fill('#nk-text', 'ملاحظة أولى');
+      await p.click('.sheet-wrap.in [data-save]');
+      await until(p, 'note saved', () => [...window.A.S.notes.values()].some((n) => n.text === 'ملاحظة أولى'));
+      await until(p, 'sheet gone', () => !document.querySelector('.sheet-wrap'));
+      const nid = await p.evaluate(() => [...window.A.S.notes.values()].find((n) => n.text === 'ملاحظة أولى').id);
+      await p.evaluate((nid) => window.A.V.openNote(nid), nid);
+      await p.click('[data-editnote]');
+      await p.waitForSelector('#en-text');
+      await p.fill('#en-text', 'ملاحظة بعد التعديل');
+      await p.click('.sheet-wrap.in [data-kind="q"]');
+      await p.click('.sheet-wrap.in [data-save]');
+      await until(p, 'note edited', (nid) => { const n = window.A.S.notes.get(nid); return n.text === 'ملاحظة بعد التعديل' && n.kind === 'q' && n.edited; }, nid);
+      // a reply on it, then edit the reply
+      await until(p, 'sheet gone', () => !document.querySelector('.sheet-wrap'));
+      await p.evaluate((nid) => window.A.V.openNote(nid), nid);
+      await p.fill('[data-reply] textarea', 'رد أول');
+      await p.click('[data-reply] button');
+      await until(p, 'reply saved', (nid) => Object.values(window.A.S.notes.get(nid).replies || {}).some((r) => r.text === 'رد أول'), nid);
+      await p.click('[data-editrep]');
+      await p.waitForSelector('#et-text');
+      await p.fill('#et-text', 'رد بعد التعديل');
+      await p.click('[data-edit-text] button.gold');
+      await until(p, 'reply edited', (nid) => Object.values(window.A.S.notes.get(nid).replies || {}).some((r) => r.text === 'رد بعد التعديل' && r.edited), nid);
+      await T(400);
+      const tag = await p.evaluate(() => document.querySelectorAll('.sheet .edited').length);
+      assert(tag >= 2, '«معدّلة» labels shown: ' + tag);
+      await H.shot(p, 's07-edited-note');
+      await closeSheets(p);
+      // a chat message
+      await p.evaluate((bid) => window.A.V.go('book-' + bid, { tab: 'talk', ch: 'gen' }), bid);
+      await T(300);
+      await p.fill('textarea[id^="in-"]', 'رسالة فيها غلطة');
+      await p.click('.composer button.btn');
+      await until(p, 'message sent', () => window.A.S.msgs.some((m) => m.text === 'رسالة فيها غلطة'));
+      await T(300);
+      await p.click('.msg.mine .msg-more');
+      await p.click('.menu .mi:has-text("عدّل الرسالة")');
+      await p.waitForSelector('#et-text');
+      await p.fill('#et-text', 'رسالة من غير غلطة');
+      await p.click('[data-edit-text] button.gold');
+      await until(p, 'message edited', () => window.A.S.msgs.some((m) => m.text === 'رسالة من غير غلطة' && m.edited));
+      // a suggestion
+      await p.evaluate(() => window.A.V.propose());
+      await p.fill('#pr-title', 'كتاب مقترح');
+      await p.click('#prop-form button.btn.gold');
+      await until(p, 'suggested', () => [...window.A.S.proposals.values()].some((x) => x.title === 'كتاب مقترح'));
+      await until(p, 'sheet gone', () => !document.querySelector('.sheet-wrap'));
+      const pid = await p.evaluate(() => [...window.A.S.proposals.values()].find((x) => x.title === 'كتاب مقترح').id);
+      await p.evaluate((pid) => window.A.V.actions['prop-menu']({ dataset: { id: pid } }), pid);
+      await p.click('.menu .mi:has-text("عدّل الاقتراح")');
+      await p.waitForSelector('#prop-form');
+      await p.fill('#pr-title', 'كتاب مقترح (اسم صح)');
+      await p.fill('#pr-note', 'عشان جميل');
+      await p.click('#prop-form button.btn.gold');
+      await until(p, 'suggestion edited', (pid) => { const x = window.A.S.proposals.get(pid); return x.title === 'كتاب مقترح (اسم صح)' && x.note === 'عشان جميل'; }, pid);
+      // book cover removed + title
+      await p.evaluate((bid) => window.A.V.editBook(bid), bid);
+      await p.waitForSelector('#eb-form');
+      const hadCover = await p.evaluate((bid) => !!window.A.S.books.get(bid).cover, bid);
+      if (hadCover) await p.click('#eb-cover [data-cf-clear]');
+      await p.fill('#eb-title', 'عنوان جديد');
+      await p.click('#eb-form button.btn');
+      await until(p, 'book edited', (bid) => { const b = window.A.S.books.get(bid); return b.title === 'عنوان جديد' && !b.cover; }, bid);
+      return `note, reply, message, suggestion, book (cover ${hadCover ? 'removed' : 'none'})`;
+    }, ['joined']);
   } finally {
     console.log('\n==== console / page errors ====');
     for (const pg of pages) for (const e of pg.__errors || []) console.log('  ' + e);

@@ -112,13 +112,13 @@
 
   V.propose = (pre = {}) => {
     V.sheet({
-      title: L('اقترح كتاب للحلقة', 'Suggest a book'),
+      title: pre.editId ? L('عدّل الاقتراح', 'Edit suggestion') : L('اقترح كتاب للحلقة', 'Suggest a book'),
       html: `${A.B ? A.B.box('pr-bs') : ''}<form id="prop-form" class="form">
         ${A.B ? A.B.coverField('pr-cover', pre.cover, pre.title) : ''}
         <label for="pr-title">${L('اسم الكتاب', 'Title')}</label><input id="pr-title" required maxlength="140" dir="auto" value="${esc(pre.title || '')}" autofocus>
         <label for="pr-author">${L('المؤلف', 'Author')}</label><input id="pr-author" maxlength="100" dir="auto" value="${esc(pre.author || '')}">
-        <label for="pr-note">${L('ليه الكتاب ده؟', 'Why this book?')}</label><textarea id="pr-note" rows="3" maxlength="${U.MAX.suggest}" dir="auto"></textarea>
-        <div class="row-btns end"><button class="btn gold">${icon('vote')}${L('اقترح', 'Suggest')}</button></div></form>`,
+        <label for="pr-note">${L('ليه الكتاب ده؟', 'Why this book?')}</label><textarea id="pr-note" rows="3" maxlength="${U.MAX.suggest}" dir="auto">${esc(pre.note || '')}</textarea>
+        <div class="row-btns end"><button class="btn gold">${icon(pre.editId ? 'check' : 'vote')}${pre.editId ? L('احفظ', 'Save') : L('اقترح', 'Suggest')}</button></div></form>`,
       onMount: (body, api) => {
         if (A.B) {
           A.B.bindCover(body, 'pr-cover', () => body.querySelector('#pr-title').value);
@@ -134,6 +134,10 @@
           if (!title) return;
           const cover = A.B ? A.B.coverValue(body, 'pr-cover') : '';
           api.close();
+          if (pre.editId) {
+            await D.update(`proposals/${pre.editId}`, { title, author: body.querySelector('#pr-author').value.trim(), cover, note: body.querySelector('#pr-note').value.trim(), edited: U.nowIso() });
+            return U.toast(L('اتعدّل ✓', 'Updated ✓'));
+          }
           const id = D.newId();
           await D.set(`proposals/${id}`, { title, author: body.querySelector('#pr-author').value.trim(), cover, note: body.querySelector('#pr-note').value.trim(), by: S.me, at: U.nowIso(), votes: { [S.me]: U.nowIso() } });
           U.toast(L('الاقتراح نزل! خلّي أصحابك يصوّتوا', 'Suggested! Get your friends to vote'));
@@ -155,6 +159,7 @@
     const items = [];
     if (S.canEdit || S.isOwner)
       items.push({ ic: 'books', t: L('نبدأ الكتاب ده (ارفع الملف)', 'Start this book (upload the file)'), fn: () => V.addBook({ title: p.title, author: p.author, proposal: p.id }) });
+    if (p.by === S.me || S.canEdit || S.isOwner) items.push({ ic: 'edit', t: L('عدّل الاقتراح', 'Edit suggestion'), fn: () => V.propose(Object.assign({}, p, { editId: p.id })) });
     items.push({ ic: 'trash', danger: true, t: L('امسح الاقتراح', 'Delete suggestion'), fn: async () => (await V.confirm(L('هتمسح الاقتراح ده.', 'Delete this suggestion?'), L('امسح', 'Delete'), true)) && D.del(`proposals/${p.id}`) });
     V.menu(items);
   };
@@ -316,7 +321,7 @@
       const reacts = Object.entries(m.react || {}).map(([k, us]) => [k, Object.entries(us || {}).filter(([, v]) => v).map(([u]) => u)]).filter(([, us]) => us.length);
       return `<div class="msg${m.by === S.me ? ' mine' : ''}${cont ? ' cont' : ''}${m.kind === 'ai' ? ' ai' : ''}" data-mid="${esc(m.id)}">
         ${cont ? '<span class="av-sp"></span>' : D.avatar(m.by, 'sm')}
-        <div class="bub">${cont ? '' : `<header><b data-act="member" data-uid="${esc(m.by)}">${esc(D.name(m.by))}</b>${m.kind === 'ai' ? `<span class="kind">${icon('claude')}Claude</span>` : ''}<small>${L.ago(m.at)}</small></header>`}
+        <div class="bub">${cont ? '' : `<header><b data-act="member" data-uid="${esc(m.by)}">${esc(D.name(m.by))}</b>${m.kind === 'ai' ? `<span class="kind">${icon('claude')}Claude</span>` : ''}<small>${L.ago(m.at)}</small>${V.editedTag(m)}</header>`}
           ${re ? `<div class="re" dir="auto"><b>${esc(D.name(re.by))}</b> ${esc(String(re.text).slice(0, 90))}</div>` : ''}
           <p dir="auto">${esc(m.text)}</p>
           ${reacts.length ? `<div class="reacts">${reacts.map(([k, us]) => `<button class="rx${us.includes(S.me) ? ' on' : ''}" data-act="react" data-mid="${esc(m.id)}" data-r="${k}" title="${esc(us.map((u) => D.name(u)).join('، '))}">${REACTS[k] || ''}<span>${L.num(us.length)}</span></button>`).join('')}</div>` : ''}
@@ -381,6 +386,7 @@
     const key = `${m.b}-${m.ch || 'gen'}`.replace(/[^a-z0-9_-]/gi, '');
     const items = Object.entries(REACTS).map(([k, e]) => ({ ic: 'heart', t: `${e} ${L('تفاعل', 'React')}`, fn: () => V.actions.react({ dataset: { mid: m.id, r: k } }) }));
     items.unshift({ ic: 'chat', t: L('رد', 'Reply'), fn: () => { V.replyTo = { key, mid: m.id }; V.render(); setTimeout(() => { const t = document.getElementById('in-' + key); t && t.focus(); }, 50); } });
+    if (m.by === S.me && m.kind !== 'ai') items.push({ ic: 'edit', t: L('عدّل الرسالة', 'Edit message'), fn: () => V.editText({ title: L('عدّل رسالتك', 'Edit your message'), value: m.text, max: U.MAX.msg, onSave: (text) => D.update(`msgs/${m.id}`, { text, edited: U.nowIso() }) }) });
     if (m.by === S.me) items.push({ ic: 'trash', danger: true, t: L('امسح الرسالة', 'Delete message'), fn: async () => (await V.confirm(L('هتمسح الرسالة دي.', 'Delete this message?'), L('امسح', 'Delete'), true)) && D.del(`msgs/${m.id}`) });
     V.menu(items);
   };
@@ -470,6 +476,7 @@
     V.sheet({
       title: L('بيانات الكتاب', 'Book details'),
       html: `<form class="form" id="eb-form">
+        ${A.B ? A.B.coverField('eb-cover', b.cover, b.title) : ''}
         <label for="eb-title">${L('اسم الكتاب', 'Title')}</label><input id="eb-title" required maxlength="140" dir="auto" enterkeyhint="done" value="${esc(b.title)}">
         <label for="eb-author">${L('المؤلف', 'Author')}</label><input id="eb-author" maxlength="100" dir="auto" enterkeyhint="done" value="${esc(b.author || '')}">
         <label for="eb-lang">${L('اتجاه الكتاب', 'Book direction')}</label><select id="eb-lang"><option value="ar" ${b.lang !== 'en' ? 'selected' : ''}>${L('عربي (يمين لشمال)', 'Arabic (right to left)')}</option><option value="en" ${b.lang === 'en' ? 'selected' : ''}>${L('إنجليزي (شمال ليمين)', 'English (left to right)')}</option></select>
@@ -478,6 +485,7 @@
         <div class="row-btns end"><button class="btn gold">${icon('check')}${L('احفظ', 'Save')}</button></div></form>`,
       onMount: (body, api) => {
         const f = body.querySelector('#eb-form');
+        if (A.B) A.B.bindCover(body, 'eb-cover', () => f.querySelector('#eb-title').value);
         f.addEventListener('submit', async (e) => {
           e.preventDefault();
           // Read everything before anything closes, then close only once it is saved.
@@ -487,6 +495,7 @@
             lang: f.querySelector('#eb-lang').value,
             status: f.querySelector('#eb-status').value,
           };
+          if (A.B) patch.cover = A.B.coverValue(body, 'eb-cover') || null;
           const btn = f.querySelector('button.btn');
           const err = f.querySelector('#eb-err');
           btn.disabled = true;
