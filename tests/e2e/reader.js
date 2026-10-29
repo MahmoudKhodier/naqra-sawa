@@ -620,6 +620,39 @@ async function menu(p, text) {
       return `page ${c2}, ${ms} ms, no download`;
     }, ['open', 'cdp']);
 
+    await step('Pages read offline are kept after closing the book and saved once back online', async () => {
+      const ctxB = p.context();
+      const me = await p.evaluate(() => window.A.S.me);
+      const today = await p.evaluate(() => window.A.U.today());
+      const daysOf = async () => {
+        const r = await env.fake.sql(`select coalesce((data -> 'days' ->> $2)::int, 0) as n from public.profiles where user_id = $1`, [me, today]);
+        return r[0] ? r[0].n : 0;
+      };
+      const d0 = await daysOf();
+      await ctxB.route(/\/rest\/v1\//, (r) => r.abort('internetdisconnected'));
+      try {
+        // three pages read with no connection (as the dwell timer would add them), then the book is closed
+        await p.evaluate(() => [110, 111, 112].forEach((x) => window.A.R._state().pending.add(x)));
+        await showBars(p);
+        await p.click('.rd [data-act="close"]');
+        await until(p, 'pages wait in the outbox', () => Object.keys(localStorage).some((k) => k.startsWith('qs:outbox:') && localStorage.getItem(k).includes('110')), null, 8000);
+        for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      } finally {
+        await ctxB.unroute(/\/rest\/v1\//);
+      }
+      await p.evaluate(() => window.dispatchEvent(new Event('online')));
+      await until(p, 'outbox emptied', () => !Object.keys(localStorage).some((k) => k.startsWith('qs:outbox:') && localStorage.getItem(k) !== '[]'), null, 15000);
+      const d1 = await daysOf();
+      const bookId = await p.evaluate(() => [...window.A.S.books.keys()][0]);
+      const pr = await env.fake.sql(`select data -> 'seen' as seen from public.docs where col = 'prog' and id = $1`, [bookId + '~' + me]);
+      const seen = JSON.stringify(pr[0] && pr[0].seen);
+      assert(d1 === d0 + 3, `today's pages ${d0} → ${d1}`);
+      assert(/110/.test(seen) || /\[1\d\d,\s*112\]/.test(seen), 'pages not in progress: ' + seen);
+      await p.locator('[data-act="read"]:visible').first().click({ timeout: 8000 });
+      await until(p, 'painted', () => [...document.querySelectorAll('.pg canvas')].some((x) => x.width > 100), null, 20000);
+      return `today ${d0} → ${d1}, seen ${seen}`;
+    }, ['open', 'cdp']);
+
     await step('Table of contents: lists chapters and jumps to one', async () => {
       await showBars(p);
       await menu(p, 'الفهرس');
@@ -911,7 +944,7 @@ async function menu(p, text) {
     }, ['open']);
 
     await step('No errors in the console', async () => {
-      const errs = p.__errors.filter((e) => !/favicon|fonts|404/.test(e));
+      const errs = p.__errors.filter((e) => !/favicon|fonts|404|INTERNET_DISCONNECTED/.test(e)); // the offline step cuts the network on purpose
       assert(!errs.length, errs.slice(0, 4).join('\n'));
     }, ['p']);
   } catch (e) {

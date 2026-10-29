@@ -310,14 +310,15 @@
   /* ---------- discussions (book channels and the circle chat) ---------- */
   const REACTS = { heart: '❤️', fire: '🔥', clap: '👏', idea: '💡', laugh: '😂' };
   V.thread = (b, ch, opts = {}) => {
-    const list = S.msgs.filter((m) => m.b === b && (m.ch || 'gen') === ch);
+    const list = S.msgs.filter((m) => m.b === b && (m.ch || 'gen') === ch).slice(-400); // the newest 400 on screen
+    const byId = new Map(S.msgs.map((m) => [m.id, m]));
     setTimeout(() => V.markRead(b, ch), 0);
     let lastBy = null, lastT = '';
     const rows = list.map((m) => {
       const cont = m.by === lastBy && new Date(m.at) - new Date(lastT) < 5 * 60e3;
       lastBy = m.by;
       lastT = m.at;
-      const re = m.re ? S.msgs.find((x) => x.id === m.re) : null;
+      const re = m.re ? byId.get(m.re) : null;
       const reacts = Object.entries(m.react || {}).map(([k, us]) => [k, Object.entries(us || {}).filter(([, v]) => v).map(([u]) => u)]).filter(([, us]) => us.length);
       return `<div class="msg${m.by === S.me ? ' mine' : ''}${cont ? ' cont' : ''}${m.kind === 'ai' ? ' ai' : ''}" data-mid="${esc(m.id)}">
         ${cont ? '<span class="av-sp"></span>' : D.avatar(m.by, 'sm')}

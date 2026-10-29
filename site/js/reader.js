@@ -172,6 +172,7 @@
     bind();
     marksUi();
     geom();
+    zoomUi();
     if (!opts.page && place && place.p === start && !st.paged && place.y > 0.02) {
       // put the «وقفت هنا» line a third of the way down the screen
       st.sc.scrollTop = Math.max(0, st.tops[start] + place.y * st.hs[start] - st.sc.clientHeight * 0.3);
@@ -361,7 +362,7 @@
     return U.clamp(Math.min(st.baseW - frame * 2, (H * w0) / h0) / st.baseW, 0.15, 1);
   }
   /* The zoom «fit» returns to: the whole page in page-by-page mode, the page width otherwise. */
-  const baseZoom = () => (st.pagedPref ? st.fitZ : 1);
+  const baseZoom = () => (st.pagedPref ? st.fitZ || 1 : 1);
   const zoomRange = () => [Math.min(0.5, st.fitZ * 0.9), 4];
   const zoomText = () => L.num(Math.round((st.zoom / baseZoom()) * 100)) + (L.isAr() ? '٪' : '%');
   function placeEl(p, el) {
@@ -450,6 +451,7 @@
     st.root.querySelector('.rd').classList.toggle('paged', on);
     savePrefs();
     geom();
+    zoomUi();
     goTo(p, false);
     st.gen++;
     update();
@@ -664,7 +666,7 @@
       U.store.set('last:' + st.bookId, p);
     }
     const prog = D.prog(st.bookId);
-    if ((prog && U.rangesHas(prog.seen, p)) || st.pending.has(p)) return;
+    if ((prog && U.rangesHas(prog.seen, p)) || st.pending.has(p) || D.outboxHas(st.bookId, p)) return;
     st.pending.add(p);
     st.counted.add(p);
     st.sessionPages++;
@@ -690,16 +692,16 @@
     if (!fresh.length && !secs && prog && prog.last === cur) return;
     if (!fresh.length && !secs && Math.abs((st.lastSaved || 0) - cur) < 1) return;
     st.lastSaved = cur;
+    let progSaved = false;
     try {
       if (fresh.length || !prog || prog.last !== cur) await D.saveProg(bookId, (c) => ({ seen: U.rangesAdd(c.seen, fresh), last: cur }));
+      progSaved = true;
       if (fresh.length || secs) await D.addPagesToday(fresh.length, secs);
+      D.flushOutbox(); // and anything left from an earlier time offline
     } catch (e) {
-      // Offline or a failed save: keep the pages so the next flush retries them.
-      if (st && st.bookId === bookId) for (const p of fresh) st.pending.add(p);
-      if (st) {
-        st.lastSaved = 0;
-        st.secsPending += secs;
-      }
+      // Offline or a failed save: the pages wait on this device (also after closing the book) for the next save.
+      D.outboxAdd({ b: bookId, seen: progSaved ? [] : fresh, last: progSaved ? 0 : cur, n: fresh.length, secs });
+      if (st) st.lastSaved = 0;
     }
   }
   R.flush = flush;
@@ -760,6 +762,7 @@
   function setMode(m) {
     if (!st) return;
     st.mode = st.mode === m ? 'none' : m;
+    if (st.mode !== 'none') hideOrient(); // the sideways hint never sits over a highlight or a note
     if (st.mode !== 'none' && R.marksPref() === 'none') R.setMarks('mine', true);
     st.root.querySelector('.rd').dataset.mode = st.mode;
     const hint = st.root.querySelector('#rd-hint');
@@ -1135,7 +1138,7 @@
         <span class="rb-acts"><button class="btn sm ghost" data-act="browse-back">${U.icon('back', 'flip')}${L(`ارجع لمكانك (ص ${L.num(st.front)})`, `Back to p. ${st.front}`, `عُد إلى مكانك (ص ${L.num(st.front)})`)}</button>
         <button class="btn sm gold" data-act="browse-here">${U.icon('play', 'flip-rtl')}${L('كمّل من هنا', 'Read from here', 'تابِع من هنا')}</button></span>`;
   }
-  R._state = () => st && { front: st.front, browsing: st.browsing, cur: st.cur, place: placeOf(st.bookId) };
+  R._state = () => st && { front: st.front, browsing: st.browsing, cur: st.cur, place: placeOf(st.bookId), pending: st.pending };
 
   /* ---------- bookmarks ---------- */
   function toggleBookmark() {
@@ -1173,7 +1176,7 @@
     if (!(A.Sys && A.Sys.canOrient()) && !(screen.orientation && screen.orientation.lock)) return;
     if (U.store.get('rdOrientAsked', '') === U.today()) return; // once a day at most
     st.orientT = setTimeout(() => {
-      if (!st || isLand()) return;
+      if (!st || isLand() || st.mode !== 'none' || Date.now() - (st.userAt || 0) < 1400) return; // busy: not now
       U.store.set('rdOrientAsked', U.today());
       const el = st.root.querySelector('#rd-orient');
       el.innerHTML = `<span class="ro-t">${U.icon('swap')}<span>${L('القراية بالعرض أريح للعين', 'Reading sideways is easier on the eyes', 'القراءة بالعرض أريح للعين')}</span></span>
@@ -1433,6 +1436,7 @@
     sc.addEventListener('wheel', touched, { passive: true });
     sc.addEventListener('touchmove', touched, { passive: true });
     sc.addEventListener('pointerdown', touched, { passive: true });
+    sc.addEventListener('pointerdown', () => st && st.root.querySelector('#rd-orient.in') && hideOrient(), { passive: true });
     // Page-by-page mode: horizontal swipe turns the page in the book's direction.
     let sw = null;
     sc.addEventListener('touchstart', (e) => {

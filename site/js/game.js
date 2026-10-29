@@ -416,7 +416,7 @@
     // quest bonus + totals + streaks
     const today = U.today();
     const wk = U.weekStart(today);
-    const horizon = U.addDays(today, -120);
+    const horizon = U.addDays(today, -3660); // all of it: a bonus once earned never runs out
     for (const s of out.values()) {
       const days = new Set([...Object.keys(s.byDay), ...Object.keys(s.days)]);
       for (const day of days) {

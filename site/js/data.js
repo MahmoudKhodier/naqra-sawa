@@ -116,12 +116,14 @@
     listen(db.collection('books'), 'books', (s) => (S.books = toMap(s)));
     listen(db.collection('prog'), 'prog', (s) => (S.prog = toMap(s)));
     listen(db.collection('notes'), 'notes', (s) => (S.notes = toMap(s)));
-    listen(db.collection('msgs').orderBy('at', 'desc').limit(500), 'msgs', (s) => {
+    // Everything is synced to the device anyway; the limits only keep memory bounded. XP, streaks and badges are
+    // worked out from these, so they must hold the whole history of a circle, not just recent weeks.
+    listen(db.collection('msgs').orderBy('at', 'desc').limit(20000), 'msgs', (s) => {
       S.msgs = s.docs.map((d) => Object.assign({ id: d.id }, d.data())).reverse();
     });
     listen(db.collection('shelf'), 'shelf', (s) => (S.shelf = toMap(s)));
     listen(db.collection('proposals'), 'proposals', (s) => (S.proposals = toMap(s)));
-    listen(db.collection('pokes').orderBy('at', 'desc').limit(200), 'pokes', (s) => (S.pokes = toMap(s)));
+    listen(db.collection('pokes').orderBy('at', 'desc').limit(20000), 'pokes', (s) => (S.pokes = toMap(s)));
     listen(db.doc(`data/users/${S.me}/priv`), 'priv', (s) => (S.priv = s.exists ? s.data() : null));
   }
 
@@ -132,9 +134,11 @@
     const prev = chains.get(path) || Promise.resolve();
     const next = prev.catch(() => {}).then(fn);
     chains.set(path, next);
-    next.finally(() => {
-      if (chains.get(path) === next) chains.delete(path);
-    });
+    next
+      .finally(() => {
+        if (chains.get(path) === next) chains.delete(path);
+      })
+      .catch(() => {}); // the caller gets the error below; this copy must not be an unhandled rejection
     return next.catch((e) => {
       handleWriteError(e);
       throw e;
@@ -296,14 +300,14 @@
     });
 
   /* New pages read today, and seconds spent reading. */
-  D.addPagesToday = async (n, secs = 0) => {
+  D.addPagesToday = async (n, secs = 0, day) => {
     if ((!n && !secs) || !S.members.has(S.me) || !D.canWrite()) return;
     const path = `members/${S.me}`;
     await D.mutate(path, () => {
       const m = S.members.get(S.me);
       if (!m) return null;
-      const k = U.today();
-      const body = Object.assign({}, m, { lastActive: k });
+      const k = day || U.today(); // the day the pages were read, also when saved later
+      const body = Object.assign({}, m, { lastActive: m.lastActive && m.lastActive > k ? m.lastActive : k });
       if (n) body.days = Object.assign({}, m.days, { [k]: Math.max(0, ((m.days && m.days[k]) || 0) + n) }); // n < 0: pages un-counted
       if (secs) body.secs = Object.assign({}, m.secs, { [k]: ((m.secs && m.secs[k]) || 0) + Math.round(secs) });
       delete body.id;
@@ -323,6 +327,44 @@
       return body;
     });
   };
+
+  /* Reading that could not be saved (offline, a failed request) waits on this device until a save works, even
+     after the book is closed: {b, seen: pages for the book's progress, last, n: pages for today's count, secs, day}. */
+  const obxKey = () => 'outbox:' + ((A.P && A.P.circle && A.P.circle() && A.P.circle().id) || '');
+  D.outboxAdd = (e) => {
+    if (!e || (!(e.seen && e.seen.length) && !e.n && !e.secs && !e.last)) return;
+    const list = U.store.get(obxKey(), []);
+    list.push(Object.assign({ day: U.today() }, e));
+    U.store.set(obxKey(), list.slice(-300));
+  };
+  D.outboxHas = (b, p) => U.store.get(obxKey(), []).some((e) => e.b === b && e.seen && e.seen.includes(p));
+  let obxRun = null;
+  async function sendOutbox() {
+    let list = U.store.get(obxKey(), []);
+    while (list.length && D.canWrite() && D.joined()) {
+      const e = list[0];
+      if (e.seen && e.seen.length) {
+        await D.saveProg(e.b, (c) => ({ seen: U.rangesAdd(c.seen, e.seen), last: Math.max(c.last || 1, e.last || 0) }));
+        e.seen = [];
+        U.store.set(obxKey(), list);
+      }
+      if (e.n || e.secs) await D.addPagesToday(e.n || 0, e.secs || 0, e.day);
+      list = U.store.get(obxKey(), []).slice(1);
+      U.store.set(obxKey(), list);
+    }
+  }
+  D.flushOutbox = () => {
+    if (!obxRun) {
+      obxRun = sendOutbox()
+        .catch((err) => console.warn('outbox: will try again', err)) // still offline
+        .finally(() => (obxRun = null));
+    }
+    return obxRun;
+  };
+  const obxSoon = () => setTimeout(() => U.store.get(obxKey(), []).length && D.flushOutbox(), 2500);
+  window.addEventListener('online', obxSoon);
+  document.addEventListener('visibilitychange', () => !document.hidden && obxSoon());
+  setInterval(() => navigator.onLine !== false && U.store.get(obxKey(), []).length && D.flushOutbox(), 60000);
 
   /* My private document (private notes, bookmarks, notes I moved or hid on my screen): fn gets a copy. */
   D.privUpdate = (fn) => D.mutate(`data/users/${S.me}/priv`, () => fn(Object.assign({}, S.priv || {})));

@@ -51,7 +51,11 @@
       case 'thread': return L(`رد جديد من ${who} في نقاش شاركت فيه`, `${who} replied in a thread you're in`);
       case 'like': return L(`إعجاب من ${who} بملاحظتك في ${title}`, `${who} liked your note in ${title}`);
       case 'cheer': return L(`تشجيع من ${who} 👏`, `${who} cheered you on 👏`);
-      case 'poke': return L(`تذكير من ${who} بالورد 👋`, `${who} nudged you about the portion 👋`);
+      case 'poke': {
+        const b = S.books.get(x.b);
+        const w = b && x.wid ? G.wirds(b).find((y) => y.id === x.wid) : null;
+        return L(`تذكير من ${who} ${w ? `بالورد ${L.num(w.n)}` : 'بالقراية'} 👋`, `${who} nudged you${w ? ` about portion ${w.n}` : ''} 👋`, `تذكير من ${who} ${w ? `بالورد ${L.num(w.n)}` : 'بالقراءة'} 👋`);
+      }
       case 'msgreply': return L(`رد من ${who} على رسالتك`, `${who} replied to your message`);
       case 'book': return L(`كتاب جديد في الحلقة من ${who}: ${title}`, `${who} added a new book: ${title}`);
     }
@@ -63,6 +67,7 @@
     const seen = U.store.get(seenKey(), '');
     const items = V.inboxItems();
     U.store.set(seenKey(), U.nowIso());
+    V.seePokes();
     V.render();
     V.sheet({
       title: `${icon('bell')} ${L('الجديد ليك', 'For you', 'الجديد لك')}`,

@@ -943,3 +943,53 @@ delete from auth.users where id = t.id('H');
 commit;
 select t.is((select role from circle_members where circle_id = t.id('cF') and user_id = t.id('G')), 'owner',
             'account deletion: otherwise the oldest member inherits ownership');
+
+-- =====================================================================
+-- Owner guard: reading progress and cheers/nudges belong to one member
+-- =====================================================================
+begin;
+select t.login('C');
+select t.set('cO', c.id::text) from create_circle('owner guard') c;
+commit;
+select t.set('codeO', invite_code) from circles where id = t.id('cO');
+begin;
+select t.login('E');
+select t.lives($$select join_circle(t.v('codeO'))$$, 'owner guard: (setup) E joins');
+select t.login('G');
+select t.lives($$select join_circle(t.v('codeO'))$$, 'owner guard: (setup) G joins');
+commit;
+
+begin;
+select t.login('E');
+select t.lives($$insert into docs (circle_id, col, id, data) values (t.id('cO'), 'prog', 'bk~' || t.v('E'),
+                 jsonb_build_object('b', 'bk', 'u', t.v('E'), 'done', '{}'::jsonb))$$, 'owner guard: E writes own progress');
+select t.throws($$insert into docs (circle_id, col, id, data) values (t.id('cO'), 'prog', 'bk~' || t.v('G'),
+                  jsonb_build_object('b', 'bk', 'u', t.v('G')))$$, '42501', 'owner guard: E cannot create G''s progress');
+select t.throws($$insert into docs (circle_id, col, id, data) values (t.id('cO'), 'prog', 'bk2~' || t.v('E'),
+                  jsonb_build_object('b', 'bk2', 'u', t.v('G')))$$, '42501', 'owner guard: progress names its owner truthfully');
+select t.lives($$insert into docs (circle_id, col, id, data) values (t.id('cO'), 'pokes', 'p1',
+                 jsonb_build_object('from', t.v('E'), 'to', t.v('G'), 'kind', 'cheer'))$$, 'owner guard: E cheers G');
+select t.throws($$insert into docs (circle_id, col, id, data) values (t.id('cO'), 'pokes', 'p2',
+                  jsonb_build_object('from', t.v('G'), 'to', t.v('E'), 'kind', 'cheer'))$$, '42501', 'owner guard: E cannot cheer in G''s name');
+commit;
+
+begin;
+select t.login('G');
+select t.throws($$update docs set data = data || '{"done": {"w1": "2026-10-29T10:00:00Z"}}'
+                  where circle_id = t.id('cO') and col = 'prog' and id = 'bk~' || t.v('E')$$, '42501',
+                'owner guard: G cannot mark E''s portions done');
+select t.throws($$select doc_merge(t.id('cO'), 'prog', 'bk~' || t.v('E'), '{"last": 99}')$$, '42501',
+                'owner guard: G cannot doc_merge into E''s progress');
+select t.throws($$update docs set data = data || '{"kind": "poke"}' where circle_id = t.id('cO') and col = 'pokes' and id = 'p1'$$, '42501',
+                'owner guard: G cannot rewrite E''s cheer');
+select t.throws($$update docs set deleted = true where circle_id = t.id('cO') and col = 'pokes' and id = 'p1'$$, '42501',
+                'owner guard: G cannot delete E''s cheer');
+select t.login('E');
+select t.is(t.affected($$update docs set data = data || '{"last": 7}' where circle_id = t.id('cO') and col = 'prog' and id = 'bk~' || t.v('E')$$),
+            1::bigint, 'owner guard: E updates own progress');
+select t.login('C');  -- owner
+select t.throws($$update docs set data = data || '{"last": 1}' where circle_id = t.id('cO') and col = 'prog' and id = 'bk~' || t.v('E')$$, '42501',
+                'owner guard: even the circle owner cannot rewrite E''s progress');
+select t.is(t.affected($$update docs set deleted = true where circle_id = t.id('cO') and col = 'pokes' and id = 'p1'$$), 1::bigint,
+            'owner guard: the circle owner may delete a cheer (moderation)');
+commit;

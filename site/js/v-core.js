@@ -183,10 +183,11 @@
     </div>`;
   }
 
+  V.nav = () => nav();
   function nav() {
     const el = document.getElementById('nav');
     const r = V.state.route.startsWith('book-') ? 'books' : V.state.route;
-    const pokes = V.myPokes().length;
+    const pokes = V.newPokes();
     const unreadCircle = V.unread('_c', 'gen');
     const item = (id, ic, label, badge = 0) =>
       `<a href="#${id}" class="nv${r === id ? ' on' : ''}" data-go="${id}" ${r === id ? 'aria-current="page"' : ''}>${icon(ic)}<span>${label}</span>${badge ? `<i class="nv-b">${L.num(Math.min(badge, 99))}</i>` : ''}</a>`;
@@ -370,15 +371,41 @@
     U.store.set('seen:' + b + ':' + ch, last ? last.at : U.nowIso());
   };
 
+  /* Cheers and nudges to me from the last week. Gone once dismissed (on any of my devices), a nudge once its
+     portion is done, and nothing from someone who left the circle. */
   V.myPokes = () => {
-    const dis = U.store.get('dismissed:' + S.me, []);
+    const dis = new Set([...U.store.get('dismissed:' + S.me, []), ...((S.priv && S.priv.pokeX) || [])]);
     const week = U.addDays(U.today(), -7);
-    return [...S.pokes.values()].filter((p) => p.to === S.me && U.isoKey(p.at) >= week && !dis.includes(p.id)).sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    const doneNow = (p) => {
+      const pr = p.kind === 'poke' && p.b && p.wid && D.prog(p.b);
+      return !!(pr && pr.done && pr.done[p.wid]);
+    };
+    return [...S.pokes.values()]
+      .filter((p) => p.to === S.me && p.from !== S.me && S.members.has(p.from) && U.isoKey(p.at) >= week && !dis.has(p.id) && !doneNow(p))
+      .sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  };
+  /* The number on the «اليوم» tab: only the ones I haven't seen yet, on «اليوم» or in the bell. */
+  const pokesSeenAt = () => {
+    const a = U.store.get('pokesSeen:' + S.me, '');
+    const b = (S.priv && S.priv.pokesSeen) || '';
+    return a > b ? a : b;
+  };
+  V.newPokes = () => {
+    const seen = pokesSeenAt();
+    return V.myPokes().filter((p) => String(p.at) > seen).length;
+  };
+  V.seePokes = () => {
+    const last = V.myPokes()[0];
+    if (!last || String(last.at) <= pokesSeenAt()) return false;
+    U.store.set('pokesSeen:' + S.me, last.at);
+    if (D.canWrite()) D.privUpdate((cur) => Object.assign(cur, { pokesSeen: last.at })).catch(() => {});
+    return true;
   };
   V.dismissPoke = (id) => {
     const dis = U.store.get('dismissed:' + S.me, []);
     dis.push(id);
     U.store.set('dismissed:' + S.me, dis.slice(-300));
+    if (D.canWrite()) D.privUpdate((cur) => Object.assign(cur, { pokeX: [...(cur.pokeX || []), id].slice(-200) })).catch(() => {});
     V.render();
   };
   V.poke = async (to, kind, ctx = {}) => {
@@ -504,14 +531,25 @@
   };
 
   /* ---------- shared actions ---------- */
+  /* One mark at a time per book, and a moment after it: a quick second tap on «خلّصته» lands on the next
+     portion's button once the card redraws, and must not mark that one too. */
+  const marking = new Map();
   V.markWird = async (bookId, wid) => {
     if (!D.canWrite()) return;
+    if (Date.now() - (marking.get(bookId) || 0) < 1500) return;
     const book = S.books.get(bookId);
     const w = G.wirds(book).find((x) => x.id === wid);
     if (!w) return;
+    const mine = D.prog(bookId);
+    if (mine && mine.done && mine.done[wid]) return;
+    marking.set(bookId, Date.now());
     const someoneFirst = G.firstFinisher(bookId, wid);
     const t = U.nowIso();
-    await D.saveProg(bookId, (c) => ({ done: Object.assign({}, c.done, { [wid]: t }) }));
+    try {
+      await D.saveProg(bookId, (c) => ({ done: Object.assign({}, c.done, { [wid]: t }) }));
+    } finally {
+      marking.set(bookId, Date.now());
+    }
     const onTime = U.today() <= w.due;
     const xp = G.XP.wird + (onTime ? G.XP.onTime : 0) + (someoneFirst ? 0 : G.XP.first);
     U.confetti(someoneFirst ? 0.8 : 1.3);

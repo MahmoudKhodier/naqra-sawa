@@ -1324,6 +1324,7 @@ textarea { resize: vertical; line-height: 1.55; }
 /* the landscape hint */
 .rd-orient { position: absolute; z-index: 7; left: 50%; top: calc(70px + env(safe-area-inset-top, 0px)); transform: translate(-50%, -8px); opacity: 0; transition: opacity .25s, transform .25s; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 8px; padding: 10px 12px 6px; width: min(440px, calc(100vw - 24px)); background: var(--card); color: var(--ink); border-radius: 18px; box-shadow: var(--shadow-lg); border: 1.5px solid color-mix(in srgb, var(--gold) 55%, transparent); }
 .rd-orient.in { opacity: 1; transform: translate(-50%, 0); }
+.rd-orient:not(.in) { pointer-events: none; }
 .rd-orient .ro-t { display: flex; gap: 6px; align-items: center; font-weight: 700; font-size: .92rem; flex: 1 1 100%; justify-content: center; }
 .rd-orient .ro-t .ic { color: var(--gold-t); }
 .rd-orient .ro-never { flex-basis: 100%; text-align: center; font-size: .78rem; color: var(--ink3); padding: 4px; }

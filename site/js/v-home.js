@@ -315,6 +315,8 @@
   function pokesBlock() {
     const ps = V.myPokes().slice(0, 4);
     if (!ps.length) return '';
+    // On «اليوم» they count as seen: the tab's number goes once they have been on screen a moment.
+    setTimeout(() => V.state.route === 'home' && V.seePokes() && V.nav(), 1500);
     return `<section class="pokes">${ps
       .map((p) => {
         const b = S.books.get(p.b);
