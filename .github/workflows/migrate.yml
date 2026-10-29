@@ -45,6 +45,35 @@ jobs:
         if: steps.secret.outputs.ok == 'true'
         run: bash tests/sql/run.sh
 
+      - name: Connect to the database
+        if: steps.secret.outputs.ok == 'true'
+        run: |
+          # Says why a connection fails (as an annotation, with the password hidden) instead of just "exit code 2".
+          pw=$(printf '%s' "$DB_URL" | sed -n 's#^postgres[a-z]*://[^:/@]*:\([^@]*\)@.*#\1#p')
+          hint=""
+          case "$DB_URL" in
+            *'[YOUR-PASSWORD]'*|*'[YOUR_PASSWORD]'*) hint="The secret still has [YOUR-PASSWORD] in it: put the database password there (without the brackets)." ;;
+            postgres://*|postgresql://*) ;;
+            *) hint="The secret should start with postgresql:// — copy the whole Session pooler string again." ;;
+          esac
+          if err=$(PGCONNECT_TIMEOUT=20 psql "$DB_URL" -X -At -c 'select 1' 2>&1 >/dev/null); then
+            echo "Connected."
+            exit 0
+          fi
+          [ -n "$pw" ] && err=${err//"$pw"/***}
+          if [ -z "$hint" ]; then
+            case "$err" in
+              *'password authentication failed'*|*'Wrong password'*|*'invalid password'*) hint="Wrong password: reset it in Supabase (Project Settings → Database) and update the secret." ;;
+              *percent*|*'invalid URI'*|*'invalid integer value'*|*'missing "="'*) hint="The password has special characters: reset it to one with only letters and numbers, then update the secret." ;;
+              *'could not translate host name'*|*'Name or service not known'*) hint="The host name is wrong: copy the whole Session pooler string again." ;;
+              *'Tenant or user not found'*) hint="The user part should be postgres.<project ref>: copy the Session pooler string again." ;;
+              *timeout*|*'timed out'*) hint="Couldn't reach Supabase: use the Session pooler string (port 5432), not Direct connection." ;;
+            esac
+          fi
+          msg=$(printf '%s' "$err" | tr '\n' ' ' | cut -c1-300)
+          echo "::error title=Can't connect to Supabase::${hint:-Check the SUPABASE_DB_URL secret.} [$msg]"
+          exit 1
+
       - name: Apply new migrations
         if: steps.secret.outputs.ok == 'true'
         run: |
