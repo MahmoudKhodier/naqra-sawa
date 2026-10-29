@@ -24,18 +24,18 @@
     const hasRect = ctx.rect && ctx.rect.w > 0;
     let kind = hasRect ? 'hl' : 'note';
     let color = U.store.get('hlColor', A.R.COLORS[0]);
-    let priv = false;
-    const book = S.books.get(ctx.bookId);
+    let priv = !!ctx.onlyMe; // a book only I can see: its notes are only mine too
+    const book = D.book(ctx.bookId);
     const api = V.sheet({
       title: L(`صفحة ${L.num(ctx.page)}`, `Page ${ctx.page}`),
       html: `${ctx.crop ? `<div class="crop-prev"><img src="${esc(ctx.crop)}" alt=""></div>` : `<div class="pin-prev">${icon('pin')}<span>${L('ملاحظة مثبّتة على الصفحة', 'A note pinned to the page')}</span></div>`}
         <div class="seg-pick" role="radiogroup" id="nk-kinds">${KINDS.map((k) => `<button type="button" class="sp${k === kind ? ' on' : ''}" data-kind="${k}" role="radio" aria-checked="${k === kind}">${icon(KIND_IC[k])}<span>${V.kindLabel(k)}</span></button>`).join('')}</div>
         <div class="colors" id="nk-colors" ${hasRect ? '' : 'hidden'}>${A.R.COLORS.map((c) => `<button type="button" class="cdot${c === color ? ' on' : ''}" data-color="${c}" style="--c:${c}" aria-label="${c}"></button>`).join('')}</div>
         <textarea id="nk-text" rows="3" dir="auto" maxlength="${U.MAX.note}" placeholder="${L('اكتب تعليقك أو سؤالك… (اختياري للتظليل)', 'Write your comment or question… (optional for highlights)')}"></textarea>
-        <div class="vis" role="radiogroup">
+        ${ctx.onlyMe ? `<p class="rd-onlyme">${icon('lock')}<span>${L('الكتاب ده ليك لوحدك، فالملاحظة كمان ليك لوحدك — محدش في الحلقة هيشوفها.', 'This book is only yours, so the note is only yours too — nobody in the circle will see it.', 'هذا الكتاب لك وحدك، فالملاحظة لك وحدك أيضًا — لن يراها أحد في الحلقة.')}</span></p>` : `<div class="vis" role="radiogroup">
           <button type="button" class="sp on" data-vis="all">${icon('users')}<span>${L('للحلقة كلها', 'Whole circle')}</span></button>
           <button type="button" class="sp" data-vis="me">${icon('lock')}<span>${L('ليا بس', 'Only me', 'لي فقط')}</span></button>
-        </div>
+        </div>`}
         <div class="row-btns end"><button class="btn ghost" data-close>${L('إلغاء', 'Cancel')}</button><button class="btn" data-save>${icon('check')}${L('احفظ', 'Save')} <small class="xp-hint">+${L.num(G.XP.note)} XP</small></button></div>`,
       onMount: (body) => {
         // A long note is kept as a draft until it is saved, so a failed save or an accidental close loses nothing.
@@ -183,7 +183,7 @@
     const get = () => (isPriv ? (S.priv && S.priv.notes && S.priv.notes[nid] ? Object.assign({ id: nid, by: S.me, priv: true }, S.priv.notes[nid]) : null) : S.notes.get(nid));
     const n0 = get();
     if (!n0) return U.toast(L('الملاحظة دي اتمسحت', 'That note was deleted', 'تم حذف هذه الملاحظة'), 'warn');
-    const book = S.books.get(n0.b);
+    const book = D.book(n0.b);
     const body = (n) => {
       if (!n) return V.empty(L('الملاحظة دي اتمسحت', 'This note was deleted', 'تم حذف هذه الملاحظة'), '');
       const mine = n.by === S.me;
@@ -296,7 +296,7 @@
 
   /* A compact card for feeds and the notes tab. */
   V.noteCard = (n, opts = {}) => {
-    const book = S.books.get(n.b);
+    const book = D.book(n.b);
     const lc = likeCount(n);
     const rc = replies(n).length;
     const liked = n.likes && n.likes[S.me];

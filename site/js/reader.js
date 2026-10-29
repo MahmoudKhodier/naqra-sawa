@@ -834,22 +834,12 @@
         if (d.el) d.el.remove();
         if (st && st.mode !== 'none') setMode(st.mode);
       });
-      if (st.priv) onlyMe();
     };
     st.pagesEl.addEventListener('pointerup', end);
     st.pagesEl.addEventListener('pointercancel', (e) => {
       if (drag && drag.el) drag.el.remove();
       drag = null;
     });
-  }
-  /* In a private book every note is private: pick «ليا بس» in the note sheet and take the choice away. */
-  function onlyMe() {
-    const sh = A.V.sheets[A.V.sheets.length - 1];
-    const me = sh && sh.body.querySelector('[data-vis="me"]');
-    if (!me) return; // the sheet handles ctx.onlyMe itself
-    me.click();
-    const vis = me.closest('.vis');
-    if (vis) vis.outerHTML = `<p class="rd-onlyme">${U.icon('lock')}<span>${L('الكتاب ده ليك لوحدك، فالملاحظة كمان ليك لوحدك — محدش في الحلقة هيشوفها.', 'This book is only yours, so the note is only yours too — nobody in the circle will see it.', 'هذا الكتاب لك وحدك، فالملاحظة لك وحدك أيضًا — لن يراها أحد في الحلقة.')}</span></p>`;
   }
   const r4 = (v) => Math.round(v * 10000) / 10000;
   /* After a tap opens the note sheet, the browser still sends a click to the same spot: drop that one click. */

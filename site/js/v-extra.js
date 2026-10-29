@@ -38,7 +38,7 @@
 
   /* ---------- reading-session summary (after closing the reader) ---------- */
   V.sessionSummary = ({ bookId, pages, secs }) => {
-    const b = S.books.get(bookId);
+    const b = D.book(bookId);
     if (!b || !D.joined()) return;
     const s = G.of(S.me);
     const w = G.myCurrent(b);

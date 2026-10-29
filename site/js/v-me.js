@@ -247,7 +247,7 @@
   let shown = PAGE;
   const open = new Set(); // long texts unfolded
   const norm = (t) => A.Imp.key(String(t || ''), '').replace(/\|$/, '');
-  const bookOf = (id) => S.books.get(id) || (S.gone && S.gone.get(id)) || null;
+  const bookOf = (id) => (D.book ? D.book(id) : S.books.get(id)) || (S.gone && S.gone.get(id)) || null;
 
   /* Everything I wrote, newest first. */
   V.myQuotes = () => {
