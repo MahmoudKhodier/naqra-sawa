@@ -113,7 +113,7 @@
     ctx.fill();
     ctx.restore();
     text(ctx, 'نقرأ سوا', w / 2 + (L.isAr() ? -6 : 6), y, { size: 42, weight: 700, color: C.cream });
-    text(ctx, L('اقرأوا سوا — كل يوم ورد', 'Read together — a portion a day'), w / 2, y + 44, { size: 24, color: C.mute });
+    text(ctx, L('اقرأوا سوا — كل يوم ورد', 'Read together — a portion a day', 'اقرؤوا معًا — كل يوم ورد'), w / 2, y + 44, { size: 24, color: C.mute });
   }
   function rrect(ctx, x, y, w, h, r) {
     ctx.beginPath();
@@ -232,12 +232,12 @@
       y += 110;
       if (d.book) y = block(ctx, d.book, W / 2, y - 40, { maxW: W - 220, maxLines: 2, maxSize: 40, minSize: 28, weight: 700, color: C.ink }) + 20;
       if (d.author) text(ctx, d.author, W / 2, y + 20, { size: 30, color: C.mute });
-      if (d.by) text(ctx, L(`اختيار ${d.by}`, `Chosen by ${d.by}`), W / 2, H - 190, { size: 28, color: C.mute });
+      if (d.by) text(ctx, L(`اختيار ${d.by}`, `Chosen by ${d.by}`, `من اختيار ${d.by}`), W / 2, H - 190, { size: 28, color: C.mute });
       brand(ctx, W, H);
     },
     async session(ctx, d) {
       background(ctx, W, H);
-      text(ctx, L('جلسة قراية ✓', 'Reading session ✓'), W / 2, 200, { size: 54, weight: 700, color: C.cream });
+      text(ctx, L('جلسة قراية ✓', 'Reading session ✓', 'جلسة قراءة ✓'), W / 2, 200, { size: 54, weight: 700, color: C.cream });
       if (d.book) block(ctx, d.book, W / 2, 240, { maxW: W - 220, maxLines: 2, maxSize: 40, minSize: 28, font: BOOK, weight: 700, color: C.mute });
       // the goal ring
       const cx = W / 2, cy = 640, r = 190;
@@ -257,39 +257,39 @@
       }
       ctx.restore();
       text(ctx, L.num(d.pages), cx, cy + 40, { size: 150, weight: 700, color: C.cream });
-      text(ctx, L('صفحة', 'pages'), cx, cy + 100, { size: 34, color: C.mute });
-      stat(ctx, W * 0.27, 1000, L.num(d.mins), L('دقيقة', 'minutes'));
-      stat(ctx, W * 0.73, 1000, L.num(d.streak || 0), L('يوم ورا بعض 🔥', 'day streak 🔥'));
-      if (f >= 1) text(ctx, L('هدف النهارده اتحقق 🎯', "Today's goal reached 🎯"), W / 2, 1150, { size: 34, weight: 700, color: C.jade });
+      text(ctx, L('صفحة', 'pages', 'صفحة'), cx, cy + 100, { size: 34, color: C.mute });
+      stat(ctx, W * 0.27, 1000, L.num(d.mins), L('دقيقة', 'minutes', 'دقيقة'));
+      stat(ctx, W * 0.73, 1000, L.num(d.streak || 0), L('يوم ورا بعض 🔥', 'day streak 🔥', 'أيام متتالية 🔥'));
+      if (f >= 1) text(ctx, L('هدف النهارده اتحقق 🎯', "Today's goal reached 🎯", 'تحقق هدف اليوم 🎯'), W / 2, 1150, { size: 34, weight: 700, color: C.jade });
       brand(ctx, W, H);
     },
     async book(ctx, d) {
       background(ctx, W, H, 'gold');
-      text(ctx, L('خلّصت كتاب! 🎉', 'Finished a book! 🎉'), W / 2, 170, { size: 60, weight: 700, color: C.cream });
+      text(ctx, L('خلّصت كتاب! 🎉', 'Finished a book! 🎉', 'أنهيت كتابًا! 🎉'), W / 2, 170, { size: 60, weight: 700, color: C.cream });
       await cover(ctx, d.book, W / 2 - 190, 230, 380, 540);
       let y = block(ctx, d.book.title, W / 2, 800, { maxW: W - 200, maxLines: 2, maxSize: 54, minSize: 32, font: BOOK, weight: 700, color: C.cream });
       if (d.book.author) text(ctx, d.book.author, W / 2, y + 30, { size: 32, color: '#f1d9a4' });
-      stat(ctx, W * 0.2, 1055, L.num(d.book.pages || 0), L('صفحة', 'pages'), C.cream);
-      stat(ctx, W * 0.5, 1055, L.num(d.days || 0), L('يوم', 'days'), C.cream);
-      stat(ctx, W * 0.8, 1055, L.num(d.notes || 0), L('ملاحظة', 'notes'), C.cream);
-      if (d.circle) text(ctx, L(`مع حلقة «${d.circle}»`, `with the “${d.circle}” circle`), W / 2, H - 175, { size: 28, color: '#f1d9a4' });
+      stat(ctx, W * 0.2, 1055, L.num(d.book.pages || 0), L('صفحة', 'pages', 'صفحة'), C.cream);
+      stat(ctx, W * 0.5, 1055, L.num(d.days || 0), L('يوم', 'days', 'يوم'), C.cream);
+      stat(ctx, W * 0.8, 1055, L.num(d.notes || 0), L('ملاحظة', 'notes', 'ملاحظة'), C.cream);
+      if (d.circle) text(ctx, L(`مع حلقة «${d.circle}»`, `with the “${d.circle}” circle`, `مع حلقة «${d.circle}»`), W / 2, H - 175, { size: 28, color: '#f1d9a4' });
       brand(ctx, W, H);
     },
     async badge(ctx, d) {
       const b = d.badge;
       background(ctx, W, H, b.tier === 5 ? 'night' : 'jade');
-      text(ctx, b.secret ? L('وسام سري اتكشف! 🗝️', 'A secret badge revealed! 🗝️') : L('وسام جديد!', 'New badge!'), W / 2, 210, { size: 56, weight: 700, color: C.cream });
+      text(ctx, b.secret ? L('وسام سري اتكشف! 🗝️', 'A secret badge revealed! 🗝️', 'وسام سري انكشف! 🗝️') : L('وسام جديد!', 'New badge!', 'وسام جديد!'), W / 2, 210, { size: 56, weight: 700, color: C.cream });
       medal(ctx, W / 2, 560, 230, b.tier);
       const img = await iconImg(b.ic, '#2a1d00', 200);
       if (img) ctx.drawImage(img, W / 2 - 100, 460, 200, 200);
-      block(ctx, L(b.t[0], b.t[1]), W / 2, 830, { maxW: W - 200, maxLines: 2, maxSize: 70, minSize: 40, weight: 700, color: C.cream });
-      block(ctx, L(b.d[0], b.d[1]), W / 2, 960, { maxW: W - 240, maxLines: 3, maxSize: 38, minSize: 28, color: C.mute });
+      block(ctx, L(b.t[0], b.t[1], b.t[2]), W / 2, 830, { maxW: W - 200, maxLines: 2, maxSize: 70, minSize: 40, weight: 700, color: C.cream });
+      block(ctx, L(b.d[0], b.d[1], b.d[2]), W / 2, 960, { maxW: W - 240, maxLines: 3, maxSize: 38, minSize: 28, color: C.mute });
       if (d.tier) text(ctx, d.tier, W / 2, 1130, { size: 32, weight: 700, color: C.gold2 });
       brand(ctx, W, H);
     },
     async level(ctx, d) {
       background(ctx, W, H);
-      text(ctx, L('مستوى جديد!', 'Level up!'), W / 2, 220, { size: 60, weight: 700, color: C.cream });
+      text(ctx, L('مستوى جديد!', 'Level up!', 'مستوى جديد!'), W / 2, 220, { size: 60, weight: 700, color: C.cream });
       ctx.save();
       ctx.shadowColor = 'rgba(243,199,92,.55)';
       ctx.shadowBlur = 80;
@@ -299,20 +299,20 @@
       ctx.restore();
       text(ctx, L.num(d.lv), W / 2, 660, { size: 190, weight: 700, color: '#2a1d00' });
       block(ctx, d.title, W / 2, 900, { maxW: W - 200, maxLines: 2, maxSize: 72, minSize: 40, weight: 700, color: C.cream });
-      text(ctx, L(`${L.num(d.xp)} XP • ${L.count(d.pages, 'page')}`, `${d.xp} XP • ${d.pages} pages`), W / 2, 1080, { size: 34, color: C.mute });
+      text(ctx, L(`${L.num(d.xp)} XP • ${L.count(d.pages, 'page')}`, `${d.xp} XP • ${d.pages} pages`, `${L.num(d.xp)} XP • ${L.count(d.pages, 'page')}`), W / 2, 1080, { size: 34, color: C.mute });
       brand(ctx, W, H);
     },
     async month(ctx, d) {
       background(ctx, W, H);
       text(ctx, d.title, W / 2, 190, { size: 56, weight: 700, color: C.cream });
       text(ctx, d.who, W / 2, 250, { size: 32, color: C.mute });
-      stat(ctx, W * 0.3, 450, L.num(d.pages), L('صفحة', 'pages'));
-      stat(ctx, W * 0.7, 450, L.num(d.days), L('يوم قراية', 'reading days'));
-      stat(ctx, W * 0.3, 680, d.time, L('مع الكتب', 'with books'));
-      stat(ctx, W * 0.7, 680, L.num(d.best || 0), L('أطول سلسلة', 'longest streak'));
+      stat(ctx, W * 0.3, 450, L.num(d.pages), L('صفحة', 'pages', 'صفحة'));
+      stat(ctx, W * 0.7, 450, L.num(d.days), L('يوم قراية', 'reading days', 'يوم قراءة'));
+      stat(ctx, W * 0.3, 680, d.time, L('مع الكتب', 'with books', 'مع الكتب'));
+      stat(ctx, W * 0.7, 680, L.num(d.best || 0), L('أطول سلسلة', 'longest streak', 'أطول سلسلة'));
       if (d.top) {
         await cover(ctx, d.top, W / 2 - 95, 790, 190, 260);
-        text(ctx, L('أكتر كتاب', 'Top book'), W / 2, 1094, { size: 26, color: C.mute });
+        text(ctx, L('أكتر كتاب', 'Top book', 'الأكثر قراءة'), W / 2, 1094, { size: 26, color: C.mute });
       }
       if (d.type) text(ctx, d.type, W / 2, d.top ? 1158 : 900, { size: 36, weight: 700, color: C.gold2 });
       brand(ctx, W, H);
@@ -346,7 +346,7 @@
       const Share = P.plugin('Share');
       if (FS && Share) {
         const w = await FS.writeFile({ path: name, data: await b64Of(blob), directory: 'CACHE' });
-        await Share.share({ files: [w.uri], text: caption || undefined, dialogTitle: L('شارك', 'Share') }).catch((e) => {
+        await Share.share({ files: [w.uri], text: caption || undefined, dialogTitle: L('شارك', 'Share', 'شارك') }).catch((e) => {
           if (!/cancel/i.test(String(e && e.message))) throw e;
         });
         return 'shared';
@@ -382,16 +382,16 @@
       canvas = await Sh.render(kind, data);
     } catch (e) {
       console.warn(e);
-      return U.toast(L('معرفناش نعمل الصورة', "Couldn't make the picture"));
+      return U.toast(L('معرفناش نعمل الصورة', "Couldn't make the picture", 'تعذّر إنشاء الصورة'));
     }
     const url = canvas.toDataURL('image/png');
     const name = `naqra-sawa-${kind}-${U.today()}.png`;
     const native = !!(A.P && A.P.native);
     V.sheet({
-      title: L('شارك الصورة', 'Share the picture'),
+      title: L('شارك الصورة', 'Share the picture', 'شارك الصورة'),
       cls: 'share-sheet',
-      html: `<img class="sh-img" src="${url}" alt="${esc(L('صورة للمشاركة', 'Picture to share'))}">
-        <div class="row-btns center"><button class="btn gold big" data-sh="share">${icon('share')}${L('شارك', 'Share')}</button>${native ? '' : `<button class="btn ghost big" data-sh="save">${icon('download')}${L('احفظ الصورة', 'Save picture')}</button>`}</div>`,
+      html: `<img class="sh-img" src="${url}" alt="${esc(L('صورة للمشاركة', 'Picture to share', 'صورة للمشاركة'))}">
+        <div class="row-btns center"><button class="btn gold big" data-sh="share">${icon('share')}${L('شارك', 'Share', 'شارك')}</button>${native ? '' : `<button class="btn ghost big" data-sh="save">${icon('download')}${L('احفظ الصورة', 'Save picture', 'احفظ الصورة')}</button>`}</div>`,
       onMount: (body) =>
         body.addEventListener('click', async (e) => {
           const b = e.target.closest('[data-sh]');
@@ -402,7 +402,7 @@
             else await Sh.send(canvas, name, caption);
           } catch (er) {
             console.warn(er);
-            U.toast(L('المشاركة ما نفعتش — جرّب «احفظ الصورة»', "Sharing didn't work — try saving the picture"));
+            U.toast(L('المشاركة ما نفعتش — جرّب «احفظ الصورة»', "Sharing didn't work — try saving the picture", 'تعذّرت المشاركة — جرّب «احفظ الصورة»'));
           }
           b.disabled = false;
         }),
@@ -433,7 +433,7 @@
   };
   Sh.badge = (id) => {
     const b = G.BADGES.find((x) => x.id === id);
-    if (b) Sh.open('badge', { badge: b, tier: b.tier === 5 ? L('سري', 'Secret') : V.tierName(b.tier) });
+    if (b) Sh.open('badge', { badge: b, tier: b.tier === 5 ? L('سري', 'Secret', 'سري') : V.tierName(b.tier) });
   };
   Sh.level = () => {
     const s = G.of(S.me);

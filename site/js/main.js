@@ -9,7 +9,7 @@
   V.fromHash();
 
   const app = document.getElementById('app');
-  app.innerHTML = `<div class="boot"><span class="star8 gold big spin"></span><b>${L('نقرأ سوا', 'Read Together')}</b><small>${L('بنجهّز الحلقة…', 'Getting the circle ready…')}</small></div>`;
+  app.innerHTML = `<div class="boot"><span class="star8 gold big spin"></span><b>${L('نقرأ سوا', 'Read Together', 'نقرأ سوا')}</b><small>${L('بنجهّز الحلقة…', 'Getting the circle ready…', 'جارٍ تجهيز الحلقة…')}</small></div>`;
 
   // Offline support for the installed web app (the Android app bundles its files instead).
   if ('serviceWorker' in navigator && !P.native && (location.protocol === 'https:' || location.hostname === 'localhost')) {

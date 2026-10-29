@@ -97,8 +97,8 @@
 
   const caption = (st) =>
     !st.stage
-      ? L('بذرة — أول صفحة تزرعها', 'A seed — the first page plants it')
-      : `${L.count(st.days, 'day')}${st.flowers ? ` • ${L(`${L.num(st.flowers)} وردة`, `${st.flowers} flower${st.flowers > 1 ? 's' : ''}`)}` : ''}`;
+      ? L('بذرة — أول صفحة تزرعها', 'A seed — the first page plants it', 'بذرة — تزرعها أول صفحة')
+      : `${L.count(st.days, 'day')}${st.flowers ? ` • ${L(`${L.num(st.flowers)} وردة`, `${st.flowers} flower${st.flowers > 1 ? 's' : ''}`, `الورود: ${L.num(st.flowers)}`)}` : ''}`;
 
   /* All members' plants for one book: a little garden bed. */
   Gd.bed = (book) => {
@@ -110,13 +110,13 @@
         const me = u === S.me;
         return `<button class="gd-plot${me ? ' me' : ''}" data-act="member" data-uid="${esc(u)}" title="${esc(D.name(u))}">
           ${Gd.plant(st, book.id + u)}
-          <span class="gd-who">${D.avatar(u, 'xs')}<b dir="auto">${esc(me ? L('إنت', 'You') : D.name(u))}</b>${st.watered ? `<span class="gd-dropi" title="${esc(L('اتسقت النهارده', 'Watered today'))}">💧</span>` : ''}</span>
+          <span class="gd-who">${D.avatar(u, 'xs')}<b dir="auto">${esc(me ? L('إنت', 'You', 'أنت') : D.name(u))}</b>${st.watered ? `<span class="gd-dropi" title="${esc(L('اتسقت النهارده', 'Watered today', 'سُقيت اليوم'))}">💧</span>` : ''}</span>
           <small>${caption(st)}</small>
         </button>`;
       })
       .join('');
     return `<section class="card garden">
-      <header class="sec-h"><h2>${U.icon('leaf')}${L('جنينة الكتاب', 'Book garden')}</h2><button class="lnk sm" data-act="garden-help">${L('إزاي بتكبر؟', 'How it grows')}</button></header>
+      <header class="sec-h"><h2>${U.icon('leaf')}${L('جنينة الكتاب', 'Book garden', 'حديقة الكتاب')}</h2><button class="lnk sm" data-act="garden-help">${L('إزاي بتكبر؟', 'How it grows', 'كيف تنمو؟')}</button></header>
       <div class="gd-bed">${plots}</div>
     </section>`;
   };
@@ -125,16 +125,16 @@
   Gd.mine = (book) => {
     const st = Gd.stateOf(book, S.me);
     const msg = !st.stage
-      ? L('ازرعها بأول صفحة النهارده 🌱', 'Plant it with your first page today 🌱')
+      ? L('ازرعها بأول صفحة النهارده 🌱', 'Plant it with your first page today 🌱', 'ازرعها بأول صفحة اليوم 🌱')
       : st.watered
-        ? L('سقيتها النهارده 💧', 'Watered today 💧')
+        ? L('سقيتها النهارده 💧', 'Watered today 💧', 'سقيتها اليوم 💧')
         : st.wilt === 2
-          ? L('نبتتك عطشانة… صفحة واحدة تصحّيها', 'Your plant is thirsty… one page perks it up')
+          ? L('نبتتك عطشانة… صفحة واحدة وترجع زي الفل', 'Your plant is thirsty… one page perks it up', 'نبتتك عطشى… صفحة واحدة تُنعشها')
           : st.wilt === 1
-            ? L('بدأت تدبل شوية — اسقيها بصفحة', 'Starting to droop — water it with a page')
-            : L('اسقيها بصفحة النهارده 💧', 'Water it with a page today 💧');
+            ? L('بدأت تدبل شوية — اسقيها بصفحة', 'Starting to droop — water it with a page', 'بدأت تذبل قليلًا — اسقِها بصفحة')
+            : L('اسقيها بصفحة النهارده 💧', 'Water it with a page today 💧', 'اسقِها بصفحة اليوم 💧');
     return `<button class="hcard plantc${st.wilt ? ' thirsty' : ''}" data-go="book-${esc(book.id)}" data-tab="people">
-      <span class="hc-h"><b>${L('نبتتك', 'Your plant')}</b><small>${caption(st)}</small></span>
+      <span class="hc-h"><b>${L('نبتتك', 'Your plant', 'نبتتك')}</b><small>${caption(st)}</small></span>
       <span class="pc-art">${Gd.plant(st, book.id + S.me)}</span>
       <small class="pc-msg">${msg}</small>
     </button>`;
@@ -143,14 +143,14 @@
   if (A.V && A.V.actions)
     A.V.actions['garden-help'] = () =>
       A.V.sheet({
-        title: L('جنينة الكتاب', 'Book garden'),
+        title: L('جنينة الكتاب', 'Book garden', 'حديقة الكتاب'),
         html: `<div class="gd-help">
-          <p>${L('لكل واحد في الحلقة نبتة في كل كتاب.', 'Everyone in the circle has a plant for each book.')}</p>
+          <p>${L('لكل واحد في الحلقة نبتة في كل كتاب.', 'Everyone in the circle has a plant for each book.', 'لكل عضو في الحلقة نبتة في كل كتاب.')}</p>
           <ul>
-            <li>🌱 ${L('كل يوم بتقرأ فيه الكتاب، النبتة بتكبر شوية.', 'Each day you read the book, the plant grows a little.')}</li>
-            <li>🌸 ${L('كل ورد بتخلّصه بيطلّع وردة.', 'Each portion you finish puts out a flower.')}</li>
-            <li>💧 ${L('لو غبت كام يوم بتدبل شوية — ومش بتموت أبداً. أول صفحة بتصحّيها.', "Away a few days, it droops a little — it never dies. The next page perks it up.")}</li>
-            <li>🌟 ${L('لما تخلّص الكتاب بتطلع وردة دهبي.', 'Finish the book and a golden flower blooms.')}</li>
+            <li>🌱 ${L('كل يوم بتقرأ فيه الكتاب، النبتة بتكبر شوية.', 'Each day you read the book, the plant grows a little.', 'في كل يوم تقرأ فيه الكتاب، تكبر النبتة قليلًا.')}</li>
+            <li>🌸 ${L('كل ورد بتخلّصه بيطلّع وردة.', 'Each portion you finish puts out a flower.', 'كل ورد تُنهيه تتفتّح معه وردة.')}</li>
+            <li>💧 ${L('لو غبت كام يوم بتدبل شوية — ومش بتموت أبداً. أول صفحة بتصحّيها.', "Away a few days, it droops a little — it never dies. The next page perks it up.", 'إن غبت بضعة أيام تذبل قليلًا — لكنها لا تموت أبدًا. أول صفحة تُنعشها من جديد.')}</li>
+            <li>🌟 ${L('خلّص الكتاب وهتطلعلك وردة دهبي.', 'Finish the book and a golden flower blooms.', 'حين تُنهي الكتاب تتفتّح وردة ذهبية.')}</li>
           </ul></div>`,
       });
 })();

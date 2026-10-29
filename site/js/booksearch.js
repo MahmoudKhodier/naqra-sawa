@@ -91,8 +91,8 @@
 
   /* A search box that fills a form when a result is picked. onPick(book) */
   B.box = (id) => `<div class="bsearch" id="${id}">
-      <label class="lbl" for="${id}-q">${icon('globe')}${L('دوّر على الكتاب (العنوان أو المؤلف أو ISBN)', 'Look the book up (title, author or ISBN)')}</label>
-      <div class="bs-row"><input id="${id}-q" type="search" dir="auto" autocomplete="off" placeholder="${L('مثلا: رياض الصالحين', 'e.g. The Sealed Nectar')}"><button type="button" class="btn sm" data-bs-go>${L('دوّر', 'Search')}</button></div>
+      <label class="lbl" for="${id}-q">${icon('globe')}${L('دوّر على الكتاب (العنوان أو المؤلف أو ISBN)', 'Look the book up (title, author or ISBN)', 'ابحث عن الكتاب (العنوان أو المؤلف أو ISBN)')}</label>
+      <div class="bs-row"><input id="${id}-q" type="search" dir="auto" autocomplete="off" placeholder="${L('مثلا: رياض الصالحين', 'e.g. The Sealed Nectar', 'مثلًا: رياض الصالحين')}"><button type="button" class="btn sm" data-bs-go>${L('دوّر', 'Search', 'ابحث')}</button></div>
       <div class="bs-res" id="${id}-res" aria-live="polite"></div>
     </div>`;
   B.bind = (root, id, onPick) => {
@@ -106,7 +106,7 @@
       const q = input.value.trim();
       if (q.length < 2) return;
       const my = ++n;
-      out.innerHTML = `<p class="muted sm">${L('بدوّر…', 'Searching…')}</p>`;
+      out.innerHTML = `<p class="muted sm">${L('بدوّر…', 'Searching…', 'جارٍ البحث…')}</p>`;
       try {
         results = await B.search(q);
         if (my !== n) return;
@@ -116,9 +116,9 @@
                 (b, i) => `<button type="button" class="bs-it" data-i="${i}">${b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : V.genCover(b.title, b.author, 'xs')}<span><b dir="auto">${esc(b.title)}</b><small dir="auto">${esc([b.author, b.publisher, b.year].filter(Boolean).join(' • '))}${b.pages ? ` • ${L.count(b.pages, 'page')}` : ''}</small></span></button>`
               )
               .join('')
-          : `<p class="muted sm">${L('ملقيتش حاجة. اكتب البيانات بإيدك، وممكن تصوّر الغلاف.', 'Nothing found. Type the details yourself — you can photograph the cover too.')}</p>`;
+          : `<p class="muted sm">${L('ملقيتش حاجة. اكتب البيانات بإيدك، وممكن تصوّر الغلاف.', 'Nothing found. Type the details yourself — you can photograph the cover too.', 'لا توجد نتائج. اكتب البيانات بنفسك، ويمكنك تصوير الغلاف.')}</p>`;
       } catch (e) {
-        out.innerHTML = `<p class="muted sm">${L('البحث مش متاح دلوقتي. اتأكد من النت.', 'Search is unavailable right now. Check your connection.')}</p>`;
+        out.innerHTML = `<p class="muted sm">${L('البحث مش متاح دلوقتي. اتأكد من النت.', 'Search is unavailable right now. Check your connection.', 'البحث غير متاح الآن. تحقّق من اتصالك بالإنترنت.')}</p>`;
       }
     };
     const deb = U.debounce(run, 500);
@@ -167,8 +167,8 @@
   /* Cover field: preview + "photograph the cover" + remove. State lives in data-cover on the wrapper. */
   B.coverField = (id, cover, title) => `<div class="cover-field" id="${id}" data-cover="${esc(cover || '')}">
       <span class="cf-prev">${V.coverOf({ cover, title: title || '' }, 'sm')}</span>
-      <div class="cf-acts"><label class="btn ghost sm">${icon('upload')}${L('صوّر الغلاف أو اختار صورة', 'Photograph or pick a cover')}<input type="file" accept="image/*" capture="environment" hidden data-cf-file></label>
-      <button type="button" class="lnk sm" data-cf-clear ${cover ? '' : 'hidden'}>${L('شيل الغلاف', 'Remove cover')}</button></div>
+      <div class="cf-acts"><label class="btn ghost sm">${icon('upload')}${L('صوّر الغلاف أو اختار صورة', 'Photograph or pick a cover', 'صوِّر الغلاف أو اختر صورة')}<input type="file" accept="image/*" capture="environment" hidden data-cf-file></label>
+      <button type="button" class="lnk sm" data-cf-clear ${cover ? '' : 'hidden'}>${L('شيل الغلاف', 'Remove cover', 'أزِل الغلاف')}</button></div>
     </div>`;
   B.setCover = (root, id, cover, title) => {
     const w = root.querySelector('#' + id);
@@ -194,7 +194,7 @@
         }
       } catch (er) {
         w.classList.remove('busy');
-        U.toast(L('مقدرتش أرفع الصورة', "Couldn't upload the picture"), 'warn');
+        U.toast(L('مقدرتش أرفع الصورة', "Couldn't upload the picture", 'تعذّر رفع الصورة'), 'warn');
       }
     });
     w.addEventListener('click', (e) => {

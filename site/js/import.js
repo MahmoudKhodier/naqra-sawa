@@ -211,21 +211,21 @@
   V.importShelf = () => {
     let parsed = null, plan = null;
     const api = V.sheet({
-      title: L('استورد مكتبتك من Goodreads', 'Import your Goodreads library'),
+      title: L('استورد مكتبتك من Goodreads', 'Import your Goodreads library', 'استورد مكتبتك من Goodreads'),
       html: `<div id="imp-step">${pick()}</div>`,
       onMount: (body) => {
         body.addEventListener('change', async (e) => {
           if (e.target.id !== 'imp-file' || !e.target.files[0]) return;
           const file = e.target.files[0];
-          if (file.size > 15 * 1048576) return showErr(L('الملف ده كبير أوي على إنه تصدير مكتبة.', 'That file is too big for a library export.'));
+          if (file.size > 15 * 1048576) return showErr(L('الملف ده كبير أوي على إنه تصدير مكتبة.', 'That file is too big for a library export.', 'هذا الملف أكبر من أن يكون تصديرًا لمكتبة.'));
           let text = '';
           try {
             text = await file.text();
           } catch (x) {
-            return showErr(L('مقدرتش أقرأ الملف.', "Couldn't read the file."));
+            return showErr(L('مقدرتش أقرأ الملف.', "Couldn't read the file.", 'تعذّرت قراءة الملف.'));
           }
           parsed = Imp.readExport(text);
-          if (parsed.error) return showErr(parsed.error === 'format' ? L('ده مش ملف تصدير من Goodreads (مفيش عمود Title).', "That's not a Goodreads export (no Title column).") : L('الملف فاضي.', 'The file is empty.'));
+          if (parsed.error) return showErr(parsed.error === 'format' ? L('ده مش ملف تصدير من Goodreads (مفيش عمود Title).', "That's not a Goodreads export (no Title column).", 'هذا ليس ملف تصدير من Goodreads (لا يوجد عمود Title).') : L('الملف فاضي.', 'The file is empty.', 'الملف فارغ.'));
           plan = Imp.plan(parsed.items);
           body.querySelector('#imp-step').innerHTML = preview();
         });
@@ -244,13 +244,13 @@
           }
           if (res.tooBig) {
             btn.disabled = false;
-            return showErr(withReviews ? L('المكتبة مع المراجعات أكبر من المساحة المتاحة. شيل علامة «هات مراجعاتي» وجرّب تاني.', 'With reviews the library is bigger than the space available. Untick “Bring my reviews” and try again.') : L('المكتبة أكبر من المساحة المتاحة.', 'The library is bigger than the space available.'), true);
+            return showErr(withReviews ? L('المكتبة مع المراجعات أكبر من المساحة المتاحة. شيل علامة «هات مراجعاتي» وجرّب تاني.', 'With reviews the library is bigger than the space available. Untick “Bring my reviews” and try again.', 'المكتبة مع المراجعات أكبر من المساحة المتاحة. أزِل علامة «انقل مراجعاتي» وحاول مجددًا.') : L('المكتبة أكبر من المساحة المتاحة.', 'The library is bigger than the space available.', 'المكتبة أكبر من المساحة المتاحة.'), true);
           }
           api.close();
           const n = plan.add.length;
           U.confetti(0.9);
           U.chime('ok');
-          U.toast(L(`اتضاف ${L.count(n, 'book')}${plan.fill.length ? ` واتكمّلت بيانات ${L.count(plan.fill.length, 'book')}` : ''}${res.shortened ? ` • ${L.num(res.shortened)} مراجعة اتقصّرت لـ${L.num(U.MAX.review)} حرف` : ''}`, `Added ${n} books${plan.fill.length ? `, completed ${plan.fill.length}` : ''}${res.shortened ? ` • ${res.shortened} reviews shortened to ${U.MAX.review} characters` : ''}`));
+          U.toast(L(`اتضاف ${L.count(n, 'book')}${plan.fill.length ? L.a(` واتكمّلت بيانات ${L.count(plan.fill.length, 'book')}`, ` واكتملت بيانات ${L.count(plan.fill.length, 'book')}`) : ''}${res.shortened ? L.a(` • ${L.num(res.shortened)} مراجعة اتقصّرت لـ${L.num(U.MAX.review)} حرف`, ` • ${L.num(res.shortened)} مراجعة اختُصرت إلى ${L.num(U.MAX.review)} حرف`) : ''}`, `Added ${n} books${plan.fill.length ? `, completed ${plan.fill.length}` : ''}${res.shortened ? ` • ${res.shortened} reviews shortened to ${U.MAX.review} characters` : ''}`, `تمت إضافة ${L.count(n, 'book')}${plan.fill.length ? L.a(` واتكمّلت بيانات ${L.count(plan.fill.length, 'book')}`, ` واكتملت بيانات ${L.count(plan.fill.length, 'book')}`) : ''}${res.shortened ? L.a(` • ${L.num(res.shortened)} مراجعة اتقصّرت لـ${L.num(U.MAX.review)} حرف`, ` • ${L.num(res.shortened)} مراجعة اختُصرت إلى ${L.num(U.MAX.review)} حرف`) : ''}`));
           V.go('shelf', { st: plan.add.some((x) => x.status === 'read') || !plan.add.length ? 'read' : plan.add[0].status });
         });
         function showErr(msg, keep) {
@@ -270,12 +270,12 @@
 
     function pick() {
       return `<ol class="imp-how">
-          <li>${L('افتح <b>Goodreads</b> من المتصفح (مش من تطبيقه) وادخل حسابك.', 'Open <b>Goodreads</b> in a browser (not its app) and sign in.')}</li>
-          <li>${L('روح <b>My Books</b> ← تحت على الجنب <b>Import and export</b> ← دوس <b>Export Library</b>.', 'Go to <b>My Books</b> → in the side bar <b>Import and export</b> → tap <b>Export Library</b>.')}</li>
-          <li>${L('استنى لحد ما يظهر لينك الملف، نزّله (goodreads_library_export.csv) واختاره هنا.', 'Wait for the file link, download it (goodreads_library_export.csv) and choose it here.')}</li>
+          <li>${L('افتح <b>Goodreads</b> من المتصفح (مش من تطبيقه) وادخل حسابك.', 'Open <b>Goodreads</b> in a browser (not its app) and sign in.', 'افتح <b>Goodreads</b> في المتصفح (لا في تطبيقه) وسجّل الدخول إلى حسابك.')}</li>
+          <li>${L('روح <b>My Books</b> ← تحت على الجنب <b>Import and export</b> ← دوس <b>Export Library</b>.', 'Go to <b>My Books</b> → in the side bar <b>Import and export</b> → tap <b>Export Library</b>.', 'اذهب إلى <b>My Books</b> ← ثم من الشريط الجانبي <b>Import and export</b> ← واضغط <b>Export Library</b>.')}</li>
+          <li>${L('استنى لحد ما يظهر لينك الملف، نزّله (goodreads_library_export.csv) واختاره هنا.', 'Wait for the file link, download it (goodreads_library_export.csv) and choose it here.', 'انتظر حتى يظهر رابط الملف، ثم نزّله (goodreads_library_export.csv) واختره هنا.')}</li>
         </ol>
-        <a class="btn ghost" href="https://www.goodreads.com/review/import" target="_blank" rel="noopener">${icon('globe')}${L('افتح صفحة التصدير في Goodreads', 'Open the Goodreads export page')}</a>
-        <label class="drop imp-drop">${icon('download')}<b>${L('اختار ملف التصدير (CSV)', 'Choose the export file (CSV)')}</b><small>${L('بيشتغل كمان مع ملف التصدير من StoryGraph', 'StoryGraph exports work too')}</small>
+        <a class="btn ghost" href="https://www.goodreads.com/review/import" target="_blank" rel="noopener">${icon('globe')}${L('افتح صفحة التصدير في Goodreads', 'Open the Goodreads export page', 'افتح صفحة التصدير في Goodreads')}</a>
+        <label class="drop imp-drop">${icon('download')}<b>${L('اختار ملف التصدير (CSV)', 'Choose the export file (CSV)', 'اختر ملف التصدير (CSV)')}</b><small>${L('بيشتغل كمان مع ملف التصدير من StoryGraph', 'StoryGraph exports work too', 'يعمل أيضًا مع ملف التصدير من StoryGraph')}</small>
           <input type="file" id="imp-file" accept=".csv,text/csv,text/comma-separated-values,application/vnd.ms-excel,text/plain"></label>
         <p class="err-t" id="imp-err" hidden></p>`;
     }
@@ -287,22 +287,22 @@
       const others = Object.entries(parsed.otherShelves);
       const xp = Math.min(by.read, Math.max(0, 60 - G.of(S.me).shelfRead)) * G.XP.shelf;
       return `<div class="imp-sum">
-          <div><b>${L.num(by.read)}</b><small>${L('قرأته', 'Read')}</small></div>
-          <div><b>${L.num(by.reading)}</b><small>${L('بقرأه', 'Reading')}</small></div>
-          <div><b>${L.num(by.want)}</b><small>${L('عايز أقرأه', 'Want to read')}</small></div>
+          <div><b>${L.num(by.read)}</b><small>${L('قرأته', 'Read', 'قرأته')}</small></div>
+          <div><b>${L.num(by.reading)}</b><small>${L('بقرأه', 'Reading', 'أقرؤه')}</small></div>
+          <div><b>${L.num(by.want)}</b><small>${L('عايز أقرأه', 'Want to read', 'أريد قراءته')}</small></div>
         </div>
         <ul class="imp-notes">
-          <li>${L(`${L.count(plan.add.length, 'book')} جديد${rated ? ` • ${L.num(rated)} بتقييمك` : ''}`, `${plan.add.length} new books${rated ? ` • ${rated} with your rating` : ''}`)}</li>
-          ${plan.fill.length ? `<li>${L(`${L.count(plan.fill.length, 'book')} موجود عندك — هنكمّل الناقص (تقييم، رأي، تاريخ…)`, `${plan.fill.length} already on your shelf — missing details will be filled in`)}</li>` : ''}
-          ${plan.same ? `<li class="muted">${L(`${L.count(plan.same, 'book')} موجود بالفعل زي ما هو`, `${plan.same} already there as they are`)}</li>` : ''}
-          ${others.length ? `<li class="muted">${L(`مش هنستورد رفوف تانية: ${others.map(([k, n]) => `${esc(k)} (${L.num(n)})`).join('، ')}`, `Not importing other shelves: ${others.map(([k, n]) => `${esc(k)} (${n})`).join(', ')}`)}</li>` : ''}
+          <li>${L(`${L.count(plan.add.length, 'book')} جديد${rated ? L.a(` • ${L.num(rated)} بتقييمك`, ` • ${L.num(rated)} بتقييمك`) : ''}`, `${plan.add.length} new books${rated ? ` • ${rated} with your rating` : ''}`, `جديد: ${L.count(plan.add.length, 'book')}${rated ? L.a(` • ${L.num(rated)} بتقييمك`, ` • ${L.num(rated)} بتقييمك`) : ''}`)}</li>
+          ${plan.fill.length ? `<li>${L(`${L.count(plan.fill.length, 'book')} موجود عندك — هنكمّل الناقص (تقييم، رأي، تاريخ…)`, `${plan.fill.length} already on your shelf — missing details will be filled in`, `${L.count(plan.fill.length, 'book')} في مكتبتك بالفعل — سنُكمل الناقص (تقييم، رأي، تاريخ…)`)}</li>` : ''}
+          ${plan.same ? `<li class="muted">${L(`${L.count(plan.same, 'book')} موجود بالفعل زي ما هو`, `${plan.same} already there as they are`, `${L.count(plan.same, 'book')} في مكتبتك بالفعل دون تغيير`)}</li>` : ''}
+          ${others.length ? `<li class="muted">${L(`مش هنستورد رفوف تانية: ${others.map(([k, n]) => `${esc(k)} (${L.num(n)})`).join('، ')}`, `Not importing other shelves: ${others.map(([k, n]) => `${esc(k)} (${n})`).join(', ')}`, `لن نستورد الرفوف الأخرى: ${others.map(([k, n]) => `${esc(k)} (${L.num(n)})`).join('، ')}`)}</li>` : ''}
           ${xp ? `<li class="gold-t">+${L.num(xp)} XP</li>` : ''}
         </ul>
-        ${plan.add.length ? `<div class="imp-list">${plan.add.slice(0, 6).map((x) => `<span>${V.coverOf(x, 'xs')}<b dir="auto">${esc(x.title)}</b></span>`).join('')}${plan.add.length > 6 ? `<small class="muted">${L(`و${L.num(plan.add.length - 6)} كمان…`, `and ${plan.add.length - 6} more…`)}</small>` : ''}</div>` : ''}
-        ${reviewed ? `<label class="check"><input type="checkbox" id="imp-reviews" checked><span>${L(`هات مراجعاتي (${L.num(reviewed)})`, `Bring my reviews (${reviewed})`)}</span></label>` : ''}
+        ${plan.add.length ? `<div class="imp-list">${plan.add.slice(0, 6).map((x) => `<span>${V.coverOf(x, 'xs')}<b dir="auto">${esc(x.title)}</b></span>`).join('')}${plan.add.length > 6 ? `<small class="muted">${L(`و${L.num(plan.add.length - 6)} كمان…`, `and ${plan.add.length - 6} more…`, `و${L.num(plan.add.length - 6)} أخرى…`)}</small>` : ''}</div>` : ''}
+        ${reviewed ? `<label class="check"><input type="checkbox" id="imp-reviews" checked><span>${L(`هات مراجعاتي (${L.num(reviewed)})`, `Bring my reviews (${reviewed})`, `انقل مراجعاتي (${L.num(reviewed)})`)}</span></label>` : ''}
         <p class="err-t" id="imp-err" hidden></p>
-        <div class="row-btns end"><button class="btn ghost" data-imp-back>${L('ملف تاني', 'Another file')}</button>
-          <button class="btn gold" data-imp-go ${plan.add.length + plan.fill.length ? '' : 'disabled'}>${icon('check')}${plan.add.length + plan.fill.length ? L(`استورد ${L.count(plan.add.length + plan.fill.length, 'book')}`, `Import ${plan.add.length + plan.fill.length} books`) : L('مفيش جديد', 'Nothing new')}</button></div>`;
+        <div class="row-btns end"><button class="btn ghost" data-imp-back>${L('ملف تاني', 'Another file', 'ملف آخر')}</button>
+          <button class="btn gold" data-imp-go ${plan.add.length + plan.fill.length ? '' : 'disabled'}>${icon('check')}${plan.add.length + plan.fill.length ? L(`استورد ${L.count(plan.add.length + plan.fill.length, 'book')}`, `Import ${plan.add.length + plan.fill.length} books`, `استورد ${L.count(plan.add.length + plan.fill.length, 'book')}`) : L('مفيش جديد', 'Nothing new', 'لا جديد')}</button></div>`;
     }
   };
   V.actions['import-shelf'] = () => V.importShelf();

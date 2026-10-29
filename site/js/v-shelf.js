@@ -12,15 +12,15 @@
   const icon = U.icon;
 
   const TAGS = [
-    ['novel', 'رواية', 'Novel'], ['history', 'تاريخ', 'History'], ['religion', 'دين', 'Religion'], ['self', 'تطوير ذات', 'Self-help'],
-    ['science', 'علوم', 'Science'], ['philo', 'فلسفة', 'Philosophy'], ['poetry', 'شعر', 'Poetry'], ['bio', 'سيرة', 'Biography'],
-    ['business', 'بيزنس', 'Business'], ['kids', 'أطفال', 'Children'], ['tech', 'تكنولوجيا', 'Technology'], ['other', 'تاني', 'Other'],
+    ['novel', 'رواية', 'Novel', 'رواية'], ['history', 'تاريخ', 'History', 'تاريخ'], ['religion', 'دين', 'Religion', 'دين'], ['self', 'تطوير ذات', 'Self-help', 'تطوير الذات'],
+    ['science', 'علوم', 'Science', 'علوم'], ['philo', 'فلسفة', 'Philosophy', 'فلسفة'], ['poetry', 'شعر', 'Poetry', 'شعر'], ['bio', 'سيرة', 'Biography', 'سيرة'],
+    ['business', 'بيزنس', 'Business', 'أعمال'], ['kids', 'أطفال', 'Children', 'أطفال'], ['tech', 'تكنولوجيا', 'Technology', 'تقنية'], ['other', 'تاني', 'Other', 'أخرى'],
   ];
   const tagName = (k) => {
     const t = TAGS.find((x) => x[0] === k);
-    return t ? L(t[1], t[2]) : k;
+    return t ? L(t[1], t[2], t[3]) : k;
   };
-  const STATUS = { read: ['قرأته', 'Read'], reading: ['بقرأه', 'Reading'], want: ['عايز أقرأه', 'Want to read'] };
+  const STATUS = { read: ['قرأته', 'Read', 'قرأته'], reading: ['بقرأه', 'Reading', 'أقرؤه'], want: ['عايز أقرأه', 'Want to read', 'أريد قراءته'] };
 
   /* Shelf items of a member, plus books finished together in the circle. */
   V.shelfItems = (uid) => {
@@ -58,30 +58,30 @@
             : sort === 'rating' ? (b.rating || 0) - (a.rating || 0) || String(b.finished || b.at).localeCompare(String(a.finished || a.at))
               : String(b.finished || b.at).localeCompare(String(a.finished || a.at)),
       );
-    const tools = inTab.length > 6 || q ? `<div class="shelf-tools"><label class="sh-search">${icon('search')}<input id="sh-q" type="search" dir="auto" placeholder="${L('دوّر بالاسم أو المؤلف…', 'Search title or author…')}" value="${esc(q)}" aria-label="${L('دوّر في المكتبة', 'Search the shelf')}"></label>
-        <select id="sh-sort" aria-label="${L('الترتيب', 'Sort')}">${[['recent', L('الأحدث', 'Recent')], ['title', L('بالاسم', 'Title')], ['author', L('بالمؤلف', 'Author')], ['rating', L('بالتقييم', 'Rating')]].map(([k, t]) => `<option value="${k}" ${sort === k ? 'selected' : ''}>${t}</option>`).join('')}</select></div>` : '';
+    const tools = inTab.length > 6 || q ? `<div class="shelf-tools"><label class="sh-search">${icon('search')}<input id="sh-q" type="search" dir="auto" placeholder="${L('دوّر بالاسم أو المؤلف…', 'Search title or author…', 'ابحث بالعنوان أو المؤلف…')}" value="${esc(q)}" aria-label="${L('دوّر في المكتبة', 'Search the shelf', 'ابحث في المكتبة')}"></label>
+        <select id="sh-sort" aria-label="${L('الترتيب', 'Sort', 'الترتيب')}">${[['recent', L('الأحدث', 'Recent', 'الأحدث')], ['title', L('بالاسم', 'Title', 'بالعنوان')], ['author', L('بالمؤلف', 'Author', 'بالمؤلف')], ['rating', L('بالتقييم', 'Rating', 'بالتقييم')]].map(([k, t]) => `<option value="${k}" ${sort === k ? 'selected' : ''}>${t}</option>`).join('')}</select></div>` : '';
     const pagesTotal = all.filter((x) => x.status === 'read').reduce((s, x) => s + (+x.pages || 0), 0);
     const owners = D.memberIds();
     return `<div class="shelfpage">
-      <header class="page-head"><div><h1>${mine ? L('مكتبتي', 'My shelf') : L(`مكتبة ${esc(D.name(uid))}`, `${esc(D.name(uid))}'s shelf`)}</h1><p class="muted">${L('كل الكتب اللي قريتها، بتقرأها، أو ناوي تقرأها', 'Everything read, in progress, or on the wish list')}</p></div>
-        ${mine && D.canWrite() ? `<div class="row-btns"><button class="btn gold" data-act="shelf-add">${icon('plus')}${L('ضيف كتاب', 'Add a book')}</button><button class="btn ghost" data-act="bulk-shelf" aria-label="${L('ضيف كذا كتاب', 'Add many')}">${icon('list')}<span class="hide-xs">${L('ضيف كذا كتاب', 'Add many')}</span></button><button class="btn ghost" data-act="import-shelf">${icon('download')}<span>Goodreads</span></button></div>` : ''}</header>
-      <div class="owners" role="tablist">${owners.map((u) => `<button class="owner${u === uid ? ' on' : ''}" data-act="shelf-of" data-uid="${esc(u)}" role="tab" aria-selected="${u === uid}">${D.avatar(u, 'sm')}<span>${u === S.me ? L('أنا', 'Me') : esc(D.name(u))}</span></button>`).join('')}</div>
+      <header class="page-head"><div><h1>${mine ? L('مكتبتي', 'My shelf', 'مكتبتي') : L(`مكتبة ${esc(D.name(uid))}`, `${esc(D.name(uid))}'s shelf`, `مكتبة ${esc(D.name(uid))}`)}</h1><p class="muted">${L('كل الكتب اللي قريتها، بتقرأها، أو ناوي تقرأها', 'Everything read, in progress, or on the wish list', 'كل الكتب التي قرأتها أو تقرؤها أو تنوي قراءتها')}</p></div>
+        ${mine && D.canWrite() ? `<div class="row-btns"><button class="btn gold" data-act="shelf-add">${icon('plus')}${L('ضيف كتاب', 'Add a book', 'أضف كتابًا')}</button><button class="btn ghost" data-act="bulk-shelf" aria-label="${L('ضيف كذا كتاب', 'Add many', 'أضِف عدة كتب')}">${icon('list')}<span class="hide-xs">${L('ضيف كذا كتاب', 'Add many', 'أضِف عدة كتب')}</span></button><button class="btn ghost" data-act="import-shelf">${icon('download')}<span>Goodreads</span></button></div>` : ''}</header>
+      <div class="owners" role="tablist">${owners.map((u) => `<button class="owner${u === uid ? ' on' : ''}" data-act="shelf-of" data-uid="${esc(u)}" role="tab" aria-selected="${u === uid}">${D.avatar(u, 'sm')}<span>${u === S.me ? L('أنا', 'Me', 'أنا') : esc(D.name(u))}</span></button>`).join('')}</div>
       <div class="shelf-top">
         <section class="card challenge">
           ${V.ring(goal ? doneYear / goal : 0, `<b>${L.num(doneYear)}</b><small>${goal ? '/ ' + L.num(goal) : ''}</small>`, doneYear >= goal && goal ? 'jade' : 'gold', 92)}
-          <div><h3>${L(`تحدي ${L.num(+year, { useGrouping: false })}`, `${year} challenge`)}</h3>
-            <p>${goal ? (doneYear >= goal ? L('حققت الهدف! 🎉 زوّده؟', 'Goal reached! 🎉 Raise it?') : L(`فاضل ${L.count(goal - doneYear, 'book')} على هدفك`, `${goal - doneYear} books to go`)) : mine ? L('حط هدف لعدد الكتب اللي عايز تقرأها السنة دي', 'Set how many books you want to read this year') : L('مفيش هدف لسه', 'No goal set yet')}</p>
-            ${mine && D.canWrite() ? `<button class="btn ghost sm" data-act="set-goal">${icon('target')}${goal ? L('غيّر الهدف', 'Change goal') : L('حط هدف', 'Set a goal')}</button>` : ''}</div>
+          <div><h3>${L(`تحدي ${L.num(+year, { useGrouping: false })}`, `${year} challenge`, `تحدّي ${L.num(+year, { useGrouping: false })}`)}</h3>
+            <p>${goal ? (doneYear >= goal ? L('عملتها! 🎉 نعلّي الهدف؟', 'Goal reached! 🎉 Raise it?', 'حقّقت الهدف! 🎉 هل ترفعه؟') : L(`فاضل ${L.count(goal - doneYear, 'book')} على هدفك`, `${goal - doneYear} books to go`, `بقي ${L.count(goal - doneYear, 'book')} على هدفك`)) : mine ? L('حط هدف لعدد الكتب اللي عايز تقرأها السنة دي', 'Set how many books you want to read this year', 'حدِّد عدد الكتب التي تريد قراءتها هذا العام') : L('مفيش هدف لسه', 'No goal set yet', 'لم يُحدَّد هدف بعد')}</p>
+            ${mine && D.canWrite() ? `<button class="btn ghost sm" data-act="set-goal">${icon('target')}${goal ? L('غيّر الهدف', 'Change goal', 'غيِّر الهدف') : L('حط هدف', 'Set a goal', 'حدِّد هدفًا')}</button>` : ''}</div>
         </section>
         <section class="card shelf-stats">
-          <div><b>${L.num(counts.read)}</b><small>${L('كتب مقروءة', 'books read')}</small></div>
-          <div><b>${L.num(pagesTotal)}</b><small>${L('صفحة', 'pages')}</small></div>
-          <div><b>${L.num(all.filter((x) => x.together).length)}</b><small>${L('مع الحلقة', 'with the circle')}</small></div>
+          <div><b>${L.num(counts.read)}</b><small>${L('كتب مقروءة', 'books read', 'كتب مقروءة')}</small></div>
+          <div><b>${L.num(pagesTotal)}</b><small>${L('صفحة', 'pages', 'صفحة')}</small></div>
+          <div><b>${L.num(all.filter((x) => x.together).length)}</b><small>${L('مع الحلقة', 'with the circle', 'مع الحلقة')}</small></div>
         </section>
       </div>
-      <nav class="tabs" role="tablist">${Object.entries(STATUS).map(([k, t]) => `<button role="tab" class="tab${k === tab ? ' on' : ''}" aria-selected="${k === tab}" data-act="shelf-tab" data-st="${k}" data-uid="${esc(uid)}"><span>${L(t[0], t[1])}</span><small>${L.num(counts[k] || 0)}</small></button>`).join('')}</nav>
+      <nav class="tabs" role="tablist">${Object.entries(STATUS).map(([k, t]) => `<button role="tab" class="tab${k === tab ? ' on' : ''}" aria-selected="${k === tab}" data-act="shelf-tab" data-st="${k}" data-uid="${esc(uid)}"><span>${L(t[0], t[1], t[2])}</span><small>${L.num(counts[k] || 0)}</small></button>`).join('')}</nav>
       ${tools}
-      ${list.length ? shelfRows(list) : q ? V.empty(L('مفيش كتاب بالاسم ده', 'No book matches'), L('جرّب كلمة تانية من العنوان أو اسم المؤلف.', 'Try another word from the title or the author.')) : V.empty(tab === 'read' ? L('الرف فاضي', 'This shelf is empty') : L('مفيش حاجة هنا لسه', 'Nothing here yet'), mine ? L('ضيف الكتب اللي قريتها قبل كده — كل كتاب بـ ١٠ XP، والرأي بـ ٥ زيادة. عندك حساب Goodreads؟ هات مكتبتك كلها مرة واحدة.', 'Add books you have read before — 10 XP each, plus 5 for a review. On Goodreads? Bring your whole library at once.') : '', mine && D.canWrite() ? `<div class="row-btns center"><button class="btn gold" data-act="bulk-shelf">${icon('list')}${L('ضيف كذا كتاب مرة واحدة', 'Add several at once')}</button><button class="btn ghost" data-act="import-shelf">${icon('download')}${L('استورد من Goodreads', 'Import from Goodreads')}</button></div>` : '')}
+      ${list.length ? shelfRows(list) : q ? V.empty(L('مفيش كتاب بالاسم ده', 'No book matches', 'لا يوجد كتاب بهذا الاسم'), L('جرّب كلمة تانية من العنوان أو اسم المؤلف.', 'Try another word from the title or the author.', 'جرِّب كلمة أخرى من العنوان أو اسم المؤلف.')) : V.empty(tab === 'read' ? L('الرف فاضي', 'This shelf is empty', 'الرف فارغ') : L('مفيش حاجة هنا لسه', 'Nothing here yet', 'لا شيء هنا بعد'), mine ? L('ضيف الكتب اللي قريتها قبل كده — كل كتاب بـ ١٠ XP، والرأي بـ ٥ زيادة. عندك حساب Goodreads؟ هات مكتبتك كلها مرة واحدة.', 'Add books you have read before — 10 XP each, plus 5 for a review. On Goodreads? Bring your whole library at once.', 'أضِف الكتب التي قرأتها من قبل — لكل كتاب ١٠ XP، و٥ إضافية على رأيك فيه. لديك حساب على Goodreads؟ انقل مكتبتك كلها دفعة واحدة.') : '', mine && D.canWrite() ? `<div class="row-btns center"><button class="btn gold" data-act="bulk-shelf">${icon('list')}${L('ضيف كذا كتاب مرة واحدة', 'Add several at once', 'أضِف عدة كتب دفعة واحدة')}</button><button class="btn ghost" data-act="import-shelf">${icon('download')}${L('استورد من Goodreads', 'Import from Goodreads', 'استورد من Goodreads')}</button></div>` : '')}
     </div>`;
   };
 
@@ -94,13 +94,13 @@
         return `<button class="spine${it.together ? ' together' : ''}" data-act="shelf-item" data-id="${esc(it.id)}" style="--bg:${bg};--fg:${fg};--h:${h}%;--w:${30 + (U.hash(it.id) % 14)}px" title="${esc(it.title)}">
           <span class="sp-body"><span class="sp-t" dir="auto">${esc(it.title)}</span>
           ${it.rating ? `<span class="sp-r">${'★'.repeat(it.rating)}</span>` : ''}
-          ${it.together ? `<span class="sp-tg" aria-label="${L('قرأناه سوا', 'Read together')}"></span>` : ''}</span>
+          ${it.together ? `<span class="sp-tg" aria-label="${L('قرأناه سوا', 'Read together', 'قرأناه معًا')}"></span>` : ''}</span>
         </button>`;
       })
       .join('')}</div>
       <ul class="shelf-list">${list
         .map(
-          (it) => `<li><button data-act="shelf-item" data-id="${esc(it.id)}">${V.coverOf ? V.coverOf(it, 'xs') : V.genCover(it.title, it.author, 'xs')}<span class="sl-t"><b dir="auto">${esc(it.title)}</b><small>${it.author ? `<span dir="auto">${esc(it.author)}</span>` : ''}${it.finished ? ` • ${it.finished.length === 4 ? L.num(+it.finished, { useGrouping: false }) : L.monthYear(it.finished)}` : ''}${it.together ? ` • <span class="gold-t">${L('قرأناه سوا', 'Read together')}</span>` : ''}</small></span>${it.rating ? V.stars(it.rating) : ''}</button></li>`
+          (it) => `<li><button data-act="shelf-item" data-id="${esc(it.id)}">${V.coverOf ? V.coverOf(it, 'xs') : V.genCover(it.title, it.author, 'xs')}<span class="sl-t"><b dir="auto">${esc(it.title)}</b><small>${it.author ? `<span dir="auto">${esc(it.author)}</span>` : ''}${it.finished ? ` • ${it.finished.length === 4 ? L.num(+it.finished, { useGrouping: false }) : L.monthYear(it.finished)}` : ''}${it.together ? ` • <span class="gold-t">${L('قرأناه سوا', 'Read together', 'قرأناه معًا')}</span>` : ''}</small></span>${it.rating ? V.stars(it.rating) : ''}</button></li>`
         )
         .join('')}</ul>`;
   }
@@ -140,27 +140,27 @@
     });
     const gain = (isNew && item.status === 'read' ? G.XP.shelf : 0) + (item.review && item.review.length >= 20 && !(prev && prev.review && prev.review.length >= 20) ? G.XP.review : 0);
     U.chime('soft');
-    if (gain) U.xpPop(gain, L('مكتبتي', 'My shelf'));
-    else U.toast(L('اتحفظ في مكتبتك', 'Saved to your shelf'));
+    if (gain) U.xpPop(gain, L('مكتبتي', 'My shelf', 'مكتبتي'));
+    else U.toast(L('اتحفظ في مكتبتك', 'Saved to your shelf', 'حُفظ في مكتبتك'));
   };
 
   V.shelfForm = (it = null) => {
     const v = it || { status: 'read', rating: 0, tags: [] };
     V.sheet({
-      title: it ? L('عدّل الكتاب', 'Edit book') : L('ضيف كتاب لمكتبتك', 'Add a book to your shelf'),
+      title: it ? L('عدّل الكتاب', 'Edit book', 'عدِّل الكتاب') : L('ضيف كتاب لمكتبتك', 'Add a book to your shelf', 'أضِف كتابًا إلى مكتبتك'),
       html: `${A.B ? A.B.box('sf-bs') : ''}<form id="sf-form" class="form">
         ${A.B ? A.B.coverField('sf-cover', v.cover, v.title) : ''}
-        <label for="sf-title">${L('اسم الكتاب', 'Title')}</label><input id="sf-title" required maxlength="140" dir="auto" value="${esc(v.title || '')}" autofocus>
-        <label for="sf-author">${L('المؤلف', 'Author')}</label><input id="sf-author" maxlength="100" dir="auto" value="${esc(v.author || '')}">
-        <span class="lbl">${L('الحالة', 'Status')}</span>
-        <div class="seg-pick">${Object.entries(STATUS).map(([k, t]) => `<label class="sp${v.status === k ? ' on' : ''}"><input type="radio" name="sf-status" value="${k}" ${v.status === k ? 'checked' : ''}><span>${L(t[0], t[1])}</span></label>`).join('')}</div>
-        <div class="grid2"><div><label for="sf-fin">${L('خلّصته إمتى؟', 'Finished when?')}</label><input id="sf-fin" type="month" value="${esc(v.finished && v.finished.length === 7 ? v.finished : '')}"></div>
-          <div><label for="sf-pages">${L('عدد الصفحات', 'Pages')}</label><input id="sf-pages" type="number" min="0" max="20000" value="${esc(v.pages || '')}"></div></div>
-        <span class="lbl">${L('تقييمك', 'Your rating')}</span>${V.stars(v.rating || 0, true, 'sf-stars')}
-        <label for="sf-review">${L('رأيك في الكتاب', 'Your review')} <small class="muted">(+${L.num(G.XP.review)} XP ${L('لو أكتر من سطر', 'if more than a line')})</small></label><textarea id="sf-review" rows="3" maxlength="${U.MAX.review}" dir="auto">${esc(v.review || '')}</textarea>
-        <span class="lbl">${L('تصنيف', 'Tags')}</span>
+        <label for="sf-title">${L('اسم الكتاب', 'Title', 'عنوان الكتاب')}</label><input id="sf-title" required maxlength="140" dir="auto" value="${esc(v.title || '')}" autofocus>
+        <label for="sf-author">${L('المؤلف', 'Author', 'المؤلف')}</label><input id="sf-author" maxlength="100" dir="auto" value="${esc(v.author || '')}">
+        <span class="lbl">${L('الحالة', 'Status', 'الحالة')}</span>
+        <div class="seg-pick">${Object.entries(STATUS).map(([k, t]) => `<label class="sp${v.status === k ? ' on' : ''}"><input type="radio" name="sf-status" value="${k}" ${v.status === k ? 'checked' : ''}><span>${L(t[0], t[1], t[2])}</span></label>`).join('')}</div>
+        <div class="grid2"><div><label for="sf-fin">${L('خلّصته إمتى؟', 'Finished when?', 'متى أنهيته؟')}</label><input id="sf-fin" type="month" value="${esc(v.finished && v.finished.length === 7 ? v.finished : '')}"></div>
+          <div><label for="sf-pages">${L('عدد الصفحات', 'Pages', 'عدد الصفحات')}</label><input id="sf-pages" type="number" min="0" max="20000" value="${esc(v.pages || '')}"></div></div>
+        <span class="lbl">${L('تقييمك', 'Your rating', 'تقييمك')}</span>${V.stars(v.rating || 0, true, 'sf-stars')}
+        <label for="sf-review">${L('رأيك في الكتاب', 'Your review', 'رأيك في الكتاب')} <small class="muted">(+${L.num(G.XP.review)} XP ${L('لو أكتر من سطر', 'if more than a line', 'إن كان أكثر من سطر')})</small></label><textarea id="sf-review" rows="3" maxlength="${U.MAX.review}" dir="auto">${esc(v.review || '')}</textarea>
+        <span class="lbl">${L('تصنيف', 'Tags', 'تصنيف')}</span>
         <div class="chips wrap" id="sf-tags">${TAGS.map(([k]) => `<button type="button" class="chip${(v.tags || []).includes(k) ? ' on' : ''}" data-tag="${k}">${tagName(k)}</button>`).join('')}</div>
-        <div class="row-btns end"><button class="btn gold">${icon('check')}${L('احفظ', 'Save')}</button></div></form>`,
+        <div class="row-btns end"><button class="btn gold">${icon('check')}${L('احفظ', 'Save', 'احفظ')}</button></div></form>`,
       onMount: (body, api) => {
         V.bindStars(body);
         if (A.B) {
@@ -198,7 +198,7 @@
           if (!it) {
             const k = A.Imp.key(item.title, item.author);
             const dup = V.shelfItems(S.me).find((x) => A.Imp.key(x.title, x.author) === k);
-            if (dup && !(await V.confirm(L(`«${esc(dup.title)}» موجود في مكتبتك (${esc(L(STATUS[dup.status][0], STATUS[dup.status][1]))}). تضيفه تاني؟`, `“${esc(dup.title)}” is already on your shelf (${esc(STATUS[dup.status][1])}). Add it again?`), L('ضيفه', 'Add it')))) return;
+            if (dup && !(await V.confirm(L(`«${esc(dup.title)}» موجود في مكتبتك (${esc(L(STATUS[dup.status][0], STATUS[dup.status][1], STATUS[dup.status][2]))}). تضيفه تاني؟`, `“${esc(dup.title)}” is already on your shelf (${esc(STATUS[dup.status][1])}). Add it again?`, `«${esc(dup.title)}» موجود في مكتبتك (${esc(L(STATUS[dup.status][0], STATUS[dup.status][1], STATUS[dup.status][2]))}). أتضيفه مرة أخرى؟`), L('ضيفه', 'Add it', 'أضِفه')))) return;
           }
           api.close();
           await V.saveShelfItem(it ? it.id : null, item);
@@ -209,12 +209,12 @@
 
   V.bulkShelf = () => {
     V.sheet({
-      title: L('ضيف الكتب اللي قريتها', 'Add books you have read'),
-      html: `<p class="muted">${L('اكتب كل كتاب في سطر. لو عايز تكتب المؤلف حطه بعد شرطة: «العنوان - المؤلف».', 'One book per line. Add the author after a dash: “Title - Author”.')}</p>
-        <textarea id="bulk-text" rows="8" dir="auto" autofocus placeholder="${L('ثلاثية غرناطة - رضوى عاشور\nعبقرية عمر - العقاد\nالأيام - طه حسين', 'Atomic Habits - James Clear\nSapiens - Yuval Noah Harari')}"></textarea>
-        <div class="grid2"><div><label for="bulk-status">${L('الحالة', 'Status')}</label><select id="bulk-status"><option value="read">${L('قرأته', 'Read')}</option><option value="want">${L('عايز أقرأه', 'Want to read')}</option></select></div><div><label for="bulk-year">${L('سنة القراية (اختياري)', 'Year read (optional)')}</label><input id="bulk-year" type="number" min="1950" max="2100" placeholder="${new Date().getFullYear()}"></div></div>
+      title: L('ضيف الكتب اللي قريتها', 'Add books you have read', 'أضِف الكتب التي قرأتها'),
+      html: `<p class="muted">${L('اكتب كل كتاب في سطر. لو عايز تكتب المؤلف حطه بعد شرطة: «العنوان - المؤلف».', 'One book per line. Add the author after a dash: “Title - Author”.', 'اكتب كل كتاب في سطر. وإن أردت ذكر المؤلف فضعه بعد شرطة: «العنوان - المؤلف».')}</p>
+        <textarea id="bulk-text" rows="8" dir="auto" autofocus placeholder="${L('ثلاثية غرناطة - رضوى عاشور\nعبقرية عمر - العقاد\nالأيام - طه حسين', 'Atomic Habits - James Clear\nSapiens - Yuval Noah Harari', 'ثلاثية غرناطة - رضوى عاشور\nعبقرية عمر - العقاد\nالأيام - طه حسين')}"></textarea>
+        <div class="grid2"><div><label for="bulk-status">${L('الحالة', 'Status', 'الحالة')}</label><select id="bulk-status"><option value="read">${L('قرأته', 'Read', 'قرأته')}</option><option value="want">${L('عايز أقرأه', 'Want to read', 'أريد قراءته')}</option></select></div><div><label for="bulk-year">${L('سنة القراية (اختياري)', 'Year read (optional)', 'سنة القراءة (اختياري)')}</label><input id="bulk-year" type="number" min="1950" max="2100" placeholder="${new Date().getFullYear()}"></div></div>
         <p class="muted sm" id="bulk-count"></p>
-        <div class="row-btns end"><button class="btn gold" data-bulk>${icon('check')}${L('ضيفهم', 'Add them')}</button></div>`,
+        <div class="row-btns end"><button class="btn gold" data-bulk>${icon('check')}${L('ضيفهم', 'Add them', 'أضِفها')}</button></div>`,
       onMount: (body, api) => {
         const parse = () =>
           body
@@ -230,7 +230,7 @@
         body.addEventListener('input', () => {
           const n = parse().length;
           const st = body.querySelector('#bulk-status').value;
-          body.querySelector('#bulk-count').textContent = n ? L(`${L.count(n, 'book')}${st === 'read' ? ` • +${L.num(n * G.XP.shelf)} XP` : ''}`, `${n} books${st === 'read' ? ` • +${n * G.XP.shelf} XP` : ''}`) : '';
+          body.querySelector('#bulk-count').textContent = n ? L(`${L.count(n, 'book')}${st === 'read' ? ` • +${L.num(n * G.XP.shelf)} XP` : ''}`, `${n} books${st === 'read' ? ` • +${n * G.XP.shelf} XP` : ''}`, `${L.count(n, 'book')}${st === 'read' ? ` • +${L.num(n * G.XP.shelf)} XP` : ''}`) : '';
         });
         body.addEventListener('click', async (e) => {
           if (!e.target.closest('[data-bulk]')) return;
@@ -266,21 +266,21 @@
       .filter((o) => o.x);
     const month = U.today().slice(0, 7);
     V.sheet({
-      title: L(STATUS[it.status][0], STATUS[it.status][1]),
+      title: L(STATUS[it.status][0], STATUS[it.status][1], STATUS[it.status][2]),
       html: `<div class="sd">${book ? V.cover(book, 'md') : V.coverOf ? V.coverOf(it, 'md') : V.genCover(it.title, it.author, 'md')}
         <div class="sd-info"><h2 dir="auto">${esc(it.title)}</h2>${it.author ? `<p class="muted" dir="auto">${esc(it.author)}</p>` : ''}
           ${it.rating ? V.stars(it.rating) : ''}
-          <div class="meta-chips">${it.finished ? `<span>${icon('calendar')}${it.finished.length === 4 ? L.num(+it.finished, { useGrouping: false }) : L.monthYear(it.finished)}</span>` : ''}${it.pages ? `<span>${icon('scroll')}${L.count(+it.pages, 'page')}</span>` : ''}${it.together ? `<span class="gold-t">${icon('users')}${L('قرأناه سوا', 'Read together')}</span>` : ''}${(it.tags || []).map((t) => `<span>${tagName(t)}</span>`).join('')}</div>
+          <div class="meta-chips">${it.finished ? `<span>${icon('calendar')}${it.finished.length === 4 ? L.num(+it.finished, { useGrouping: false }) : L.monthYear(it.finished)}</span>` : ''}${it.pages ? `<span>${icon('scroll')}${L.count(+it.pages, 'page')}</span>` : ''}${it.together ? `<span class="gold-t">${icon('users')}${L('قرأناه سوا', 'Read together', 'قرأناه معًا')}</span>` : ''}${(it.tags || []).map((t) => `<span>${tagName(t)}</span>`).join('')}</div>
         </div></div>
         ${it.review ? `<blockquote class="review" dir="auto">${esc(it.review)}</blockquote>` : ''}
-        ${mine && D.canWrite() && !it.virtual && it.status !== 'read' ? `<div class="sd-move">${it.status === 'want' ? `<button class="btn" data-move="reading">${icon('play', 'flip-rtl')}${L('بدأت أقرأه', 'Started it')}</button>` : ''}<button class="btn gold" data-move="read">${icon('check')}${L('خلّصته', 'Finished it')}</button></div>` : ''}
-        ${others.length ? `<div class="sd-others"><h4>${L('في الحلقة', 'In the circle')}</h4>${others
-          .map((o) => `<button class="sd-o" data-act="shelf-of" data-uid="${esc(o.u)}">${D.avatar(o.u, 'sm')}<span><b>${esc(D.name(o.u))}</b><small>${esc(L(STATUS[o.x.status][0], STATUS[o.x.status][1]))}${o.x.together ? ` • ${L('مع الحلقة', 'with the circle')}` : ''}</small></span>${o.x.rating ? V.stars(o.x.rating) : ''}</button>`)
+        ${mine && D.canWrite() && !it.virtual && it.status !== 'read' ? `<div class="sd-move">${it.status === 'want' ? `<button class="btn" data-move="reading">${icon('play', 'flip-rtl')}${L('بدأت أقرأه', 'Started it', 'بدأت قراءته')}</button>` : ''}<button class="btn gold" data-move="read">${icon('check')}${L('خلّصته', 'Finished it', 'أنهيته')}</button></div>` : ''}
+        ${others.length ? `<div class="sd-others"><h4>${L('في الحلقة', 'In the circle', 'في الحلقة')}</h4>${others
+          .map((o) => `<button class="sd-o" data-act="shelf-of" data-uid="${esc(o.u)}">${D.avatar(o.u, 'sm')}<span><b>${esc(D.name(o.u))}</b><small>${esc(L(STATUS[o.x.status][0], STATUS[o.x.status][1], STATUS[o.x.status][2]))}${o.x.together ? ` • ${L('مع الحلقة', 'with the circle', 'مع الحلقة')}` : ''}</small></span>${o.x.rating ? V.stars(o.x.rating) : ''}</button>`)
           .join('')}</div>` : ''}
         <div class="row-btns">
-          ${mine && D.canWrite() ? `<button class="btn" data-edit>${icon('edit')}${it.virtual ? L('قيّم الكتاب', 'Rate it') : L('عدّل', 'Edit')}</button>${!it.virtual ? `<button class="btn ghost" data-del>${icon('trash')}${L('شيله', 'Remove')}</button>` : ''}` : ''}
-          ${!mine && D.canWrite() ? `<button class="btn" data-want>${icon('bookmark')}${L('عايز أقرأه', 'I want to read it')}</button>` : ''}
-          ${D.canWrite() && !it.together ? `<button class="btn ghost" data-prop>${icon('vote')}${L('اقترحه على الحلقة', 'Suggest to the circle')}</button>` : ''}
+          ${mine && D.canWrite() ? `<button class="btn" data-edit>${icon('edit')}${it.virtual ? L('قيّم الكتاب', 'Rate it', 'قيِّم الكتاب') : L('عدّل', 'Edit', 'عدِّل')}</button>${!it.virtual ? `<button class="btn ghost" data-del>${icon('trash')}${L('شيله', 'Remove', 'أزِله')}</button>` : ''}` : ''}
+          ${!mine && D.canWrite() ? `<button class="btn" data-want>${icon('bookmark')}${L('عايز أقرأه', 'I want to read it', 'أريد قراءته')}</button>` : ''}
+          ${D.canWrite() && !it.together ? `<button class="btn ghost" data-prop>${icon('vote')}${L('اقترحه على الحلقة', 'Suggest to the circle', 'اقترحه على الحلقة')}</button>` : ''}
         </div>`,
       onMount: (body, api) =>
         body.addEventListener('click', async (e) => {
@@ -301,7 +301,7 @@
             V.shelfForm(it);
           }
           if (e.target.closest('[data-del]')) {
-            if (!(await V.confirm(L(`هتشيل «${esc(it.title)}» من مكتبتك.`, `Remove “${esc(it.title)}” from your shelf?`), L('شيله', 'Remove'), true))) return;
+            if (!(await V.confirm(L(`هتشيل «${esc(it.title)}» من مكتبتك.`, `Remove “${esc(it.title)}” from your shelf?`, `ستُزيل «${esc(it.title)}» من مكتبتك.`), L('شيله', 'Remove', 'أزِله'), true))) return;
             api.close();
             await D.mutate(`shelf/${S.me}`, () => {
               const cur = S.shelf.get(S.me) || {};
@@ -327,11 +327,11 @@
     const m = S.members.get(S.me) || {};
     const cur = (m.goal && m.goal[year]) || 12;
     V.sheet({
-      title: L(`هدف ${L.num(+year, { useGrouping: false })}`, `${year} goal`),
-      html: `<form id="goal-form" class="form"><label for="goal-n">${L('عايز تقرأ كام كتاب السنة دي؟', 'How many books this year?')}</label>
+      title: L(`هدف ${L.num(+year, { useGrouping: false })}`, `${year} goal`, `هدف ${L.num(+year, { useGrouping: false })}`),
+      html: `<form id="goal-form" class="form"><label for="goal-n">${L('ناوي على كام كتاب السنة دي؟', 'How many books this year?', 'كم كتابًا تريد أن تقرأ هذا العام؟')}</label>
         <div class="stepper"><button type="button" class="ib" data-d="-1" aria-label="-">−</button><input id="goal-n" type="number" min="1" max="365" value="${cur}"><button type="button" class="ib" data-d="1" aria-label="+">+</button></div>
         <div class="chips">${[6, 12, 24, 52].map((n) => `<button type="button" class="chip" data-n="${n}">${L.num(n)}</button>`).join('')}</div>
-        <div class="row-btns end"><button class="btn gold">${icon('target')}${L('احفظ الهدف', 'Save goal')}</button></div></form>`,
+        <div class="row-btns end"><button class="btn gold">${icon('target')}${L('احفظ الهدف', 'Save goal', 'احفظ الهدف')}</button></div></form>`,
       onMount: (body, api) => {
         const inp = body.querySelector('#goal-n');
         body.addEventListener('click', (e) => {
@@ -345,7 +345,7 @@
           const n = U.clamp(+inp.value || 12, 1, 365);
           api.close();
           await D.updateMe((m2) => ({ goal: Object.assign({}, m2.goal || {}, { [year]: n }) }));
-          U.toast(L(`هدفك ${L.count(n, 'book')} السنة دي. يلا!`, `Goal set: ${n} books this year. Go!`));
+          U.toast(L(`هدفك ${L.count(n, 'book')} السنة دي. يلا بينا!`, `Goal set: ${n} books this year. Go!`, `هدفك ${L.count(n, 'book')} هذا العام. هيا!`));
         });
       },
     });

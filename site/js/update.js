@@ -67,7 +67,7 @@
     const n = Upd.news();
     return n.length
       ? `<ul class="upd-news">${n.map((x) => `<li dir="auto">${esc(L(x.ar, x.en))}</li>`).join('')}</ul>`
-      : `<p class="muted">${L('تحسينات وإصلاحات.', 'Improvements and fixes.')}</p>`;
+      : `<p class="muted">${L('تحسينات وإصلاحات.', 'Improvements and fixes.', 'تحسينات وإصلاحات.')}</p>`;
   };
   const sizeMb = () => (Upd.latest && Upd.latest.size ? ` • ${L.num(Math.max(1, Math.round(Upd.latest.size / 1048576)))} MB` : '');
 
@@ -85,12 +85,12 @@
     }
     promptedThisRun = b;
     const api = V.sheet({
-      title: L('في نسخة جديدة من التطبيق 🎉', 'A new version is ready 🎉'),
+      title: L('نزلت نسخة جديدة من التطبيق 🎉', 'A new version is ready 🎉', 'يتوفر إصدار جديد من التطبيق 🎉'),
       html: `<div class="upd-ask">
-          <p class="upd-ver">${L(`نسخة ${L.num(b)}${sizeMb()} • إنت على ${L.num(Upd.current)}`, `Version ${b}${sizeMb()} • you have ${Upd.current}`)}</p>
-          <h3>${L('الجديد', "What's new")}</h3>${newsList()}
-          <p class="muted sm">${L('هتنزّل آخر نسخة على طول، حتى لو فاتك كذا تحديث. كل حاجة بتاعتك محفوظة.', "You get the newest version straight away, even if you missed a few. Everything of yours stays saved.")}</p>
-          <div class="row-btns"><button class="btn gold big" data-upd-now>${icon('download')}${L('حدّث دلوقتي', 'Update now')}</button><button class="btn ghost" data-upd-later>${L('بعدين', 'Later')}</button></div>
+          <p class="upd-ver">${L(`نسخة ${L.num(b)}${sizeMb()} • إنت على ${L.num(Upd.current)}`, `Version ${b}${sizeMb()} • you have ${Upd.current}`, `الإصدار ${L.num(b)}${sizeMb()} • لديك ${L.num(Upd.current)}`)}</p>
+          <h3>${L('الجديد', "What's new", 'الجديد')}</h3>${newsList()}
+          <p class="muted sm">${L('هتنزّل آخر نسخة على طول، حتى لو فاتك كذا تحديث. كل حاجة بتاعتك محفوظة.', "You get the newest version straight away, even if you missed a few. Everything of yours stays saved.", 'ستنزّل أحدث إصدار مباشرة، حتى لو فاتتك عدة تحديثات. كل بياناتك محفوظة.')}</p>
+          <div class="row-btns"><button class="btn gold big" data-upd-now>${icon('download')}${L('حدّث دلوقتي', 'Update now', 'حدّث الآن')}</button><button class="btn ghost" data-upd-later>${L('بعدين', 'Later', 'لاحقًا')}</button></div>
         </div>`,
       onMount: (body, s) =>
         body.addEventListener('click', (e) => {
@@ -109,9 +109,9 @@
   /* Banner on «اليوم» (dismissible per version). */
   Upd.banner = () => {
     if (!Upd.nag()) return '';
-    return `<section class="upd-bar">${icon('download')}<span><b>${L('في تحديث جديد للتطبيق', 'A new version of the app is ready')}</b><small>${L(`نسخة ${L.num(Upd.latest.build)} • إنت على ${L.num(Upd.current)}`, `Version ${Upd.latest.build} • you have ${Upd.current}`)}</small></span>
-      <button class="btn sm gold" data-act="app-update">${L('حدّث', 'Update')}</button>
-      <button class="ib sm" data-act="upd-skip" aria-label="${L('بعدين', 'Later')}">${icon('close')}</button></section>`;
+    return `<section class="upd-bar">${icon('download')}<span><b>${L('في تحديث جديد للتطبيق', 'A new version of the app is ready', 'يتوفر تحديث جديد للتطبيق')}</b><small>${L(`نسخة ${L.num(Upd.latest.build)} • إنت على ${L.num(Upd.current)}`, `Version ${Upd.latest.build} • you have ${Upd.current}`, `الإصدار ${L.num(Upd.latest.build)} • لديك ${L.num(Upd.current)}`)}</small></span>
+      <button class="btn sm gold" data-act="app-update">${L('حدّث', 'Update', 'حدّث')}</button>
+      <button class="ib sm" data-act="upd-skip" aria-label="${L('بعدين', 'Later', 'لاحقًا')}">${icon('close')}</button></section>`;
   };
   V.actions['upd-skip'] = () => {
     U.store.set('updSkip', Upd.latest && Upd.latest.build);
@@ -122,17 +122,17 @@
   Upd.settingsRow = () => {
     if (!Upd.supported()) return '';
     const status = Upd.available()
-      ? `<button class="btn sm gold" data-act="app-update">${L(`حدّث لنسخة ${L.num(Upd.latest.build)}`, `Update to ${Upd.latest.build}`)}</button>`
-      : `<button class="btn ghost sm" data-act="upd-check">${Upd.checking ? L('بيدوّر…', 'Checking…') : L('دوّر على تحديث', 'Check for updates')}</button>`;
-    return `<div class="set-row upd-row"><span>${icon('download')}${L('نسخة التطبيق', 'App version')}: <b>${Upd.current ? L.num(Upd.current) : '…'}</b>${Upd.latest && !Upd.available() ? ` <small class="muted">${L('(أحدث نسخة)', '(latest)')}</small>` : ''}</span>${status}
+      ? `<button class="btn sm gold" data-act="app-update">${L(`حدّث لنسخة ${L.num(Upd.latest.build)}`, `Update to ${Upd.latest.build}`, `حدّث إلى الإصدار ${L.num(Upd.latest.build)}`)}</button>`
+      : `<button class="btn ghost sm" data-act="upd-check">${Upd.checking ? L('بيدوّر…', 'Checking…', 'جارٍ البحث…') : L('دوّر على تحديث', 'Check for updates', 'ابحث عن تحديث')}</button>`;
+    return `<div class="set-row upd-row"><span>${icon('download')}${L('نسخة التطبيق', 'App version', 'إصدار التطبيق')}: <b>${Upd.current ? L.num(Upd.current) : '…'}</b>${Upd.latest && !Upd.available() ? ` <small class="muted">${L('(أحدث نسخة)', '(latest)', '(أحدث إصدار)')}</small>` : ''}</span>${status}
       ${Upd.available() ? `<div class="upd-row-news">${newsList()}</div>` : ''}</div>`;
   };
   V.actions['upd-check'] = async () => {
     try {
       const yes = await Upd.check(true);
-      if (!yes) U.toast(L('عندك أحدث نسخة ✓', "You're on the latest version ✓"));
+      if (!yes) U.toast(L('عندك أحدث نسخة ✓', "You're on the latest version ✓", 'لديك أحدث إصدار ✓'));
     } catch (e) {
-      U.toast(L('مقدرتش أوصل للسيرفر. جرّب تاني بعد شوية.', "Couldn't check right now. Try again later."), 'warn');
+      U.toast(L('مقدرتش أوصل للسيرفر. جرّب تاني بعد شوية.', "Couldn't check right now. Try again later.", 'تعذّر الوصول إلى الخادم. حاول مجددًا بعد قليل.'), 'warn');
     }
   };
 
@@ -143,9 +143,9 @@
     const can = await AU.canInstall().catch(() => ({ allowed: true }));
     if (!can.allowed) {
       V.sheet({
-        title: L('خطوة واحدة قبل التحديث', 'One step before updating'),
-        html: `<p>${L('أندرويد محتاج تسمح لـ«نقرأ سوا» إنه يثبّت تحديثاته. دوس الزرار، فعّل «السماح من هذا المصدر»، وارجع دوس «حدّث» تاني.', 'Android needs you to let «نقرأ سوا» install its updates. Tap the button, turn on “Allow from this source”, then come back and tap Update again.')}</p>
-          <div class="row-btns"><button class="btn gold" data-upd-perm data-close>${icon('gear')}${L('افتح الإعدادات', 'Open settings')}</button></div>`,
+        title: L('خطوة واحدة قبل التحديث', 'One step before updating', 'خطوة واحدة قبل التحديث'),
+        html: `<p>${L('أندرويد محتاج تسمح لـ«نقرأ سوا» إنه يثبّت تحديثاته. دوس الزرار، فعّل «السماح من هذا المصدر»، وارجع دوس «حدّث» تاني.', 'Android needs you to let «نقرأ سوا» install its updates. Tap the button, turn on “Allow from this source”, then come back and tap Update again.', 'يحتاج أندرويد إلى أن تسمح لـ«نقرأ سوا» بتثبيت تحديثاته. اضغط الزر، وفعّل «السماح من هذا المصدر»، ثم عد واضغط «حدّث» مجددًا.')}</p>
+          <div class="row-btns"><button class="btn gold" data-upd-perm data-close>${icon('gear')}${L('افتح الإعدادات', 'Open settings', 'افتح الإعدادات')}</button></div>`,
         onMount: (body) => body.querySelector('[data-upd-perm]').addEventListener('click', () => AU.openInstallSettings().catch(() => {})),
       });
       return;
@@ -155,8 +155,8 @@
       await Upd.check(true);
     } catch (e) {}
     const api = V.sheet({
-      title: L('بنزّل التحديث…', 'Downloading the update…'),
-      html: `<div class="upd-prog">${V.bar(0, 'gold big')}<small id="upd-pct">${L('بيبدأ…', 'Starting…')}</small><p class="muted sm">${L('بعد التحميل هتظهرلك شاشة التثبيت — دوس «تثبيت». كل حاجة بتاعتك محفوظة.', 'When it finishes, Android shows the install screen — tap Install. Everything of yours stays saved.')}</p></div>`,
+      title: L('بنزّل التحديث…', 'Downloading the update…', 'جارٍ تنزيل التحديث…'),
+      html: `<div class="upd-prog">${V.bar(0, 'gold big')}<small id="upd-pct">${L('بيبدأ…', 'Starting…', 'جارٍ البدء…')}</small><p class="muted sm">${L('بعد التحميل هتظهرلك شاشة التثبيت — دوس «تثبيت». كل حاجة بتاعتك محفوظة.', 'When it finishes, Android shows the install screen — tap Install. Everything of yours stays saved.', 'بعد التنزيل ستظهر لك شاشة التثبيت — اضغط «تثبيت». كل بياناتك محفوظة.')}</p></div>`,
     });
     const handle = await AU.addListener('progress', (p) => {
       const f = p.total > 0 ? p.loaded / p.total : 0;
@@ -173,8 +173,8 @@
       const stale = /stale/.test(String((e && e.message) || e));
       U.toast(
         stale
-          ? L('النسخة الجديدة لسه بتتجهّز. جرّب كمان دقيقتين.', 'The new version is still being published. Try again in two minutes.')
-          : L('التحميل وقف. اتأكد من النت وجرّب تاني.', 'The download stopped. Check your connection and try again.'),
+          ? L('النسخة الجديدة لسه بتتجهّز. جرّب كمان دقيقتين.', 'The new version is still being published. Try again in two minutes.', 'الإصدار الجديد قيد التجهيز. حاول بعد دقيقتين.')
+          : L('التحميل وقف. اتأكد من النت وجرّب تاني.', 'The download stopped. Check your connection and try again.', 'توقف التنزيل. تحقّق من الاتصال وحاول مجددًا.'),
         'warn',
       );
     } finally {

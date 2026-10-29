@@ -39,11 +39,13 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - `node tests/e2e/smoke.js` — full UI flow against the fake Supabase (see tests/e2e for details).
 - `node tests/e2e/reader.js` — the PDF reader on a phone (touch, 2× screen): scrolling, zoom, book mode, notes, contents, keep-awake.
 - `node tests/e2e/shelf.js` — Goodreads import, shelf search/sort/status moves, badge levels and details, the Android update prompt (stand-in native layer).
+- `node tests/e2e/lang.js` — the three languages: Settings switch, the whole app in فصحى with no Egyptian words, back to مصري.
 - `node tests/e2e/play.js` — the game side: goal ring, cheers, friends on the portion bar, focus, page turn, papers, secret badges, frames, journey road, garden, the month story and share cards (saved as `card-*.png` in the shots folder).
 - Supabase and most of the internet are not reachable from the cloud sandbox; test against the fakes, then verify live with the user.
 
 ## Conventions
 - Commits with user-visible changes carry `Whats-New: عربي || English` lines; `android.yml` collects them since the last APK into the release notes, and the app's update prompt shows the ones newer than the installed build. Keep them short and friendly.
-- All user-facing strings go through `L('عربي', 'English')`. Avoid gendered third-person verbs about other members (use nouns like «تشجيع من سارة»).
+- Three languages: «مصري» (code `ar`, the default and the app's voice), «العربية» (فصحى, code `fu`) and English (`en`). Every user-facing string goes through `L('مصري', 'English', 'فصحى')`; lists of texts are `[مصري, English, فصحى]` read as `L(x[0], x[1], x[2])`; Arabic-only bits inside a sentence use `L.a('مصري', 'فصحى')`. A missing فصحى falls back to مصري. `L.isAr()` is true for both Arabics; `L.count` has فصحى plural forms. `tests/e2e/lang.js` walks the app in فصحى and fails on Egyptian words — add the فصحى form whenever you add a text.
+- Avoid gendered third-person verbs about other members (use nouns like «تشجيع من سارة») — in all three languages.
 - Never store names/emails from auth in shared docs except the user's own chosen `nick` in their profile.
 - Keep every relative path relative (the site is served from a GitHub Pages sub-path and from `https://localhost` inside the APK).

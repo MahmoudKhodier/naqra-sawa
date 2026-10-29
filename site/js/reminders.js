@@ -28,12 +28,12 @@
     } catch (e) {}
     if (late)
       return {
-        title: L('يلا نلحق الحلقة 📖', "Let's catch up with the circle 📖"),
-        body: L(`فاضلك ${L.count(late, 'wird')} (${L.count(pages, 'page')}). شوية كل يوم وهتلحقهم.`, `${late} portion${late > 1 ? 's' : ''} (${pages} pages) to go. A little every day and you'll catch up.`),
+        title: L('يلا نلحق الحلقة 📖', "Let's catch up with the circle 📖", 'هيا نلحق بالحلقة 📖'),
+        body: L(`فاضلك ${L.count(late, 'wird')} (${L.count(pages, 'page')}). شوية كل يوم وهتلحقهم.`, `${late} portion${late > 1 ? 's' : ''} (${pages} pages) to go. A little every day and you'll catch up.`, `بقي لك ${L.count(late, 'wird')} (${L.count(pages, 'page')}). القليل كل يوم وستلحق بهم.`),
       };
     return {
-      title: L('وردك مستنيك 📖', 'Your reading is waiting 📖'),
-      body: L('صفحات قليلة النهارده بتحافظ على سلسلتك 🔥 وبتقرّب الحلقة من هدفها.', 'A few pages today keep your streak alive 🔥 and move the circle closer to its goal.'),
+      title: L('وردك مستنيك 📖', 'Your reading is waiting 📖', 'وردك بانتظارك 📖'),
+      body: L('كام صفحة النهارده يحافظوا على سلسلتك 🔥 ويقرّبوا الحلقة من هدفها.', 'A few pages today keep your streak alive 🔥 and move the circle closer to its goal.', 'صفحات قليلة اليوم تحافظ على سلسلتك 🔥 وتقرّب الحلقة من هدفها.'),
     };
   };
 
@@ -60,7 +60,7 @@
     let sub = await reg.pushManager.getSubscription();
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(P.cfg.vapidPublicKey) });
     const j = sub.toJSON();
-    const { error } = await P.sb().rpc('save_push_subscription', { p_endpoint: j.endpoint, p_keys: j.keys, p_remind_hour: hour, p_tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Cairo', p_lang: L.lang() });
+    const { error } = await P.sb().rpc('save_push_subscription', { p_endpoint: j.endpoint, p_keys: j.keys, p_remind_hour: hour, p_tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Cairo', p_lang: L.lang() === 'en' ? 'en' : 'ar' });
     if (error) throw error;
   }
   async function unsubscribeWeb() {
@@ -76,10 +76,10 @@
       if (P.native) on ? await scheduleNative(hour) : await cancelNative();
       else on ? await subscribeWeb(hour) : await unsubscribeWeb();
       U.store.set('remind', { on, hour });
-      if (on) U.toast(L(`هنفكّرك كل يوم الساعة ${L.num(hour)}:٠٠`, `We'll remind you every day at ${hour}:00`));
+      if (on) U.toast(L(`هنفكّرك كل يوم الساعة ${L.num(hour)}:٠٠`, `We'll remind you every day at ${hour}:00`, `سنذكّرك كل يوم الساعة ${L.num(hour)}:٠٠`));
     } catch (e) {
       console.warn(e);
-      U.toast(e && e.message === 'denied' ? L('لازم توافق على الإشعارات من إعدادات الموبايل', 'Allow notifications in your phone settings first') : L('مقدرتش أفعّل التذكير', "Couldn't turn on reminders"), 'warn');
+      U.toast(e && e.message === 'denied' ? L('لازم توافق على الإشعارات من إعدادات الموبايل', 'Allow notifications in your phone settings first', 'اسمح بالإشعارات أولًا من إعدادات الهاتف') : L('مقدرتش أفعّل التذكير', "Couldn't turn on reminders", 'تعذّر تفعيل التذكير'), 'warn');
     }
     V.render();
   };
@@ -93,13 +93,13 @@
   V.reminderSettings = () => {
     if (!R.available()) {
       if (!P.native && isIOS && !standalone() && P.cfg.vapidPublicKey)
-        return `<div class="set-row"><span>${icon('clock')}${L('عشان التذكير يشتغل على آيفون: من Safari دوس مشاركة ← «إضافة إلى الشاشة الرئيسية» وافتح التطبيق من هناك.', 'For reminders on iPhone: in Safari tap Share → “Add to Home Screen”, then open the app from there.')}</span></div>`;
+        return `<div class="set-row"><span>${icon('clock')}${L('عشان التذكير يشتغل على آيفون: من Safari دوس مشاركة ← «إضافة إلى الشاشة الرئيسية» وافتح التطبيق من هناك.', 'For reminders on iPhone: in Safari tap Share → “Add to Home Screen”, then open the app from there.', 'ليعمل التذكير على آيفون: من Safari اضغط مشاركة ← «إضافة إلى الشاشة الرئيسية» ثم افتح التطبيق من هناك.')}</span></div>`;
       return '';
     }
     const p = pref();
     const hours = Array.from({ length: 24 }, (_, h) => `<option value="${h}" ${p.hour === h ? 'selected' : ''}>${L.num(h)}:${L.num(0, { minimumIntegerDigits: 2 })}</option>`).join('');
-    return `<div class="set-row"><span>${icon('clock')}${L('تذكير يومي بالورد', 'Daily reading reminder')}</span>
-      <span class="rm-ctl"><select id="set-remind-hour" aria-label="${L('الساعة', 'Time')}" ${p.on ? '' : 'disabled'}>${hours}</select><label class="switch"><input type="checkbox" id="set-remind" ${p.on ? 'checked' : ''}><i></i></label></span></div>`;
+    return `<div class="set-row"><span>${icon('clock')}${L('تذكير يومي بالورد', 'Daily reading reminder', 'تذكير يومي بالورد')}</span>
+      <span class="rm-ctl"><select id="set-remind-hour" aria-label="${L('الساعة', 'Time', 'الساعة')}" ${p.on ? '' : 'disabled'}>${hours}</select><label class="switch"><input type="checkbox" id="set-remind" ${p.on ? 'checked' : ''}><i></i></label></span></div>`;
   };
   document.addEventListener('change', (e) => {
     if (e.target.id === 'set-remind') R.set(e.target.checked, +document.getElementById('set-remind-hour').value);

@@ -33,7 +33,7 @@
     return `<span class="cover gen ${cls}" style="--bg:${bg};--fg:${fg}"><span class="gc-star"></span><b dir="auto">${esc(title)}</b>${author ? `<small dir="auto">${esc(author)}</small>` : ''}</span>`;
   };
   V.kindLabel = (k) =>
-    ({ hl: L('تظليل', 'Highlight'), note: L('ملاحظة', 'Note'), q: L('سؤال', 'Question'), quote: L('اقتباس', 'Quote'), take: L('خلاصة', 'Takeaway') })[k] || L('ملاحظة', 'Note');
+    ({ hl: L('تظليل', 'Highlight', 'تظليل'), note: L('ملاحظة', 'Note', 'ملاحظة'), q: L('سؤال', 'Question', 'سؤال'), quote: L('اقتباس', 'Quote', 'اقتباس'), take: L('خلاصة', 'Takeaway', 'خلاصة') })[k] || L('ملاحظة', 'Note', 'ملاحظة');
   V.empty = (title, text, action = '') =>
     `<div class="empty"><span class="star8 faint"></span><b>${title}</b>${text ? `<p>${text}</p>` : ''}${action}</div>`;
 
@@ -175,7 +175,7 @@
 
   function shell() {
     return `<div class="shell">
-      <nav class="nav" id="nav" aria-label="${L('التنقل', 'Navigation')}"></nav>
+      <nav class="nav" id="nav" aria-label="${L('التنقل', 'Navigation', 'التنقل')}"></nav>
       <div class="main">
         <header class="hud" id="hud"></header>
         <main class="screen" id="screen"></main>
@@ -190,20 +190,20 @@
     const unreadCircle = V.unread('_c', 'gen');
     const item = (id, ic, label, badge = 0) =>
       `<a href="#${id}" class="nv${r === id ? ' on' : ''}" data-go="${id}" ${r === id ? 'aria-current="page"' : ''}>${icon(ic)}<span>${label}</span>${badge ? `<i class="nv-b">${L.num(Math.min(badge, 99))}</i>` : ''}</a>`;
-    el.innerHTML = `<div class="brand">${V.star('', 'gold sm')}<b>${L('نقرأ سوا', 'Read Together')}</b></div>
-      ${item('home', 'home', L('اليوم', 'Today'), pokes)}
-      ${item('books', 'books', L('كتبنا', 'Our books'))}
-      ${item('shelf', 'shelf', L('مكتبتي', 'My shelf'))}
-      ${item('circle', 'users', L('الحلقة', 'Circle'), unreadCircle)}
-      ${item('me', 'user', L('أنا', 'Me'))}
-      ${item('settings', 'gear', L('إعدادات', 'Settings'), A.Upd && A.Upd.nag() ? 1 : 0)}`;
+    el.innerHTML = `<div class="brand">${V.star('', 'gold sm')}<b>${L('نقرأ سوا', 'Read Together', 'نقرأ سوا')}</b></div>
+      ${item('home', 'home', L('اليوم', 'Today', 'اليوم'), pokes)}
+      ${item('books', 'books', L('كتبنا', 'Our books', 'كتبنا'))}
+      ${item('shelf', 'shelf', L('مكتبتي', 'My shelf', 'مكتبتي'))}
+      ${item('circle', 'users', L('الحلقة', 'Circle', 'الحلقة'), unreadCircle)}
+      ${item('me', 'user', L('أنا', 'Me', 'أنا'))}
+      ${item('settings', 'gear', L('إعدادات', 'Settings', 'الإعدادات'), A.Upd && A.Upd.nag() ? 1 : 0)}`;
   }
 
   function greeting() {
     const h = new Date().getHours();
-    if (h >= 4 && h < 12) return L('صباح الخير', 'Good morning');
-    if (h >= 12 && h < 17) return L('يومك سعيد', 'Good afternoon');
-    return L('مساء الخير', 'Good evening');
+    if (h >= 4 && h < 12) return L('صباح الخير', 'Good morning', 'صباح الخير');
+    if (h >= 12 && h < 17) return L('يومك سعيد', 'Good afternoon', 'طاب يومك');
+    return L('مساء الخير', 'Good evening', 'مساء الخير');
   }
   V.greeting = greeting;
 
@@ -216,20 +216,20 @@
     const flame = s.streak ? (s.atRisk ? 'risk' : 'hot') : 'cold';
     const pct = s.span ? s.cur / s.span : 0;
     const unread = V.inboxUnread ? V.inboxUnread() : 0;
-    const flameTitle = s.atRisk ? L('اقرأ النهارده عشان السلسلة متقطعش', 'Read today to keep your streak') : L('أيام القراءة المتتالية', 'Reading streak');
-    const me = `<button class="hud-me" data-go="me" aria-label="${L('ملفي', 'My profile')}">${D.avatar(S.me, 'md')}${V.star(L.num(s.lv), 'gold lvl')}</button>`;
-    const btns = `${V.themeBtn ? V.themeBtn('data-act="theme-toggle"') : ''}${V.inboxUnread ? `<button class="ib round hud-bell" data-act="inbox" aria-label="${L('الجديد ليك', 'For you')}">${icon('bell')}${unread ? `<i class="nv-b">${L.num(Math.min(unread, 99))}</i>` : ''}</button>` : ''}`;
+    const flameTitle = s.atRisk ? L('اقرأ النهارده عشان السلسلة متقطعش', 'Read today to keep your streak', 'اقرأ اليوم كي لا تنقطع سلسلتك') : L('أيام القراءة المتتالية', 'Reading streak', 'أيام القراءة المتتالية');
+    const me = `<button class="hud-me" data-go="me" aria-label="${L('ملفي', 'My profile', 'ملفي')}">${D.avatar(S.me, 'md')}${V.star(L.num(s.lv), 'gold lvl')}</button>`;
+    const btns = `${V.themeBtn ? V.themeBtn('data-act="theme-toggle"') : ''}${V.inboxUnread ? `<button class="ib round hud-bell" data-act="inbox" aria-label="${L('الجديد ليك', 'For you', 'الجديد لك')}">${icon('bell')}${unread ? `<i class="nv-b">${L.num(Math.min(unread, 99))}</i>` : ''}</button>` : ''}`;
     const flameChip = `<span class="hchip flame ${flame}" title="${flameTitle}">${icon('flame')}<b>${L.num(s.streak)}</b>${home ? `<span>${L('يوم', s.streak === 1 ? 'day' : 'days')}</span>` : ''}</span>`;
     let html;
     if (home) {
       const date = `${esc(L.day(U.today()))}${V.showHijri && V.showHijri() && L.hijriShort ? ` • ${esc(L.hijriShort())}` : ''}`;
-      html = `<div class="hud-row">${me}<div class="hud-hi"><h1 class="hud-greet">${greeting()}${L('، ', ', ')}<span dir="auto">${esc(D.name(S.me))}</span></h1><small class="hijri">${date}</small></div>${btns}</div>
+      html = `<div class="hud-row">${me}<div class="hud-hi"><h1 class="hud-greet">${greeting()}${L('، ', ', ', '، ')}<span dir="auto">${esc(D.name(S.me))}</span></h1><small class="hijri">${date}</small></div>${btns}</div>
         <div class="hud-chips">${flameChip}
-          <span class="hchip lvl" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`)}">${V.star('', 'gold xs')}<b>${L(`المستوى ${L.num(s.lv)}`, `Level ${s.lv}`)}</b>${V.bar(pct, 'gold')}</span>
-          ${s.freezes ? `<span class="hchip fz" title="${L('حماية للسلسلة: لو فوّت يوم بتحميها', 'Streak freeze: protects a missed day')}">${icon('snow')}<b>×${L.num(s.freezes)}</b></span>` : ''}
+          <span class="hchip lvl" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`, `بقي ${L.num(s.toNext)} XP للمستوى التالي`)}">${V.star('', 'gold xs')}<b>${L(`المستوى ${L.num(s.lv)}`, `Level ${s.lv}`, `المستوى ${L.num(s.lv)}`)}</b>${V.bar(pct, 'gold')}</span>
+          ${s.freezes ? `<span class="hchip fz" title="${L('حماية للسلسلة: لو فوّت يوم بتحميها', 'Streak freeze: protects a missed day', 'حماية السلسلة: تحميها إن فاتك يوم')}">${icon('snow')}<b>×${L.num(s.freezes)}</b></span>` : ''}
         </div>`;
     } else {
-      html = `<div class="hud-row">${me}<div class="hud-xp" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`)}"><span class="hud-t">${esc(G.title(s.lv))}</span>${V.bar(pct, 'gold')}<small>${L.num(s.cur)} / ${L.num(s.span)} XP</small></div>${flameChip}${btns}</div>`;
+      html = `<div class="hud-row">${me}<div class="hud-xp" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`, `بقي ${L.num(s.toNext)} XP للمستوى التالي`)}"><span class="hud-t">${esc(G.title(s.lv))}</span>${V.bar(pct, 'gold')}<small>${L.num(s.cur)} / ${L.num(s.span)} XP</small></div>${flameChip}${btns}</div>`;
     }
     el.classList.toggle('is-home', home);
     if (el.dataset.rtH !== html) {
@@ -240,7 +240,7 @@
       const b = document.createElement('div');
       b.id = 'ro-banner';
       b.className = 'ro-banner';
-      b.innerHTML = `${icon('eye')}<span>${L('التغييرات مش بتتحفظ دلوقتي. اتأكد من النت، ولو اتشلت من الحلقة اطلب لينك دعوة جديد.', 'Changes are not saving right now. Check your connection; if you were removed from the circle, ask for a new invite link.')}</span>`;
+      b.innerHTML = `${icon('eye')}<span>${L('التغييرات مش بتتحفظ دلوقتي. اتأكد من النت، ولو اتشلت من الحلقة اطلب لينك دعوة جديد.', 'Changes are not saving right now. Check your connection; if you were removed from the circle, ask for a new invite link.', 'التغييرات لا تُحفظ الآن. تحقّق من اتصالك بالإنترنت، وإن أُزلتَ من الحلقة فاطلب رابط دعوة جديدًا.')}</span>`;
       el.after(b);
     }
   }
@@ -263,7 +263,7 @@
       ta.after(c);
     }
     c.classList.toggle('full', n >= max);
-    c.textContent = n >= max ? L(`وصلت للحد (${L.num(max)} حرف)`, `Limit reached (${max} characters)`) : L(`فاضل ${L.num(max - n)} حرف`, `${max - n} characters left`);
+    c.textContent = n >= max ? L(`وصلت للحد (${L.num(max)} حرف)`, `Limit reached (${max} characters)`, `بلغت الحد (${L.num(max)} حرف)`) : L(`فاضل ${L.num(max - n)} حرف`, `${max - n} characters left`, `بقي ${L.num(max - n)} حرف`);
   }
   document.addEventListener('input', (e) => e.target.matches && e.target.matches('textarea[maxlength]') && lenNote(e.target));
   document.addEventListener('paste', (e) => {
@@ -273,7 +273,7 @@
     const add = ((e.clipboardData && e.clipboardData.getData('text')) || '').length;
     const room = max - ta.value.length + ((ta.selectionEnd || 0) - (ta.selectionStart || 0));
     if (max && add > room) {
-      U.toast(L(`النص اللي لزقته أطول من المسموح هنا (${L.num(max)} حرف) — اتقص آخره. قسّمه على جزئين.`, `What you pasted is longer than fits here (${max} characters) — the end was cut. Split it in two.`), 'warn');
+      U.toast(L(`النص اللي لزقته أطول من المسموح هنا (${L.num(max)} حرف) — اتقص آخره. قسّمه على جزئين.`, `What you pasted is longer than fits here (${max} characters) — the end was cut. Split it in two.`, `النص الذي لصقته أطول من المسموح هنا (${L.num(max)} حرف) — حُذف آخره. قسّمه على جزأين.`), 'warn');
       setTimeout(() => lenNote(ta), 0);
     }
   });
@@ -282,7 +282,7 @@
     const wrap = document.createElement('div');
     wrap.className = 'sheet-wrap';
     wrap.innerHTML = `<div class="sheet-bg" data-close></div><section class="sheet ${wide ? 'wide' : ''} ${cls}" role="dialog" aria-modal="true" aria-label="${esc(title.replace(/<[^>]+>/g, ''))}">
-      <header class="sh-head"><b>${title}</b><button class="ib" data-close aria-label="${L('قفل', 'Close')}">${icon('close')}</button></header>
+      <header class="sh-head"><b>${title}</b><button class="ib" data-close aria-label="${L('قفل', 'Close', 'إغلاق')}">${icon('close')}</button></header>
       <div class="sh-body">${html}</div></section>`;
     document.getElementById('layers').appendChild(wrap);
     const prevFocus = document.activeElement;
@@ -327,7 +327,7 @@
       .map((it, i) => `<button class="mi ${it.cls || ''} ${it.danger ? 'danger' : ''}" data-i="${i}">${icon(it.ic || 'fwd')}<span>${it.t}</span></button>`)
       .join('')}</div>`;
     V.sheet({
-      title: L('اختيارات', 'Options'),
+      title: L('اختيارات', 'Options', 'خيارات'),
       html,
       cls: 'menu-sheet',
       onMount: (body, api) =>
@@ -340,12 +340,12 @@
     });
   };
 
-  V.confirm = (text, ok = L('تمام', 'OK'), danger = false) =>
+  V.confirm = (text, ok = L('تمام', 'OK', 'حسنًا'), danger = false) =>
     new Promise((res) => {
       let done = false;
       const api = V.sheet({
-        title: L('متأكد؟', 'Are you sure?'),
-        html: `<p class="lead">${text}</p><div class="row-btns end"><button class="btn ghost" data-no>${L('لأ', 'No')}</button><button class="btn ${danger ? 'rubric' : ''}" data-yes autofocus>${ok}</button></div>`,
+        title: L('متأكد؟', 'Are you sure?', 'هل أنت متأكد؟'),
+        html: `<p class="lead">${text}</p><div class="row-btns end"><button class="btn ghost" data-no>${L('لأ', 'No', 'لا')}</button><button class="btn ${danger ? 'rubric' : ''}" data-yes autofocus>${ok}</button></div>`,
         onMount: (body, a) =>
           body.addEventListener('click', (e) => {
             if (e.target.closest('[data-yes]')) {
@@ -386,13 +386,13 @@
     const today = U.today();
     const dup = [...S.pokes.values()].some((p) => p.from === S.me && p.to === to && p.kind === kind && U.isoKey(p.at) === today && (p.b || '') === (ctx.b || ''));
     if (dup) {
-      U.toast(L('اتبعت النهارده خلاص 🙂', 'Already sent today 🙂'));
+      U.toast(L('اتبعت النهارده خلاص 🙂', 'Already sent today 🙂', 'أُرسل اليوم بالفعل 🙂'));
       return;
     }
     const id = D.newId();
     await D.set(`pokes/${id}`, { to, from: S.me, kind, at: U.nowIso(), b: ctx.b || '', wid: ctx.wid || '' });
     U.chime('soft');
-    U.toast(kind === 'cheer' ? L(`التشجيع وصل لـ${esc(D.name(to))} 👏`, `You cheered ${esc(D.name(to))} 👏`) : L(`التذكير وصل لـ${esc(D.name(to))} 👋`, `You nudged ${esc(D.name(to))} 👋`));
+    U.toast(kind === 'cheer' ? L(`التشجيع وصل لـ${esc(D.name(to))} 👏`, `You cheered ${esc(D.name(to))} 👏`, `وصل تشجيعك إلى ${esc(D.name(to))} 👏`) : L(`التذكير وصل لـ${esc(D.name(to))} 👋`, `You nudged ${esc(D.name(to))} 👋`, `وصل تذكيرك إلى ${esc(D.name(to))} 👋`));
   };
 
   /* ---------- celebrations derived from data changes ---------- */
@@ -419,7 +419,7 @@
     if (newB.length > 3) {
       setTimeout(() => {
         U.chime('ok');
-        U.toast(`${icon('trophy')}<span><b>${L(`${L.num(newB.length)} أوسمة جديدة!`, `${newB.length} new badges!`)}</b> ${L('شوفهم في صفحة «أنا»', 'See them on your profile')}</span>`, 'badge');
+        U.toast(`${icon('trophy')}<span><b>${L(`يا سلام! ${L.num(newB.length)} أوسمة جديدة`, `${newB.length} new badges!`, `${L.num(newB.length)} أوسمة جديدة!`)}</b> ${L('شوفهم في صفحة «أنا»', 'See them on your profile', 'تجدها في صفحة «أنا»')}</span>`, 'badge');
       }, 900);
       return;
     }
@@ -427,13 +427,13 @@
       const b = G.BADGES.find((x) => x.id === id);
       setTimeout(() => {
         U.chime('ok');
-        U.toast(`${V.badgeIcon(b, true, 'xs')}<span><b>${b.secret ? L('وسام سري اتكشف! 🗝️', 'Secret badge found! 🗝️') : L('وسام جديد!', 'New badge!')}</b> ${esc(L(b.t[0], b.t[1]))}</span>`, 'badge');
+        U.toast(`${V.badgeIcon(b, true, 'xs')}<span><b>${b.secret ? L('وسام سري اتكشف! 🗝️', 'Secret badge found! 🗝️', 'اكتُشف وسام سري! 🗝️') : L('وسام جديد!', 'New badge!', 'وسام جديد!')}</b> ${esc(L(b.t[0], b.t[1], b.t[2]))}</span>`, 'badge');
       }, 900 + i * 1200);
     });
     if (now.qdone && !(prev.qday === now.qday && prev.qdone)) {
       setTimeout(() => {
         U.chime('big');
-        U.toast(`${icon('chest')}<span><b>${L('خلّصت مهام النهارده!', 'Daily quests complete!')}</b> ${L('افتح الصندوق في صفحة اليوم', 'Open your chest on Today')}</span>`, 'gold');
+        U.toast(`${icon('chest')}<span><b>${L('عاش! خلّصت مهام النهارده', 'Daily quests complete!', 'أنهيت مهام اليوم!')}</b> ${L('افتح الصندوق في صفحة اليوم', 'Open your chest on Today', 'افتح الصندوق في صفحة اليوم')}</span>`, 'gold');
       }, 600);
     }
   };
@@ -441,19 +441,19 @@
   /* Rewards that open at this level: frames, emoji, paper colours. */
   function unlocksAt(lv) {
     const items = [
-      ...G.FRAMES.filter((f) => f.need.lv === lv).map((f) => L(`إطار «${f.t[0]}»`, `the “${f.t[1]}” frame`)),
+      ...G.FRAMES.filter((f) => f.need.lv === lv).map((f) => L(`إطار «${f.t[0]}»`, `the “${f.t[1]}” frame`, `إطار «${f.t[0]}»`)),
       ...G.EMOJI_PACKS.filter((p) => p.need.lv === lv).map((p) => p.e.join(' ')),
-      ...G.PAPERS.filter((p) => p.need && p.need.lv === lv).map((p) => L(`ورق «${p.t[0]}»`, `“${p.t[1]}” paper`)),
+      ...G.PAPERS.filter((p) => p.need && p.need.lv === lv).map((p) => L(`ورق «${p.t[0]}»`, `“${p.t[1]}” paper`, `ورق «${p.t[0]}»`)),
     ];
-    return items.length ? `<p class="unlocks">${icon('gift')}<span>${L('اتفتحلك:', 'Unlocked:')} ${esc(items.join(L('، ', ', ')))}</span></p>` : '';
+    return items.length ? `<p class="unlocks">${icon('gift')}<span>${L('اتفتحلك:', 'Unlocked:', 'فُتح لك:')} ${esc(items.join(L('، ', ', ', '، ')))}</span></p>` : '';
   }
   V.levelUp = (lv) => {
     U.confetti(1.2);
     U.chime('big');
     V.sheet({
-      title: L('مستوى جديد!', 'Level up!'),
+      title: L('مستوى جديد!', 'Level up!', 'مستوى جديد!'),
       cls: 'celebrate',
-      html: `<div class="celeb">${V.star(L.num(lv), 'gold huge spin-in')}<h2>${esc(G.title(lv))}</h2><p>${L(`وصلت للمستوى ${L.num(lv)}. كمّل كده!`, `You reached level ${lv}. Keep going!`)}</p>${unlocksAt(lv)}<div class="row-btns center"><button class="btn gold" data-close autofocus>${L('يلا بينا', "Let's go")}</button>${A.Share ? `<button class="btn ghost" data-act="share-level" data-close>${icon('share')}${L('شارك', 'Share')}</button>` : ''}</div></div>`,
+      html: `<div class="celeb">${V.star(L.num(lv), 'gold huge spin-in')}<h2>${esc(G.title(lv))}</h2><p>${L(`وصلت للمستوى ${L.num(lv)}. عاش، كمّل!`, `You reached level ${lv}. Keep going!`, `بلغت المستوى ${L.num(lv)}. واصل التقدّم!`)}</p>${unlocksAt(lv)}<div class="row-btns center"><button class="btn gold" data-close autofocus>${L('يلا بينا', "Let's go", 'هيا بنا')}</button>${A.Share ? `<button class="btn ghost" data-act="share-level" data-close>${icon('share')}${L('شارك', 'Share', 'شارك')}</button>` : ''}</div></div>`,
     });
   };
 
@@ -463,7 +463,7 @@
       title,
       html: `<form class="form" data-edit-text><textarea id="et-text" rows="${rows}" dir="auto" maxlength="${max}" autofocus>${esc(value)}</textarea>
         <p class="err-t" hidden></p>
-        <div class="row-btns end"><button type="button" class="btn ghost" data-close>${L('إلغاء', 'Cancel')}</button><button class="btn gold">${icon('check')}${L('احفظ', 'Save')}</button></div></form>`,
+        <div class="row-btns end"><button type="button" class="btn ghost" data-close>${L('إلغاء', 'Cancel', 'إلغاء')}</button><button class="btn gold">${icon('check')}${L('احفظ', 'Save', 'احفظ')}</button></div></form>`,
       onMount: (body, api) => {
         const f = body.querySelector('form');
         const ta = f.querySelector('textarea');
@@ -481,37 +481,37 @@
           try {
             await onSave(text);
             api.close();
-            U.toast(L('اتعدّلت ✓', 'Updated ✓'));
+            U.toast(L('اتعدّلت ✓', 'Updated ✓', 'عُدّلت ✓'));
           } catch (x) {
             btn.disabled = false;
             const er = f.querySelector('.err-t');
-            er.textContent = L('ماتحفظش. اتأكد من النت وجرّب تاني.', 'Not saved. Check your connection and try again.');
+            er.textContent = L('ماتحفظش. اتأكد من النت وجرّب تاني.', 'Not saved. Check your connection and try again.', 'لم يُحفظ. تحقّق من الاتصال وحاول مجددًا.');
             er.hidden = false;
           }
         });
       },
     });
   };
-  V.editedTag = (x) => (x && x.edited ? `<small class="edited" title="${esc(L.ago(x.edited))}">${L('معدّلة', 'edited')}</small>` : '');
+  V.editedTag = (x) => (x && x.edited ? `<small class="edited" title="${esc(L.ago(x.edited))}">${L('معدّلة', 'edited', 'معدّلة')}</small>` : '');
 
   /* Medal colour = level: 1 bronze, 2 silver, 3 gold, 4 diamond. */
   V.badgeIcon = (b, got, size = '') => `<span class="badge8 tier${b.tier || 1} ${got ? 'got' : ''} ${size}">${icon(b.ic)}</span>`;
-  const TIER = [null, ['برونزي', 'Bronze'], ['فضي', 'Silver'], ['ذهبي', 'Gold'], ['ماسي', 'Diamond']];
-  V.tierName = (n) => (TIER[n] ? L(TIER[n][0], TIER[n][1]) : '');
+  const TIER = [null, ['برونزي', 'Bronze', 'برونزي'], ['فضي', 'Silver', 'فضي'], ['ذهبي', 'Gold', 'ذهبي'], ['ماسي', 'Diamond', 'ماسي']];
+  V.tierName = (n) => (TIER[n] ? L(TIER[n][0], TIER[n][1], TIER[n][2]) : '');
 
   /* A badge group on a profile: the highest level earned (or the first one, greyed), level dots, and
      progress to the next level. Tapping opens the details. */
   V.badgeCard = (grp, uid) => {
     if (grp.secret && !grp.top)
       return `<button class="bdg secret" data-act="badge" data-g="${esc(grp.g)}" data-uid="${esc(uid)}">
-      <span class="badge8 tier5 q">${icon('question')}</span><b>${L('؟؟؟', '???')}</b><small class="bdg-hint">${esc(L(grp.tip[0], grp.tip[1]))}</small></button>`;
+      <span class="badge8 tier5 q">${icon('question')}</span><b>${L('؟؟؟', '???', '؟؟؟')}</b><small class="bdg-hint">${esc(L(grp.tip[0], grp.tip[1], grp.tip[2]))}</small></button>`;
     const show = grp.top || grp.tiers[0];
     const nx = grp.next;
     return `<button class="bdg${grp.top ? ' got' : ''}" data-act="badge" data-g="${esc(grp.g)}" data-uid="${esc(uid)}">
       ${V.badgeIcon(show.b, !!grp.top)}
-      <b>${esc(L(show.b.t[0], show.b.t[1]))}</b>
-      ${grp.tiers.length > 1 ? `<span class="bdg-dots" aria-label="${L(`${L.num(grp.tiers.filter((x) => x.got).length)} من ${L.num(grp.tiers.length)}`, `${grp.tiers.filter((x) => x.got).length} of ${grp.tiers.length}`)}">${grp.tiers.map((x) => `<i class="tier${x.b.tier}${x.got ? ' on' : ''}"></i>`).join('')}</span>` : ''}
-      ${nx ? `<small>${L.num(nx.v)} / ${L.num(nx.b.n)}</small>${V.bar(nx.v / nx.b.n, 'gold')}` : `<small class="gold-t">${grp.secret ? L('سر اتكشف 🗝️', 'Secret found 🗝️') : grp.tiers.length > 1 ? L('خلّصت كل المستويات ✓', 'All levels done ✓') : L('اتفتح ✓', 'Earned ✓')}</small>`}
+      <b>${esc(L(show.b.t[0], show.b.t[1], show.b.t[2]))}</b>
+      ${grp.tiers.length > 1 ? `<span class="bdg-dots" aria-label="${L(`${L.num(grp.tiers.filter((x) => x.got).length)} من ${L.num(grp.tiers.length)}`, `${grp.tiers.filter((x) => x.got).length} of ${grp.tiers.length}`, `${L.num(grp.tiers.filter((x) => x.got).length)} من ${L.num(grp.tiers.length)}`)}">${grp.tiers.map((x) => `<i class="tier${x.b.tier}${x.got ? ' on' : ''}"></i>`).join('')}</span>` : ''}
+      ${nx ? `<small>${L.num(nx.v)} / ${L.num(nx.b.n)}</small>${V.bar(nx.v / nx.b.n, 'gold')}` : `<small class="gold-t">${grp.secret ? L('سر اتكشف 🗝️', 'Secret found 🗝️', 'اكتُشف السر 🗝️') : grp.tiers.length > 1 ? L('خلّصت كل المستويات ✓', 'All levels done ✓', 'اكتملت كل المستويات ✓') : L('اتفتح ✓', 'Earned ✓', 'فُتح ✓')}</small>`}
     </button>`;
   };
 
@@ -530,18 +530,18 @@
     U.chime('big');
     const others = D.bookProgs(bookId).filter((p) => p.u !== S.me).length;
     V.sheet({
-      title: L(`الورد ${L.num(w.n)} ✓`, `Portion ${w.n} ✓`),
+      title: L(`الورد ${L.num(w.n)} ✓`, `Portion ${w.n} ✓`, `الورد ${L.num(w.n)} ✓`),
       cls: 'celebrate',
       html: `<div class="celeb">${V.star(L.num(w.n), 'jade huge spin-in')}
-        <h2>${L('برافو! خلّصت الورد', 'Well done — portion complete!')}</h2>
+        <h2>${L('برافو! خلّصت الورد', 'Well done — portion complete!', 'أحسنت! أنهيت الورد')}</h2>
         <div class="xp-lines">
-          <span>${L('الورد', 'Portion')} <b>+${L.num(G.XP.wird)} XP</b></span>
-          ${onTime ? `<span>${L('في الميعاد', 'On time')} <b>+${L.num(G.XP.onTime)} XP</b></span>` : ''}
-          ${!someoneFirst ? `<span class="gold-t">${L('أول واحد يخلّص!', 'First to finish!')} <b>+${L.num(G.XP.first)} XP</b></span>` : ''}
+          <span>${L('الورد', 'Portion', 'الورد')} <b>+${L.num(G.XP.wird)} XP</b></span>
+          ${onTime ? `<span>${L('في الميعاد', 'On time', 'في الموعد')} <b>+${L.num(G.XP.onTime)} XP</b></span>` : ''}
+          ${!someoneFirst ? `<span class="gold-t">${L('سبقت الكل!', 'First to finish!', 'أول من يُنهي!')} <b>+${L.num(G.XP.first)} XP</b></span>` : ''}
         </div>
-        <p>${L('اكتب خلاصتك في سطرين عشان أصحابك يستفيدوا', 'Share your takeaway in a couple of lines so friends can learn from it')} (+${L.num(G.XP.take)} XP)</p>
-        <div class="row-btns center"><button class="btn gold" data-take autofocus>${icon('sparkle')}${L('اكتب خلاصتي', 'Write my takeaway')}</button><button class="btn ghost" data-close>${L('بعدين', 'Later')}</button></div>
-        ${others ? `<small class="muted">${L('شوف مين لسه، وشجّعهم من صفحة الكتاب', 'See who is still reading and cheer them on from the book page')}</small>` : ''}
+        <p>${L('اكتب خلاصتك في سطرين وخلّي صحابك يستفيدوا', 'Share your takeaway in a couple of lines so friends can learn from it', 'اكتب خلاصتك في سطرين ليستفيد أصدقاؤك')} (+${L.num(G.XP.take)} XP)</p>
+        <div class="row-btns center"><button class="btn gold" data-take autofocus>${icon('sparkle')}${L('اكتب خلاصتي', 'Write my takeaway', 'اكتب خلاصتي')}</button><button class="btn ghost" data-close>${L('بعدين', 'Later', 'لاحقًا')}</button></div>
+        ${others ? `<small class="muted">${L('شوف مين لسه، وشجّعهم من صفحة الكتاب', 'See who is still reading and cheer them on from the book page', 'اعرف من لم يُنهِ بعد، وشجّعهم من صفحة الكتاب')}</small>` : ''}
       </div>`,
       onMount: (body, api) =>
         body.addEventListener('click', (e) => {
@@ -569,17 +569,17 @@
     U.confetti(1.3);
     U.chime('big');
     V.sheet({
-      title: L('لحقت! ✓', 'Caught up! ✓'),
+      title: L('لحقت! ✓', 'Caught up! ✓', 'لحقت بالركب! ✓'),
       cls: 'celebrate',
       html: `<div class="celeb">${V.star(L.num(ws.length), 'jade huge spin-in')}
-        <h2>${L(`علّمت ${L.count(ws.length, 'wird')} خلصوا`, `${ws.length} portions marked done`)}</h2>
-        <div class="xp-lines"><span>${L('الأوراد', 'Portions')} <b>+${L.num(G.XP.wird * ws.length)} XP</b></span></div>
-        <button class="btn gold" data-close autofocus>${L('يلا نكمّل', 'Keep going')}</button></div>`,
+        <h2>${L(`علّمت ${L.count(ws.length, 'wird')} خلصوا`, `${ws.length} portions marked done`, `أتممت ${L.count(ws.length, 'wird')}`)}</h2>
+        <div class="xp-lines"><span>${L('الأوراد', 'Portions', 'الأوراد')} <b>+${L.num(G.XP.wird * ws.length)} XP</b></span></div>
+        <button class="btn gold" data-close autofocus>${L('يلا نكمّل', 'Keep going', 'هيا نواصل')}</button></div>`,
     });
   };
 
   V.unmarkWird = async (bookId, wid) => {
-    if (!(await V.confirm(L('هتشيل علامة «خلّصت» من الورد ده.', 'This removes the done mark from this portion.'), L('شيل العلامة', 'Remove mark'), true))) return;
+    if (!(await V.confirm(L('هتشيل علامة «خلّصت» من الورد ده.', 'This removes the done mark from this portion.', 'ستُزال علامة «أنهيت» من هذا الورد.'), L('شيل العلامة', 'Remove mark', 'أزِل العلامة'), true))) return;
     await D.saveProg(bookId, (c) => {
       const done = Object.assign({}, c.done);
       delete done[wid];
@@ -591,22 +591,22 @@
     const book = S.books.get(bookId);
     const w = G.wirds(book).find((x) => x.id === wid);
     V.sheet({
-      title: L(`خلاصتي في الورد ${L.num(w ? w.n : '')}`, `My takeaway • portion ${w ? w.n : ''}`),
-      html: `<p class="muted">${L('إيه أكتر فكرة عجبتك أو فرقت معاك في الورد ده؟', 'What idea stood out or stayed with you in this portion?')}</p>
-        <textarea id="take-text" rows="5" dir="auto" maxlength="${U.MAX.take}" autofocus placeholder="${L('اكتب هنا…', 'Write here…')}">${esc(existing ? existing.text : U.store.get(`draft:take:${bookId}:${wid}`, ''))}</textarea>
-        <div class="row-btns end"><button class="btn gold" data-save>${icon('sparkle')}${L('انشر الخلاصة', 'Share takeaway')}</button></div>`,
+      title: L(`خلاصتي في الورد ${L.num(w ? w.n : '')}`, `My takeaway • portion ${w ? w.n : ''}`, `خلاصتي في الورد ${L.num(w ? w.n : '')}`),
+      html: `<p class="muted">${L('إيه أكتر فكرة عجبتك أو فرقت معاك في الورد ده؟', 'What idea stood out or stayed with you in this portion?', 'ما أكثر فكرة أعجبتك أو أثّرت فيك في هذا الورد؟')}</p>
+        <textarea id="take-text" rows="5" dir="auto" maxlength="${U.MAX.take}" autofocus placeholder="${L('اكتب هنا…', 'Write here…', 'اكتب هنا…')}">${esc(existing ? existing.text : U.store.get(`draft:take:${bookId}:${wid}`, ''))}</textarea>
+        <div class="row-btns end"><button class="btn gold" data-save>${icon('sparkle')}${L('انشر الخلاصة', 'Share takeaway', 'انشر الخلاصة')}</button></div>`,
       onMount: (body, api) =>
         body.addEventListener('click', async (e) => {
           if (!e.target.closest('[data-save]')) return;
           const text = body.querySelector('#take-text').value.trim();
-          if (text.length < 3) return U.toast(L('اكتب كلمتين على الأقل', 'Write a few words first'), 'warn');
+          if (text.length < 3) return U.toast(L('اكتب كلمتين على الأقل', 'Write a few words first', 'اكتب بضع كلمات على الأقل'), 'warn');
           const draftKey = `draft:take:${bookId}:${wid}`;
           U.store.set(draftKey, text);
           api.close();
           const id = existing ? existing.id : D.newId();
           await D.set(`notes/${id}`, V.clean(Object.assign({}, existing || {}, { b: bookId, wid, kind: 'take', text, page: w ? w.to : null, rect: null, by: S.me, at: existing ? existing.at : U.nowIso(), likes: existing ? existing.likes || {} : {}, replies: existing ? existing.replies || {} : {} })));
           U.store.del(draftKey);
-          if (!existing) U.xpPop(G.XP.take, L('خلاصة', 'Takeaway'));
+          if (!existing) U.xpPop(G.XP.take, L('خلاصة', 'Takeaway', 'خلاصة'));
         }),
     });
   };
@@ -618,14 +618,14 @@
     U.confetti(1.6);
     U.chime('big');
     V.sheet({
-      title: L('خلّصت الكتاب!', 'Book finished!'),
+      title: L('يا سلام! خلّصت الكتاب', 'Book finished!', 'أنهيت الكتاب!'),
       cls: 'celebrate',
       html: `<div class="celeb">${V.cover(book, 'lg spin-in')}<h2 dir="auto">${esc(book.title)}</h2>
-        <div class="xp-lines"><span class="gold-t">${L('خاتم الكتاب', 'Book finisher')} <b>+${L.num(G.XP.book)} XP</b></span></div>
-        <p>${L('قيّم الكتاب واكتب رأيك — هيتحط في مكتبتك تحت «قرأناه سوا»', "Rate it and add a review — it goes on your shelf under 'Read together'")}</p>
+        <div class="xp-lines"><span class="gold-t">${L('خاتم الكتاب', 'Book finisher', 'خاتم الكتاب')} <b>+${L.num(G.XP.book)} XP</b></span></div>
+        <p>${L('قيّم الكتاب واكتب رأيك — هيتحط في مكتبتك تحت «قرأناه سوا»', "Rate it and add a review — it goes on your shelf under 'Read together'", 'قيّم الكتاب واكتب رأيك — سيُضاف إلى مكتبتك تحت «قرأناه معًا»')}</p>
         ${V.stars(0, true, 'fin-stars')}
-        <textarea id="fin-review" rows="3" dir="auto" maxlength="${U.MAX.review}" placeholder="${L('رأيك في سطرين (اختياري)', 'Your review (optional)')}"></textarea>
-        <div class="row-btns center"><button class="btn gold" data-save autofocus>${L('احفظ في مكتبتي', 'Save to my shelf')}</button>${A.Share ? `<button class="btn ghost" data-share-book>${icon('share')}${L('شارك', 'Share')}</button>` : ''}</div></div>`,
+        <textarea id="fin-review" rows="3" dir="auto" maxlength="${U.MAX.review}" placeholder="${L('رأيك في سطرين (اختياري)', 'Your review (optional)', 'رأيك في سطرين (اختياري)')}"></textarea>
+        <div class="row-btns center"><button class="btn gold" data-save autofocus>${L('احفظ في مكتبتي', 'Save to my shelf', 'احفظ في مكتبتي')}</button>${A.Share ? `<button class="btn ghost" data-share-book>${icon('share')}${L('شارك', 'Share', 'شارك')}</button>` : ''}</div></div>`,
       onMount: (body, api) => {
         V.bindStars(body);
         body.addEventListener('click', async (e) => {
@@ -662,7 +662,7 @@
       marks[bookId] = bm;
       return Object.assign({}, cur, { marks });
     });
-    if (!quiet) U.toast(L('اتحفظت', 'Saved'));
+    if (!quiet) U.toast(L('اتحفظت', 'Saved', 'حُفظت'));
   };
 
   /* ---------- global click handling for data-go / data-act shared actions ---------- */
@@ -682,7 +682,9 @@
     if (!a || a.closest('#reader')) return;
     const act = a.dataset.act;
     if (act === 'lang') {
-      L.set(L.isAr() ? 'en' : 'ar');
+      if (a.dataset.v === L.lang()) return;
+      if (a.dataset.v) L.set(a.dataset.v);
+      else L.toggle();
       const app = document.getElementById('app');
       app.innerHTML = '';
       if (A.R.isOpen()) {
@@ -715,32 +717,32 @@
     const show = grp.top || grp.tiers[0];
     if (grp.secret && !grp.top)
       return V.sheet({
-        title: L('وسام سري', 'Secret badge'),
-        html: `<div class="bd-sheet"><div class="bd-hero"><span class="badge8 tier5 q lg">${icon('question')}</span><h2>${L('؟؟؟', '???')}</h2>
-          <p class="muted">${L('وسام سري — اسمه بيظهر لما تكسبه.', 'A secret badge — its name shows once you earn it.')}</p></div>
-          <p class="bd-tip">${icon('sparkle')}<span>${L('تلميح:', 'Hint:')} ${esc(L(grp.tip[0], grp.tip[1]))}</span></p>
+        title: L('وسام سري', 'Secret badge', 'وسام سري'),
+        html: `<div class="bd-sheet"><div class="bd-hero"><span class="badge8 tier5 q lg">${icon('question')}</span><h2>${L('؟؟؟', '???', '؟؟؟')}</h2>
+          <p class="muted">${L('وسام سري — اسمه بيظهر لما تكسبه.', 'A secret badge — its name shows once you earn it.', 'وسام سري — يظهر اسمه عندما تناله.')}</p></div>
+          <p class="bd-tip">${icon('sparkle')}<span>${L('تلميح:', 'Hint:', 'تلميح:')} ${esc(L(grp.tip[0], grp.tip[1], grp.tip[2]))}</span></p>
           ${(() => {
             const h = holders(grp.tiers[0].b);
-            return h.length ? `<p class="muted sm">${L(`${L.num(h.length)} من الحلقة عرفوا السر`, `${h.length} in the circle found it`)}</p>` : '';
+            return h.length ? `<p class="muted sm">${L(`${L.num(h.length)} من الحلقة عرفوا السر`, `${h.length} in the circle found it`, `${L.num(h.length)} من الحلقة اكتشفوا السر`)}</p>` : '';
           })()}</div>`,
       });
     V.sheet({
-      title: L('وسام', 'Badge'),
+      title: L('وسام', 'Badge', 'وسام'),
       html: `<div class="bd-sheet">
-        <div class="bd-hero">${V.badgeIcon(show.b, !!grp.top, 'lg')}<h2>${esc(L(show.b.t[0], show.b.t[1]))}</h2>
-          <p class="muted">${grp.top ? L(`أعلى مستوى اتفتح: ${V.tierName(grp.top.b.tier)}`, `Highest level earned: ${V.tierName(grp.top.b.tier)}`) : mine ? L('لسه ما اتفتحش — شوف إزاي تاخده تحت', 'Not earned yet — see how below') : L('لسه ما اتفتحش', 'Not earned yet')}</p></div>
-        <p class="bd-tip">${icon('info')}<span>${esc(L(grp.tip[0], grp.tip[1]))}</span></p>
+        <div class="bd-hero">${V.badgeIcon(show.b, !!grp.top, 'lg')}<h2>${esc(L(show.b.t[0], show.b.t[1], show.b.t[2]))}</h2>
+          <p class="muted">${grp.top ? L(`أعلى مستوى اتفتح: ${V.tierName(grp.top.b.tier)}`, `Highest level earned: ${V.tierName(grp.top.b.tier)}`, `أعلى مستوى مفتوح: ${V.tierName(grp.top.b.tier)}`) : mine ? L('لسه ما اتفتحش — شوف إزاي تاخده تحت', 'Not earned yet — see how below', 'لم يُفتح بعد — انظر أدناه كيف تناله') : L('لسه ما اتفتحش', 'Not earned yet', 'لم يُفتح بعد')}</p></div>
+        <p class="bd-tip">${icon('info')}<span>${esc(L(grp.tip[0], grp.tip[1], grp.tip[2]))}</span></p>
         <ol class="bd-tiers">${grp.tiers
           .map((x) => {
             const h = holders(x.b);
             return `<li class="${x.got ? 'got' : ''}">${V.badgeIcon(x.b, x.got, 'sm')}
-              <div><b>${esc(L(x.b.t[0], x.b.t[1]))} <small class="muted">• ${V.tierName(x.b.tier)}</small></b><small>${esc(L(x.b.d[0], x.b.d[1]))}</small>
-                ${x.got ? `<small class="jade-t">${icon('check')}${L('اتفتح', 'Earned')}</small>` : `<div class="bd-prog">${V.bar(x.v / x.b.n, 'gold')}<small>${L.num(x.v)} / ${L.num(x.b.n)}</small></div>`}
-                ${h.length ? `<span class="bd-who">${h.slice(0, 6).map((u) => D.avatar(u, 'xs')).join('')}<small>${h.length === 1 ? esc(D.name(h[0])) : L(`${L.num(h.length)} من الحلقة`, `${h.length} in the circle`)}</small></span>` : ''}
+              <div><b>${esc(L(x.b.t[0], x.b.t[1], x.b.t[2]))} <small class="muted">• ${V.tierName(x.b.tier)}</small></b><small>${esc(L(x.b.d[0], x.b.d[1], x.b.d[2]))}</small>
+                ${x.got ? `<small class="jade-t">${icon('check')}${L('اتفتح', 'Earned', 'فُتح')}</small>` : `<div class="bd-prog">${V.bar(x.v / x.b.n, 'gold')}<small>${L.num(x.v)} / ${L.num(x.b.n)}</small></div>`}
+                ${h.length ? `<span class="bd-who">${h.slice(0, 6).map((u) => D.avatar(u, 'xs')).join('')}<small>${h.length === 1 ? esc(D.name(h[0])) : L(`${L.num(h.length)} من الحلقة`, `${h.length} in the circle`, `${L.num(h.length)} من الحلقة`)}</small></span>` : ''}
               </div></li>`;
           })
           .join('')}</ol>
-        ${mine && grp.top && A.Share ? `<div class="row-btns center"><button class="btn ghost" data-act="share-badge" data-id="${esc(grp.top.b.id)}" data-close>${icon('share')}${L('شارك الوسام', 'Share this badge')}</button></div>` : ''}
+        ${mine && grp.top && A.Share ? `<div class="row-btns center"><button class="btn ghost" data-act="share-badge" data-id="${esc(grp.top.b.id)}" data-close>${icon('share')}${L('شارك الوسام', 'Share this badge', 'شارك الوسام')}</button></div>` : ''}
       </div>`,
     });
   };

@@ -47,13 +47,13 @@
     const who = `<b>${esc(D.name(x.who))}</b>`;
     const title = x.book ? `«${esc(x.book.title)}»` : '';
     switch (x.kind) {
-      case 'reply': return L(`رد من ${who} على ملاحظتك في ${title}`, `${who} replied to your note in ${title}`);
-      case 'thread': return L(`رد جديد من ${who} في نقاش شاركت فيه`, `${who} replied in a thread you're in`);
-      case 'like': return L(`إعجاب من ${who} بملاحظتك في ${title}`, `${who} liked your note in ${title}`);
-      case 'cheer': return L(`تشجيع من ${who} 👏`, `${who} cheered you on 👏`);
-      case 'poke': return L(`تذكير من ${who} بالورد 👋`, `${who} nudged you about the portion 👋`);
-      case 'msgreply': return L(`رد من ${who} على رسالتك`, `${who} replied to your message`);
-      case 'book': return L(`كتاب جديد في الحلقة من ${who}: ${title}`, `${who} added a new book: ${title}`);
+      case 'reply': return L(`رد من ${who} على ملاحظتك في ${title}`, `${who} replied to your note in ${title}`, `ردّ من ${who} على ملاحظتك في ${title}`);
+      case 'thread': return L(`رد جديد من ${who} في نقاش شاركت فيه`, `${who} replied in a thread you're in`, `ردّ جديد من ${who} في نقاش شاركتَ فيه`);
+      case 'like': return L(`إعجاب من ${who} بملاحظتك في ${title}`, `${who} liked your note in ${title}`, `إعجاب من ${who} بملاحظتك في ${title}`);
+      case 'cheer': return L(`تشجيع من ${who} 👏`, `${who} cheered you on 👏`, `تشجيع من ${who} 👏`);
+      case 'poke': return L(`تذكير من ${who} بالورد 👋`, `${who} nudged you about the portion 👋`, `تذكير من ${who} بالورد 👋`);
+      case 'msgreply': return L(`رد من ${who} على رسالتك`, `${who} replied to your message`, `ردّ من ${who} على رسالتك`);
+      case 'book': return L(`كتاب جديد في الحلقة من ${who}: ${title}`, `${who} added a new book: ${title}`, `كتاب جديد في الحلقة من ${who}: ${title}`);
     }
     return '';
   };
@@ -65,14 +65,14 @@
     U.store.set(seenKey(), U.nowIso());
     V.render();
     V.sheet({
-      title: `${icon('bell')} ${L('الجديد ليك', 'For you')}`,
+      title: `${icon('bell')} ${L('الجديد ليك', 'For you', 'الجديد لك')}`,
       html: items.length
         ? `<ul class="inbox">${items
             .map(
               (x, i) => `<li class="${x.t > seen ? 'new' : ''}"><button data-i="${i}"><span class="ib-ic k-${x.kind}">${icon(ICON[x.kind])}</span>${D.avatar(x.who, 'sm')}<span class="ib-t"><span>${line(x)}</span>${x.text ? `<small class="ib-q" dir="auto">${esc(String(x.text).slice(0, 90))}</small>` : ''}<small>${L.ago(x.t)}</small></span></button></li>`
             )
             .join('')}</ul>`
-        : V.empty(L('مفيش جديد لسه', 'Nothing new yet'), L('لما حد يرد عليك أو يشجعك هتلاقيه هنا.', 'Replies, likes and cheers for you will show up here.')),
+        : V.empty(L('مفيش جديد لسه', 'Nothing new yet', 'لا جديد بعد'), L('أول ما حد يرد عليك أو يشجعك، هتلاقيه هنا على طول.', 'Replies, likes and cheers for you will show up here.', 'ستظهر هنا الردود والتشجيعات التي تصلك.')),
       onMount: (body, api) =>
         body.addEventListener('click', (e) => {
           const b = e.target.closest('[data-i]');
