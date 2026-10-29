@@ -77,6 +77,8 @@ const closeAll = async (p) => {
       await b.click('#join-form button[type=submit]');
       await b.waitForSelector('.shell #screen .home', { timeout: 15000 });
       await until(a, 'two members', () => window.A.S.members.size === 2);
+      // firsts and the daily goal have their own test (goals.js); here they'd only cover the screen
+      for (const pg of [a, b]) await pg.evaluate(() => window.A.Goals && (window.A.Goals.off = true));
     });
 
     await step('«قراية الحلقة النهارده»: one of two, then the whole circle', async () => {
@@ -137,6 +139,27 @@ const closeAll = async (p) => {
       const isFri = await a.evaluate(() => window.A.U.parseD(window.A.U.today()).getDay() === 5);
       // on any day but Friday it's last week's, which is empty here: nothing to show
       assert(isFri ? !!shown && ws : !shown, `auto recap: shown=${!!shown} friday=${isFri} key=${ws}`);
+      await closeAll(a);
+    });
+
+    await step('Invite card: a picture with the circle and the book, sent with the link', async () => {
+      await closeAll(a);
+      await a.evaluate(() => window.A.V.go('circle'));
+      await a.click('[data-act="invite"]');
+      await a.waitForSelector('#inv-card img', { timeout: 8000 });
+      const img = await a.$eval('#inv-card img', (e) => ({ w: e.naturalWidth, h: e.naturalHeight }));
+      assert(img.w === 1080 && img.h === 1080, 'card size ' + JSON.stringify(img));
+      await H.shot(a, 'together-invite');
+      // a phone that can share files gets the picture and the message together
+      const shared = await a.evaluate(async () => {
+        let got = null;
+        navigator.canShare = () => true;
+        navigator.share = async (d) => (got = { text: d.text, files: (d.files || []).map((f) => f.type + ':' + f.size) });
+        document.querySelector('[data-share-card]').click();
+        for (let i = 0; i < 50 && !got; i++) await new Promise((r) => setTimeout(r, 100));
+        return got;
+      });
+      assert(shared && /#join-/.test(shared.text) && shared.files.length === 1 && /^image\/png:\d{4,}/.test(shared.files[0]), 'shared: ' + JSON.stringify(shared));
       await closeAll(a);
     });
 
