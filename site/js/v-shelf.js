@@ -63,22 +63,16 @@
     const pagesTotal = all.filter((x) => x.status === 'read').reduce((s, x) => s + (+x.pages || 0), 0);
     const owners = D.memberIds();
     return `<div class="shelfpage">
-      <header class="page-head"><div><h1>${mine ? L('مكتبتي', 'My shelf') : L(`مكتبة ${esc(D.name(uid))}`, `${esc(D.name(uid))}'s shelf`)}</h1><p class="muted">${L('كل الكتب اللي قريتها، بتقرأها، أو ناوي تقرأها', 'Everything read, in progress, or on the wish list', 'كل الكتب التي قرأتها أو تقرؤها أو تنوي قراءتها')}</p></div>
-        ${mine && D.canWrite() ? `<div class="row-btns"><button class="btn gold" data-act="shelf-add">${icon('plus')}${L('ضيف كتاب', 'Add a book', 'أضف كتابًا')}</button><button class="btn ghost" data-act="bulk-shelf" aria-label="${L('ضيف كذا كتاب', 'Add many', 'أضف عدة كتب')}">${icon('list')}<span class="hide-xs">${L('ضيف كذا كتاب', 'Add many', 'أضف عدة كتب')}</span></button><button class="btn ghost" data-act="import-shelf">${icon('download')}<span>Goodreads</span></button></div>` : ''}</header>
-      <div class="owners" role="tablist">${owners.map((u) => `<button class="owner${u === uid ? ' on' : ''}" data-act="shelf-of" data-uid="${esc(u)}" role="tab" aria-selected="${u === uid}">${D.avatar(u, 'sm')}<span>${u === S.me ? L('أنا', 'Me') : esc(D.name(u))}</span></button>`).join('')}</div>
-      <div class="shelf-top">
-        <section class="card challenge">
-          ${V.ring(goal ? doneYear / goal : 0, `<b>${L.num(doneYear)}</b><small>${goal ? '/ ' + L.num(goal) : ''}</small>`, doneYear >= goal && goal ? 'jade' : 'gold', 92)}
-          <div><h3>${L(`تحدي ${L.num(+year, { useGrouping: false })}`, `${year} challenge`)}</h3>
-            <p>${goal ? (doneYear >= goal ? L('حققت الهدف! 🎉 زوّده؟', 'Goal reached! 🎉 Raise it?', 'حققت الهدف! 🎉 هل تزيده؟') : L(`فاضل ${L.count(goal - doneYear, 'book')} على هدفك`, `${goal - doneYear} books to go`, `بقي ${L.count(goal - doneYear, 'book', 'nom')} على هدفك`)) : mine ? L('حط هدف لعدد الكتب اللي عايز تقرأها السنة دي', 'Set how many books you want to read this year', 'حدد عدد الكتب التي تريد قراءتها هذا العام') : L('مفيش هدف لسه', 'No goal set yet', 'لا يوجد هدف بعد')}</p>
-            ${mine && D.canWrite() ? `<button class="btn ghost sm" data-act="set-goal">${icon('target')}${goal ? L('غيّر الهدف', 'Change goal') : L('حط هدف', 'Set a goal', 'حدد هدفًا')}</button>` : ''}</div>
-        </section>
-        <section class="card shelf-stats">
-          <div><b>${L.num(counts.read)}</b><small>${L('كتب مقروءة', 'books read')}</small></div>
-          <div><b>${L.num(pagesTotal)}</b><small>${L('صفحة', 'pages')}</small></div>
-          <div><b>${L.num(all.filter((x) => x.together).length)}</b><small>${L('مع الحلقة', 'with the circle')}</small></div>
-        </section>
-      </div>
+      <header class="page-head shelf-head"><h1>${mine ? L('مكتبتي', 'My shelf') : L(`مكتبة ${esc(D.name(uid))}`, `${esc(D.name(uid))}'s shelf`)}</h1>
+        ${mine && D.canWrite() ? `<div class="row-btns"><button class="btn gold sm" data-act="shelf-add">${icon('plus')}${L('ضيف كتاب', 'Add a book', 'أضف كتابًا')}</button><button class="ib round" data-act="shelf-more" aria-label="${L('المزيد', 'More')}">${icon('more')}</button></div>` : ''}</header>
+      ${owners.length > 1 ? `<div class="owners" role="tablist">${owners.map((u) => `<button class="owner${u === uid ? ' on' : ''}" data-act="shelf-of" data-uid="${esc(u)}" role="tab" aria-selected="${u === uid}">${D.avatar(u, 'sm')}<span>${u === S.me ? L('أنا', 'Me') : esc(D.name(u))}</span></button>`).join('')}</div>` : ''}
+      <button class="shelf-sum" ${mine && D.canWrite() ? 'data-act="set-goal"' : 'disabled'} aria-label="${L(`تحدي ${L.num(+year, { useGrouping: false })}`, `${year} challenge`)}">
+        ${V.ring(goal ? doneYear / goal : 0, `<b>${L.num(doneYear)}</b>`, doneYear >= goal && goal ? 'jade' : 'gold', 40)}
+        <span class="ss-goal"><b>${L(`تحدي ${L.num(+year, { useGrouping: false })}`, `${year} challenge`)}</b><small>${goal ? (doneYear >= goal ? L('حققت الهدف! 🎉', 'Goal reached! 🎉', 'حققت الهدف! 🎉') : L(`${L.num(doneYear)} من ${L.num(goal)}`, `${doneYear} of ${goal}`)) : mine ? L('حط هدف للسنة', 'Set a goal', 'حدد هدفًا للعام') : L('مفيش هدف لسه', 'No goal yet', 'لا يوجد هدف بعد')}</small></span>
+        <span class="ss-n"><b>${L.num(counts.read)}</b><small>${L('كتاب', 'books', 'كتب')}</small></span>
+        <span class="ss-n"><b>${L.num(pagesTotal)}</b><small>${L('صفحة', 'pages')}</small></span>
+        <span class="ss-n"><b>${L.num(all.filter((x) => x.together).length)}</b><small>${L('مع الحلقة', 'together')}</small></span>
+      </button>
       <nav class="tabs" role="tablist">${Object.entries(STATUS).map(([k, t]) => `<button role="tab" class="tab${k === tab ? ' on' : ''}" aria-selected="${k === tab}" data-act="shelf-tab" data-st="${k}" data-uid="${esc(uid)}"><span>${L(...t)}</span><small>${L.num(counts[k] || 0)}</small></button>`).join('')}</nav>
       ${tools}
       ${list.length ? shelfRows(list) : q ? V.empty(L('مفيش كتاب بالاسم ده', 'No book matches', 'لا يوجد كتاب بهذا الاسم'), L('جرّب كلمة تانية من العنوان أو اسم المؤلف.', 'Try another word from the title or the author.', 'جرّب كلمة أخرى من العنوان أو اسم المؤلف.')) : V.empty(tab === 'read' ? L('الرف فاضي', 'This shelf is empty', 'الرف فارغ') : L('مفيش حاجة هنا لسه', 'Nothing here yet', 'لا شيء هنا بعد'), mine ? L('ضيف الكتب اللي قريتها قبل كده — كل كتاب بـ ١٠ XP، والرأي بـ ٥ زيادة. عندك حساب Goodreads؟ هات مكتبتك كلها مرة واحدة.', 'Add books you have read before — 10 XP each, plus 5 for a review. On Goodreads? Bring your whole library at once.', 'أضف الكتب التي قرأتها من قبل — لكل كتاب ١٠ XP، وللرأي ٥ إضافية. لديك حساب Goodreads؟ اجلب مكتبتك كلها دفعة واحدة.') : '', mine && D.canWrite() ? `<div class="row-btns center"><button class="btn gold" data-act="bulk-shelf">${icon('list')}${L('ضيف كذا كتاب مرة واحدة', 'Add several at once', 'أضف عدة كتب دفعة واحدة')}</button><button class="btn ghost" data-act="import-shelf">${icon('download')}${L('استورد من Goodreads', 'Import from Goodreads')}</button></div>` : '')}
@@ -119,6 +113,11 @@
   });
   V.actions['shelf-add'] = () => V.shelfForm();
   V.actions['bulk-shelf'] = () => V.bulkShelf();
+  V.actions['shelf-more'] = () =>
+    V.menu([
+      { ic: 'list', t: L('ضيف كذا كتاب مرة واحدة', 'Add many at once', 'أضف عدة كتب دفعة واحدة'), fn: () => V.bulkShelf() },
+      { ic: 'download', t: L('استورد من Goodreads', 'Import from Goodreads'), fn: () => V.importShelf() },
+    ]);
   V.actions['shelf-item'] = (a) => {
     const uid = (V.state.opts && V.state.opts.uid) || S.me;
     const it = V.shelfItems(uid).find((x) => x.id === a.dataset.id);
@@ -246,7 +245,6 @@
             for (const r of rows) items[D.newId()] = { title: r.title, author: r.author, status, finished: y ? String(y) : '', rating: 0, review: '', tags: [], pages: 0, at: t, updatedAt: t };
             return { items };
           });
-          U.confetti(0.7);
           U.chime('ok');
           if (status === 'read') U.xpPop(rows.length * G.XP.shelf, L.count(rows.length, 'book'));
           V.go('shelf', { st: status });
@@ -290,7 +288,6 @@
             const status = mv.dataset.move;
             await V.saveShelfItem(it.id, status === 'read' ? { status, finished: it.finished || month } : { status });
             if (status === 'read') {
-              U.confetti(0.6);
               setTimeout(() => V.shelfForm(Object.assign({}, it, { status: 'read', finished: it.finished || month })), 500); // rate and review while it is fresh
             }
             return;

@@ -82,7 +82,6 @@
       if (!best || likes > best.likes) best = { n, likes };
     }
     const groupPages = rows.reduce((t, x) => t + x.pagesPrevWeek, 0);
-    U.confetti(0.6);
     V.sheet({
       title: L('ملخّص الأسبوع اللي فات', "Last week's recap", 'ملخّص الأسبوع الماضي'),
       cls: 'celebrate',

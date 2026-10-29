@@ -47,18 +47,87 @@
     '☀️', '🌻', '🌵', '🍀', '🌊', '🔥', '🌈', '🏔️',
     '📖', '✏️', '🍵', '🎨', '🎧', '🚀', '💡', '🧩',
   ];
-  V.go = (route, opts = {}) => {
+  /* Where back goes: the screens you came through (not just «اليوم»). */
+  V.trail = [];
+  V.go = (route, opts = {}, back) => {
+    const prev = V.state;
+    if (!back && prev && prev.route && (prev.route !== route || JSON.stringify(prev.opts || {}) !== JSON.stringify(opts))) {
+      V.trail.push(prev);
+      if (V.trail.length > 30) V.trail.shift();
+    }
     V.state = { route, opts };
-    const h = '#' + route;
+    setHash('#' + route);
+    V.render(true);
+    const sc = document.getElementById('screen');
+    if (sc) {
+      sc.scrollTop = 0;
+      // the new screen eases in (a little from below; going back, a little from above)
+      sc.classList.remove('enter', 'enter-back');
+      void sc.offsetWidth;
+      sc.classList.add(back ? 'enter-back' : 'enter');
+    }
+    window.scrollTo(0, 0);
+  };
+  /* One step back: the top sheet, then inside the book, the book, then the screen before. false = nothing left. */
+  V.back = () => {
+    if (V.sheets.length) return V.sheets[V.sheets.length - 1].close(), true;
+    if (A.R.isOpen()) return A.R.back() || A.R.close(), true;
+    const prev = V.trail.pop();
+    if (prev) return V.go(prev.route, prev.opts, true), true;
+    if (V.state.route !== 'home') return V.go('home', {}, true), true;
+    return false;
+  };
+  /* In the browser (not the app), the phone's back gesture moves through history: give each sheet and the open
+     book a history step of its own, so back closes them instead of leaving the screen. */
+  const native = () => !!(A.P && A.P.native);
+  let popsToIgnore = 0;
+  let hashAfterPop = null;
+  // A sheet that just closed is still stepping back in history; a new hash set now would be undone by that
+  // step, so it waits until the step is done.
+  function setHash(h) {
+    if (popsToIgnore) return void (hashAfterPop = h);
     if (location.hash !== h) {
       V._silentHash = true;
       location.hash = h;
     }
-    V.render(true);
-    const sc = document.getElementById('screen');
-    if (sc) sc.scrollTop = 0;
-    window.scrollTo(0, 0);
+  }
+  V.histPush = (kind) => {
+    if (native()) return null;
+    const id = kind + ':' + Date.now() + Math.random().toString(36).slice(2, 6);
+    try {
+      history.pushState({ qs: id }, '');
+    } catch (e) {
+      return null;
+    }
+    return id;
   };
+  V.histDrop = (id) => {
+    if (id && history.state && history.state.qs === id) {
+      popsToIgnore++;
+      history.back();
+    }
+  };
+  window.addEventListener('popstate', () => {
+    if (popsToIgnore) {
+      popsToIgnore--;
+      if (!popsToIgnore && hashAfterPop) {
+        const h = hashAfterPop;
+        hashAfterPop = null;
+        setHash(h);
+      }
+      return;
+    }
+    const top = V.sheets[V.sheets.length - 1];
+    if (top && top.hist) {
+      top.hist = null; // this step is already gone
+      return top.close();
+    }
+    if (A.R.isOpen() && A.R.hist) {
+      if (A.R.back()) return void (A.R.hist = V.histPush('reader'));
+      A.R.hist = null;
+      A.R.close();
+    }
+  });
   V.fromHash = () => {
     const h = (location.hash || '').slice(1);
     if (!h) return;
@@ -219,7 +288,7 @@
     const unread = V.inboxUnread ? V.inboxUnread() : 0;
     const flameTitle = s.atRisk ? L('اقرأ النهارده عشان السلسلة متقطعش', 'Read today to keep your streak', 'اقرأ اليوم كي لا تنقطع سلسلتك') : L('أيام القراءة المتتالية', 'Reading streak');
     const me = `<button class="hud-me" data-go="me" aria-label="${L('ملفي', 'My profile')}">${D.avatar(S.me, 'md')}${V.star(L.num(s.lv), 'gold lvl')}</button>`;
-    const btns = `${V.themeBtn ? V.themeBtn('data-act="theme-toggle"') : ''}${V.inboxUnread ? `<button class="ib round hud-bell" data-act="inbox" aria-label="${L('الجديد ليك', 'For you', 'الجديد لك')}">${icon('bell')}${unread ? `<i class="nv-b">${L.num(Math.min(unread, 99))}</i>` : ''}</button>` : ''}`;
+    const btns = `${V.inboxUnread ? `<button class="ib round hud-bell" data-act="inbox" aria-label="${L('الجديد ليك', 'For you', 'الجديد لك')}">${icon('bell')}${unread ? `<i class="nv-b">${L.num(Math.min(unread, 99))}</i>` : ''}</button>` : ''}`;
     const flameChip = `<span class="hchip flame ${flame}" title="${flameTitle}">${icon('flame')}<b>${L.num(s.streak)}</b>${home ? `<span>${L('يوم', s.streak === 1 ? 'day' : 'days')}</span>` : ''}</span>`;
     let html;
     if (home) {
@@ -288,9 +357,11 @@
     document.getElementById('layers').appendChild(wrap);
     const prevFocus = document.activeElement;
     const api = { el: wrap.querySelector('.sheet'), body: wrap.querySelector('.sh-body'), onData, closed: false };
+    api.hist = V.histPush('sheet');
     api.close = () => {
       if (api.closed) return;
       api.closed = true;
+      V.histDrop(api.hist);
       wrap.classList.remove('in');
       V.sheets = V.sheets.filter((x) => x !== api);
       setTimeout(() => wrap.remove(), 220);
@@ -758,6 +829,55 @@
       </div>`,
     });
   };
+
+  /* Pull down at the top of «اليوم» or «الحلقة» to fetch what's new (and send anything still waiting). */
+  (function pullToRefresh() {
+    let y0 = null, dy = 0, el = null, busy = false;
+    const canPull = () => !busy && window.scrollY <= 0 && !V.sheets.length && !A.R.isOpen() && ['home', 'circle'].includes(V.state.route) && S.phase !== 'loading';
+    const mark = () => {
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'ptr';
+        el.innerHTML = '<span class="star8 gold"></span>';
+        document.body.appendChild(el);
+      }
+      return el;
+    };
+    document.addEventListener('touchstart', (e) => {
+      y0 = e.touches.length === 1 && canPull() ? e.touches[0].clientY : null;
+      dy = 0;
+    }, { passive: true });
+    document.addEventListener('touchmove', (e) => {
+      if (y0 == null) return;
+      dy = e.touches[0].clientY - y0;
+      if (dy <= 0 || window.scrollY > 0) return void (el && el.style.setProperty('--pull', '0px'));
+      const m = mark();
+      m.classList.add('on');
+      m.classList.toggle('ready', dy > 90);
+      m.style.setProperty('--pull', Math.min(dy * 0.5, 72) + 'px');
+    }, { passive: true });
+    document.addEventListener('touchend', async () => {
+      if (y0 == null || !el) return void (y0 = null);
+      y0 = null;
+      if (dy <= 90) {
+        el.classList.remove('on', 'ready');
+        el.style.setProperty('--pull', '0px');
+        return;
+      }
+      busy = true;
+      el.classList.add('spin');
+      el.style.setProperty('--pull', '56px');
+      U.buzz('soft');
+      try {
+        await Promise.all([A.P && A.P.resync ? A.P.resync() : null, D.flushOutbox ? D.flushOutbox() : null, new Promise((r) => setTimeout(r, 600))]);
+      } finally {
+        busy = false;
+        V.render();
+        el.classList.remove('on', 'ready', 'spin');
+        el.style.setProperty('--pull', '0px');
+      }
+    }, { passive: true });
+  })();
 
   window.addEventListener('hashchange', () => {
     if (V._silentHash) {

@@ -248,7 +248,6 @@
           }
           api.close();
           const n = plan.add.length;
-          U.confetti(0.9);
           U.chime('ok');
           U.toast(L(`اتضاف ${L.count(n, 'book')}${plan.fill.length ? ` واتكمّلت بيانات ${L.count(plan.fill.length, 'book')}` : ''}${res.shortened ? ` • ${L.num(res.shortened)} مراجعة اتقصّرت لـ${L.num(U.MAX.review)} حرف` : ''}`, `Added ${n} books${plan.fill.length ? `, completed ${plan.fill.length}` : ''}${res.shortened ? ` • ${res.shortened} reviews shortened to ${U.MAX.review} characters` : ''}`, `تمت إضافة ${L.count(n, 'book')}${plan.fill.length ? ` واكتملت بيانات ${L.count(plan.fill.length, 'book')}` : ''}${res.shortened ? ` • تم تقصير ${L.num(res.shortened)} من المراجعات إلى ${L.num(U.MAX.review)} حرف` : ''}`));
           V.go('shelf', { st: plan.add.some((x) => x.status === 'read') || !plan.add.length ? 'read' : plan.add[0].status });

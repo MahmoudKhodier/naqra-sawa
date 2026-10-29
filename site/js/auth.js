@@ -127,7 +127,15 @@
       } catch (er) {
         U.toast(L('مقدرتش أبعت', "Couldn't send", 'تعذّر الإرسال'), 'warn');
       }
-    } else if (a === 'signout') P.signOut();
+    } else if (a === 'signout') {
+      // Reading saved only on this phone (no connection) would be lost: try once more, then ask.
+      if (D.outboxCount && D.outboxCount()) {
+        await D.flushOutbox();
+        const n = D.outboxCount();
+        if (n && !(await V.confirm(L(`فيه قراية لسه ما اتحفظتش على النت (${L.count(n, 'page')}). لو خرجت دلوقتي هتضيع. استنى لما النت يرجع، ولا تخرج برضه؟`, `Some reading hasn't reached the server yet (${n} pages). Signing out now loses it. Wait until you're online, or sign out anyway?`, `توجد قراءة لم تُحفظ على الخادم بعد (${L.count(n, 'page')}). الخروج الآن يُضيّعها. انتظر عودة الاتصال، أم تخرج على أي حال؟`), L('اخرج برضه', 'Sign out anyway', 'اخرج على أي حال'), true))) return;
+      }
+      P.signOut();
+    }
     else if (a === 'pick') {
       U.store.set('circle', b.dataset.id);
       location.reload();
@@ -223,7 +231,7 @@
       U.store.set('circle', null);
       setTimeout(() => location.reload(), 1800);
     };
-    app().innerHTML = `<div class="boot"><span class="star8 gold big spin"></span><b dir="auto">${esc(cur.name)}</b><small>${L('بنجهّز الحلقة…', 'Getting the circle ready…', 'نجهّز الحلقة…')}</small></div>`;
+    app().innerHTML = U.skeleton(`${cur.name || ''} • ${L('بنجهّز الحلقة…', 'Getting the circle ready…', 'نجهّز الحلقة…')}`);
     try {
       await P.open(cur, uid);
     } catch (e) {
@@ -351,11 +359,12 @@
   Auth.nativeBack = () => {
     const App = P.plugin('App');
     if (!App || !App.addListener) return;
+    let armed = 0;
     App.addListener('backButton', () => {
-      if (V.sheets.length) return V.sheets[V.sheets.length - 1].close();
-      if (A.R.isOpen()) return A.R.close();
-      if (V.state.route !== 'home') return V.go(V.state.route.startsWith('book-') ? 'books' : 'home');
-      App.exitApp && App.exitApp();
+      if (V.back()) return;
+      if (Date.now() - armed < 2000) return App.exitApp && App.exitApp();
+      armed = Date.now();
+      U.toast(L('دوس رجوع تاني عشان تخرج', 'Press back again to leave', 'اضغط رجوع مرة أخرى للخروج'));
     });
   };
 })();

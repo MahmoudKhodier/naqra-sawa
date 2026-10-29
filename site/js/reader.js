@@ -130,6 +130,13 @@
 
   /* ---------- open / close ---------- */
   R.isOpen = () => !!st;
+  /* Back (phone button or gesture) inside the book: the notes panel, then a tool, then the bars; true = handled. */
+  R.back = () => {
+    if (!st) return false;
+    if (st.panel) return togglePanel(false), true;
+    if (st.mode !== 'none') return setMode(st.mode), true;
+    return false;
+  };
   R.bookId = () => st && st.bookId;
 
   R.open = async (bookId, opts = {}) => {
@@ -159,6 +166,7 @@
     };
     root.hidden = false;
     document.body.classList.add('reading');
+    R.hist = A.V.histPush('reader'); // the browser's back closes the book
     root.innerHTML = shell();
     root.querySelector('.rd').classList.toggle('paged', st.paged);
     st.land = isLand();
@@ -219,6 +227,8 @@
 
   R.close = (silent) => {
     if (!st) return;
+    A.V.histDrop(R.hist);
+    R.hist = null;
     const summary = !silent && (st.sessionPages >= 3 || st.activeSecs >= 60) ? { bookId: st.bookId, pages: st.sessionPages, secs: st.activeSecs } : null;
     savePlace();
     flush();

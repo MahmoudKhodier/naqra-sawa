@@ -728,7 +728,6 @@
       await D.set(`books/${id}`, doc);
       if (pre.proposal) D.update(`proposals/${pre.proposal}`, { chosen: id }).catch(() => {});
       api.close();
-      U.confetti(0.8);
       U.chime('ok');
       V.go('book-' + id);
       if (status === 'reading') setTimeout(() => V.planWizard(id), 350);

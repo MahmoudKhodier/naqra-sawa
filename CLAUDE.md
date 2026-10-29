@@ -32,6 +32,8 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - `bash tests/sql/run.sh` — database rules.
 - `node tests/e2e/smoke.js` — full UI flow against the fake Supabase (see tests/e2e for details).
 - `node tests/e2e/reader.js` — the PDF reader on a phone (touch, 2× screen): scrolling, zoom, book mode, notes, contents, keep-awake.
+- `node tests/e2e/ui.js` — the app's frame on a phone: back steps, one message at a time, pull to refresh, shelf header, mark picker, sign-out warning.
+- `node tests/e2e/screens.js` — screenshots of every main screen for a visual review (`LANGS=eg,ar,en THEMES=light,dark LAND=1`), in `tests/e2e/shots/screens/`.
 - `node tests/e2e/shelf.js` — Goodreads import, shelf search/sort/status moves, badge levels and details, the Android update prompt (stand-in native layer).
 - Supabase and most of the internet are not reachable from the cloud sandbox; test against the fakes, then verify live with the user.
 

@@ -339,6 +339,7 @@
     list.push(Object.assign({ day: U.today() }, e));
     U.store.set(obxKey(), list.slice(-300));
   };
+  D.outboxCount = () => U.store.get(obxKey(), []).reduce((t, e) => t + Math.max(e.n || 0, (e.seen && e.seen.length) || 0), 0);
   D.outboxHas = (b, p) => U.store.get(obxKey(), []).some((e) => e.b === b && e.seen && e.seen.includes(p));
   let obxRun = null;
   async function sendOutbox() {

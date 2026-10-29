@@ -339,20 +339,66 @@
     '50,0 64.64,14.64 85.36,14.64 85.36,35.36 100,50 85.36,64.64 85.36,85.36 64.64,85.36 50,100 35.36,85.36 14.64,85.36 14.64,64.64 0,50 14.64,35.36 14.64,14.64 35.36,14.64';
 
   /* ---------- feedback: toasts, confetti, chime ---------- */
-  U.toast = (html, kind = '') => {
+  /* One message at a time: the rest wait their turn (faster when several pile up); the same one twice in a
+     row shows once. Warnings go to the front of the line. */
+  const toastQ = [];
+  let toastOn = null;
+  const toastNext = () => {
     const root = document.getElementById('toasts');
-    if (!root) return;
+    const t = toastQ.shift();
+    if (!root || !t) return (toastOn = null);
     const el = document.createElement('div');
-    el.className = 'toast ' + kind;
+    el.className = 'toast ' + t.kind;
     el.setAttribute('role', 'status');
-    el.innerHTML = html;
+    el.innerHTML = t.html;
     root.appendChild(el);
+    toastOn = t;
+    t.el = el;
     requestAnimationFrame(() => el.classList.add('in'));
-    setTimeout(() => {
+    const end = () => {
+      if (t.done) return;
+      t.done = true;
+      clearTimeout(t.timer);
       el.classList.remove('in');
-      setTimeout(() => el.remove(), 400);
-    }, 3200);
+      setTimeout(() => el.remove(), 260);
+      if (t.cut) toastNext();
+      else setTimeout(toastNext, 260);
+    };
+    t.end = end;
+    t.timer = setTimeout(end, toastQ.length ? 1700 : t.kind === 'warn' ? 4200 : 3000);
   };
+  // The answer to something you just did shows at once; messages that arrive on their own wait in line.
+  let tappedAt = 0;
+  document.addEventListener('pointerdown', () => (tappedAt = Date.now()), true);
+  document.addEventListener('keydown', () => (tappedAt = Date.now()), true);
+  U.toast = (html, kind = '') => {
+    const last = toastQ[toastQ.length - 1] || toastOn;
+    if (last && last.html === html) return;
+    const now = kind === 'warn' || Date.now() - tappedAt < 1200;
+    const t = { html, kind, tap: now ? tappedAt || 1 : 0 };
+    if (now) {
+      // ahead of the ones that came on their own, behind earlier answers to the same tap
+      let i = 0;
+      while (i < toastQ.length && toastQ[i].tap) i++;
+      toastQ.splice(i, 0, t);
+    } else toastQ.push(t);
+    if (toastQ.length > 4) toastQ.splice(toastQ.findIndex((x) => !x.tap) >= 0 ? toastQ.findIndex((x) => !x.tap) : 0, 1); // drop one waiting
+    if (!toastOn) toastNext();
+    else if (toastOn.kind !== 'warn' && (kind === 'warn' || (now && toastOn.tap !== t.tap))) {
+      toastOn.cut = true; // the message on screen makes way for the answer to a new tap
+      toastOn.end();
+    }
+  };
+
+  /* While the circle loads: the outline of the home screen in soft grey instead of a spinner. */
+  U.skeleton = (label) => `<div class="skel" role="status" aria-busy="true">
+      <div class="sk-hud"><i class="sk-av"></i><span><i class="sk-l w60"></i><i class="sk-l w35"></i></span></div>
+      <div class="sk-chips"><i class="sk-chip"></i><i class="sk-chip wide"></i></div>
+      <div class="sk-card tall"></div>
+      <div class="sk-row"><div class="sk-card"></div><div class="sk-card"></div></div>
+      <div class="sk-card"></div>
+      <small class="sk-t">${U.esc(label || '')}</small>
+    </div>`;
 
   U.xpPop = (n, label = '') => {
     if (!n) return;
@@ -370,18 +416,23 @@
       H = (c.height = innerHeight * dpr);
     const ctx = c.getContext('2d');
     const cols = ['#d9a22b', '#2440a0', '#14946c', '#e2512f', '#f0bf4c', '#6f8cff'];
-    const n = Math.round(140 * power);
-    const parts = Array.from({ length: n }, () => ({
-      x: W * (0.2 + Math.random() * 0.6),
-      y: H * 0.35,
-      vx: (Math.random() - 0.5) * 16 * dpr,
-      vy: (-Math.random() * 15 - 6) * dpr,
-      r: (3 + Math.random() * 5) * dpr,
-      a: Math.random() * 6,
-      va: (Math.random() - 0.5) * 0.4,
-      c: cols[(Math.random() * cols.length) | 0],
-      s: Math.random() < 0.35,
-    }));
+    const n = Math.round(110 * power);
+    // Two party poppers from the lower corners: the burst flies up the sides and over the top, and is gone
+    // before it sits on what you are reading.
+    const parts = Array.from({ length: n }, (_, i) => {
+      const side = i % 2 ? 1 : -1;
+      return {
+        x: side > 0 ? W * 0.02 : W * 0.98,
+        y: H * 0.92,
+        vx: side * (4 + Math.random() * 9) * dpr * Math.min(1.6, W / dpr / 400),
+        vy: (-Math.random() * 14 - 14) * dpr * Math.min(1.25, H / dpr / 760),
+        r: (3 + Math.random() * 5) * dpr,
+        a: Math.random() * 6,
+        va: (Math.random() - 0.5) * 0.4,
+        c: cols[(Math.random() * cols.length) | 0],
+        s: Math.random() < 0.35,
+      };
+    });
     const t0 = performance.now();
     const step = (t) => {
       const el = t - t0;
@@ -395,7 +446,7 @@
         ctx.save();
         ctx.translate(p.x, p.y);
         ctx.rotate(p.a);
-        ctx.globalAlpha = Math.max(0, 1 - el / 2400);
+        ctx.globalAlpha = Math.max(0, 1 - el / 2000);
         ctx.fillStyle = p.c;
         if (p.s) {
           ctx.beginPath();
@@ -408,14 +459,22 @@
         } else ctx.fillRect(-p.r, -p.r / 2.5, p.r * 2, p.r / 1.25);
         ctx.restore();
       }
-      if (el < 2400) requestAnimationFrame(step);
+      if (el < 2000) requestAnimationFrame(step);
       else c.remove();
     };
     requestAnimationFrame(step);
   };
 
   let actx = null;
+  /* A light buzz on the phone for moments that matter (Settings → «اهتزاز خفيف»). */
+  U.buzz = (kind = 'ok') => {
+    if (!U.store.get('haptics', true) || !navigator.vibrate) return;
+    try {
+      navigator.vibrate(kind === 'big' ? [18, 60, 28] : kind === 'soft' ? 10 : 16);
+    } catch (e) {}
+  };
   U.chime = (kind = 'ok') => {
+    U.buzz(kind);
     if (!U.store.get('sound', true)) return;
     try {
       actx = actx || new (window.AudioContext || window.webkitAudioContext)();

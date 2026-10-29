@@ -357,7 +357,6 @@
   V.actions.chest = () => {
     U.store.set('chest:' + S.me, U.today());
     const w = WISDOM[U.hash(S.me + U.today()) % WISDOM.length];
-    U.confetti(1);
     U.chime('big');
     V.sheet({
       title: L('صندوق النهارده', "Today's chest", 'صندوق اليوم'),

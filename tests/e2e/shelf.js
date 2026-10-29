@@ -89,12 +89,14 @@ const items = (p) => p.evaluate(() => Object.values((window.A.S.shelf.get(window
     await step('Bulk-add one book, then import a Goodreads export: preview counts, other shelves left out', async () => {
       await p.click('[data-go="shelf"]');
       await T(400);
-      await p.click('[data-act="bulk-shelf"]');
+      await p.click('[data-act="shelf-more"]');
+      await p.click('.mi:has-text("ضيف كذا كتاب")');
       await p.fill('#bulk-text', 'الأيام - طه حسين');
       await p.click('[data-bulk]');
       await until(p, 'bulk item saved', () => Object.values((window.A.S.shelf.get(window.A.S.me) || {}).items || {}).length === 1);
       await closeSheets(p);
-      await p.click('[data-act="import-shelf"]');
+      await p.click('[data-act="shelf-more"]');
+      await p.click('.mi:has-text("Goodreads")');
       await p.setInputFiles('#imp-file', path.join(H.FIXTURES, 'goodreads_library_export.csv'));
       await p.waitForSelector('.imp-sum');
       const sum = await p.$$eval('.imp-sum b', (x) => x.map((e) => e.textContent));
@@ -120,7 +122,8 @@ const items = (p) => p.evaluate(() => Object.values((window.A.S.shelf.get(window
       await T(600);
       await H.shot(p, 's02-shelf-after-import');
       // importing the same file again adds nothing
-      await p.click('[data-act="import-shelf"]');
+      await p.click('[data-act="shelf-more"]');
+      await p.click('.mi:has-text("Goodreads")');
       await p.setInputFiles('#imp-file', path.join(H.FIXTURES, 'goodreads_library_export.csv'));
       await p.waitForSelector('.imp-sum');
       const again = await p.$eval('[data-imp-go]', (b) => b.disabled);

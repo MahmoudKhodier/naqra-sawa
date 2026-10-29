@@ -224,15 +224,16 @@
         <button class="set-me-av" data-go="me" aria-label="${L('ملفي', 'My profile')}">${D.avatar(S.me, 'xl')}</button>
         <form id="me-form" class="form inline"><label for="me-nick">${L('اسمك في الحلقة', 'Your name in the circle')}</label><div class="row"><input id="me-nick" maxlength="40" dir="auto" value="${esc(m.nick || '')}"><button class="btn sm">${L('احفظ', 'Save')}</button></div></form>
       </div>
-      <span class="lbl set-lbl">${L('علامتك (الصورة اللي بتظهر جنب اسمك)', 'Your mark (shown next to your name)', 'علامتك (الصورة التي تظهر بجانب اسمك)')}</span>
+      <details class="emo-pick"><summary>${D.avatar(S.me, 'sm')}<span>${L('غيّر علامتك (الصورة اللي جنب اسمك)', 'Change your mark (shown next to your name)', 'غيّر علامتك (الصورة التي بجانب اسمك)')}</span>${icon('fwd', 'flip-rtl')}</summary>
       <div class="emo emo-all" role="radiogroup" aria-label="${L('علامتك', 'Your mark')}">
         <button type="button" class="emo-b letter${m.emoji ? '' : ' on'}" data-act="set-emoji" data-emo="" role="radio" aria-checked="${!m.emoji}" aria-label="${L('أول حرف من اسمي', 'First letter of my name')}">${esc(Array.from(D.name(S.me).trim())[0] || '؟')}</button>
         ${V.EMOJI.map((e) => `<button type="button" class="emo-b${m.emoji === e ? ' on' : ''}" data-act="set-emoji" data-emo="${e}" role="radio" aria-checked="${m.emoji === e}" aria-label="${e}">${e}</button>`).join('')}
-      </div>` : ''}
+      </div></details>` : ''}
       <div class="set-row"><span>${icon('lang')}${L('اللغة', 'Language')}</span><div class="seg sm">${L.langs.map((l) => `<button class="${L.lang() === l ? 'on' : ''}" data-act="${L.lang() === l ? '' : 'lang'}" data-l="${l}" lang="${l === 'en' ? 'en' : 'ar'}">${L.names[l]}</button>`).join('')}</div></div>
       <div class="set-row"><span>${icon('moon')}${L('المظهر', 'Appearance')}</span><div class="seg sm">${[['system', L('تلقائي', 'Auto')], ['light', L('فاتح', 'Light')], ['dark', L('غامق', 'Dark', 'داكن')]].map(([k, t]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-t="${k}">${t}</button>`).join('')}</div></div>
       <div class="set-row"><span>${icon('calendar')}${L('التاريخ الهجري', 'Hijri date')}</span><label class="switch"><input type="checkbox" id="set-hijri" ${U.store.get('hijri', true) ? 'checked' : ''}><i></i></label></div>
       <div class="set-row"><span>${icon('sparkle')}${L('أصوات الاحتفال', 'Celebration sounds')}</span><label class="switch"><input type="checkbox" id="set-sound" ${U.store.get('sound', true) ? 'checked' : ''}><i></i></label></div>
+      ${navigator.vibrate ? `<div class="set-row"><span>${icon('bolt')}${L('اهتزاز خفيف', 'Light vibration', 'اهتزاز خفيف')}</span><label class="switch"><input type="checkbox" id="set-haptics" ${U.store.get('haptics', true) ? 'checked' : ''}><i></i></label></div>` : ''}
       ${readingSettings()}
       ${V.extraSettings ? V.extraSettings() : ''}
     </section>`;
@@ -330,6 +331,10 @@
     if (e.target.id === 'set-rdfull') U.store.set('rdFull', e.target.checked);
     if (e.target.id === 'set-rdbook') A.R.setBookLook(e.target.checked);
     if (e.target.id === 'set-rdask') U.store.set('rdOrientAsk', e.target.checked);
+    if (e.target.id === 'set-haptics') {
+      U.store.set('haptics', e.target.checked);
+      if (e.target.checked) U.buzz('ok');
+    }
     if (e.target.id === 'set-sound') {
       U.store.set('sound', e.target.checked);
       if (e.target.checked) U.chime('ok');

@@ -9,7 +9,9 @@
   V.fromHash();
 
   const app = document.getElementById('app');
-  app.innerHTML = `<div class="boot"><span class="star8 gold big spin"></span><b>${L('نقرأ سوا', 'Read Together')}</b><small>${L('بنجهّز الحلقة…', 'Getting the circle ready…', 'نجهّز الحلقة…')}</small></div>`;
+  // Signed in before: the outline of the home screen; first visit: the name of the app.
+  if (localStorage.getItem('qs-auth')) app.innerHTML = U.skeleton(L('بنجهّز الحلقة…', 'Getting the circle ready…', 'نجهّز الحلقة…'));
+  else app.innerHTML = `<div class="boot"><span class="star8 gold big spin"></span><b>${L('نقرأ سوا', 'Read Together')}</b><small>${L('بنجهّز الحلقة…', 'Getting the circle ready…', 'نجهّز الحلقة…')}</small></div>`;
 
   // Offline support for the installed web app (the Android app bundles its files instead).
   if ('serviceWorker' in navigator && !P.native && (location.protocol === 'https:' || location.hostname === 'localhost')) {
