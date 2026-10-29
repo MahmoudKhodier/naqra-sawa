@@ -16,6 +16,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="نقرأ سوا">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="نقرأ سوا">
+<meta property="og:title" content="نقرأ سوا — تعالى اقرأ معانا">
+<meta property="og:description" content="حلقة قراية لصحابك وعيلتك: كتاب واحد، ورد كل يوم، ونقاش على الصفحات.">
+<meta property="og:image" content="https://mahmoudkhodier.github.io/naqra-sawa/icons/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
@@ -1776,6 +1784,9 @@ button.wm-c:hover { border-color: var(--line); }
 .first-celeb .first-ic { display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%; background: var(--gold-s); color: var(--gold-t); animation: spinIn .8s cubic-bezier(.2, 1.4, .4, 1) both; }
 .first-celeb .first-ic .ic { width: 44px; height: 44px; }
 .tag-pct { margin-inline-start: .5em; padding-inline-start: .5em; border-inline-start: 1px solid currentColor; opacity: .85; } /* no dot before a number: it reads as the Arabic zero */
+.inv-card { display: grid; place-items: center; margin: 2px 0 12px; }
+.inv-card img, .inv-card .inv-ph { width: min(100%, 300px); aspect-ratio: 1; border-radius: 18px; box-shadow: var(--shadow-lg); }
+.inv-card .inv-ph { background: linear-gradient(100deg, var(--bg2) 30%, var(--card) 50%, var(--bg2) 70%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
 </style>
 </head>
 <body>
@@ -1809,6 +1820,7 @@ button.wm-c:hover { border-color: var(--line); }
 <script src="js/v-worm.js"></script>
 <script src="js/v-together.js"></script>
 <script src="js/goals.js"></script>
+<script src="js/invite.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
