@@ -290,7 +290,7 @@
       `<a href="#${id}" class="nv${r === id ? ' on' : ''}" data-go="${id}" ${r === id ? 'aria-current="page"' : ''}>${icon(ic)}<span>${label}</span>${badge ? `<i class="nv-b">${L.num(Math.min(badge, 99))}</i>` : ''}</a>`;
     el.innerHTML = `<div class="brand">${V.star('', 'gold sm')}<b>${L('نقرأ سوا', 'Read Together')}</b></div>
       ${item('home', 'home', L('اليوم', 'Today'), pokes)}
-      ${item('books', 'books', L('كتبنا', 'Our books'))}
+      ${item('books', 'books', L('كتبنا', 'Books'))}
       ${item('shelf', 'shelf', L('مكتبتي', 'My shelf'))}
       ${item('circle', 'users', L('الحلقة', 'Circle'), unreadCircle)}
       ${item('me', 'user', L('أنا', 'Me'))}

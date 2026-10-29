@@ -295,7 +295,7 @@
     download: '<path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/>',
     upload: '<path d="M12 16V5"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/>',
     more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
-    send: '<path d="M4 12 20 4l-6 16-2.5-6.5z"/>',
+    send: '<path d="M4.5 4.5 20.5 12l-16 7.5L7.5 12z"/><path d="M7.5 12H13"/>',
     trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H4.5c0 3 1.5 4.5 3.7 4.8M16 6h3.5c0 3-1.5 4.5-3.7 4.8"/><path d="M12 13v3.5M8.5 20h7l-.8-3.5h-5.4z"/>',
     chest: '<path d="M4 10h16v9H4z"/><path d="M4 10c0-3 2-5 5-5h6c3 0 5 2 5 5"/><path d="M10 10v3h4v-3"/>',
     hand: '<path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V12"/><path d="M11 11V5a1.5 1.5 0 0 1 3 0v6"/><path d="M14 11V6.5a1.5 1.5 0 0 1 3 0V14c0 3.6-2.4 6.5-6 6.5-2.6 0-4.1-1.3-5.3-3.5L4 13.6a1.5 1.5 0 0 1 2.5-1.6L8 14"/>',

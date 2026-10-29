@@ -67,9 +67,18 @@
         <header><h3>${L('تحدي الحلقة الأسبوع ده', "This week's circle challenge", 'تحدي الحلقة هذا الأسبوع')}</h3><small class="muted">${pages >= goal ? L('خلص! 🎉', 'Done! 🎉', 'اكتمل! 🎉') : L(`فاضل ${L.count(daysLeft, 'day')}`, `${daysLeft} days left`, `بقي ${L.count(daysLeft, 'day', 'nom')}`)}</small></header>
         ${V.bar(pages / goal, pages >= goal ? 'jade big' : 'gold big')}
         <p class="muted sm">${L(`${L.num(pages)} من ${L.count(goal, 'page')} مع بعض`, `${pages} of ${goal} pages together`, `${L.num(pages)} من ${L.count(goal, 'page')} معًا`)}</p>
-        ${!board.some((s) => s.pagesWeek) ? '' : `<div class="contrib">${board.filter((s) => s.pagesWeek).sort((a, b) => b.pagesWeek - a.pagesWeek).map((s) => `<span style="flex:${s.pagesWeek};--c:${esc(D.color(s.uid))}" title="${esc(D.name(s.uid))}: ${L.num(s.pagesWeek)}"></span>`).join('')}</div>`}
+        ${contrib(board)}
       </section>
       ${feed || V.empty(L('مفيش أخبار لسه', 'No news yet', 'لا أخبار بعد'), L('لما حد يخلّص ورد أو يكتب ملاحظة هتلاقيه هنا.', 'Finished portions and notes will show up here.', 'عندما ينهي أحد وردًا أو يكتب ملاحظة ستجده هنا.'))}`;
+  }
+
+  /* Who read how much of the week's pages: a bar split by member, with a key under it. */
+  function contrib(board) {
+    const who = board.filter((s) => s.pagesWeek).sort((a, b) => b.pagesWeek - a.pagesWeek);
+    if (!who.length) return '';
+    return `<p class="contrib-h muted sm">${L('مين قرا كام صفحة', 'Pages by member', 'من قرأ كم صفحة')}</p>
+      <div class="contrib" aria-hidden="true">${who.map((s) => `<span style="flex:${s.pagesWeek};--c:${esc(D.color(s.uid))}" title="${esc(D.name(s.uid))}: ${L.num(s.pagesWeek)}"></span>`).join('')}</div>
+      <ul class="contrib-k">${who.map((s) => `<li style="--c:${esc(D.color(s.uid))}"><i></i><bdi>${esc(D.name(s.uid))}</bdi> <b>${L.num(s.pagesWeek)}</b></li>`).join('')}</ul>`;
   }
 
   function boardSeg(mode, online) {
@@ -79,7 +88,7 @@
       <header><h2>${icon('trophy')}${L('الصدارة', 'Leaderboard')}</h2><div class="seg sm"><button class="${mode === 'week' ? 'on' : ''}" data-act="board" data-m="week">${L('الأسبوع ده', 'This week', 'هذا الأسبوع')}</button><button class="${mode === 'all' ? 'on' : ''}" data-act="board" data-m="all">${L('كل الوقت', 'All time', 'منذ البداية')}</button></div></header>
       ${board.length >= 3 ? podium(board.slice(0, 3), mode) : ''}
       <ol class="lb">${board
-        .map((s, i) => `<li class="${s.uid === S.me ? 'me' : ''}"><button data-act="member" data-uid="${esc(s.uid)}"><span class="rank ${medal[i] || ''}">${L.num(i + 1)}</span>${D.avatar(s.uid, 'md')}${online.has(s.uid) ? '<i class="on-dot"></i>' : ''}
+        .map((s, i) => `<li class="${s.uid === S.me ? 'me' : ''}"><button data-act="member" data-uid="${esc(s.uid)}"><span class="rank ${medal[i] || ''}" aria-label="${L(`المركز ${L.num(i + 1)}`, `#${i + 1}`)}">${L.num(i + 1)}</span>${D.avatar(s.uid, 'md')}${online.has(s.uid) ? '<i class="on-dot"></i>' : ''}
           <span class="lb-n"><b>${esc(D.name(s.uid))}</b><small>${V.star(L.num(s.lv), 'xs gold')} ${esc(G.title(s.lv))}${s.streak ? ` • <span class="flame-t">${icon('flame')}${L.num(s.streak)}</span>` : ''}</small></span>
           <span class="lb-xp"><b>${L.num(mode === 'week' ? s.week : s.xp)}</b><small>XP</small></span></button></li>`)
         .join('')}</ol>

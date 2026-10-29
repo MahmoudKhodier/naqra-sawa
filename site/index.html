@@ -1787,6 +1787,131 @@ button.wm-c:hover { border-color: var(--line); }
 .inv-card { display: grid; place-items: center; margin: 2px 0 12px; }
 .inv-card img, .inv-card .inv-ph { width: min(100%, 300px); aspect-ratio: 1; border-radius: 18px; box-shadow: var(--shadow-lg); }
 .inv-card .inv-ph { background: linear-gradient(100deg, var(--bg2) 30%, var(--card) 50%, var(--bg2) 70%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+/* ---- landscape phones, sheets and the reader's bars (visual review 6, 8–13) ---- */
+/* Reader follows dark mode: with the app dark, the bars and the background around the page are dark; the page
+   keeps the colour picked in the reader (day stays white, sepia stays warm). reader.js paints the phone's strips
+   the same way (R.sysColours). */
+:root[data-theme="dark"] .rd:not([data-theme="night"]) { --rd-bg: #0d0f15; --rd-bar: rgb(22 25 34 / .92); --rd-ink: #e3e6f0; --rd-ink3: #8d93a8; --rd-line: #2a2f3d; --rd-float: 0 1px 2px rgb(0 0 0 / .4), 0 10px 30px rgb(0 0 0 / .45); color-scheme: dark; }
+:root[data-theme="dark"] .rd[data-theme="sepia"] { --rd-bg: #14110d; --rd-bar: rgb(31 26 20 / .92); --rd-ink: #efe5d2; --rd-ink3: #a89a80; --rd-line: #3a3226; }
+:root[data-theme="dark"] .rd:not([data-theme="night"]):not(.paged.booky) .pill-edge:not(.on) { background: rgb(21 26 48 / .24); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .rd:not([data-theme="night"]) { --rd-bg: #0d0f15; --rd-bar: rgb(22 25 34 / .92); --rd-ink: #e3e6f0; --rd-ink3: #8d93a8; --rd-line: #2a2f3d; --rd-float: 0 1px 2px rgb(0 0 0 / .4), 0 10px 30px rgb(0 0 0 / .45); color-scheme: dark; }
+  :root:not([data-theme]) .rd[data-theme="sepia"] { --rd-bg: #14110d; --rd-bar: rgb(31 26 20 / .92); --rd-ink: #efe5d2; --rd-ink3: #a89a80; --rd-line: #3a3226; }
+  :root:not([data-theme]) .rd:not([data-theme="night"]):not(.paged.booky) .pill-edge:not(.on) { background: rgb(21 26 48 / .24); }
+}
+/* Reader top bar on phones: tighter buttons so the title and the portion line get the room. */
+@media (max-width: 520px) {
+  .rd:not(.land) .rd-top { gap: 2px; padding-left: max(6px, env(safe-area-inset-left, 0px)); padding-right: max(6px, env(safe-area-inset-right, 0px)); }
+  .rd:not(.land) .rd-top .ib { width: 36px; }
+  .rd:not(.land) .rd-title { margin-inline: 2px 6px; }
+  .rd:not(.land) .rd-pg { margin-inline-end: 2px; }
+  .rd:not(.land) .rd-pg input { width: 42px !important; padding-inline: 2px !important; }
+  .rd:not(.land) .rd-acts .dot { inset-inline-end: 5px; }
+}
+/* Reader, landscape: the looking-around bar is one slim row. */
+.rd.land .rd-browse { flex-direction: row; align-items: center; gap: 10px; padding: 6px 8px 6px 12px; width: min(680px, calc(100vw - 170px)); }
+.rd.land .rd-browse .rb-t { flex: 1; min-width: 0; font-size: .82rem; }
+.rd.land .rd-browse .rb-t > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd.land .rd-browse .rb-acts { flex: none; flex-wrap: nowrap; gap: 6px; }
+.rd.land .rd-browse .rb-acts .btn { flex: none; min-height: 34px; }
+.rd.land.browsing .rd-cheer { bottom: 70px; }
+/* Landscape phones (short and wide): the tab bar becomes a slim rail on the start side, the top bar one slim row,
+   and sheets sit in the middle using the height. Portrait and desktop are unchanged. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .shell { flex-direction: row; }
+  .nav { position: sticky; top: 0; inset: auto; height: 100vh; height: 100dvh; width: auto; flex: none; flex-direction: column; justify-content: center; gap: 2px; padding: max(6px, env(safe-area-inset-top, 0px)) 6px max(6px, env(safe-area-inset-bottom, 0px)); border-top: 0; border-inline-end: 1px solid var(--line); background: var(--card); backdrop-filter: none; -webkit-backdrop-filter: none; overflow-y: auto; scrollbar-width: none; }
+  [dir="rtl"] .nav { padding-right: max(6px, env(safe-area-inset-right, 0px)); }
+  [dir="ltr"] .nav { padding-left: max(6px, env(safe-area-inset-left, 0px)); }
+  .nav .brand { display: none; }
+  .nv { flex: none; flex-direction: column; gap: 1px; width: 76px; max-width: none; padding: 3px 2px; font-size: .68rem; line-height: 1.3; text-align: center; color: var(--ink2); }
+  .nv .ic { padding: 3px 14px; border-radius: 14px; transition: background .2s; }
+  .nv.on, .nv:hover { background: none; }
+  .nv.on .ic { background: var(--lapis-s); }
+  .nv-b { position: absolute; top: 0; inset-inline-end: 10px; margin: 0; }
+  /* the rail covers the camera side next to it, so the page needs no extra gutter there */
+  [dir="rtl"] .main { --gut-r: 16px; }
+  [dir="ltr"] .main { --gut-l: 16px; }
+  .screen { padding-block: 12px 32px; }
+  .hud { gap: 8px; padding-top: 5px; padding-bottom: 5px; }
+  .hud-me .av { width: 32px; height: 32px; font-size: 13px; }
+  .hud-me .lvl { --sz: 19px; inset-inline-end: -5px; bottom: -5px; }
+  .hud .ib.round { width: 36px; height: 36px; }
+  .hud-xp { grid-template-columns: auto minmax(60px, 1fr) auto; max-width: 520px; }
+  .hud-t { grid-column: auto; }
+  .hud:not(.is-home) .hchip.flame { height: 30px; }
+  .hud.is-home { flex-direction: row; align-items: center; gap: 10px; padding-top: 8px; padding-bottom: 4px; }
+  .hud.is-home .hud-row { display: contents; }
+  .hud.is-home .hud-hi { flex: 1 1 auto; }
+  .hud.is-home .hud-greet { font-size: 1.05rem; }
+  .hud.is-home .hud-hi small { font-size: .74rem; }
+  .hud.is-home .hud-chips { order: 1; flex: 0 1 auto; width: auto; min-width: 0; margin: 0; gap: 6px; }
+  .hud.is-home .hud-bell { order: 2; }
+  .hud.is-home .hchip { height: 32px; padding: 0 10px; font-size: .84rem; }
+  .hud.is-home .hchip.lvl { flex: 0 1 220px; }
+  .thread.tall .msgs { min-height: 120px; max-height: calc(100vh - 230px); }
+  .bp-hero { gap: 16px; margin-bottom: 12px; }
+  .bp-hero .cover.lg { width: 96px; }
+  /* «أنا»: wider tiles so the numbers stay on one line */
+  .stat-tiles { grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); }
+  .stile { padding: 10px 12px; }
+  .stile b { font-size: 1.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stile small { line-height: 1.4; }
+  /* sheets: centred, wider, as tall as the screen allows; the body scrolls under a fixed head */
+  .sheet-wrap { align-items: center; padding: max(8px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+  .sheet { max-width: min(720px, 100%); max-height: 100%; border-radius: 20px; padding: 0 20px 12px; transform: translateY(16px) scale(.98); }
+  .sheet.wide { max-width: min(900px, 100%); }
+  .sh-head { padding: 8px 0 6px; }
+  .sh-head::before { display: none; }
+  /* the buttons that finish a sheet stay in reach at the bottom */
+  .sh-body > .row-btns:last-child, .sh-body > form > .row-btns:last-child { position: sticky; bottom: 0; z-index: 2; margin-top: 6px; padding: 8px 0 4px; background: var(--card); box-shadow: 0 -10px 10px -6px var(--card); }
+  .sh-body > .recap > .btn.full:last-child { position: sticky; bottom: 4px; z-index: 2; }
+  .menu-sheet .menu { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 8px; }
+  .menu-sheet .mi { padding: 10px; }
+  /* invite: the card on one side, the link and buttons on the other */
+  .sh-body:has(> .inv-card) { display: grid; grid-template-columns: minmax(0, 230px) minmax(0, 1fr); column-gap: 20px; row-gap: 10px; align-content: start; align-items: start; }
+  .sh-body:has(> .inv-card) > * { grid-column: 2; margin: 0; }
+  .sh-body:has(> .inv-card) > .inv-card { grid-column: 1; grid-row: 1 / span 6; margin: 0; }
+  .inv-card img, .inv-card .inv-ph { width: 100%; }
+  /* pick a book: filters beside the picked book */
+  .wm-pick-sheet .sh-body { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 16px; align-items: start; }
+  .wm-pick-sheet .wm-pick { padding: 12px; gap: 14px; }
+  .wm-pick-sheet .wm-deck, .wm-pick-sheet .wm-deck .cover.lg { width: 92px; }
+  .wm-pick-sheet .wm-out .row-btns { margin-top: 8px; }
+  /* the circle's week: numbers and members beside the best note and open questions */
+  .circle-recap { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: row dense; gap: 10px 20px; align-items: start; justify-items: stretch; }
+  .circle-recap > * { grid-column: 1; }
+  .circle-recap .ss-stats { max-width: none; }
+  .circle-recap .cr-rows { margin: 0; }
+  .circle-recap > .recap-best, .circle-recap > .cr-open { grid-column: 2; max-width: none; margin: 0; }
+  .circle-recap > .recap-best { grid-row: 1 / span 3; }
+  .circle-recap > .btn.full:last-child { grid-column: 1 / -1; }
+}
+/* Visual review fixes (home buttons, book/shelf tabs, online dot, dark segmented controls, leaderboard rank,
+   circle challenge key, shelf spines, soft edges on rows that scroll sideways) */
+.hero-acts .cta { min-width: 0; white-space: normal; line-height: 1.2; padding-inline: 12px; text-wrap: balance; }
+.hero-acts .btn.jade { flex: none; padding-inline: 12px; }
+@media (max-width: 520px) { .hero-acts { gap: 8px; } .hero-acts .btn.big { font-size: 1rem; } }
+.tab { padding: 10px 11px; }
+@media (max-width: 520px) { .tabs { gap: 2px; } .tab { padding-inline: 8px; font-size: .92rem; } .bookpage .tabs .tab > .ic { display: none; } }
+.members .on-dot { inset-inline-start: 1px; top: 4px; }
+:root { --seg-on: var(--card); }
+:root[data-theme="dark"] { --seg-on: #363c4a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --seg-on: #363c4a; } }
+.seg button.on, .segs button.on { background: var(--seg-on); }
+.rank.gold, .rank.silver, .rank.bronze { clip-path: none; background: none; color: var(--ink); font-size: 1rem; }
+.cchal .contrib-h { margin-top: 12px; }
+.cchal .contrib-h + .contrib { margin-top: 4px; }
+.contrib-k { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .8rem; color: var(--ink2); }
+.contrib-k li { display: inline-flex; align-items: center; gap: 5px; }
+.contrib-k i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); flex: none; }
+.contrib-k b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.sp-t { text-orientation: sideways; }
+@property --fade-s { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --fade-e { syntax: '<length>'; inherits: false; initial-value: 0px; }
+.chips.scroll, .sh-lists, .tabs { -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--fade-s), #000 calc(100% - var(--fade-e)), transparent); mask-image: linear-gradient(to right, transparent, #000 var(--fade-s), #000 calc(100% - var(--fade-e)), transparent); }
+[dir="rtl"] .chips.scroll, [dir="rtl"] .sh-lists, [dir="rtl"] .tabs { -webkit-mask-image: linear-gradient(to left, transparent, #000 var(--fade-s), #000 calc(100% - var(--fade-e)), transparent); mask-image: linear-gradient(to left, transparent, #000 var(--fade-s), #000 calc(100% - var(--fade-e)), transparent); }
+@keyframes x-fade { 0% { --fade-s: 0px; --fade-e: 28px; } 6% { --fade-s: 28px; } 94% { --fade-e: 28px; } 100% { --fade-s: 28px; --fade-e: 0px; } }
+@supports (animation-timeline: scroll()) { .chips.scroll, .sh-lists, .tabs { animation: x-fade linear both; animation-timeline: scroll(self inline); } }
 </style>
 </head>
 <body>

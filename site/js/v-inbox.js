@@ -44,8 +44,10 @@
   };
 
   const line = (x) => {
-    const who = `<b>${esc(D.name(x.who))}</b>`;
-    const title = x.book ? `«${esc(x.book.title)}»` : '';
+    // <bdi> isolates a name or title written in the other script; the «» go inside with the title, so they open
+    // and close it in its own direction even when it wraps onto a second line
+    const who = `<b><bdi>${esc(D.name(x.who))}</bdi></b>`;
+    const title = x.book ? `<bdi>«${esc(x.book.title)}»</bdi>` : '';
     switch (x.kind) {
       case 'reply': return L(`رد من ${who} على ملاحظتك في ${title}`, `${who} replied to your note in ${title}`);
       case 'thread': return L(`رد جديد من ${who} في نقاش شاركت فيه`, `${who} replied in a thread you're in`);

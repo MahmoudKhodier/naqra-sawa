@@ -304,6 +304,11 @@
     if (L.lang() !== 'en' && n === 0) cat = 'other';
     return (f[cat] || f.other).replace('{n}', L.num(n));
   };
+  /* The unit after the number on the flame chip: «٣ أيام», «١١ يوم» (مصري), «١١ يومًا» (فصحى), «١ يوم». */
+  const unitAfter = (n, one, few, many) => {
+    const c = plural.ar.select(n);
+    return L(c === 'few' ? few : one, '', c === 'few' ? few : c === 'many' ? many : one);
+  };
   /* What the flame shows for this person: their daily or weekly streak, whether it is at risk, and the hint. */
   G.streakView = (uid = S.me) => {
     const s = G.of(uid);
@@ -311,16 +316,15 @@
     if (pref.mode !== 'week') {
       return {
         weekly: false, n: s.streak, risk: s.atRisk, best: s.best,
-        unit: L('يوم', s.streak === 1 ? 'day' : 'days'),
+        unit: L.isAr() ? unitAfter(s.streak, 'يوم', 'أيام', 'يومًا') : s.streak === 1 ? 'day' : 'days',
         hint: s.atRisk ? L('اقرأ النهارده عشان السلسلة متقطعش', 'Read today to keep your streak', 'اقرأ اليوم كي لا تنقطع سلسلتك') : L('أيام القراءة المتتالية', 'Reading streak'),
       };
     }
     const k = s.weekLeft;
     const n = s.weekStreak;
-    const unitAr = n >= 3 && n <= 10 ? 'أسابيع' : 'أسبوع';
     return {
       weekly: true, n, risk: s.weekAtRisk, best: s.bestWeekStreak, need: pref.n, left: k,
-      unit: L(unitAr, n === 1 ? 'week' : 'weeks'),
+      unit: L.isAr() ? unitAfter(n, 'أسبوع', 'أسابيع', 'أسبوعًا') : n === 1 ? 'week' : 'weeks',
       hint: s.weekAtRisk
         ? L(`فاضل ${k === 1 ? 'يوم قراية واحد' : `${L.count(k, 'day')} قراية`} الأسبوع ده`, `${k} more reading day${k === 1 ? '' : 's'} this week`, `بقي ${L.count(k, 'day', 'nom')} للقراءة هذا الأسبوع`)
         : L(`${G.weeks(n)} ورا بعض فيها ${L.count(pref.n, 'day')} قراية على الأقل`, `${G.weeks(n)} in a row with at least ${pref.n} reading day${pref.n === 1 ? '' : 's'}`, `${G.weeks(n)} متتالية فيها ${L.count(pref.n, 'day')} قراءة على الأقل`),

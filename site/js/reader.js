@@ -71,14 +71,17 @@
 
   const placeOf = (bookId) => (S.priv && S.priv.place && S.priv.place[bookId]) || null;
   /* Colours for the strips around the page in the Android app (see sysui.js): the bars' colour while they
-     show, the page background while they are hidden. */
+     show, the page background while they are hidden. With the app in dark mode the bars and the background
+     around the page are dark whatever the page colour (the CSS does the same, see «reader follows dark mode»). */
   const SYS = {
     day: { bar: '#fcfcfd', bg: '#e6e8ef', light: true },
     sepia: { bar: '#f5ecdb', bg: '#e3d6bd', light: true },
     night: { bar: '#151821', bg: '#0d0f15', light: false },
   };
+  const SYS_DARK = { day: SYS.night, sepia: { bar: '#1f1a14', bg: '#14110d', light: false }, night: SYS.night };
   R.sysColours = () => {
-    const c = SYS[st && st.theme] || SYS.day;
+    const dark = A.V && A.V.isDark ? A.V.isDark() : false;
+    const c = (dark ? SYS_DARK : SYS)[st && st.theme] || SYS.day;
     const col = st && st.uiHidden ? c.bg : c.bar;
     return { top: col, bottom: col, side: col, light: c.light };
   };

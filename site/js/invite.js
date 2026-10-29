@@ -90,20 +90,21 @@
     ctx.textAlign = 'center';
     const disp = (px, w = 700) => `${w} ${px}px "Readex Pro", "Amiri", system-ui, sans-serif`;
     // the app's star and name
-    star(ctx, W / 2, 150, 54, gold);
+    star(ctx, W / 2, 128, 50, gold);
     ctx.fillStyle = ink;
     ctx.font = disp(46);
-    ctx.fillText(L('نقرأ سوا', 'Read Together'), W / 2, 260);
+    ctx.fillText(L('نقرأ سوا', 'Read Together'), W / 2, 232);
     // invitation
     ctx.font = disp(64);
     ctx.fillStyle = ink;
-    ctx.fillText(L('تعالى نقرأ سوا!', 'Come read with us!', 'تعالَ نقرأ معًا!'), W / 2, 380);
+    ctx.fillText(L('تعالى نقرأ سوا!', 'Come read with us!', 'تعالَ نقرأ معًا!'), W / 2, 336);
     ctx.font = disp(52, 600);
     ctx.fillStyle = lapis;
-    wrap(ctx, `«${c.name || L('حلقة القراءة', 'Reading Circle')}»`, W - 200, 2).forEach((ln, i) => ctx.fillText(ln, W / 2, 460 + i * 64));
-    // the book we're reading: its cover (or a drawn one) and title
-    const y0 = 590;
-    const cw = 190, ch = 270, cx = W / 2 - cw / 2;
+    const nameLines = wrap(ctx, `«${c.name || L('حلقة القراءة', 'Reading Circle')}»`, W - 200, 2);
+    nameLines.forEach((ln, i) => ctx.fillText(ln, W / 2, 414 + i * 62));
+    // the book we're reading: its cover (or a drawn one), then «بنقرأ دلوقتي» and the title, all above the code pill
+    const y0 = 414 + (nameLines.length - 1) * 62 + 48;
+    const cw = 180, ch = 256, cx = W / 2 - cw / 2;
     if (book) {
       const img = await loadImg(book.cover);
       ctx.save();
@@ -120,16 +121,16 @@
         ctx.fill();
         ctx.shadowColor = 'transparent';
         ctx.fillStyle = fg;
-        ctx.font = disp(26);
-        wrap(ctx, book.title, cw - 30, 4).forEach((ln, i) => ctx.fillText(ln, W / 2, y0 + 70 + i * 36));
+        ctx.font = disp(24);
+        wrap(ctx, book.title, cw - 28, 4).forEach((ln, i) => ctx.fillText(ln, W / 2, y0 + 60 + i * 32));
       }
       ctx.restore();
       ctx.fillStyle = ink2;
       ctx.font = disp(30, 500);
-      ctx.fillText(L('بنقرأ دلوقتي', 'Reading now', 'نقرأ الآن'), W / 2, y0 + ch + 56);
+      ctx.fillText(L('بنقرأ دلوقتي', 'Reading now', 'نقرأ الآن'), W / 2, y0 + ch + 50);
       ctx.fillStyle = ink;
-      ctx.font = disp(36);
-      wrap(ctx, book.title, W - 240, 1).forEach((ln) => ctx.fillText(ln, W / 2, y0 + ch + 104));
+      ctx.font = disp(40);
+      wrap(ctx, book.title, W - 240, 1).forEach((ln) => ctx.fillText(ln, W / 2, y0 + ch + 100));
     } else {
       ctx.fillStyle = ink2;
       ctx.font = disp(46, 500);

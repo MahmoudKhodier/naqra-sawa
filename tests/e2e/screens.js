@@ -5,6 +5,7 @@
  *   node tests/e2e/screens.js                    # phone, light + dark, مصري
  *   LANGS=eg,ar,en THEMES=light node tests/e2e/screens.js
  *   LAND=1 node tests/e2e/screens.js             # also landscape (844×390)
+ *   OUT=tests/e2e/shots/mine node tests/e2e/screens.js   # into another folder (when someone else shoots too)
  *
  * Two members (أحمد owns the circle, بسمة joined) with a book, a plan, pages read, a note, a message, a cheer
  * and a shelf. Pictures go to tests/e2e/shots/screens/<lang>-<theme>-<orientation>-NN-name.png.
@@ -24,7 +25,7 @@ function loadPlaywright() {
 }
 const { chromium } = loadPlaywright();
 const PDF = path.join(H.FIXTURES, 'arabic-40.pdf');
-const OUT = path.join(H.SHOTS, 'screens');
+const OUT = process.env.OUT ? path.resolve(process.env.OUT) : path.join(H.SHOTS, 'screens'); // OUT=dir: somewhere else
 const T = (ms) => new Promise((r) => setTimeout(r, ms));
 const LANGS = (process.env.LANGS || 'eg').split(',');
 const THEMES = (process.env.THEMES || 'light,dark').split(',');
@@ -35,6 +36,16 @@ async function snap(p, name) {
   await p.screenshot({ path: path.join(OUT, name + '.png') });
 }
 const esc = (p) => p.keyboard.press('Escape').then(() => T(250));
+/* The book page's tabs at the top (just under the sticky header), so the chosen tab's content is in the picture. */
+async function toTabs(p) {
+  await T(300);
+  await p.evaluate(() => {
+    const t = document.querySelector('.bookpage .tabs');
+    const hud = document.getElementById('hud');
+    const top = hud && getComputedStyle(hud).position === 'sticky' ? hud.getBoundingClientRect().bottom : 0;
+    if (t) window.scrollTo(0, window.scrollY + t.getBoundingClientRect().top - top - 8);
+  });
+}
 async function closeAll(p) {
   for (let i = 0; i < 4 && (await p.$('.sheet-wrap')); i++) await esc(p);
   if (await p.evaluate(() => window.A.R.isOpen())) await p.evaluate(() => window.A.R.close(true));
@@ -101,8 +112,8 @@ async function closeAll(p) {
       ['home', () => p.evaluate(() => window.A.V.go('home'))],
       ['books', () => p.evaluate(() => window.A.V.go('books'))],
       ['book', () => p.evaluate((b) => window.A.V.go('book-' + b), seed.book)],
-      ['book-plan', () => p.evaluate((b) => window.A.V.go('book-' + b, { tab: 'plan' }), seed.book)],
-      ['book-talk', () => p.evaluate((b) => window.A.V.go('book-' + b, { tab: 'talk' }), seed.book)],
+      ['book-plan', () => p.evaluate((b) => window.A.V.go('book-' + b, { tab: 'plan' }), seed.book).then(() => toTabs(p))],
+      ['book-talk', () => p.evaluate((b) => window.A.V.go('book-' + b, { tab: 'talk' }), seed.book).then(() => toTabs(p))],
       ['shelf', () => p.evaluate(() => window.A.V.go('shelf'))],
       ['circle', () => p.evaluate(() => window.A.V.go('circle'))],
       ['circle-chat', () => p.evaluate(() => window.A.V.go('circle', { seg: 'chat' }))],

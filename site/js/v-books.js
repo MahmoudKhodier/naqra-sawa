@@ -423,7 +423,7 @@
         return `<button class="chip${k === ch ? ' on' : ''}${gcur && gcur.id === k ? ' cur' : ''}" data-act="book-tab" data-b="${esc(b.id)}" data-tab="talk" data-ch="${esc(k)}">${t}${u ? `<i class="nv-b">${L.num(u)}</i>` : ''}</button>`;
       })
       .join('')}</div>
-      ${w ? `<section class="takes"><header><h3>${icon('sparkle')}${L(`خلاصات الورد ${L.num(w.n)}`, `Takeaways • portion ${w.n}`)}</h3><small class="muted">${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</small>${D.canWrite() ? `<button class="btn sm ${myTake ? 'ghost' : 'gold'}" data-act="write-take" data-b="${esc(b.id)}" data-w="${esc(w.id)}" ${myTake ? `data-nid="${esc(myTake.id)}"` : ''}>${myTake ? L('عدّل خلاصتي', 'Edit mine') : L('اكتب خلاصتك', 'Write yours')}</button>` : ''}</header>
+      ${w ? `<section class="takes"><header><h3>${icon('sparkle')}${L(`خلاصات الورد ${L.num(w.n)}`, `Takeaways • Portion ${w.n}`)}</h3><small class="muted">${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</small>${D.canWrite() ? `<button class="btn sm ${myTake ? 'ghost' : 'gold'}" data-act="write-take" data-b="${esc(b.id)}" data-w="${esc(w.id)}" ${myTake ? `data-nid="${esc(myTake.id)}"` : ''}>${myTake ? L('عدّل خلاصتي', 'Edit mine') : L('اكتب خلاصتك', 'Write yours')}</button>` : ''}</header>
         ${takes.length ? `<div class="take-list">${takes.map((n) => V.noteCard(n)).join('')}</div>` : `<p class="muted sm">${L('لما تخلّص الورد اكتب أهم فكرة خرجت بيها.', 'When you finish the portion, share the main idea you took away.', 'عندما تنهي الورد، اكتب أهم فكرة خرجت بها.')}</p>`}</section>` : ''}
       ${V.thread(b.id, ch, { placeholder: w ? L(`اكتب رأيك في الورد ${L.num(w.n)}…`, `Your thoughts on portion ${w.n}…`) : L('اكتب للحلقة عن الكتاب…', 'Write to the circle about this book…') })}`;
   }

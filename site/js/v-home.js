@@ -79,7 +79,9 @@
       : L(`فاضل ${L.count(left, 'page')} • حوالي ${G.timeText(G.minutesFor(left))}`, `${left} to go • about ${G.timeText(G.minutesFor(left))}`, `بقي ${L.count(left, 'page', 'nom')} • نحو ${G.timeText(G.minutesFor(left))}`);
     return `<button class="dgoal${g.done ? ' done' : ''}" data-go="settings" aria-label="${L('هدفك اليومي — غيّره من الإعدادات', 'Your daily goal — change it in Settings', 'هدفك اليومي — غيّره من الإعدادات')}">
       ${V.ring(g.have / g.pages, icon(g.done ? 'check' : 'target'), g.done ? 'jade' : 'gold', 42)}
-      <span class="dg-t"><b>${L(`${L.num(g.have)} من ${L.count(g.pages, 'page')} النهارده`, `${g.have} of ${g.pages} pages today`, `${L.num(g.have)} من ${L.count(g.pages, 'page')} اليوم`)}</b>
+      <span class="dg-t"><b>${g.have > g.pages
+        ? L(`${L.count(g.have, 'page')} النهارده ✓ (الهدف ${L.num(g.pages)})`, `${g.have} pages today ✓ (goal ${g.pages})`, `${L.count(g.have, 'page')} اليوم ✓ (الهدف ${L.num(g.pages)})`)
+        : L(`${L.num(g.have)} من ${L.count(g.pages, 'page')} النهارده`, `${g.have} of ${g.pages} pages today`, `${L.num(g.have)} من ${L.count(g.pages, 'page')} اليوم`)}</b>
         <small>${sub}${g.auto ? ` • ${L('هدف بيكبر معاك', 'a goal that grows with you', 'هدف ينمو معك')}` : ''}</small>${wk}</span>
     </button>`;
   }

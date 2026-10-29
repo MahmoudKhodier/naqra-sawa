@@ -157,7 +157,7 @@
     const chipRow = (name, label, opts, val) =>
       `<span class="lbl">${label}</span><div class="chips wrap" data-f="${name}">${opts.map(([k, t]) => `<button type="button" class="chip${val === k ? ' on' : ''}" data-v="${esc(k)}" aria-pressed="${val === k}"><span dir="auto">${t}</span></button>`).join('')}</div>`;
     const filters = () =>
-      chipRow('len', L('الطول', 'Length'), LENS().map(([k, t]) => [k, k === 'short' ? `${t} <small>&lt; ${L.num(200)}</small>` : k === 'long' ? `${t} <small>&gt; ${L.num(400)}</small>` : t]), f.len) +
+      chipRow('len', L('الطول', 'Length'), LENS().map(([k, t]) => [k, k === 'short' ? `${t} <small>${L(`أقل من ${L.num(200)} صفحة`, 'under 200 pages', `أقل من ${L.num(200)} صفحة`)}</small>` : k === 'long' ? `${t} <small>${L(`أكتر من ${L.num(400)} صفحة`, 'over 400 pages', `أكثر من ${L.num(400)} صفحة`)}</small>` : t]), f.len) +
       (tagsIn.length ? chipRow('tag', L('التصنيف', 'Category'), [['', L('أي تصنيف', 'Any')], ...tagsIn.map((k) => [k, esc(tagName(k))])], f.tag) : '') +
       (listsIn.length ? chipRow('list', L('من رف', 'From a shelf', 'من رف'), [['', L('أي رف', 'Any')], ...listsIn.map((k) => [k, esc(k)])], f.list) : '');
     const card = (pool) => {
