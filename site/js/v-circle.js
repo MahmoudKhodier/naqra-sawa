@@ -224,7 +224,7 @@
         <button class="set-me-av" data-go="me" aria-label="${L('ملفي', 'My profile')}">${D.avatar(S.me, 'xl')}</button>
         <form id="me-form" class="form inline"><label for="me-nick">${L('اسمك في الحلقة', 'Your name in the circle')}</label><div class="row"><input id="me-nick" maxlength="40" dir="auto" value="${esc(m.nick || '')}"><button class="btn sm">${L('احفظ', 'Save')}</button></div></form>
       </div>
-      <details class="emo-pick"><summary>${D.avatar(S.me, 'sm')}<span>${L('غيّر علامتك (الصورة اللي جنب اسمك)', 'Change your mark (shown next to your name)', 'غيّر علامتك (الصورة التي بجانب اسمك)')}</span>${icon('fwd', 'flip-rtl')}</summary>
+      <details class="emo-pick"><summary>${D.avatar(S.me, 'sm')}<span>${L('غيّر علامتك', 'Change your mark', 'غيّر علامتك')}<small>${L('الصورة اللي بتظهر جنب اسمك', 'Shown next to your name', 'الصورة التي تظهر بجانب اسمك')}</small></span>${icon('fwd', 'flip-rtl')}</summary>
       <div class="emo emo-all" role="radiogroup" aria-label="${L('علامتك', 'Your mark')}">
         <button type="button" class="emo-b letter${m.emoji ? '' : ' on'}" data-act="set-emoji" data-emo="" role="radio" aria-checked="${!m.emoji}" aria-label="${L('أول حرف من اسمي', 'First letter of my name')}">${esc(Array.from(D.name(S.me).trim())[0] || '؟')}</button>
         ${V.EMOJI.map((e) => `<button type="button" class="emo-b${m.emoji === e ? ' on' : ''}" data-act="set-emoji" data-emo="${e}" role="radio" aria-checked="${m.emoji === e}" aria-label="${e}">${e}</button>`).join('')}
