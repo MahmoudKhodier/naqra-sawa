@@ -49,12 +49,17 @@ jobs:
         if: steps.secret.outputs.ok == 'true'
         run: |
           # Says why a connection fails (as an annotation, with the password hidden) instead of just "exit code 2".
+          DB_URL=$(printf '%s' "$DB_URL" | tr -d '\r\n' | sed -e 's/^[[:space:]"'"'"']*//' -e 's/[[:space:]"'"'"']*$//')
           pw=$(printf '%s' "$DB_URL" | sed -n 's#^postgres[a-z]*://[^:/@]*:\([^@]*\)@.*#\1#p')
+          [ -n "$DB_URL" ] && echo "::add-mask::$DB_URL"
+          [ -n "$pw" ] && echo "::add-mask::$pw"
+          echo "DB_URL=$DB_URL" >> "$GITHUB_ENV" # the cleaned value for the next step
           hint=""
           case "$DB_URL" in
             *'[YOUR-PASSWORD]'*|*'[YOUR_PASSWORD]'*) hint="The secret still has [YOUR-PASSWORD] in it: put the database password there (without the brackets)." ;;
             postgres://*|postgresql://*) ;;
-            *) hint="The secret should start with postgresql:// — copy the whole Session pooler string again." ;;
+            aws-*|*pooler.supabase.com*) hint="Only the end of the connection string was saved (it starts at the host name). Use the copy button next to the Session pooler string so the whole line, from postgresql:// on, is copied." ;;
+            *) hint="The secret should start with postgresql:// — copy the whole Session pooler string again with its copy button." ;;
           esac
           if err=$(PGCONNECT_TIMEOUT=20 psql "$DB_URL" -X -At -c 'select 1' 2>&1 >/dev/null); then
             echo "Connected."
