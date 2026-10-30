@@ -699,7 +699,9 @@
     }
     if (st.cur === st.dwellP) {
       st.dwellN++;
-      if (st.dwellN === 3) markSeen(st.cur);
+      // ~3 seconds on a page counts it; a page past the end of my portion needs ~10 (a look ahead is not reading)
+      const mine = !st.priv && G.myCurrent(st.book);
+      if (st.dwellN === (mine && st.cur > mine.to ? 10 : 3)) markSeen(st.cur);
     } else {
       st.dwellP = st.cur;
       st.dwellN = 0;

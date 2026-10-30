@@ -176,6 +176,19 @@ const ranges = (p) => p.evaluate(() => [...window.A.S.books.values()][0].wirds.m
       await a.waitForSelector('.rc-rows');
     });
 
+    await step('Pages of a portion counted by mistake come off from its sheet', async () => {
+      await closeAll(b);
+      await b.evaluate((id) => window.A.D.saveProg(id, (c) => ({ seen: window.A.U.rangesAdd(c.seen, [24, 25]), last: 25 })), bookId);
+      await b.evaluate((id) => window.A.V.go('book-' + id, { tab: 'plan' }), bookId);
+      await b.waitForSelector('.wcal');
+      await b.click('.wc-c:not(.cont)[data-w="w4"]');
+      await b.click('.wsheet [data-act="wird-uncount"]');
+      await b.click('.sheet [data-yes]');
+      await until(b, 'seen cleared', (id) => !window.A.U.rangesCountIn(window.A.D.prog(id).seen, 24, 32), bookId);
+      const last = await b.evaluate((id) => window.A.D.prog(id).last, bookId);
+      assert(last === 23, 'the place to go on from: ' + last);
+    });
+
     await step('No errors in the console', async () => {
       const errs = [...(a.__errors || []), ...(b.__errors || [])].filter((e) => !/favicon|fonts|404/.test(e));
       assert(!errs.length, errs.slice(0, 4).join('\n'));

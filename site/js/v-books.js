@@ -325,6 +325,7 @@
         <p class="ws-meta">${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)} • ${L.day(w.start)}${w.due !== w.start ? ' → ' + L.day(w.due) : ''} • <span class="due ${done ? 'done' : st}">${done ? L('خلّصته ✓', 'Done ✓', 'أنهيته ✓') : st === 'soon' ? L('لسه', 'Upcoming', 'قادم') : L.due(w.due)}</span></p>
         <div class="ws-prog">${V.bar(seen / total, done ? 'jade' : 'lapis')}<small>${L(`قريت ${L.num(seen)} من ${L.count(total, 'page')}`, `${seen} of ${total} pages read`, `قرأت ${L.num(seen)} من ${L.count(total, 'page')}`)}</small></div>
         ${done ? '' : `<p class="ws-time">${icon('clock')}${seen && seen < total ? L(`فاضل حوالي ${G.timeText(G.minutesFor(total - seen))}`, `About ${G.timeText(G.minutesFor(total - seen))} left`, `بقي نحو ${G.timeText(G.minutesFor(total - seen))}`) : L(`الورد ده حوالي ${G.timeText(G.minutesFor(total))}`, `This portion takes about ${G.timeText(G.minutesFor(total))}`, `هذا الورد نحو ${G.timeText(G.minutesFor(total))}`)}</p>`}
+        ${!done && seen && D.canWrite() ? `<button class="lnk sm ws-edit" data-act="wird-uncount" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-close>${icon('close')}${L(`مقرتش فيه؟ شيل الصفحات اللي اتحسبت (${L.num(seen)})`, `Didn't read it? Remove the counted pages (${seen})`, `لم تقرأ فيه؟ أزل الصفحات المحسوبة (${L.num(seen)})`)}</button>` : ''}
         ${V.canPlan(b) ? `<button class="lnk sm ws-edit" data-act="wird-pages" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-close>${icon('edit')}${L('عدّل صفحات الورد ده', "Change this portion's pages", 'عدّل صفحات هذا الورد')}</button>` : ''}
         <div class="ws-fins"><b>${L('خلّصوه', 'Finished', 'أنهوه')}</b>${fins.length ? `<span class="mavs">${fins.map((x, i) => `<span class="fin${i === 0 ? ' first' : ''}" title="${esc(D.name(x.u))}">${D.avatar(x.u, 'sm')}</span>`).join('')}</span><small>${L.num(fins.length)}/${L.num(members.length)}</small>` : `<small>${L('لسه محدش', 'Nobody yet', 'لا أحد بعد')}</small>`}</div>
         <div class="row-btns">
@@ -509,6 +510,26 @@
     a.to = page;
     z.from = page + 1;
     return out;
+  };
+  /* Pages of a portion counted by mistake (a look at the next portion that lasted a few seconds): off my
+     progress, and the place to go on from goes back before the portion if it was inside it. */
+  V.actions['wird-uncount'] = async (a) => {
+    const b = S.books.get(a.dataset.b);
+    const w = b && G.wirds(b).find((x) => x.id === a.dataset.w);
+    if (!w) return;
+    const n = U.rangesCountIn((D.prog(b.id) || {}).seen, w.from, w.to);
+    if (!n || !(await V.confirm(L(`هنشيل ${L.count(n, 'page')} من الورد ${L.num(w.n)} من اللي قريته. نقطك وأيامك زي ما هي.`, `${n} pages of portion ${w.n} will no longer count as read. Your points and days stay.`, `ستُزال ${L.count(n, 'page')} من الورد ${L.num(w.n)} من المقروء. تبقى نقاطك وأيامك كما هي.`), L('شيلها', 'Remove', 'أزلها')))) return;
+    await D.saveProg(b.id, (c) => Object.assign({ seen: U.rangesRemove(c.seen, w.from, w.to) }, c.last >= w.from && c.last <= w.to ? { last: Math.max(1, w.from - 1) } : {}));
+    const lastHere = +U.store.get('last:' + b.id, 0) || 0;
+    if (lastHere >= w.from && lastHere <= w.to) U.store.set('last:' + b.id, Math.max(1, w.from - 1));
+    const pl = S.priv && S.priv.place && S.priv.place[b.id];
+    if (pl && pl.p >= w.from && pl.p <= w.to)
+      await D.privUpdate((cur) => {
+        const place = Object.assign({}, cur.place);
+        delete place[b.id];
+        return Object.assign(cur, { place });
+      }).catch(() => {});
+    U.toast(L(`الورد ${L.num(w.n)} رجع «لسه»`, `Portion ${w.n} is back to "not yet"`, `عاد الورد ${L.num(w.n)} إلى «ليس بعد»`));
   };
   V.actions['wird-pages'] = (a) => {
     const b = S.books.get(a.dataset.b);

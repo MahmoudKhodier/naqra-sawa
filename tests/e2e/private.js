@@ -91,6 +91,7 @@ const noRecap = (p) =>
     const { U, S } = window.A;
     const ws = U.weekStart();
     U.store.set('circleRecap:' + S.me, U.parseD(U.today()).getDay() === 5 ? ws : U.addDays(ws, -7));
+    if (window.A.Goals) window.A.Goals.off = true; // firsts celebrations have their own test (goals.js)
   });
 
 (async () => {
@@ -249,6 +250,7 @@ const noRecap = (p) =>
       await T(500);
       await a.reload({ waitUntil: 'load' });
       await a.waitForSelector('.shell #screen', { timeout: 20000 });
+      await noRecap(a);
       const storage = watchStorage(a);
       await a.evaluate(() => window.A.V.go('shelf'));
       await a.waitForSelector('#mylib .my-it [data-act="my-read"].btn', { timeout: 10000 });
@@ -304,8 +306,11 @@ const noRecap = (p) =>
       for (let i = 0; i < 3 && (await a.$('.sheet-wrap')); i++) await a.keyboard.press('Escape').then(() => T(300));
       await a.evaluate((id) => window.A.R.open(id), ctx.book.id);
       await readerReady(a);
-      await a.evaluate(() => window.A.R.goTo(40));
-      await T(800);
+      // the last page: pages further up may still be settling their heights, so go again until it is the current one
+      for (let i = 0; i < 6 && (await a.evaluate(() => window.A.R.current().page)) !== 40; i++) {
+        await a.evaluate(() => window.A.R.goTo(40));
+        await T(800);
+      }
       await a.click('.rd [data-act="browse-here"]').catch(() => {});
       await a.waitForSelector('#rd-prompt [data-act="book-done"]', { timeout: 8000 });
       await a.click('#rd-prompt [data-act="book-done"]');
