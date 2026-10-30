@@ -289,6 +289,8 @@ const watchStorage = (p) => {
     }, ['reload']);
 
     await step('Finishing it offers to put it on my shelf as read (title only)', async () => {
+      // on a Friday the circle's week recap shows by itself first
+      for (let i = 0; i < 3 && (await a.$('.sheet-wrap')); i++) await a.keyboard.press('Escape').then(() => T(300));
       await a.evaluate((id) => window.A.R.open(id), ctx.book.id);
       await readerReady(a);
       await a.evaluate(() => window.A.R.goTo(40));

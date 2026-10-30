@@ -231,7 +231,7 @@
     const every = U.diffDays(ws[0].start, ws[0].due) + 1;
     return `<div class="plan-head"><p>${L(`${L.count(per, 'page')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} لـ ${L.dayShort(ws[ws.length - 1].due)}`, `${per} pages ${every === 1 ? 'a day' : every === 7 ? 'a week' : `every ${every} days`} • ${L.dayShort(ws[0].start)} – ${L.dayShort(ws[ws.length - 1].due)}`, `${L.count(per, 'page', 'nom')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} إلى ${L.dayShort(ws[ws.length - 1].due)}`)}</p>${D.canWrite() ? `<button class="btn ghost sm" data-act="plan" data-b="${esc(b.id)}">${icon('edit')}${L('عدّل الخطة', 'Edit plan')}</button>` : ''}</div>
       ${planTime(b, ws)}
-      ${wirdPath(b, ws, members)}`;
+      ${wirdCal(b, ws, members)}`;
   }
 
   /* About how long my current portion (or a typical one) and the whole plan take at my reading speed. */
@@ -242,47 +242,62 @@
     return `<p class="plan-time">${icon('clock')}<span>${L(`الورد ده حوالي ${G.timeText(G.minutesFor(n))} • الكتاب كله حوالي ${G.timeText(G.minutesFor(all))}`, `This portion takes about ${G.timeText(G.minutesFor(n))} • the whole book about ${G.timeText(G.minutesFor(all))}`, `هذا الورد نحو ${G.timeText(G.minutesFor(n))} • الكتاب كله نحو ${G.timeText(G.minutesFor(all))}`)}</span></p>`;
   }
 
-  /* The plan as a path: done ✓, the current one ★ with friends on it, a section header every 7 portions. */
-  function wirdPath(b, ws, members) {
+  /* The plan as a calendar: a row per week (Saturday first), each portion on its days, coloured by where I am
+     in it, with the faces of the others who finished it. Tapping a day opens its portion. */
+  function wirdCal(b, ws, members) {
     const myCur = G.myCurrent(b);
-    const at = new Map();
-    for (const u of members) {
-      if (u === S.me) continue;
-      const cw = G.myCurrent(b, u);
-      if (!cw) continue;
-      if (!at.has(cw.id)) at.set(cw.id, []);
-      at.get(cw.id).push(u);
-    }
-    const X = [0, 56, 84, 56, 0, -56, -84, -56];
-    let html = '';
-    ws.forEach((w, i) => {
-      if (i % 7 === 0 && ws.length > 7) {
-        const end = ws[Math.min(ws.length - 1, i + 6)];
-        html += `<li class="wpv-sec"><b>${L(`الأوراد ${L.num(w.n)}–${L.num(end.n)}`, `Portions ${w.n}–${end.n}`)}</b><small>${L.dayShort(w.start)} – ${L.dayShort(end.due)}</small></li>`;
-      }
-      const st = G.wirdStatus(b, w);
-      const done = st === 'done' || st === 'late-done';
-      const cur = !!(myCur && myCur.id === w.id);
-      const lastOne = i === ws.length - 1;
-      const x = X[i % X.length];
-      const side = x > 0 || (x === 0 && i % 8 === 0) ? 'lbl-l' : 'lbl-r';
-      const fins = members.filter((u) => {
-        const p = D.prog(b.id, u);
-        return p && p.done && p.done[w.id];
-      }).length;
-      const others = (at.get(w.id) || []).slice(0, 3);
-      const unread = V.unread(b.id, w.id);
-      const state = done ? `✓ ${L(`${L.num(fins)} من ${L.num(members.length)}`, `${fins} of ${members.length}`)}` : st === 'soon' ? L.dayShort(w.start) : L.due(w.due);
-      const node = done ? icon('check') : cur ? '<span class="star8 sm"></span>' : lastOne ? icon('trophy') : L.num(w.n);
-      html += `<li class="wpv s-${st}${cur ? ' cur' : ''} ${side}" style="--x:${x}px"><div class="wpv-in">
-        ${cur ? `<span class="wpv-bub">${st === 'late' ? L('متأخر', 'Late') : L('دلوقتي', 'Now', 'الآن')}</span>` : ''}
-        <button class="wpv-n" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" aria-label="${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)}: ${state}">${node}</button>
-        ${others.length ? `<span class="wpv-avs" aria-hidden="true">${others.map((u) => D.avatar(u, 'xs')).join('')}</span>` : ''}
-        ${unread ? `<i class="wpv-dot" title="${L('رسايل جديدة في نقاش الورد', 'New messages in this portion', 'رسائل جديدة في نقاش الورد')}"></i>` : ''}
-        <span class="wpv-l"><b>${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)}</b><small>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</small><small class="due ${done ? 'done' : st}">${state}</small></span>
-      </div></li>`;
+    const today = U.today();
+    const prog = D.prog(b.id);
+    const byDay = new Map();
+    for (const w of ws) for (let d = w.start; d <= w.due; d = U.addDays(d, 1)) if (!byDay.has(d)) byDay.set(d, w);
+    const fins = (w) => members.filter((u) => {
+      const p = D.prog(b.id, u);
+      return p && p.done && p.done[w.id];
     });
-    return `<ol class="wpv-list">${html}</ol>`;
+    const cls = (w) => {
+      const st = G.wirdStatus(b, w);
+      if (st === 'done' || st === 'late-done') return 'done';
+      if (myCur && myCur.id === w.id) return st === 'late' ? 'cur late' : 'cur';
+      if (st === 'late') return 'late';
+      return U.rangesCountIn(prog && prog.seen, w.from, w.to) ? 'part' : 'soon';
+    };
+    const first = U.weekStart(ws[0].start);
+    const lastDay = ws[ws.length - 1].due;
+    let head = '<span></span>';
+    for (let i = 0; i < 7; i++) head += `<span class="wc-h">${L.weekday(U.addDays(first, i))}</span>`;
+    let rows = '';
+    for (let wk = first; wk <= lastDay; wk = U.addDays(wk, 7)) {
+      rows += `<span class="wc-wl">${L.dayShort(wk)}</span>`;
+      for (let i = 0; i < 7; i++) {
+        const d = U.addDays(wk, i);
+        const w = byDay.get(d);
+        if (!w) {
+          rows += `<span class="wc-x${d === today ? ' today' : ''}"></span>`;
+          continue;
+        }
+        const lead = d === w.start || i === 0; // the portion's first day, or its first day in this row
+        const others = lead ? fins(w).filter((u) => u !== S.me) : [];
+        const unread = lead && V.unread(b.id, w.id);
+        const label = `${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)} • ${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}`;
+        rows += `<button class="wc-c ${cls(w)}${lead ? '' : ' cont'}${d === today ? ' today' : ''}" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" aria-label="${esc(label)}">${lead ? `<b>${L.num(w.n)}</b>` : ''}${
+          others.length ? `<span class="wc-avs">${others.slice(0, others.length > 3 ? 2 : 3).map((u) => D.avatar(u, 'xs')).join('')}${others.length > 3 ? `<i>+${L.num(others.length - 2)}</i>` : ''}</span>` : ''
+        }${unread ? '<i class="wc-dot"></i>' : ''}</button>`;
+      }
+    }
+    const cur = myCur || ws[ws.length - 1];
+    const curFins = fins(cur).filter((u) => u !== S.me);
+    const st = G.wirdStatus(b, cur);
+    const curDone = st === 'done' || st === 'late-done';
+    const seen = U.rangesCountIn(prog && prog.seen, cur.from, cur.to);
+    const total = cur.to - cur.from + 1;
+    const now = `<button class="card wc-now" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(cur.id)}">
+        ${V.star(L.num(cur.n), curDone ? 'jade' : st === 'late' ? 'rubric' : 'gold')}
+        <span class="wc-now-t"><b>${L(`الورد ${L.num(cur.n)}`, `Portion ${cur.n}`)} • ${L('ص', 'p.')} ${L.num(cur.from)}–${L.num(cur.to)}</b>
+        <small>${curDone ? L('خلّصت الخطة كلها 🎉', 'You finished the whole plan 🎉', 'أنهيت الخطة كلها 🎉') : `${seen ? L(`قريت ${L.num(seen)} من ${L.num(total)}`, `${seen} of ${total} read`, `قرأت ${L.num(seen)} من ${L.num(total)}`) + ' • ' : ''}${L.due(cur.due)}`}</small>
+        ${curFins.length ? `<span class="wc-now-f">${curFins.slice(0, 5).map((u) => D.avatar(u, 'xs')).join('')}<small>${L('خلّصوه', 'finished it', 'أنهوه')}</small></span>` : ''}</span>
+      </button>`;
+    return `${now}<div class="wcal" role="grid">${head}${rows}</div>
+      <p class="wc-key"><span><i class="k done"></i>${L('خلّصته', 'Done', 'أنهيته')}</span><span><i class="k part"></i>${L('قريت جزء', 'Started', 'قرأت جزءًا')}</span><span><i class="k cur"></i>${L('عليه الدور', 'Up now', 'الحالي')}</span><span><i class="k late"></i>${L('متأخر', 'Late')}</span><span><span class="wc-key-av">${D.avatar(S.me, 'xs')}</span>${L('خلّصوه', 'Finished it', 'أنهوه')}</span></p>`;
   }
 
   /* One portion: progress, who finished, read / discuss / mark done. */

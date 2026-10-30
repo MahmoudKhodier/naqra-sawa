@@ -221,13 +221,128 @@
         <b dir="auto">${r.uid === S.me ? L('إنت', 'You', 'أنت') : esc(D.name(r.uid))}</b>
         <i class="rc-mini"><i style="width:${Math.round(r.f * 100)}%"></i></i>
         <small>${r.done ? L('خلاص ✓', 'Done ✓', 'تمّ ✓') : r.at >= w.from ? `${L('ص', 'p.')} ${L.num(r.at)}` : L('لسه', 'Not yet', 'ليس بعد')}</small></button></li>`;
-    return `<section class="card race">
-      <header><h3>${L(`مين وصل فين في الورد ${L.num(w.n)}`, `Who is where in portion ${w.n}`, `أين وصل كل واحد في الورد ${L.num(w.n)}`)}</h3>${action}</header>
-      <ul class="rc-rows">${shown.map(rowHtml).join('')}</ul>
-      <div class="rc-labels"><span>${L('ص', 'p.')} ${L.num(w.from)} – ${L.num(w.to)}</span><span>${L(`${L.num(doneRows.length)} من ${L.num(members.length)} خلّصوا`, `${doneRows.length} of ${members.length} done`, `${L.num(doneRows.length)} من ${L.num(members.length)} أنهوا`)}</span>${order.length > shown.length ? `<button class="lnk sm" data-go="book-${esc(b.id)}" data-tab="plan">${L(`و${L.num(order.length - shown.length)} كمان`, `+${order.length - shown.length} more`, `و${L.num(order.length - shown.length)} آخرون`)}</button>` : ''}</div>
-      ${iAmBehind ? `<p class="rc-behind">${L(`الحلقة في الورد ${L.num(grp.n)} وإنت لسه في الورد ${L.num(mine.n)} — شد حيلك وهتلحقهم`, `The circle is on portion ${grp.n}, you're on ${mine.n} — you can catch up`, `الحلقة في الورد ${L.num(grp.n)} وأنت ما زلت في الورد ${L.num(mine.n)} — اجتهد وستلحق بهم`)}</p>` : ''}
+    const tab = ['now', 'all', 'book'].includes(raceTab) ? raceTab : 'now';
+    const tabs = [['now', L('الورد ده', 'This portion', 'هذا الورد')], ['all', L('الأوراد كلها', 'All portions', 'كل الأوراد')], ['book', L('الكتاب كله', 'Whole book', 'الكتاب كله')]];
+    let pane = '';
+    if (tab === 'now')
+      pane = `<ul class="rc-rows">${shown.map(rowHtml).join('')}</ul>
+      <div class="rc-labels"><span>${L('ص', 'p.')} ${L.num(w.from)} – ${L.num(w.to)}</span><span>${L(`${L.num(doneRows.length)} من ${L.num(members.length)} خلّصوا`, `${doneRows.length} of ${members.length} done`, `${L.num(doneRows.length)} من ${L.num(members.length)} أنهوا`)}</span>${order.length > shown.length ? `<button class="lnk sm" data-go="book-${esc(b.id)}" data-tab="people">${L(`و${L.num(order.length - shown.length)} كمان`, `+${order.length - shown.length} more`, `و${L.num(order.length - shown.length)} آخرون`)}</button>` : ''}</div>
+      ${iAmBehind ? `<p class="rc-behind">${L(`الحلقة في الورد ${L.num(grp.n)} وإنت لسه في الورد ${L.num(mine.n)} — شد حيلك وهتلحقهم`, `The circle is on portion ${grp.n}, you're on ${mine.n} — you can catch up`, `الحلقة في الورد ${L.num(grp.n)} وأنت ما زلت في الورد ${L.num(mine.n)} — اجتهد وستلحق بهم`)}</p>` : ''}`;
+    else if (tab === 'all') pane = raceAll(b, members, grp || w);
+    else pane = raceBook(b, members, live);
+    return `<section class="card race" data-b="${esc(b.id)}">
+      <header><h3>${tab === 'now' ? L(`مين وصل فين في الورد ${L.num(w.n)}`, `Who is where in portion ${w.n}`, `أين وصل كل واحد في الورد ${L.num(w.n)}`) : L('مين وصل فين', 'Who is where', 'أين وصل كل واحد')}</h3>${tab === 'now' ? action : ''}</header>
+      <div class="seg rc-tabs" role="tablist">${tabs.map(([k, t]) => `<button role="tab" aria-selected="${k === tab}" class="${k === tab ? 'on' : ''}" data-act="race-tab" data-t="${k}">${t}</button>`).join('')}</div>
+      <div class="rc-pane" data-tab="${tab}">${pane}</div>
     </section>`;
   }
+
+  /* The race card's tab (kept per phone); a swipe on the card moves between them too. */
+  let raceTab = U.store.get('raceTab', 'now');
+  V.actions['race-tab'] = (a) => {
+    raceTab = a.dataset.t;
+    U.store.set('raceTab', raceTab);
+    V.render();
+  };
+  const RACE_TABS = ['now', 'all', 'book'];
+  let swipe0 = null;
+  document.addEventListener('touchstart', (e) => {
+    const pane = e.target.closest && e.target.closest('.race .rc-pane');
+    swipe0 = pane && e.touches.length === 1 && !e.target.closest('.rc-mx-wrap') ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (!swipe0) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - swipe0.x;
+    const dy = t.clientY - swipe0.y;
+    swipe0 = null;
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
+    const rtl = document.documentElement.dir === 'rtl';
+    const step = (dx > 0) === rtl ? 1 : -1; // the next tab sits towards the reading direction
+    const i = RACE_TABS.indexOf(raceTab) + step;
+    if (i < 0 || i >= RACE_TABS.length) return;
+    raceTab = RACE_TABS[i];
+    U.store.set('raceTab', raceTab);
+    V.render();
+  }, { passive: true });
+
+  /* «الأوراد كلها»: a dot per portion and member (✓ done, half: started, red ring: late), the circle's
+     current portion marked; it opens scrolled to it. One tap cheers everyone who missed a portion. */
+  function raceAll(b, members, cur) {
+    const ws = G.wirds(b);
+    const today = U.today();
+    const people = members.slice().sort((x, y) => (x === S.me ? -1 : y === S.me ? 1 : 0));
+    const missed = [];
+    let head = '<span class="rc-mx-n"></span>';
+    for (const w of ws) head += `<button class="rc-mx-h${w.id === cur.id ? ' cur' : ''}" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" aria-label="${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)}">${L.num(w.n)}</button>`;
+    let body = '';
+    for (const u of people) {
+      const p = D.prog(b.id, u);
+      let late = 0;
+      body += `<span class="rc-mx-n${u === S.me ? ' me' : ''}">${D.avatar(u, 'xs')}<b dir="auto">${u === S.me ? L('إنت', 'You', 'أنت') : esc(D.name(u))}</b></span>`;
+      for (const w of ws) {
+        const done = !!(p && p.done && p.done[w.id]);
+        const seen = !done && U.rangesCountIn(p && p.seen, w.from, w.to);
+        const isLate = !done && w.due < today;
+        if (isLate) late++;
+        const t = done ? L('خلّص', 'done', 'أنهى') : isLate ? L('فاته', 'missed', 'فاته') : seen ? L('بدأ', 'started', 'بدأ') : L('لسه', 'not yet', 'ليس بعد');
+        body += `<i class="rc-mx-c${done ? ' d' : seen ? ' h' : ''}${isLate ? ' late' : ''}${w.id === cur.id ? ' cur' : ''}" title="${esc(D.name(u))} • ${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)}: ${t}"></i>`;
+      }
+      if (late && u !== S.me) missed.push({ u, late });
+    }
+    const names = missed.map((x) => `${esc(D.name(x.u))} (${L.num(x.late)})`).join('، ');
+    const foot = missed.length
+      ? `<div class="rc-missed"><small>${L(`فاتهم أوراد: ${names}`, `Behind: ${names}`, `فاتتهم أوراد: ${names}`)}</small>${D.canWrite() ? `<button class="pill gold" data-act="cheer-missed" data-b="${esc(b.id)}" data-to="${esc(missed.map((x) => x.u).join(','))}">${icon('clap')}${missed.length > 1 ? L('شجّعهم كلهم', 'Cheer them all', 'شجّعهم جميعًا') : L(`شجّع ${esc(D.name(missed[0].u))}`, `Cheer ${esc(D.name(missed[0].u))}`)}</button>` : ''}</div>`
+      : `<small class="rc-ok">${L('الحلقة كلها ماشية مع الخطة 👏', 'The whole circle is on track 👏', 'الحلقة كلها ماضية مع الخطة 👏')}</small>`;
+    return `<div class="rc-mx-wrap"><div class="rc-mx" style="--n:${ws.length}">${head}${body}</div></div>
+      <p class="rc-key"><span><i class="rc-mx-c d"></i>${L('خلّص', 'Done', 'أنهى')}</span><span><i class="rc-mx-c h"></i>${L('بدأ', 'Started', 'بدأ')}</span><span><i class="rc-mx-c"></i>${L('لسه', 'Not yet', 'ليس بعد')}</span><span><i class="rc-mx-c late"></i>${L('فاته', 'Missed', 'فاته')}</span></p>
+      ${foot}`;
+  }
+
+  /* «الكتاب كله»: everyone on a line across the whole book (ticks at portions), how much of it they read. */
+  function raceBook(b, members, live) {
+    const ws = G.wirds(b);
+    const N = Math.max(1, b.pages || (ws.length ? ws[ws.length - 1].to : 1));
+    const people = members.map((u) => {
+      const p = D.prog(b.id, u);
+      const read = U.rangesCountIn(p && p.seen, 1, N);
+      const at = live.has(u) ? live.get(u) : (p && p.last) || 0;
+      const done = ws.filter((w) => p && p.done && p.done[w.id]).length;
+      return { u, f: Math.min(1, read / N), at: U.clamp(at, 0, N), done };
+    }).sort((x, y) => y.f - x.f || (x.u === S.me ? -1 : 1));
+    const pos = (pg) => Math.round(((Math.max(1, pg) - 1) / Math.max(1, N - 1)) * 1000) / 10;
+    const ticks = ws.slice(1).map((w) => `<i style="inset-inline-start:${pos(w.from)}%"></i>`).join('');
+    const avg = people.reduce((s, x) => s + x.f, 0) / people.length;
+    return `<ul class="rc-lanes">${people.map((x) => `<li class="${x.u === S.me ? 'me' : ''}"><button class="rc-lane" data-act="who" data-uid="${esc(x.u)}" data-b="${esc(b.id)}">
+        <b dir="auto">${x.u === S.me ? L('إنت', 'You', 'أنت') : esc(D.name(x.u))}</b>
+        <span class="rc-tr"><span class="rc-tk">${ticks}</span><i class="rc-fill" style="width:${Math.round(x.f * 100)}%"></i>${x.at ? `<span class="rc-at" style="inset-inline-start:${pos(x.at)}%">${D.avatar(x.u, 'xs')}</span>` : ''}</span>
+        <small>${L.num(Math.round(x.f * 100))}٪${ws.length ? ` • ${L(`${L.num(x.done)}/${L.num(ws.length)} ورد`, `${x.done}/${ws.length}`, `${L.num(x.done)}/${L.num(ws.length)} ورد`)}` : ''}</small></button></li>`).join('')}</ul>
+      <p class="rc-labels"><span>${L(`الحلقة كلها قرت ${L.num(Math.round(avg * 100))}٪ من الكتاب`, `The circle has read ${Math.round(avg * 100)}% of the book together`, `قرأت الحلقة ${L.num(Math.round(avg * 100))}٪ من الكتاب`)}</span><span>${L.count(N, 'page')}</span></p>`;
+  }
+
+  // «الأوراد كلها» opens on the circle's current portion (once per book, so it doesn't fight the finger)
+  let mxShown = '';
+  V.after = V.after || [];
+  V.after.push((scr) => {
+    const wrap = scr.querySelector('.rc-mx-wrap');
+    const cur = wrap && wrap.querySelector('.rc-mx-h.cur');
+    if (!cur) return;
+    const key = cur.dataset.b + '|' + cur.dataset.w;
+    if (key === mxShown) return;
+    mxShown = key;
+    const r = cur.getBoundingClientRect();
+    const c = wrap.getBoundingClientRect();
+    wrap.scrollLeft += r.left + r.width / 2 - (c.left + c.width / 2);
+  });
+
+  V.actions['cheer-missed'] = async (a) => {
+    const to = (a.dataset.to || '').split(',').filter(Boolean);
+    a.disabled = true;
+    let sent = 0;
+    for (const u of to) if (await V.poke(u, 'cheer', { b: a.dataset.b, quiet: true })) sent++;
+    U.toast(sent ? L(`التشجيع وصل لـ${L.count(sent, 'member')} 👏`, `Cheered ${sent} ${sent > 1 ? 'members' : 'member'} 👏`, `وصل التشجيع إلى ${L.count(sent, 'member')} 👏`) : L('اتبعت النهارده خلاص 🙂', 'Already sent today 🙂', 'أرسلته اليوم بالفعل 🙂'));
+  };
+
 
   function otherBooks(list) {
     return `<section class="obooks"><h3>${L('كتب تانية بنقراها', 'Also reading', 'كتب أخرى نقرؤها')}</h3>${list
@@ -408,9 +523,19 @@
     </section>`;
   }
 
-  function feedBlock() {
+  /* «آخر الأخبار»: search, a kind and a person to narrow it down; several highlights in a row from the same
+     person in the same book fold into one small card. */
+  const feedF = { q: '', k: '', u: '', n: 20 };
+  const FEED_K = {
+    note: (x) => x.kind === 'note' && ['note', 'quote', 'take'].includes(x.n.kind),
+    hl: (x) => (x.kind === 'note' || x.kind === 'hls') && (x.kind === 'hls' || !x.n.kind || x.n.kind === 'hl'),
+    q: (x) => x.kind === 'note' && x.n.kind === 'q',
+    wird: (x) => x.kind === 'wird' || x.kind === 'book',
+    books: (x) => x.kind === 'shelf' || x.kind === 'newbook',
+  };
+  function feedItems() {
     const items = [];
-    for (const n of S.notes.values()) items.push({ t: n.at, kind: 'note', n });
+    for (const n of S.notes.values()) items.push({ t: n.at, kind: 'note', n, u: n.by });
     for (const p of S.prog.values()) {
       const b = S.books.get(p.b);
       if (!b) continue;
@@ -432,13 +557,72 @@
     }
     for (const b of S.books.values()) if (b.addedAt) items.push({ t: b.addedAt, kind: 'newbook', u: b.addedBy, b });
     items.sort((a, b) => String(b.t).localeCompare(String(a.t)));
-    const top = items.slice(0, 14);
-    if (!top.length) return '';
-    return `<section class="feed"><h3>${L('آخر الأخبار في الحلقة', 'Latest in the circle')}</h3>${top.map(feedItem).join('')}</section>`;
+    // fold highlights in a row (same person and book, within 6 hours) into one card
+    const out = [];
+    for (const x of items) {
+      const isHl = x.kind === 'note' && (!x.n.kind || x.n.kind === 'hl');
+      const prev = out[out.length - 1];
+      if (isHl && prev && (prev.kind === 'hls' || (prev.kind === 'note' && (!prev.n.kind || prev.n.kind === 'hl'))) && prev.u === x.u && (prev.kind === 'hls' ? prev.list[0] : prev.n).b === x.n.b && new Date(prev.t0 || prev.t) - new Date(x.t) < 6 * 36e5) {
+        if (prev.kind === 'note') out[out.length - 1] = { t: prev.t, t0: x.t, kind: 'hls', u: x.u, list: [prev.n, x.n] };
+        else (prev.list.push(x.n), (prev.t0 = x.t));
+        continue;
+      }
+      out.push(x);
+    }
+    return out;
   }
+  const feedText = (x) => {
+    const parts = [D.name(x.u)];
+    if (x.kind === 'note') parts.push(x.n.text || '', (D.book(x.n.b) || {}).title || '');
+    else if (x.kind === 'hls') parts.push(...x.list.map((n) => n.text || ''), (D.book(x.list[0].b) || {}).title || '');
+    else if (x.kind === 'shelf') parts.push(...x.list.map((it) => `${it.title || ''} ${it.author || ''}`));
+    else if (x.b) parts.push(x.b.title || '');
+    return parts.join(' ').toLowerCase();
+  };
+  function feedList() {
+    const q = feedF.q.trim().toLowerCase();
+    const all = feedItems();
+    const list = all.filter((x) => (!feedF.k || FEED_K[feedF.k](x)) && (!feedF.u || x.u === feedF.u) && (!q || feedText(x).includes(q)));
+    const top = list.slice(0, feedF.n);
+    if (!top.length) return all.length ? `<p class="feed-none muted">${L('مفيش أخبار بالشكل ده — جرّب فلتر تاني', 'Nothing matches — try another filter', 'لا أخبار مطابقة — جرّب عامل تصفية آخر')}</p>` : '';
+    return top.map(feedItem).join('') + (list.length > top.length ? `<button class="btn ghost sm feed-more" data-act="feed-more">${L(`اعرض أكتر (${L.num(list.length - top.length)})`, `Show more (${list.length - top.length})`, `اعرض المزيد (${L.num(list.length - top.length)})`)}</button>` : '');
+  }
+  function feedBlock() {
+    const body = feedList();
+    if (!body) return '';
+    const kinds = [['', L('الكل', 'All')], ['note', L('ملاحظات', 'Notes')], ['hl', L('تظليلات', 'Highlights')], ['q', L('أسئلة', 'Questions')], ['wird', L('أوراد خلصت', 'Portions done', 'أوراد انتهت')], ['books', L('كتب', 'Books')]];
+    const people = D.memberIds();
+    return `<section class="feed"><h3>${L('آخر الأخبار في الحلقة', 'Latest in the circle')}</h3>
+      <div class="feed-bar">
+        <label class="feed-q">${icon('search')}<input id="feed-q" class="feed-q-in" type="search" enterkeyhint="search" placeholder="${L('دوّر في الأخبار…', 'Search the news…', 'ابحث في الأخبار…')}" value="${esc(feedF.q)}" aria-label="${L('دوّر في الأخبار', 'Search the news', 'ابحث في الأخبار')}"></label>
+        <div class="chips feed-k">${kinds.map(([k, t]) => `<button class="chip${feedF.k === k ? ' on' : ''}" aria-pressed="${feedF.k === k}" data-act="feed-k" data-k="${k}">${t}</button>`).join('')}</div>
+        ${people.length > 1 ? `<div class="feed-u"><small>${L('من:', 'From:', 'من:')}</small>${people.map((u) => `<button class="feed-p${feedF.u === u ? ' on' : ''}${feedF.u && feedF.u !== u ? ' off' : ''}" aria-pressed="${feedF.u === u}" data-act="feed-u" data-u="${esc(u)}" title="${esc(D.name(u))}">${D.avatar(u, 'sm')}</button>`).join('')}${feedF.u ? `<button class="lnk sm" data-act="feed-u" data-u="">${L('الكل', 'All')}</button>` : ''}</div>` : ''}
+      </div>
+      <div id="feed-list">${body}</div></section>`;
+  }
+  V.actions['feed-k'] = (a) => ((feedF.k = a.dataset.k), (feedF.n = 20), V.render());
+  V.actions['feed-u'] = (a) => ((feedF.u = feedF.u === a.dataset.u ? '' : a.dataset.u), (feedF.n = 20), V.render());
+  V.actions['feed-more'] = () => ((feedF.n += 20), V.render());
+  // typing only redraws the list, so the keyboard stays up
+  document.addEventListener('input', (e) => {
+    if (e.target.id !== 'feed-q') return;
+    feedF.q = e.target.value;
+    feedF.n = 20;
+    const el = document.getElementById('feed-list');
+    if (el) el.innerHTML = feedList();
+  });
 
   function feedItem(x) {
     if (x.kind === 'note') return V.noteCard(x.n, { showBook: true });
+    if (x.kind === 'hls') {
+      const ns = x.list.slice().sort((a, b2) => a.page - b2.page);
+      const book = D.book(ns[0].b);
+      const p0 = ns[0].page, p1 = ns[ns.length - 1].page;
+      return `<article class="ncard hls">
+        <header>${D.avatar(x.u, 'sm')}<div class="nc-who"><b data-act="member" data-uid="${esc(x.u)}">${L(`${L.count(ns.length, 'highlight')} من ${esc(D.name(x.u))}`, `${ns.length} highlights from ${esc(D.name(x.u))}`, `${L.count(ns.length, 'highlight', 'nom')} من ${esc(D.name(x.u))}`)}</b><small>${book ? `<span dir="auto">${esc(book.title)}</span> • ` : ''}${L('ص', 'p.')} ${L.num(p0)}${p1 !== p0 ? `–${L.num(p1)}` : ''} • ${L.ago(x.t)}</small></div></header>
+        <div class="hls-row">${ns.slice(0, 4).map((n) => `<button class="hls-t" data-act="open-note" data-nid="${esc(n.id)}" style="--c:${U.col(n.color)}">${n.crop ? `<img src="${esc(n.crop)}" alt="" loading="lazy">` : `<span dir="auto">${esc((n.text || L('تظليل', 'Highlight')).slice(0, 40))}</span>`}</button>`).join('')}${ns.length > 4 ? `<span class="hls-more">+${L.num(ns.length - 4)}</span>` : ''}</div>
+      </article>`;
+    }
     let txt = '', ic = 'sparkle', cls = '';
     if (x.kind === 'wird') {
       const first = G.firstFinisher(x.b.id, x.w.id) === x.u;

@@ -125,6 +125,21 @@
     });
   };
 
+  /* For the weekly goal: the pages of this week's portions for everyone, as a sensible number to start from. */
+  function planWeekHint() {
+    const ws = U.weekStart();
+    const we = U.addDays(ws, 6);
+    let per = 0;
+    for (const b of S.books.values()) {
+      if ((b.status || 'reading') !== 'reading') continue;
+      for (const w of G.wirds(b)) if (w.start <= we && w.due >= ws) per += w.to - w.from + 1;
+    }
+    const n = S.members.size || 1;
+    return per
+      ? L(`أي صفحة يقراها أي حد بتتحسب. للمقارنة: أوراد الأسبوع ده ${L.count(per, 'page')} × ${L.count(n, 'member')} = ${L.count(per * n, 'page')}`, `Every page anyone reads counts. For reference: this week's portions are ${per} pages × ${n} members = ${per * n} pages`, `تُحسب كل صفحة يقرؤها أي عضو. للمقارنة: أوراد هذا الأسبوع ${L.count(per, 'page')} × ${L.count(n, 'member')} = ${L.count(per * n, 'page')}`)
+      : L('أي صفحة يقراها أي حد في أي كتاب بتتحسب.', 'Every page anyone reads in any book counts.', 'تُحسب كل صفحة يقرؤها أي عضو في أي كتاب.');
+  }
+
   V.actions['edit-circle'] = () => {
     const c = S.circle || {};
     V.sheet({
@@ -132,7 +147,8 @@
       html: `<form id="ec-form" class="form">
         <label for="ec-name">${L('اسم الحلقة', 'Circle name')}</label><input id="ec-name" maxlength="60" dir="auto" value="${esc(c.name || L('حلقة القراءة', 'Reading Circle'))}" required>
         <label for="ec-motto">${L('شعار أو جملة تعريف', 'Motto', 'شعار أو جملة تعريفية')}</label><input id="ec-motto" maxlength="120" dir="auto" value="${esc(c.motto || '')}" placeholder="${L('مثلا: كل يوم ورد، وكل شهر كتاب', 'e.g. A portion a day, a book a month', 'مثلًا: كل يوم ورد، وكل شهر كتاب')}">
-        <label for="ec-goal">${L('هدف الصفحات الأسبوعي للحلقة', 'Weekly page goal for the circle')}</label><input id="ec-goal" type="number" min="10" max="100000" value="${esc(c.weeklyGoal || 300)}">
+        <label for="ec-goal">${L('هدف الصفحات الأسبوعي للحلقة', 'Weekly page goal for the circle')}</label><input id="ec-goal" type="number" min="10" max="100000" value="${esc(c.weeklyGoal || 300)}" aria-describedby="ec-goal-h">
+        <small class="muted" id="ec-goal-h">${planWeekHint()}</small>
         <div class="row-btns end"><button class="btn">${L('احفظ', 'Save')}</button></div></form>`,
       onMount: (body, api) =>
         body.addEventListener('submit', async (e) => {

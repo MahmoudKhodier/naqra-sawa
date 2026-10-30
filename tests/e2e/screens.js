@@ -109,7 +109,9 @@ async function closeAll(p) {
     await p.evaluate(() => window.A.Goals && (window.A.Goals.off = true));
 
     const views = [
-      ['home', () => p.evaluate(() => window.A.V.go('home'))],
+      ['home', () => p.evaluate(() => (window.A.U.store.set('raceTab', 'now'), window.A.V.go('home')))],
+      ['home-all', () => p.evaluate(() => window.A.V.go('home')).then(() => p.evaluate(() => document.querySelector('[data-act="race-tab"][data-t="all"]').click())).then(() => p.evaluate(() => document.querySelector('.race').scrollIntoView({ block: 'center' })))],
+      ['home-book', () => p.evaluate(() => document.querySelector('[data-act="race-tab"][data-t="book"]').click()).then(() => p.evaluate(() => document.querySelector('.race').scrollIntoView({ block: 'center' })))],
       ['books', () => p.evaluate(() => window.A.V.go('books'))],
       ['book', () => p.evaluate((b) => window.A.V.go('book-' + b), seed.book)],
       ['book-plan', () => p.evaluate((b) => window.A.V.go('book-' + b, { tab: 'plan' }), seed.book).then(() => toTabs(p))],
@@ -127,7 +129,8 @@ async function closeAll(p) {
       ['invite', () => p.evaluate(() => window.A.V.go('circle')).then(() => p.click('[data-act="invite"]')).then(() => p.waitForSelector('#inv-card img', { timeout: 8000 }))],
       ['recap', () => p.evaluate(() => window.A.V.circleRecap(window.A.U.weekStart()))],
       ['pick', () => p.evaluate(() => window.A.V.go('shelf')).then(() => p.click('[data-act="shelf-more"]')).then(() => p.click('.mi:has-text("اختارلي"), .mi:has-text("Pick"), .mi:has-text("اختر لي")'))],
-      ['reader', () => p.evaluate((b) => window.A.R.open(b, { page: 2 }), seed.book).then(() => T(1800))],
+      ['reader', () => p.evaluate((b) => (window.A.U.store.set('raceTab', 'now'), window.A.R.open(b, { page: 2 })), seed.book).then(() => T(1800))],
+      ['reader-marks', () => p.evaluate((b) => window.A.R.open(b, { page: 2 }), seed.book).then(() => T(1800)).then(() => p.evaluate(() => document.querySelector('#rd-eye').click()))],
     ];
     const orients = process.env.LAND ? [['p', 390, 844], ['l', 844, 390]] : [['p', 390, 844]];
     for (const lang of LANGS) {

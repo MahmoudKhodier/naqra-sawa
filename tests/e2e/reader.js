@@ -419,22 +419,43 @@ async function menu(p, text) {
       await until(p, "the other person's highlight drawn", (pg) => !!document.querySelector(`.pg[data-p="${pg}"] .hlb[data-nid="other-hl-1"]`), c, 6000);
       const count = () => p.evaluate((pg) => ({ all: document.querySelectorAll(`.pg[data-p="${pg}"] .hlb, .pg[data-p="${pg}"] .pinb`).length, other: document.querySelectorAll(`.pg[data-p="${pg}"] [data-nid="other-hl-1"]`).length }), c);
       const before = await count();
+      const shown = () => p.evaluate((pg) => [...document.querySelectorAll(`.pg[data-p="${pg}"] [data-nid^="other-"]`)].map((e) => e.dataset.nid).sort().join(','), c);
       await showBars(p);
       await p.click('#rd-eye');
-      await T(400);
+      await p.waitForSelector('#rd-mk:not([hidden]) [data-act="mk-pre"]');
+      await p.click('#rd-mk [data-act="mk-pre"][data-v="mine"]');
+      await T(300);
       const mine = await count();
-      assert(mine.other === 0, "others' highlight still showing after the eye button");
+      assert(mine.other === 0, "others' highlight still showing after «بتاعي بس»");
       assert(mine.all === before.all - 2, `your own marks should stay: ${before.all} → ${mine.all}`);
       assert(await p.$eval('#rd-eye', (e) => e.classList.contains('on')), 'eye button does not show the filter is on');
+      // from «بتاعي بس», one kind back on: only others' highlights, not their notes
+      await p.click('#rd-mk [data-act="mk-kind"][data-k="hl"]');
+      await T(300);
+      assert((await shown()) === 'other-hl-1', 'only highlights should show: ' + (await shown()));
+      // all kinds on, that one person off
+      await p.click('#rd-mk [data-act="mk-pre"][data-v="all"]');
+      await p.click(`#rd-mk [data-act="mk-person"][data-u="${other}"]`);
+      await T(300);
+      assert((await shown()) === '', "the hidden person's marks still show: " + (await shown()));
+      assert((await p.evaluate(() => window.A.U.store.get('rdMarks'))) === 'custom', 'not custom');
       await H.shot(p, 'r08-others-hidden');
-      await menu(p, 'صفحة نضيفة');
+      await p.click('#rd-mk [data-act="mk-pre"][data-v="none"]');
+      await T(300);
       const none = await count();
       assert(none.all === 0, 'clean page still shows ' + none.all + ' marks');
+      // a tap on the page folds the panel away
+      await p.mouse.click(200, 300);
+      await T(300);
+      assert(await p.$eval('#rd-mk', (e) => e.hidden), 'the panel stayed open');
       await showBars(p);
       await p.click('#rd-eye');
+      await p.click('#rd-mk [data-act="mk-pre"][data-v="all"]');
       await T(400);
       const back = await count();
-      assert(back.all === before.all, `eye did not bring everything back: ${back.all}/${before.all}`);
+      assert(back.all === before.all, `«الكل» did not bring everything back: ${back.all}/${before.all}`);
+      await p.keyboard.press('Escape');
+      await T(200);
       const kept = await p.evaluate(() => window.A.U.store.get('rdMarks'));
       assert(kept === 'all', 'preference not saved: ' + kept);
       for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
@@ -520,6 +541,8 @@ async function menu(p, text) {
         if (pg === Math.floor((w.from + w.to) / 2)) await H.shot(p, 'r08c-portion-progress');
       }
       const s = await p.evaluate(() => window.A.R._wird());
+      assert(s.squares === w.to - w.from + 1, `a square per page: ${s.squares}`);
+      assert(/الورد/.test(s.label) && /من/.test(s.label), 'label: ' + s.label);
       assert(s.width === '100%', 'bar not full at the end: ' + s.width + ' ' + JSON.stringify(await p.evaluate(() => window.A.R._state())) + ' w ' + JSON.stringify(w));
       const joined = seen.join(' | ');
       assert(/نص الورد/.test(joined) && /فاضل/.test(joined) && /خلّصت صفحات الورد/.test(joined), 'cheers: ' + joined);
@@ -802,7 +825,7 @@ async function menu(p, text) {
       // from the portions path: portion 5 → sheet → its discussion
       await p.evaluate((id) => window.A.V.go('book-' + id, { tab: 'plan' }), bid);
       await T(400);
-      await p.click(`.wpv-n[data-w="${ws[4].id}"]`);
+      await p.click(`.wc-c:not(.cont)[data-w="${ws[4].id}"]`);
       await p.waitForSelector('.wsheet', { timeout: 4000 });
       await p.click('.wsheet [data-act="book-tab"]');
       await T(600);

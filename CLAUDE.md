@@ -26,6 +26,14 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - Local Android build: SDK in `~/android-sdk` (installs from dl.google.com); Maven Central can answer 429 from the sandbox, a `~/.gradle/init.d/mirror.gradle` pointing at Google's mirror fixes it; `./gradlew assembleDebug` in android/.
 - Invites: `site/js/invite.js` draws a picture card and shares it with the link; the link's preview is `site/icons/og.png` (`scripts/render-og.js`).
 
+## Owner's picks (2026-10-30, round 2)
+- Plan tab is a calendar (`wirdCal` in v-books.js): week rows from Saturday, a portion on its days, faces of those who finished it.
+- Race card on Today has tabs «الورد ده / الأوراد كلها / الكتاب كله» (`raceTab` kept per phone, swipe too); «الأوراد كلها» = dot grid + «شجّعهم كلهم».
+- Reader eye opens «اللي يظهر على الصفحات» (`marksPanel`): presets + kinds + people; `rdMarks` may be `custom` with `rdMarksF = {hk, hp}` (others' marks only).
+- Circle news: search, kind chips, person filter; highlights in a row fold into one card.
+- Reader portion bar: a square per page (`#rd-wprog`, `#rd-wline` with a tag sideways).
+- The weekly circle recap pops up by itself only when no sheet and no book is open (Fridays broke tests that didn't close sheets).
+
 ## Reader notes
 - Reading vs looking around: `st.front` is where reading goes on (resume point, saved as `prog.last`). Pages count only within ~2 pages of it; jumps further away are "looking around" (a bar offers «ارجع لمكانك» / «كمّل من هنا»). Opening the current portion counts. «وقفت هنا» (one line per book, private: `priv.place[bookId] = {p, y, manual}`) is placed with the edge dots and saved on leaving.
 - Book look (page-by-page): RTL even pages are right-hand pages; the cover board and page-edge stack are on the outer side only.

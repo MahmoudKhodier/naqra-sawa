@@ -17,11 +17,28 @@
   const isLand = () => window.innerWidth > window.innerHeight && window.innerHeight <= 560;
   /* Reader preferences kept on this device.
      rdTools: which physical side the tools rail (highlight, note, page slider) sits on when the phone is sideways.
-     rdMarks: whose highlights and notes show on the pages — everyone's, only mine, or none (a clean page). */
-  const MARKS = ['all', 'mine', 'none'];
+     rdMarks: whose highlights and notes show on the pages — everyone's, only mine, none (a clean page), or custom:
+     rdMarksF = {hk: kinds hidden, hp: people hidden} (others' marks only; mine always show unless the page is clean). */
+  const MARKS = ['all', 'mine', 'none', 'custom'];
+  const MK_KINDS = ['hl', 'note', 'q', 'quote'];
   R.marksPref = () => {
     const v = U.store.get('rdMarks', 'all');
     return MARKS.includes(v) ? v : 'all';
+  };
+  R.marksF = () => {
+    const f = U.store.get('rdMarksF', null) || {};
+    return { hk: Array.isArray(f.hk) ? f.hk : [], hp: Array.isArray(f.hp) ? f.hp : [] };
+  };
+  R.showsNote = (n) => {
+    const v = R.marksPref();
+    if (v === 'none') return false;
+    if (n.by === S.me) return true;
+    if (v === 'mine') return false;
+    if (v === 'custom') {
+      const f = R.marksF();
+      return !f.hk.includes(n.kind || 'hl') && !f.hp.includes(n.by);
+    }
+    return true;
   };
   R.toolsSide = () => {
     const v = U.store.get('rdTools', '');
@@ -92,11 +109,13 @@
     if (!st) return;
     marksUi();
     redrawOverlays();
+    if (st.mk) marksPanel(true);
     if (!quiet)
       U.toast(
         v === 'all' ? L('إضافات الكل ظاهرة على الصفحات', "Everyone's highlights and notes are showing", 'إضافات الجميع ظاهرة على الصفحات')
           : v === 'mine' ? L('خبّينا إضافات الباقيين — إضافاتك بس اللي ظاهرة', "Others' highlights and notes are hidden — only yours show", 'أخفينا إضافات الآخرين — إضافاتك فقط ظاهرة')
-            : L('صفحة نضيفة: كل الإضافات مخفية', 'Clean page: all highlights and notes are hidden', 'صفحة نظيفة: كل الإضافات مخفية'),
+            : v === 'none' ? L('صفحة نضيفة: كل الإضافات مخفية', 'Clean page: all highlights and notes are hidden', 'صفحة نظيفة: كل الإضافات مخفية')
+              : L('بنظهر اللي اخترته بس من إضافات الباقيين', "Showing only what you picked from others' marks", 'نُظهر ما اخترته فقط من إضافات الآخرين'),
       );
   };
   const topPad = () => (st && st.land ? 12 : TOP_PAD);
@@ -136,6 +155,7 @@
   /* Back (phone button or gesture) inside the book: the notes panel, then a tool, then the bars; true = handled. */
   R.back = () => {
     if (!st) return false;
+    if (st.mk) return marksPanel(false), true;
     if (st.panel) return togglePanel(false), true;
     if (st.focusPop) return focusPop(false), true;
     if (st.mode !== 'none') return setMode(st.mode), true;
@@ -747,11 +767,10 @@
     const ns = notesOn(p);
     const marks = S.priv && S.priv.marks && S.priv.marks[st.bookId];
     let html = marks && marks[p] ? `<span class="pg-mark" title="${U.esc(L('علامة', 'Bookmark'))}">${U.icon('bookmark')}</span>` : '';
-    const show = R.marksPref();
     const moved = (S.priv && S.priv.moved) || {};
     const hidden = (S.priv && S.priv.hidden) || {};
     for (const n of ns) {
-      if (show === 'none' || (show === 'mine' && n.by !== S.me)) continue;
+      if (!R.showsNote(n)) continue;
       if (n.by !== S.me && hidden[n.id]) continue;
       const mv = n.by !== S.me && moved[n.id];
       const r = mv ? Object.assign({}, n.rect, { x: mv.x, y: mv.y }) : n.rect;
@@ -1004,7 +1023,7 @@
     return `<div class="rd" data-theme="${st.theme}" data-mode="none">
       <header class="rd-top">
         <button class="ib" data-act="close" aria-label="${L('رجوع', 'Back')}">${U.icon('back', 'flip')}</button>
-        <div class="rd-title"><b dir="auto">${st.priv ? `<span class="rd-lock" title="${L('كتاب ليك لوحدك', 'A book only you can see', 'كتاب لك وحدك')}">${U.icon('lock')}</span>` : ''}${U.esc(b.title)}</b><span id="rd-wird"></span><span class="rd-wprog" id="rd-wprog" hidden><i></i></span></div>
+        <div class="rd-title"><b dir="auto">${st.priv ? `<span class="rd-lock" title="${L('كتاب ليك لوحدك', 'A book only you can see', 'كتاب لك وحدك')}">${U.icon('lock')}</span>` : ''}${U.esc(b.title)}</b><span id="rd-wird"></span><span class="rd-wprog" id="rd-wprog" hidden></span></div>
         <span class="rd-today" id="rd-today" title="${L('صفحات قريتها في الجلسة دي', 'Pages read this session', 'صفحات قرأتها في هذه الجلسة')}">${U.icon('scroll')}<b>+${L.num(0)}</b></span>
         <label class="rd-pg"><input id="rd-pgin" inputmode="numeric" aria-label="${L('رقم الصفحة', 'Page number')}" value="${L.num(st.cur, { useGrouping: false })}"><span>/ ${L.num(st.N, { useGrouping: false })}</span></label>
         <div class="rd-acts">
@@ -1019,7 +1038,7 @@
       </header>
       <div class="rd-scroll" id="rd-scroll" tabindex="-1"><div class="rd-pages" id="rd-pages"></div></div>
       <div class="rd-hint" id="rd-hint" hidden></div>
-      <div class="rd-wline" id="rd-wline" hidden aria-hidden="true"><i></i></div>
+      <div class="rd-wline" id="rd-wline" hidden aria-hidden="true"><span class="wl-segs"></span><b class="wl-t"></b></div>
       <div class="rd-cheer" id="rd-cheer" role="status" aria-live="polite" hidden></div>
       <div class="rd-browse" id="rd-browse" role="status" hidden></div>
       <div class="rd-orient" id="rd-orient" hidden></div>
@@ -1038,6 +1057,7 @@
         </div>
       </footer>
       <aside class="rd-panel" id="rd-panel" hidden></aside>
+      <div class="rd-mk" id="rd-mk" role="dialog" aria-label="${L('اللي يظهر على الصفحات', 'What shows on the pages', 'ما يظهر على الصفحات')}" hidden></div>
     </div>`;
   }
 
@@ -1052,11 +1072,26 @@
     }
     const total = w.to - w.from + 1;
     let read = 0;
-    for (let p = w.from; p <= w.to; p++) if (st.pending.has(p) || (prog && U.rangesHas(prog.seen, p))) read++;
+    let segs = '';
+    for (let p = w.from; p <= w.to; p++) {
+      const r = st.pending.has(p) || (prog && U.rangesHas(prog.seen, p));
+      if (r) read++;
+      segs += `<i class="${r ? 'r' : ''}${p === st.cur ? ' c' : ''}"></i>`;
+    }
     const f = total ? read / total : 0;
-    const pct = Math.round(f * 100) + '%';
     bar.hidden = line.hidden = false;
-    bar.firstChild.style.width = line.firstChild.style.width = pct;
+    // a square per page (a plain bar for very long portions): read ones filled, the one on screen ringed
+    const many = total > 60;
+    const html = many ? `<i class="r" style="flex:0 0 ${Math.round(f * 100)}%"></i>` : segs;
+    const key = w.id + '|' + st.cur + '|' + read;
+    if (bar.dataset.k !== key) {
+      bar.dataset.k = key;
+      bar.innerHTML = html;
+      line.querySelector('.wl-segs').innerHTML = html;
+      line.querySelector('.wl-t').textContent = `${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)} • ${L.num(Math.min(total, Math.max(1, st.cur - w.from + 1)))}/${L.num(total)}`;
+    }
+    bar.classList.toggle('many', many);
+    line.classList.toggle('many', many);
     bar.classList.toggle('done', read >= total);
     line.classList.toggle('done', read >= total);
     // cheers: once per portion and moment, only for pages counted in this session
@@ -1094,8 +1129,9 @@
   }
   R._wird = () => {
     const w = G.wirds(st.book).find((x) => st.cur >= x.from && st.cur <= x.to);
-    const bar = st.root.querySelector('#rd-wprog i');
-    return { w: w && w.id, width: bar && bar.style.width, cheer: st.root.querySelector('#rd-cheer').textContent };
+    const sq = [...st.root.querySelectorAll('#rd-wprog i')];
+    const full = sq.length && (sq.length === 1 ? sq[0].style.flexBasis === '100%' : sq.every((i) => i.classList.contains('r')));
+    return { w: w && w.id, width: full ? '100%' : `${sq.filter((i) => i.classList.contains('r')).length}/${sq.length}`, squares: sq.length, label: st.root.querySelector('#rd-wird').textContent, cheer: st.root.querySelector('#rd-cheer').textContent };
   };
 
   /* ---------- «وقفت هنا», reading vs looking around ---------- */
@@ -1282,11 +1318,11 @@
     const v = R.marksPref();
     b.classList.toggle('on', v !== 'all');
     b.setAttribute('aria-pressed', String(v !== 'all'));
-    const t = v === 'all' ? L('اخفي إضافات الباقيين', "Hide others' marks", 'أخفِ إضافات الآخرين') : L('اظهر إضافات الكل', "Show everyone's marks", 'أظهر إضافات الجميع');
+    const t = L('اختار الإضافات اللي تظهر', 'Choose which marks show', 'اختر الإضافات التي تظهر');
     b.setAttribute('aria-label', t);
     b.title = t;
     // While some marks are hidden, show how many are on this page so nothing is missed.
-    const hidden = v === 'all' ? 0 : notesOn(st.cur).filter((n) => v === 'none' || n.by !== S.me).length;
+    const hidden = v === 'all' ? 0 : notesOn(st.cur).filter((n) => !R.showsNote(n)).length;
     if (b.dataset.v !== v || b.dataset.h !== String(hidden)) {
       b.dataset.v = v;
       b.dataset.h = String(hidden);
@@ -1308,13 +1344,17 @@
     const curW = G.wirds(b).find((x) => st.cur >= x.from && st.cur <= x.to);
     const prog = D.prog(st.bookId);
     if (wEl) {
-      let left = 0;
-      if (curW) for (let p = curW.from; p <= curW.to; p++) if (!st.pending.has(p) && !(prog && U.rangesHas(prog.seen, p))) left++;
+      // which portion this page is in, which of its pages it is, and how far I am in it (or when I finished it)
+      let read = 0;
+      if (curW) for (let p = curW.from; p <= curW.to; p++) if (st.pending.has(p) || (prog && U.rangesHas(prog.seen, p))) read++;
+      const total = curW ? curW.to - curW.from + 1 : 0;
+      const doneAt = curW && prog && prog.done && prog.done[curW.id];
+      const where = curW ? L(`صفحة ${L.num(st.cur - curW.from + 1)} من ${L.num(total)}`, `page ${st.cur - curW.from + 1} of ${total}`) : '';
       wEl.textContent = !curW
         ? L(`صفحة ${L.num(st.cur)} من ${L.num(st.N)}`, `Page ${st.cur} of ${st.N}`)
-        : left
-          ? L(`الورد ${L.num(curW.n)} • فاضل ${L.count(left, 'page')}`, `Portion ${curW.n} • ${left} pages left`, `الورد ${L.num(curW.n)} • المتبقي ${L.count(left, 'page', 'nom')}`)
-          : L(`الورد ${L.num(curW.n)} • ص ${L.num(curW.from)}–${L.num(curW.to)} ✓`, `Portion ${curW.n} • p. ${curW.from}–${curW.to} ✓`);
+        : doneAt
+          ? `${L(`الورد ${L.num(curW.n)} ✓`, `Portion ${curW.n} ✓`)} • ${L(`خلّصته ${L.day(U.isoKey(doneAt))}`, `done ${L.day(U.isoKey(doneAt))}`, `أنهيته ${L.day(U.isoKey(doneAt))}`)} • ${where}`
+          : `${L(`الورد ${L.num(curW.n)}`, `Portion ${curW.n}`)} • ${where} • ${read >= total ? L('قريت كل صفحاته', 'all pages read', 'قرأت كل صفحاته') : read ? L(`قريت ${L.num(Math.round((read / total) * 100))}٪`, `${Math.round((read / total) * 100)}% read`, `قرأت ${L.num(Math.round((read / total) * 100))}٪`) : L('لسه بادئ', 'just starting', 'في البداية')}`;
     }
     wirdProgress(curW, prog);
     // finish prompt
@@ -1497,6 +1537,11 @@
 
     root.addEventListener('click', (e) => {
       if (!st) return;
+      if (st.mk && !e.target.closest('#rd-mk, #rd-eye')) {
+        // a tap outside folds «اللي يظهر» away (and does nothing more, unless it hit a button)
+        marksPanel(false);
+        if (!e.target.closest('[data-act]')) return;
+      }
       if (st.focusPop && !e.target.closest('.rd-focus')) {
         // a tap anywhere else folds the focus timer card away (and does nothing more, unless it hit a button)
         focusPop(false);
@@ -1553,7 +1598,12 @@
       else if (act === 'mode-off') setMode(st.mode);
       else if (act === 'panel') togglePanel();
       else if (act === 'more') moreMenu();
-      else if (act === 'marks') R.setMarks(R.marksPref() === 'all' ? 'mine' : 'all');
+      else if (act === 'marks') marksPanel(!st.mk);
+      else if (act === 'mk-close') marksPanel(false);
+      else if (act === 'mk-pre') R.setMarks(t.dataset.v, true);
+      else if (act === 'mk-kind') mkToggle('hk', t.dataset.k);
+      else if (act === 'mk-person') mkToggle('hp', t.dataset.u);
+      else if (act === 'mk-people') mkPeople(t.dataset.v === 'all');
       else if (act === 'place') setPlace(+t.dataset.p, +t.dataset.y);
       else if (act === 'place-off') clearPlace();
       else if (act === 'browse-back') backToPlace();
@@ -1702,7 +1752,8 @@
     st.userAt = st.activeAt = Date.now();
     keepAwake(true);
     if (k === 'Escape') {
-      if (st.focusPop) focusPop(false);
+      if (st.mk) marksPanel(false);
+      else if (st.focusPop) focusPop(false);
       else if (st.mode !== 'none') setMode(st.mode);
       else if (st.panel) togglePanel(false);
       else R.close();
@@ -1725,6 +1776,57 @@
   }
 
   /* ---------- notes panel ---------- */
+  /* «اللي يظهر على الصفحات» (the eye): quick choices, then kinds and people. A sheet at the bottom when the
+     phone is upright, a card beside the rail when it is sideways. Changes show on the page at once. */
+  function marksPanel(on) {
+    if (!st) return;
+    const el = st.root.querySelector('#rd-mk');
+    if (!el) return;
+    st.mk = !!on;
+    el.hidden = !on;
+    st.root.querySelector('#rd-eye').setAttribute('aria-expanded', String(!!on));
+    if (!on) return;
+    hideOrient();
+    const v = R.marksPref();
+    const f = R.marksF();
+    const all = [...S.notes.values()].filter((n) => n.b === st.bookId && n.rect && n.by !== S.me);
+    const cnt = (fn) => all.filter(fn).length;
+    const people = [...new Set([...D.memberIds(), ...all.map((n) => n.by)])].filter((u) => u !== S.me);
+    people.sort((a, b2) => cnt((n) => n.by === b2) - cnt((n) => n.by === a) || D.name(a).localeCompare(D.name(b2)));
+    const kOn = (k) => v === 'all' || (v === 'custom' && !f.hk.includes(k));
+    const pOn = (u) => v === 'all' || (v === 'custom' && !f.hp.includes(u));
+    const KN = { hl: L('تظليلات', 'Highlights', 'تظليلات'), note: L('ملاحظات', 'Notes', 'ملاحظات'), q: L('أسئلة', 'Questions', 'أسئلة'), quote: L('اقتباسات', 'Quotes', 'اقتباسات') };
+    const pre = [['all', L('الكل', 'All')], ['mine', L('بتاعي بس', 'Only mine', 'إضافاتي فقط')], ['none', L('صفحة نضيفة', 'Clean page', 'صفحة نظيفة')]];
+    el.innerHTML = `<header class="mk-h"><b>${L('اللي يظهر على الصفحات', 'What shows on the pages', 'ما يظهر على الصفحات')}</b><button class="ib sm" data-act="mk-close" aria-label="${L('قفل', 'Close', 'إغلاق')}">${U.icon('close')}</button></header>
+      <div class="seg mk-pre">${pre.map(([k, t]) => `<button class="${v === k ? 'on' : ''}" aria-pressed="${v === k}" data-act="mk-pre" data-v="${k}">${t}</button>`).join('')}</div>
+      <div class="mk-cols">
+        <section><span class="mk-l">${L('النوع', 'Kind', 'النوع')}</span><div class="mk-kinds">${MK_KINDS.map((k) => `<button class="chip${kOn(k) ? ' on' : ''}" aria-pressed="${kOn(k)}" data-act="mk-kind" data-k="${k}"><i class="mk-sw k-${k}"></i>${KN[k]}${cnt((n) => (n.kind || 'hl') === k) ? `<small>${L.num(cnt((n) => (n.kind || 'hl') === k))}</small>` : ''}</button>`).join('')}</div></section>
+        ${people.length ? `<section><span class="mk-l">${L('الناس', 'People', 'الأشخاص')}<span class="mk-pl"><button class="lnk sm" data-act="mk-people" data-v="all">${L('الكل', 'All')}</button>•<button class="lnk sm" data-act="mk-people" data-v="none">${L('محدش', 'Nobody', 'لا أحد')}</button></span></span>
+          <div class="mk-people">${people.map((u) => `<button class="mk-p${pOn(u) ? '' : ' off'}" aria-pressed="${pOn(u)}" data-act="mk-person" data-u="${U.esc(u)}">${D.avatar(u, 'sm')}<span dir="auto">${U.esc(D.name(u))}</span>${cnt((n) => n.by === u) ? `<i>${L.num(cnt((n) => n.by === u))}</i>` : ''}</button>`).join('')}</div></section>` : ''}
+      </div>
+      <p class="mk-foot">${L('إضافاتك إنت بتفضل ظاهرة، إلا في «صفحة نضيفة».', 'Your own marks always show, except on a clean page.', 'إضافاتك تبقى ظاهرة دائمًا، إلا في «صفحة نظيفة».')}</p>`;
+  }
+  /* A kind or a person on or off. From «بتاعي بس» or «صفحة نضيفة» everything starts shown again first. */
+  function mkToggle(key, id) {
+    const v = R.marksPref();
+    const f = v === 'custom' ? R.marksF() : { hk: [], hp: [] };
+    if (v === 'mine' || v === 'none') {
+      // only this one comes on: the rest of its row stays hidden
+      if (key === 'hk') f.hk = MK_KINDS.filter((k) => k !== id);
+      else f.hp = [...st.root.querySelectorAll('#rd-mk [data-act="mk-person"]')].map((b) => b.dataset.u).filter((u) => u !== id);
+    } else f[key] = f[key].includes(id) ? f[key].filter((x) => x !== id) : [...f[key], id];
+    mkSave(f);
+  }
+  function mkPeople(on) {
+    const f = R.marksPref() === 'custom' ? R.marksF() : { hk: [], hp: [] };
+    f.hp = on ? [] : [...st.root.querySelectorAll('#rd-mk [data-act="mk-person"]')].map((b) => b.dataset.u);
+    mkSave(f);
+  }
+  function mkSave(f) {
+    U.store.set('rdMarksF', f);
+    R.setMarks(!f.hk.length && !f.hp.length ? 'all' : f.hk.length >= MK_KINDS.length ? 'mine' : 'custom', true);
+  }
+
   function togglePanel(force) {
     st.panel = force == null ? !st.panel : force;
     const p = st.root.querySelector('#rd-panel');

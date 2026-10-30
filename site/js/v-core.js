@@ -513,13 +513,15 @@
     const today = U.today();
     const dup = [...S.pokes.values()].some((p) => p.from === S.me && p.to === to && p.kind === kind && U.isoKey(p.at) === today && (p.b || '') === (ctx.b || ''));
     if (dup) {
-      U.toast(L('اتبعت النهارده خلاص 🙂', 'Already sent today 🙂', 'أرسلته اليوم بالفعل 🙂'));
-      return;
+      if (!ctx.quiet) U.toast(L('اتبعت النهارده خلاص 🙂', 'Already sent today 🙂', 'أرسلته اليوم بالفعل 🙂'));
+      return false;
     }
     const id = D.newId();
     await D.set(`pokes/${id}`, { to, from: S.me, kind, at: U.nowIso(), b: ctx.b || '', wid: ctx.wid || '' });
     U.chime('soft');
+    if (ctx.quiet) return true;
     U.toast(kind === 'cheer' ? L(`التشجيع وصل لـ${esc(D.name(to))} 👏`, `You cheered ${esc(D.name(to))} 👏`, `وصل التشجيع إلى ${esc(D.name(to))} 👏`) : L(`التذكير وصل لـ${esc(D.name(to))} 👋`, `You nudged ${esc(D.name(to))} 👋`, `وصل التذكير إلى ${esc(D.name(to))} 👋`));
+    return true;
   };
 
   /* ---------- celebrations derived from data changes ---------- */

@@ -82,6 +82,11 @@
       ar: { one: 'ملاحظة واحدة', two: 'ملاحظتين', two_nom: 'ملاحظتان', few: '{n} ملاحظات', other: '{n} ملاحظة' },
       en: { one: '1 note', other: '{n} notes' },
     },
+    highlight: {
+      eg: { one: 'تظليل واحد', two: 'تظليلين', few: '{n} تظليلات', other: '{n} تظليل' },
+      ar: { one: 'تظليل واحد', two: 'تظليلين', two_nom: 'تظليلان', few: '{n} تظليلات', many: '{n} تظليلًا', other: '{n} تظليل' },
+      en: { one: '1 highlight', other: '{n} highlights' },
+    },
     member: {
       eg: { one: 'عضو واحد', two: 'عضوين', few: '{n} أعضاء', other: '{n} عضو' },
       ar: { one: 'عضو واحد', two: 'عضوين', two_nom: 'عضوان', few: '{n} أعضاء', many: '{n} عضوًا', other: '{n} عضو' },

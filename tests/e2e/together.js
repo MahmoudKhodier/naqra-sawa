@@ -131,11 +131,9 @@ const closeAll = async (p) => {
       await closeAll(a);
       // shown by itself once a week
       await a.evaluate(() => window.A.U.store.del('circleRecap:' + window.A.S.me));
-      const ws = await a.evaluate(() => {
-        window.A.V.checkRecap();
-        return window.A.U.store.get('circleRecap:' + window.A.S.me, '');
-      });
+      await a.evaluate(() => window.A.V.checkRecap());
       await T(1800);
+      const ws = await a.evaluate(() => window.A.U.store.get('circleRecap:' + window.A.S.me, ''));
       const shown = await a.$('.circle-recap');
       const isFri = await a.evaluate(() => window.A.U.parseD(window.A.U.today()).getDay() === 5);
       // on any day but Friday it's last week's, which is empty here: nothing to show

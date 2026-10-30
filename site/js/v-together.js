@@ -124,6 +124,7 @@
       <header class="sec-h"><h3>${icon('users')}${L('الحلقة الأسبوع ده', 'The circle this week', 'الحلقة هذا الأسبوع')}</h3><small class="muted">${pages >= goal ? L('الهدف خلص! 🎉', 'Goal reached! 🎉', 'تحقق الهدف! 🎉') : L(`فاضل ${L.count(daysLeft, 'day')}`, `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left`, `بقي ${L.count(daysLeft, 'day', 'nom')}`)}</small></header>
       ${V.bar(pages / goal, pages >= goal ? 'jade big' : 'gold big')}
       <p class="muted sm">${L(`${L.num(pages)} من ${L.count(goal, 'page')} مع بعض`, `${pages} of ${goal} pages together`, `${L.num(pages)} من ${L.count(goal, 'page')} معًا`)}</p>
+      <p class="cw-goal">${L('الهدف ده حطه مشرف الحلقة، وأي صفحة في أي كتاب بتتحسب فيه', 'An admin set this goal; every page of any book counts', 'هذا الهدف وضعه مشرف الحلقة، وتُحسب فيه كل صفحة من أي كتاب')}${(S.isOwner || S.canEdit) && D.canWrite() ? ` <button class="lnk sm" data-act="edit-circle">${icon('edit')}${L('غيّره', 'Change it', 'غيّره')}</button>` : ''}</p>
       ${who.length ? `<ul class="contrib-k">${who.map((x) => `<li style="--c:${esc(D.color(x.u))}"><i></i><bdi>${esc(D.name(x.u))}</bdi> <b>${L.num(x.n)}</b></li>`).join('')}</ul>` : ''}
       ${ms.length > 1 ? `<div class="cw-today"><span>${all ? L('النهارده الحلقة كاملة! 🎉', 'Everyone read today! 🎉', 'الحلقة كاملة اليوم! 🎉') : L(`النهارده: ${L.num(done.length)} من ${L.num(ms.length)} قروا`, `Today: ${done.length} of ${ms.length} read`, `اليوم: ${L.num(done.length)} من ${L.num(ms.length)} قرؤوا`)}${run > 1 ? ` • ${L(`${L.count(run, 'day')} ورا بعض 🔥`, `${run} days in a row 🔥`, `${L.count(run, 'day', 'nom')} متتالية 🔥`)}` : ''}</span>${done.length ? `<span class="tt-avs">${done.map((u) => `<span title="${esc(D.name(u))}">${D.avatar(u, 'xs')}</span>`).join('')}</span>` : ''}</div>` : ''}
       <div class="row-btns"><button class="btn sm" data-act="circle-recap" data-ws="${ws}">${icon('sparkle')}${L('تفاصيل الأسبوع', "This week's details", 'تفاصيل الأسبوع')}</button>${lastHad ? `<button class="btn sm ghost" data-act="circle-recap" data-ws="${last}">${L('ملخص الأسبوع اللي فات', "Last week's recap", 'ملخص الأسبوع الماضي')}</button>` : ''}</div>
@@ -199,7 +200,11 @@
     if (U.store.get(key, '') === ws) return;
     const w = weekOf(ws);
     if (!w.total) return;
-    U.store.set(key, ws);
-    setTimeout(() => !V.sheets.length && V.circleRecap(ws), 1500);
+    // not over another sheet or the open book: then it waits for the next time the app looks
+    setTimeout(() => {
+      if (V.sheets.length || (A.R && A.R.isOpen && A.R.isOpen()) || U.store.get(key, '') === ws) return;
+      U.store.set(key, ws);
+      V.circleRecap(ws);
+    }, 1500);
   };
 })();
