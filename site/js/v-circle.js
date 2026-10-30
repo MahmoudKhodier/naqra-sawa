@@ -179,11 +179,11 @@
       </header>
       <section class="stat-tiles">
         ${G.streakPref && G.streakPref(uid).mode === 'week'
-          ? `<div class="stile flame ${s.weekStreak ? (s.weekAtRisk ? 'risk' : 'hot') : ''}">${icon('flame')}<b>${L.num(s.weekStreak)}</b><small>${L('أسابيع ورا بعض', 'week streak', 'أسابيع متتالية')} • ${L('الأحسن', 'best', 'الأفضل')} ${L.num(s.bestWeekStreak)}</small></div>`
-          : `<div class="stile flame ${s.streak ? (s.atRisk ? 'risk' : 'hot') : ''}">${icon('flame')}<b>${L.num(s.streak)}</b><small>${L('أيام ورا بعض', 'day streak', 'أيام متتالية')} • ${L('الأحسن', 'best', 'الأفضل')} ${L.num(s.best)}${s.freezes ? ` • ${L(`حماية ×${L.num(s.freezes)}`, `${s.freezes} freeze`)}` : ''}</small></div>`}
-        <div class="stile">${icon('clock')}<b>${L.duration ? esc(L.duration(s.secs)) : ''}</b><small>${L('وقت القراية', 'time reading', 'وقت القراءة')}${s.secsWeek ? ` • ${L('الأسبوع ده', 'this week', 'هذا الأسبوع')} ${esc(L.duration(s.secsWeek))}` : ''}</small></div>
-        <div class="stile">${icon('scroll')}<b>${L.num(s.pages)}</b><small>${L('صفحة', 'pages')}</small></div>
-        <div class="stile">${icon('shelf')}<b>${L.num(shelf.length)}</b><small>${L('كتب في المكتبة', 'books on shelf')}</small></div>
+          ? `<div class="stile flame ${s.weekStreak ? (s.weekAtRisk ? 'risk' : 'hot') : ''}"><span class="st-v">${icon('flame')}<b>${L.num(s.weekStreak)}</b></span><small>${L('أسابيع ورا بعض', 'week streak', 'أسابيع متتالية')}</small><small class="st-x">${L('الأحسن', 'best', 'الأفضل')} ${L.num(s.bestWeekStreak)}</small></div>`
+          : `<div class="stile flame ${s.streak ? (s.atRisk ? 'risk' : 'hot') : ''}"><span class="st-v">${icon('flame')}<b>${L.num(s.streak)}</b></span><small>${L('أيام ورا بعض', 'day streak', 'أيام متتالية')}</small><small class="st-x">${L('الأحسن', 'best', 'الأفضل')} ${L.num(s.best)}${s.freezes ? ` • ${L(`حماية ×${L.num(s.freezes)}`, `${s.freezes} freeze`)}` : ''}</small></div>`}
+        <div class="stile" title="${esc(L.duration(s.secs))}"><span class="st-v">${icon('clock')}<b>${esc(L.durShort(s.secs))}</b></span><small>${L('وقت القراية', 'time reading', 'وقت القراءة')}</small><small class="st-x">${s.secsWeek && s.secsWeek !== s.secs ? `${L('الأسبوع ده', 'this week', 'هذا الأسبوع')} ${esc(L.durShort(s.secsWeek))}` : s.secsWeek ? L('كله الأسبوع ده', 'all this week', 'كله هذا الأسبوع') : '&nbsp;'}</small></div>
+        <div class="stile"><span class="st-v">${icon('scroll')}<b>${L.num(s.pages)}</b></span><small>${L('صفحة', 'pages')}</small><small class="st-x">&nbsp;</small></div>
+        <div class="stile"><span class="st-v">${icon('shelf')}<b>${L.num(shelf.length)}</b></span><small>${L('كتب في المكتبة', 'books on shelf')}</small><small class="st-x">&nbsp;</small></div>
       </section>
       ${V.sections('me', { uid, mine, s })}
       <section class="card">

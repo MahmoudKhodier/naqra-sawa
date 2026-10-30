@@ -1055,11 +1055,15 @@ textarea { resize: vertical; line-height: 1.55; }
 .pf-xp { display: flex; flex-direction: column; gap: 4px; max-width: 440px; }
 .pf-xp small { color: var(--ink3); }
 .pf-t .row-btns { margin-top: 4px; }
-.stat-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
-.stile { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center; }
-.stile .ic { grid-row: span 2; width: 26px; height: 26px; color: var(--lapis); }
-.stile b { font: 700 1.4rem/1.1 var(--f-disp); font-variant-numeric: tabular-nums; }
-.stile small { color: var(--ink3); font-size: .76rem; }
+.stat-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+@media (min-width: 640px) { .stat-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* four equal tiles: the number with its icon on one line, what it is under it, one small extra line */
+.stile { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.st-v { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.stile .ic { width: 22px; height: 22px; flex: none; color: var(--lapis); }
+.stile b { font: 700 1.3rem/1.25 var(--f-disp); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.stile small { color: var(--ink2); font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stile small.st-x { color: var(--ink3); font-size: .7rem; }
 .stile.flame .ic { color: var(--ink3); }
 .stile.flame.hot { background: var(--rubric-s); border-color: transparent; }
 .stile.flame.hot .ic { color: var(--rubric); fill: var(--rubric); }
@@ -1986,9 +1990,6 @@ button.wm-c:hover { border-color: var(--line); }
   .bp-hero { gap: 16px; margin-bottom: 12px; }
   .bp-hero .cover.lg { width: 96px; }
   /* «أنا»: wider tiles so the numbers stay on one line */
-  .stat-tiles { grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); }
-  .stile { padding: 10px 12px; }
-  .stile b { font-size: 1.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .stile small { line-height: 1.4; }
   /* sheets: centred, wider, as tall as the screen allows; the body scrolls under a fixed head */
   .sheet-wrap { align-items: center; padding: max(8px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }

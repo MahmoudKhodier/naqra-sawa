@@ -15,6 +15,14 @@
     return r ? L(`${L.count(h, 'hour')} و${L.count(r, 'minute')}`, `${h} h ${r} min`) : L.count(h, 'hour');
   };
 
+  /* Short, for tiles: «٢ س ١٧ د», «٤٥ د», "2h 17m". */
+  L.durShort = (secs) => {
+    const m = Math.round((secs || 0) / 60);
+    const h = Math.floor(m / 60), r = m % 60;
+    if (!h) return L(`${L.num(Math.max(m, secs ? 1 : 0))} د`, `${Math.max(m, secs ? 1 : 0)}m`, `${L.num(Math.max(m, secs ? 1 : 0))} د`);
+    return r ? L(`${L.num(h)} س ${L.num(r)} د`, `${h}h ${r}m`, `${L.num(h)} س ${L.num(r)} د`) : L(`${L.num(h)} س`, `${h}h`, `${L.num(h)} س`);
+  };
+
   /* ---------- Hijri calendar ---------- */
   let hfmt = null;
   L.hijri = (k) => {

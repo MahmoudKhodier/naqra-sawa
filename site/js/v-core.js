@@ -291,8 +291,8 @@
     el.innerHTML = `<div class="brand">${V.star('', 'gold sm')}<b>${L('نقرأ سوا', 'Read Together')}</b></div>
       ${item('home', 'home', L('اليوم', 'Today'), pokes)}
       ${item('books', 'books', L('كتبنا', 'Books'))}
-      ${item('shelf', 'shelf', L('مكتبتي', 'My shelf'))}
       ${item('circle', 'users', L('الحلقة', 'Circle'), unreadCircle)}
+      ${item('shelf', 'shelf', L('مكتبتي', 'My shelf'))}
       ${item('me', 'user', L('أنا', 'Me'))}
       ${item('settings', 'gear', L('إعدادات', 'Settings'), A.Upd && A.Upd.nag() ? 1 : 0)}`;
   }
