@@ -32,6 +32,9 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - Reader eye opens «اللي يظهر على الصفحات» (`marksPanel`): presets + kinds + people; `rdMarks` may be `custom` with `rdMarksF = {hk, hp}` (others' marks only).
 - Circle news: search, kind chips, person filter; highlights in a row fold into one card.
 - Reader portion bar: a square per page (`#rd-wprog`, `#rd-wline` with a tag sideways).
+- Who may change a plan: owner, admins («مشرف»), whoever added the book (`V.canPlan`). A portion's pages move by a page or two from its sheet («عدّل صفحات الورد ده») or from the reader menu («الورد ٣ يخلص في الصفحة دي»): `V.moveBound` — the next portion takes the difference, dates stay.
+- My role is re-read on every fetch of members (`st.roleSent` in platform.js): someone made «مشرف» while the app was closed gets the powers on the next open.
+- Inbox («الجديد ليك») drops from the top (`V.sheet({top: true})`), has «علّم الكل اتقرا» (also dismisses the cheers on «اليوم»); seen time also kept in `priv.inboxSeen`.
 - The weekly circle recap pops up by itself only when no sheet and no book is open (Fridays broke tests that didn't close sheets).
 
 ## Reader notes
@@ -55,6 +58,7 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - `node tests/e2e/ui.js` — the app's frame on a phone: back steps, one message at a time, pull to refresh, shelf header, mark picker, sign-out warning.
 - Phase 3/4 suites: `together.js` (circle recap, «خلّصناها», invite card), `focus.js`, `goals.js` (daily goal, forecast, weekly streak, firsts), `native.js` (stand-in Android layer: notifications device, widget data).
 - Phase-2 suites: `node tests/e2e/library.js` (shelf_books rows, 3,000 books, legacy shelf), `goodreads.js` (RSS sync merge), `me.js` (stats, quotes notebook), `worm.js` (taste match, pick a book, challenges), `private.js` (private library).
+- `node tests/e2e/plan.js` — plan calendar, who may change it, moving a portion's pages (sheet and reader), «مين وصل فين» tabs.
 - `node tests/e2e/screens.js` — screenshots of every main screen for a visual review (`LANGS=eg,ar,en THEMES=light,dark LAND=1`), in `tests/e2e/shots/screens/`.
 - `node tests/e2e/shelf.js` — Goodreads import, shelf search/sort/status moves, badge levels and details, the Android update prompt (stand-in native layer).
 - Supabase and most of the internet are not reachable from the cloud sandbox; test against the fakes, then verify live with the user.

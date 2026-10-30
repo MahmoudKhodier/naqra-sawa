@@ -440,6 +440,12 @@
       const { data: mem, error } = await client.from('circle_members').select('user_id, role').eq('circle_id', C);
       if (error) throw error;
       st.roles = new Map(mem.map((m) => [m.user_id, m.role]));
+      // my role as the server has it now (made «مشرف» while the app was closed: the cached one is old)
+      const mine = st.roles.get(me);
+      if (mine && mine !== st.roleSent && P.onRoleChange) {
+        st.roleSent = mine;
+        P.onRoleChange(mine);
+      }
       const ids = [...st.roles.keys()];
       if (ids.length) {
         const [p, s] = await Promise.all([client.from('profiles').select('user_id, data, updated_at').in('user_id', ids), client.from('shelves').select('user_id, data, updated_at').in('user_id', ids)]);
@@ -581,7 +587,7 @@
           const isNew = !st.roles.has(p.new.user_id);
           const changedMine = p.new.user_id === me && st.roles.get(me) !== p.new.role;
           st.roles.set(p.new.user_id, p.new.role);
-          if (changedMine && P.onRoleChange) P.onRoleChange(p.new.role);
+          if (changedMine && P.onRoleChange) P.onRoleChange((st.roleSent = p.new.role));
           if (isNew) fetchPeopleAndBooks().catch(() => {});
           touch('members');
         }

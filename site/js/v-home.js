@@ -111,7 +111,7 @@
     if (!ws.length) {
       return `<section class="card wcard hero">${head(`${b.author ? `<p class="muted" dir="auto">${esc(b.author)}</p>` : ''}<p class="hi-sub">${L('لسه مفيش خطة. قسّموه أوراد عشان كل واحد يعرف هيقرأ إيه وإمتى.', 'No plan yet. Split it into portions so everyone knows what to read and when.', 'لا توجد خطة بعد. قسّموه أورادًا ليعرف كل واحد ماذا سيقرأ ومتى.')}</p>`)}
         ${V.forecastLine(b, 'hero-fc')}
-        <div class="hero-acts">${D.canWrite() ? `<button class="btn gold big" data-act="plan" data-b="${esc(b.id)}">${icon('calendar')}${L('اعمل خطة', 'Make a plan', 'ضع خطة')}</button>` : ''}<button class="btn big${D.canWrite() ? ' ghost' : ''}" data-act="read" data-b="${esc(b.id)}">${icon('play', 'flip-rtl')}${last > 1 ? L(`كمّل من ص ${L.num(last)}`, `Continue from p. ${last}`, `تابِع من ص ${L.num(last)}`) : L('ابدأ القراية', 'Start reading', 'ابدأ القراءة')}</button></div>
+        <div class="hero-acts">${V.canPlan(b) ? `<button class="btn gold big" data-act="plan" data-b="${esc(b.id)}">${icon('calendar')}${L('اعمل خطة', 'Make a plan', 'ضع خطة')}</button>` : ''}<button class="btn big${V.canPlan(b) ? ' ghost' : ''}" data-act="read" data-b="${esc(b.id)}">${icon('play', 'flip-rtl')}${last > 1 ? L(`كمّل من ص ${L.num(last)}`, `Continue from p. ${last}`, `تابِع من ص ${L.num(last)}`) : L('ابدأ القراية', 'Start reading', 'ابدأ القراءة')}</button></div>
       </section>`;
     }
     if (!w) {
@@ -283,10 +283,11 @@
       for (const w of ws) {
         const done = !!(p && p.done && p.done[w.id]);
         const seen = !done && U.rangesCountIn(p && p.seen, w.from, w.to);
+        const f = seen ? Math.max(8, Math.round((seen / (w.to - w.from + 1)) * 100)) : 0; // how much of it, as a slice
         const isLate = !done && w.due < today;
         if (isLate) late++;
         const t = done ? L('خلّص', 'done', 'أنهى') : isLate ? L('فاته', 'missed', 'فاته') : seen ? L('بدأ', 'started', 'بدأ') : L('لسه', 'not yet', 'ليس بعد');
-        body += `<i class="rc-mx-c${done ? ' d' : seen ? ' h' : ''}${isLate ? ' late' : ''}${w.id === cur.id ? ' cur' : ''}" title="${esc(D.name(u))} • ${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)}: ${t}"></i>`;
+        body += `<i class="rc-mx-c${done ? ' d' : seen ? ' h' : ''}${isLate ? ' late' : ''}${w.id === cur.id ? ' cur' : ''}"${seen ? ` style="--f:${f}%"` : ''} title="${esc(D.name(u))} • ${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)}: ${t}${seen ? ` (${L.num(seen)}/${L.num(w.to - w.from + 1)})` : ''}"></i>`;
       }
       if (late && u !== S.me) missed.push({ u, late });
     }
@@ -305,9 +306,13 @@
     const N = Math.max(1, b.pages || (ws.length ? ws[ws.length - 1].to : 1));
     const people = members.map((u) => {
       const p = D.prog(b.id, u);
-      const read = U.rangesCountIn(p && p.seen, 1, N);
-      const at = live.has(u) ? live.get(u) : (p && p.last) || 0;
-      const done = ws.filter((w) => p && p.done && p.done[w.id]).length;
+      // pages read in the app, plus the pages of portions marked done (read on paper or elsewhere)
+      const doneWs = ws.filter((w) => p && p.done && p.done[w.id]);
+      let read = 0;
+      for (let pg = 1; pg <= N; pg++) if (U.rangesHas(p && p.seen, pg) || doneWs.some((w) => pg >= w.from && pg <= w.to)) read++;
+      const reach = doneWs.reduce((m, w) => Math.max(m, w.to), 0);
+      const at = Math.max(live.has(u) ? live.get(u) : (p && p.last) || 0, reach);
+      const done = doneWs.length;
       return { u, f: Math.min(1, read / N), at: U.clamp(at, 0, N), done };
     }).sort((x, y) => y.f - x.f || (x.u === S.me ? -1 : 1));
     const pos = (pg) => Math.round(((Math.max(1, pg) - 1) / Math.max(1, N - 1)) * 1000) / 10;

@@ -1881,6 +1881,7 @@
         ? { ic: 'scroll', t: L('تمرير متواصل', 'Continuous scrolling'), fn: () => setPaged(false) }
         : { ic: 'book', t: L('صفحة صفحة (زي الكتاب)', 'Page by page (like a book)', 'صفحة صفحة (مثل الكتاب)'), fn: () => setPaged(true) },
       S.sample ? { ic: 'claude', t: L('اسأل Claude عن الصفحة دي', 'Ask Claude about this page', 'اسأل Claude عن هذه الصفحة'), fn: () => A.V.askPage(st.bookId, st.cur) } : null,
+      ...boundItems(),
       st.priv ? null : { ic: 'chat', t: L('نقاش الكتاب', 'Book discussion'), fn: () => { R.close(); A.V.go('book-' + b.id, { tab: 'talk' }); } },
       (b.parts || []).length ? { ic: 'download', t: L('حمّل الكتاب على جهازك', 'Download the book'), fn: () => A.V.download(b.id) } : null,
       ...(() => {
@@ -1902,6 +1903,31 @@
       { ic: 'zout', t: L('تصغير', 'Zoom out'), fn: () => setZoom(st.zoom / 1.25), cls: 'show-sm' },
       { ic: 'fit', t: L('ملء العرض', 'Fit width'), fn: () => setZoom(1), cls: 'show-sm' },
     ].filter(Boolean));
+  }
+
+  /* For whoever plans the book (owner, admins, who added it): end a portion on the page on screen, so a
+     section is read in one go. The next portion starts right after it (V.moveBound). */
+  function boundItems() {
+    if (!A.V.canPlan || !A.V.canPlan(st.book)) return [];
+    const ws = G.wirds(st.book);
+    const k = ws.findIndex((x) => st.cur >= x.from && st.cur <= x.to);
+    if (k < 0) return [];
+    const w = ws[k];
+    const items = [];
+    const go = async (i, text) => {
+      const out = A.V.moveBound(ws, i, st.cur);
+      if (!out) return;
+      const a = out[i], z = out[i + 1];
+      const ok = await A.V.confirm(`${text}<br><small class="muted">${L(`الورد ${L.num(a.n)}: ص ${L.num(a.from)}–${L.num(a.to)} • الورد ${L.num(z.n)}: ص ${L.num(z.from)}–${L.num(z.to)}`, `Portion ${a.n}: p. ${a.from}–${a.to} • portion ${z.n}: p. ${z.from}–${z.to}`)}</small>`, L('غيّرها', 'Change it', 'غيّرها'));
+      if (!ok) return;
+      await D.update(`books/${st.bookId}`, { wirds: out });
+      U.toast(L(`الورد ${L.num(a.n)} بقى ص ${L.num(a.from)}–${L.num(a.to)}`, `Portion ${a.n} is now p. ${a.from}–${a.to}`, `أصبح الورد ${L.num(a.n)} ص ${L.num(a.from)}–${L.num(a.to)}`));
+    };
+    if (st.cur < w.to && ws[k + 1])
+      items.push({ ic: 'calendar', t: L(`الورد ${L.num(w.n)} يخلص في الصفحة دي`, `End portion ${w.n} on this page`, `اجعل الورد ${L.num(w.n)} ينتهي في هذه الصفحة`), fn: () => go(k, L(`الورد ${L.num(w.n)} هيخلص في ص ${L.num(st.cur)}، والورد ${L.num(ws[k + 1].n)} هيبدأ بعدها.`, `Portion ${w.n} will end on p. ${st.cur} and portion ${ws[k + 1].n} will start after it.`, `سينتهي الورد ${L.num(w.n)} في ص ${L.num(st.cur)}، ويبدأ الورد ${L.num(ws[k + 1].n)} بعدها.`)) });
+    if (k > 0 && st.cur < w.to && st.cur - w.from < 5)
+      items.push({ ic: 'calendar', t: L(`الورد ${L.num(ws[k - 1].n)} يكمّل لحد الصفحة دي`, `Extend portion ${ws[k - 1].n} to this page`, `مُدّ الورد ${L.num(ws[k - 1].n)} حتى هذه الصفحة`), fn: () => go(k - 1, L(`الورد ${L.num(ws[k - 1].n)} هيكمّل لحد ص ${L.num(st.cur)}، والورد ${L.num(w.n)} هيبدأ بعدها.`, `Portion ${ws[k - 1].n} will run to p. ${st.cur} and portion ${w.n} will start after it.`, `سيمتد الورد ${L.num(ws[k - 1].n)} حتى ص ${L.num(st.cur)}، ويبدأ الورد ${L.num(w.n)} بعدها.`)) });
+    return items;
   }
 
   /* ---------- table of contents (the PDF's own outline) ---------- */

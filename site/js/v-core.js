@@ -377,9 +377,9 @@
     }
   });
 
-  V.sheet = ({ title = '', html = '', cls = '', onMount, onData, wide = false }) => {
+  V.sheet = ({ title = '', html = '', cls = '', onMount, onData, wide = false, top = false }) => {
     const wrap = document.createElement('div');
-    wrap.className = 'sheet-wrap';
+    wrap.className = 'sheet-wrap' + (top ? ' top' : ''); // top: drops down from the top (notifications)
     wrap.innerHTML = `<div class="sheet-bg" data-close></div><section class="sheet ${wide ? 'wide' : ''} ${cls}" role="dialog" aria-modal="true" aria-label="${esc(title.replace(/<[^>]+>/g, ''))}">
       <header class="sh-head"><b>${title}</b><button class="ib" data-close aria-label="${L('قفل', 'Close', 'إغلاق')}">${icon('close')}</button></header>
       <div class="sh-body">${html}</div></section>`;
@@ -500,6 +500,13 @@
     U.store.set('pokesSeen:' + S.me, last.at);
     if (D.canWrite()) D.privUpdate((cur) => Object.assign(cur, { pokesSeen: last.at })).catch(() => {});
     return true;
+  };
+  V.dismissAllPokes = () => {
+    const ids = V.myPokes().map((p) => p.id);
+    if (!ids.length) return;
+    U.store.set('dismissed:' + S.me, [...U.store.get('dismissed:' + S.me, []), ...ids].slice(-300));
+    if (D.canWrite()) D.privUpdate((cur) => Object.assign(cur, { pokeX: [...(cur.pokeX || []), ...ids].slice(-200) })).catch(() => {});
+    V.render();
   };
   V.dismissPoke = (id) => {
     const dis = U.store.get('dismissed:' + S.me, []);

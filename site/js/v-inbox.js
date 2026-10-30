@@ -33,8 +33,21 @@
     out.sort((a, b) => String(b.t).localeCompare(String(a.t)));
     return out.slice(0, 60);
   };
+  /* Seen up to when: this device or any of mine (kept in my private doc too). Never earlier than the newest
+     item marked, so a phone whose clock runs behind does not keep the number up. */
+  const seenAt = () => {
+    const a = U.store.get(seenKey(), '') || '';
+    const b = (S.priv && S.priv.inboxSeen) || '';
+    return a > b ? a : b;
+  };
+  const markSeen = (items) => {
+    const newest = items.length ? String(items[0].t) : '';
+    const t = newest > U.nowIso() ? newest : U.nowIso();
+    U.store.set(seenKey(), t);
+    if (D.canWrite() && t > ((S.priv && S.priv.inboxSeen) || '')) D.privUpdate((cur) => Object.assign(cur, { inboxSeen: t })).catch(() => {});
+  };
   V.inboxUnread = () => {
-    const seen = U.store.get(seenKey(), null);
+    const seen = seenAt();
     if (!seen) return 0;
     return V.inboxItems().filter((x) => x.t > seen).length;
   };
@@ -66,15 +79,18 @@
   const ICON = { reply: 'chat', thread: 'chat', like: 'heart', cheer: 'clap', poke: 'hand', msgreply: 'chat', book: 'books' };
 
   V.openInbox = () => {
-    const seen = U.store.get(seenKey(), '');
+    const seen = seenAt();
     const items = V.inboxItems();
-    U.store.set(seenKey(), U.nowIso());
+    markSeen(items);
     V.seePokes();
     V.render();
+    const fresh = items.filter((x) => x.t > seen).length;
+    const onToday = V.myPokes().length;
     V.sheet({
       title: `${icon('bell')} ${L('الجديد ليك', 'For you', 'الجديد لك')}`,
+      top: true,
       html: items.length
-        ? `<ul class="inbox">${items
+        ? `${fresh || onToday ? `<div class="ib-all"><small class="muted">${fresh ? L(`${L.num(fresh)} جديد`, `${fresh} new`, `${L.num(fresh)} جديد`) : ''}</small><button class="btn ghost sm" data-all>${icon('check')}${L('علّم الكل اتقرا', 'Mark all as read', 'علّم الكل كمقروء')}</button></div>` : ''}<ul class="inbox">${items
             .map(
               (x, i) => `<li class="${x.t > seen ? 'new' : ''}"><button data-i="${i}"><span class="ib-ic k-${x.kind}">${icon(ICON[x.kind])}</span>${D.avatar(x.who, 'sm')}<span class="ib-t"><span>${line(x)}</span>${x.text ? `<small class="ib-q" dir="auto">${esc(String(x.text).slice(0, 90))}</small>` : ''}<small>${L.ago(x.t)}</small></span></button></li>`
             )
@@ -82,6 +98,14 @@
         : V.empty(L('مفيش جديد لسه', 'Nothing new yet', 'لا جديد بعد'), L('لما حد يرد عليك أو يشجعك هتلاقيه هنا.', 'Replies, likes and cheers for you will show up here.', 'عندما يرد عليك أحد أو يشجعك ستجد ذلك هنا.')),
       onMount: (body, api) =>
         body.addEventListener('click', (e) => {
+          if (e.target.closest('[data-all]')) {
+            // everything read: the highlights here go, and the cheers and nudges waiting on «اليوم» too
+            body.querySelectorAll('.inbox li.new').forEach((li) => li.classList.remove('new'));
+            e.target.closest('.ib-all').remove();
+            V.dismissAllPokes();
+            U.toast(L('تمام، كله اتقرا ✓', 'All caught up ✓', 'تم، قُرئ كل شيء ✓'));
+            return;
+          }
           const b = e.target.closest('[data-i]');
           if (!b) return;
           const x = items[+b.dataset.i];

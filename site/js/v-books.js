@@ -225,11 +225,11 @@
   function planTab(b) {
     const ws = G.wirds(b);
     if (!ws.length)
-      return V.empty(L('مفيش خطة لسه', 'No reading plan yet', 'لا توجد خطة بعد'), L('قسّموا الكتاب أوراد بعدد صفحات ومواعيد، وكل واحد يعلّم لما يخلّص.', 'Split the book into portions with page ranges and dates; everyone marks theirs when done.', 'قسّموا الكتاب إلى أوراد بصفحات ومواعيد، ويعلّم كل عضو ورده عندما ينهيه.'), D.canWrite() ? `<button class="btn gold" data-act="plan" data-b="${esc(b.id)}">${icon('calendar')}${L('اعمل خطة', 'Make a plan', 'أنشئ خطة')}</button>` : '');
+      return V.empty(L('مفيش خطة لسه', 'No reading plan yet', 'لا توجد خطة بعد'), L('قسّموا الكتاب أوراد بعدد صفحات ومواعيد، وكل واحد يعلّم لما يخلّص.', 'Split the book into portions with page ranges and dates; everyone marks theirs when done.', 'قسّموا الكتاب إلى أوراد بصفحات ومواعيد، ويعلّم كل عضو ورده عندما ينهيه.'), V.canPlan(b) ? `<button class="btn gold" data-act="plan" data-b="${esc(b.id)}">${icon('calendar')}${L('اعمل خطة', 'Make a plan', 'أنشئ خطة')}</button>` : '');
     const members = D.memberIds();
     const per = ws[0].to - ws[0].from + 1;
     const every = U.diffDays(ws[0].start, ws[0].due) + 1;
-    return `<div class="plan-head"><p>${L(`${L.count(per, 'page')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} لـ ${L.dayShort(ws[ws.length - 1].due)}`, `${per} pages ${every === 1 ? 'a day' : every === 7 ? 'a week' : `every ${every} days`} • ${L.dayShort(ws[0].start)} – ${L.dayShort(ws[ws.length - 1].due)}`, `${L.count(per, 'page', 'nom')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} إلى ${L.dayShort(ws[ws.length - 1].due)}`)}</p>${D.canWrite() ? `<button class="btn ghost sm" data-act="plan" data-b="${esc(b.id)}">${icon('edit')}${L('عدّل الخطة', 'Edit plan')}</button>` : ''}</div>
+    return `<div class="plan-head"><p>${L(`${L.count(per, 'page')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} لـ ${L.dayShort(ws[ws.length - 1].due)}`, `${per} pages ${every === 1 ? 'a day' : every === 7 ? 'a week' : `every ${every} days`} • ${L.dayShort(ws[0].start)} – ${L.dayShort(ws[ws.length - 1].due)}`, `${L.count(per, 'page', 'nom')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} إلى ${L.dayShort(ws[ws.length - 1].due)}`)}</p>${V.canPlan(b) ? `<button class="btn ghost sm" data-act="plan" data-b="${esc(b.id)}">${icon('edit')}${L('عدّل الخطة', 'Edit plan')}</button>` : ''}</div>
       ${planTime(b, ws)}
       ${wirdCal(b, ws, members)}`;
   }
@@ -325,6 +325,7 @@
         <p class="ws-meta">${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)} • ${L.day(w.start)}${w.due !== w.start ? ' → ' + L.day(w.due) : ''} • <span class="due ${done ? 'done' : st}">${done ? L('خلّصته ✓', 'Done ✓', 'أنهيته ✓') : st === 'soon' ? L('لسه', 'Upcoming', 'قادم') : L.due(w.due)}</span></p>
         <div class="ws-prog">${V.bar(seen / total, done ? 'jade' : 'lapis')}<small>${L(`قريت ${L.num(seen)} من ${L.count(total, 'page')}`, `${seen} of ${total} pages read`, `قرأت ${L.num(seen)} من ${L.count(total, 'page')}`)}</small></div>
         ${done ? '' : `<p class="ws-time">${icon('clock')}${seen && seen < total ? L(`فاضل حوالي ${G.timeText(G.minutesFor(total - seen))}`, `About ${G.timeText(G.minutesFor(total - seen))} left`, `بقي نحو ${G.timeText(G.minutesFor(total - seen))}`) : L(`الورد ده حوالي ${G.timeText(G.minutesFor(total))}`, `This portion takes about ${G.timeText(G.minutesFor(total))}`, `هذا الورد نحو ${G.timeText(G.minutesFor(total))}`)}</p>`}
+        ${V.canPlan(b) ? `<button class="lnk sm ws-edit" data-act="wird-pages" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-close>${icon('edit')}${L('عدّل صفحات الورد ده', "Change this portion's pages", 'عدّل صفحات هذا الورد')}</button>` : ''}
         <div class="ws-fins"><b>${L('خلّصوه', 'Finished', 'أنهوه')}</b>${fins.length ? `<span class="mavs">${fins.map((x, i) => `<span class="fin${i === 0 ? ' first' : ''}" title="${esc(D.name(x.u))}">${D.avatar(x.u, 'sm')}</span>`).join('')}</span><small>${L.num(fins.length)}/${L.num(members.length)}</small>` : `<small>${L('لسه محدش', 'Nobody yet', 'لا أحد بعد')}</small>`}</div>
         <div class="row-btns">
           <button class="btn big" data-act="read" data-b="${esc(b.id)}" data-p="${startAt}" data-close>${icon('play', 'flip-rtl')}${startAt > w.from ? L(`كمّل من ص ${L.num(startAt)}`, `Continue from p. ${startAt}`, `تابِع من ص ${L.num(startAt)}`) : L('اقرأ الورد', 'Read it')}</button>
@@ -485,8 +486,8 @@
     const b = S.books.get(a.dataset.b);
     if (!b) return;
     const items = [];
+    if (V.canPlan(b)) items.push({ ic: 'calendar', t: L('خطة القراءة', 'Reading plan'), fn: () => V.planWizard(b.id) });
     if (D.canWrite()) {
-      items.push({ ic: 'calendar', t: L('خطة القراءة', 'Reading plan'), fn: () => V.planWizard(b.id) });
       items.push({ ic: 'edit', t: L('عدّل بيانات الكتاب', 'Edit book details'), fn: () => V.editBook(b.id) });
     }
     if (S.sample) items.push({ ic: 'claude', t: L('خلّي Claude يقترح أسئلة نقاش', 'Ask Claude for discussion questions', 'اطلب من Claude أسئلة للنقاش'), fn: () => V.askBook(b.id) });
@@ -495,6 +496,66 @@
     V.menu(items);
   };
   V.actions.download = (a) => V.download(a.dataset.b);
+  /* Who may change a book's plan: the circle's owner and admins («مشرف»), and whoever added the book. */
+  V.canPlan = (b) => !!b && D.canWrite() && !D.isPrivate(b.id) && (S.isOwner || S.canEdit || b.addedBy === S.me);
+
+  /* Move where one portion starts or ends by a page or two, so a section is read in one go. The neighbour
+     takes the difference (portion 4 one page longer = portion 5 one page shorter); dates stay. */
+  V.moveBound = (ws, k, page) => {
+    // portion k ends at `page`, the next one starts right after it; null when that would empty one of them
+    const out = ws.map((w) => Object.assign({}, w));
+    const a = out[k], z = out[k + 1];
+    if (!a || !z || page < a.from || page >= z.to) return null;
+    a.to = page;
+    z.from = page + 1;
+    return out;
+  };
+  V.actions['wird-pages'] = (a) => {
+    const b = S.books.get(a.dataset.b);
+    const ws0 = b ? G.wirds(b) : [];
+    const k = ws0.findIndex((x) => x.id === a.dataset.w);
+    if (k < 0 || !V.canPlan(b)) return;
+    let ws = ws0.map((w) => Object.assign({}, w));
+    const N = b.pages || ws0[ws0.length - 1].to;
+    const row = (w, i) => {
+      const old = ws0[i];
+      const changed = old.from !== w.from || old.to !== w.to;
+      return `<li class="${i === k ? 'me' : ''}${changed ? ' ch' : ''}"><span class="star8 xs ${i === k ? 'gold' : 'faint'}"><b>${L.num(w.n)}</b></span><span>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</span><small>${L.count(w.to - w.from + 1, 'page')}${changed ? ` • ${L(`كان ${L.num(old.from)}–${L.num(old.to)}`, `was ${old.from}–${old.to}`, `كان ${L.num(old.from)}–${L.num(old.to)}`)}` : ''}</small></li>`;
+    };
+    const stepper = (id, label, val, canDown, canUp) => `<div class="wp-step"><span>${label}</span><div><button type="button" class="ib round" data-step="${id}" data-d="-1" ${canDown ? '' : 'disabled'} aria-label="${L('صفحة أقل', 'One page earlier', 'صفحة أقل')}">−</button><b>${L('ص', 'p.')} ${L.num(val)}</b><button type="button" class="ib round" data-step="${id}" data-d="1" ${canUp ? '' : 'disabled'} aria-label="${L('صفحة أكتر', 'One page later', 'صفحة أكثر')}">+</button></div></div>`;
+    const html = () => {
+      const w = ws[k], prev = ws[k - 1], next = ws[k + 1];
+      return `${stepper('from', L('بيبدأ من', 'Starts at', 'يبدأ من'), w.from, prev ? w.from - 1 > prev.from : w.from > 1, w.from < w.to)}
+        ${stepper('to', L('بيخلص عند', 'Ends at', 'ينتهي عند'), w.to, w.to > w.from, next ? w.to + 1 < next.to : w.to < N)}
+        <ol class="pv-list wp-list">${ws.map(row).filter((x, i) => Math.abs(i - k) <= 1).join('')}</ol>
+        <p class="muted sm">${L('الورد اللي جنبه بياخد الفرق، والمواعيد زي ما هي.', 'The portion next to it takes the difference; dates stay the same.', 'يأخذ الورد المجاور الفرق، وتبقى المواعيد كما هي.')}</p>`;
+    };
+    V.sheet({
+      title: L(`صفحات الورد ${L.num(ws0[k].n)}`, `Pages of portion ${ws0[k].n}`),
+      html: `<form id="wp-form" class="wp-form"><div id="wp-body">${html()}</div>
+        <div class="row-btns end"><button class="btn gold big">${icon('check')}${L('احفظ', 'Save')}</button></div></form>`,
+      onMount: (body, api) => {
+        body.addEventListener('click', (e) => {
+          const st = e.target.closest('[data-step]');
+          if (!st) return;
+          const d = +st.dataset.d;
+          let out = null;
+          if (st.dataset.step === 'to') out = k + 1 < ws.length ? V.moveBound(ws, k, ws[k].to + d) : ((ws[k].to = U.clamp(ws[k].to + d, ws[k].from, N)), ws);
+          else out = k > 0 ? V.moveBound(ws, k - 1, ws[k].from - 1 + d) : ((ws[k].from = U.clamp(ws[k].from + d, 1, ws[k].to)), ws);
+          if (out) ws = out;
+          body.querySelector('#wp-body').innerHTML = html();
+        });
+        body.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          api.close();
+          if (ws.every((w, i) => w.from === ws0[i].from && w.to === ws0[i].to)) return;
+          await D.update(`books/${b.id}`, { wirds: ws });
+          U.chime('ok');
+          U.toast(L(`الورد ${L.num(ws[k].n)} بقى ص ${L.num(ws[k].from)}–${L.num(ws[k].to)}`, `Portion ${ws[k].n} is now p. ${ws[k].from}–${ws[k].to}`, `أصبح الورد ${L.num(ws[k].n)} ص ${L.num(ws[k].from)}–${L.num(ws[k].to)}`));
+        });
+      },
+    });
+  };
   V.actions.plan = (a) => V.planWizard(a.dataset.b);
   V.actions['add-book'] = () => V.addBook();
 

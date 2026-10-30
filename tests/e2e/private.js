@@ -84,6 +84,15 @@ const watchStorage = (p) => {
   return seen;
 };
 
+/* The circle's week recap shows by itself once a week (on Fridays this week's): marked as seen here, so it
+   never covers what a step is about to tap. */
+const noRecap = (p) =>
+  p.evaluate(() => {
+    const { U, S } = window.A;
+    const ws = U.weekStart();
+    U.store.set('circleRecap:' + S.me, U.parseD(U.today()).getDay() === 5 ? ws : U.addDays(ws, -7));
+  });
+
 (async () => {
   const env = await H.start();
   const browser = await chromium.launch();
@@ -109,6 +118,7 @@ const watchStorage = (p) => {
       await b.waitForSelector('.shell #screen .home', { timeout: 15000 });
       ctx.Buid = await b.evaluate(() => window.A.S.me);
       await until(a, 'A sees B', () => window.A.S.members.size === 2);
+      for (const pg of [a, b]) await noRecap(pg);
       return `circle ${ctx.circle}`;
     });
 
@@ -260,6 +270,7 @@ const watchStorage = (p) => {
         await a2.click(`[data-circle="${ctx.circle}"]`).catch(() => {});
         await a2.waitForSelector('.shell #screen', { timeout: 15000 });
       });
+      await noRecap(a2);
       await until(a2, 'my private book synced', (id) => window.A.S.myBooks.has(id) && !!window.A.D.prog(id), ctx.book.id, 15000);
       await a2.evaluate(() => window.A.V.go('shelf'));
       await a2.waitForSelector('#mylib .my-it.away', { timeout: 10000 });

@@ -437,6 +437,17 @@ textarea { resize: vertical; line-height: 1.55; }
 .hls-t img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .hls-t span { font: .8rem/1.3 var(--f-book); padding: 4px 6px; color: var(--ink2); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .hls-more { display: grid; place-items: center; padding: 0 8px; border-radius: 10px; background: var(--bg2); color: var(--ink2); font-weight: 700; font-size: .8rem; }
+/* a portion's pages (v-books.js «عدّل صفحات الورد») */
+.ws-edit { display: inline-flex; align-items: center; gap: 4px; margin: 2px 0 8px; }
+.ws-edit .ic { width: 14px; height: 14px; }
+.wp-form { display: flex; flex-direction: column; gap: 12px; }
+.wp-step { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 14px; background: var(--bg2); }
+.wp-step > div { display: flex; align-items: center; gap: 10px; }
+.wp-step b { min-width: 4.5em; text-align: center; font-variant-numeric: tabular-nums; }
+.wp-step .ib { width: 40px; height: 40px; font-size: 1.3rem; font-weight: 700; background: var(--card); }
+.wp-step .ib:disabled { opacity: .35; }
+.wp-list li.me { font-weight: 700; }
+.wp-list li.ch small { color: var(--gold-t); }
 .rc-tabs { display: flex; width: 100%; }
 .rc-tabs button { flex: 1; padding-inline: .4em; font-size: .8rem; white-space: nowrap; }
 .rc-pane { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -449,7 +460,7 @@ textarea { resize: vertical; line-height: 1.55; }
 .rc-mx-h.cur { background: var(--gold); color: var(--gold-ink); }
 .rc-mx-c { width: 16px; height: 16px; margin: 0 auto; border-radius: 50%; background: var(--bg2); display: block; }
 .rc-mx-c.d { background: var(--jade); }
-.rc-mx-c.h { background: conic-gradient(var(--gold) 0 50%, var(--bg2) 0); }
+.rc-mx-c.h { background: conic-gradient(var(--gold) 0 var(--f, 50%), var(--bg2) 0); }
 .rc-mx-c.late { box-shadow: inset 0 0 0 2px var(--rubric); }
 .rc-mx-c.cur { outline: 2px solid var(--gold); outline-offset: 1px; }
 .rc-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; font-size: .72rem; color: var(--ink3); }
@@ -954,12 +965,13 @@ textarea { resize: vertical; line-height: 1.55; }
 
 /* ---------- circle tab ---------- */
 .circle { display: flex; flex-direction: column; gap: 14px; max-width: 760px; margin: 0 auto; }
-.circle-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-/* the name has a line of its own (long names are never cut), the buttons go under it */
-.ch-t { flex: 1 1 100%; min-width: 0; }
-.ch-t h1 { font-size: 1.35rem; overflow-wrap: anywhere; text-wrap: balance; }
-.ch-t p { font-size: .82rem; color: var(--ink2); }
-.circle-head > .btn { margin-inline-start: auto; }
+.circle-head { display: flex; align-items: center; gap: 8px; }
+/* one row: the name takes the room left by the buttons and wraps to a second line instead of being cut */
+.ch-t { flex: 1; min-width: 0; }
+.ch-t h1 { font-size: 1.3rem; line-height: 1.3; overflow-wrap: anywhere; text-wrap: balance; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ch-t p { font-size: .82rem; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.circle-head > .btn, .circle-head > .ib { flex: none; }
+@media (max-width: 419px) { .circle-head > .ib.round { width: 40px; height: 40px; } .circle-head > .btn.sm { padding-inline: .8em; } }
 .ch-avs { display: flex; flex: none; }
 .ch-avs .av { margin-inline-start: -10px; box-shadow: 0 0 0 2px var(--bg); }
 @media (max-width: 419px) { .ch-avs { display: none; } }
@@ -1162,11 +1174,18 @@ textarea { resize: vertical; line-height: 1.55; }
 .sh-head > b { flex: 1; font: 700 1.1rem var(--f-disp); display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sh-head::before { content: ""; position: absolute; top: 4px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: 4px; background: var(--line); }
 .sh-body { display: flex; flex-direction: column; gap: 10px; padding-bottom: 6px; }
+/* a sheet that drops down from the top, like phone notifications (V.sheet({top: true})) */
+.sheet-wrap.top { align-items: flex-start; }
+.sheet-wrap.top .sheet { border-radius: 0 0 24px 24px; max-height: min(80vh, 760px); padding-top: env(safe-area-inset-top, 0px); padding-bottom: 22px; transform: translateY(-40px); }
+.sheet-wrap.top .sh-head::before { display: none; }
+.sheet-wrap.top .sheet::after { content: ""; position: sticky; display: block; bottom: -14px; width: 40px; height: 4px; margin: 10px auto -12px; border-radius: 4px; background: var(--line); }
 @media (min-width: 700px) {
   .sheet-wrap { align-items: center; padding: 20px; }
   .sheet { max-width: 540px; border-radius: 24px; padding: 4px 24px 22px; transform: translateY(16px) scale(.98); }
   .sheet.wide { max-width: 780px; }
   .sh-head::before { display: none; }
+  .sheet-wrap.top { padding-top: 72px; }
+  .sheet-wrap.top .sheet { border-radius: 24px; transform: translateY(-16px) scale(.98); }
 }
 .menu { display: flex; flex-direction: column; gap: 2px; }
 .mi { display: flex; gap: 12px; align-items: center; padding: 12px 10px; border-radius: 12px; font-weight: 600; text-align: start; }
@@ -1555,6 +1574,7 @@ html { overscroll-behavior-y: contain; }
 [dir="ltr"] .rd.land.ui-off .rd-top, [dir="rtl"] .rd.land.ui-off .rd-bot, [dir="rtl"] .rd.land.swap.ui-off .rd-top, [dir="ltr"] .rd.land.swap.ui-off .rd-bot { transform: translateX(calc(-100% - 24px)); opacity: 0; }
 .rd.land .rd-panel { box-shadow: var(--shadow-lg); }
 @media (prefers-reduced-motion: reduce) { .rd-top, .rd-bot, .tool { transition: none; } }
+.ib-all { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .inbox { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
 .inbox button { display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: start; padding: 10px; border-radius: 14px; }
 .inbox button:hover { background: var(--bg2); }
