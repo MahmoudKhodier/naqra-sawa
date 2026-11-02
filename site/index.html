@@ -955,6 +955,30 @@ textarea { resize: vertical; line-height: 1.55; }
 .wc-now-f { display: flex; align-items: center; margin-top: 2px; }
 .wc-now-f .av + .av { margin-inline-start: -6px; }
 .wc-now-f small { margin-inline-start: 6px; }
+.off-banner { display: flex; gap: 12px; align-items: center; background: color-mix(in srgb, var(--jade) 12%, var(--card)); border: 1px solid color-mix(in srgb, var(--jade) 30%, transparent); }
+.off-banner .ob-ic { font-size: 2rem; line-height: 1; }
+.off-banner b { font-size: 1.05rem; }
+.off-banner p { margin: 2px 0 0; }
+.off-next { margin: 0 4px 10px; font-size: .85rem; font-weight: 600; color: var(--jade); cursor: pointer; }
+.offs h4 { display: flex; align-items: center; gap: 6px; margin: 14px 0 8px; font-size: .95rem; }
+.offs h4 .ic { width: 17px; height: 17px; color: var(--ink3); }
+.off-wk { display: flex; flex-wrap: wrap; gap: 6px; }
+.off-d { padding: 6px 12px; border-radius: 99px; border: 1.5px solid var(--line); background: var(--card2); font-weight: 600; font-size: .85rem; }
+.off-d.on { border-color: var(--jade); background: var(--jade-s); color: var(--jade); }
+.off-d:disabled { opacity: .8; }
+.off-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.off-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 12px; background: var(--card2); font-weight: 600; }
+.off-add { display: flex; gap: 8px; margin-top: 10px; }
+.off-add input { flex: 1; min-width: 0; }
+.q-off { margin: 0 0 8px; font-size: .82rem; font-weight: 600; color: var(--jade); }
+.wc-off-h { margin: 6px 2px 0; }
+.off-row { margin-top: 12px; display: flex; justify-content: center; }
+.wc-x.off, .wc-c.off { background: color-mix(in srgb, var(--jade) 10%, var(--card2)); }
+.wc-x.off { display: grid; place-items: center; font-size: 1rem; border: 1px dashed color-mix(in srgb, var(--jade) 40%, transparent); }
+.wc-c.off::after { content: '🌴'; position: absolute; top: 1px; inset-inline-end: 2px; font-size: .55rem; }
+button.wc-x { border: 0; padding: 0; background: transparent; }
+button.wc-x.off { background: color-mix(in srgb, var(--jade) 10%, var(--card2)); }
+.k.off { background: color-mix(in srgb, var(--jade) 25%, var(--card2)); }
 .wcal { display: grid; grid-template-columns: auto repeat(7, minmax(0, 1fr)); gap: 5px; align-items: center; }
 .wc-h { text-align: center; font-size: .72rem; color: var(--ink3); font-weight: 600; }
 .wc-wl { font-size: .68rem; color: var(--ink3); white-space: nowrap; padding-inline-end: 2px; font-variant-numeric: tabular-nums; }
@@ -1156,6 +1180,15 @@ textarea { resize: vertical; line-height: 1.55; }
 .settings .set-row:has(> .switch) { flex-wrap: nowrap; }
 .settings .set-row:has(> .switch) > span { flex: 1; min-width: 0; }
 .settings .set-row > .switch { flex: none; }
+/* every settings row: its name (and the line under it) on one side, its control on the other — the name takes
+   two lines rather than pushing the control under it */
+.settings .set-row { flex-wrap: nowrap; }
+.settings .set-row > span:first-child { flex: 1; min-width: 0; }
+.settings .set-row > :not(:first-child) { flex: none; }
+.pick { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 10px 4px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--card2); font-weight: 700; font-size: .85rem; color: var(--ink); white-space: nowrap; }
+.pick i { font-style: normal; color: var(--ink3); font-size: .8rem; }
+.mi.blank .ic { visibility: hidden; }
+.mi.on { font-weight: 700; color: var(--lapis); }
 .settings .set-row > span .ic { flex: none; align-self: flex-start; margin-top: 2px; }
 .settings .set-h { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 1rem; color: var(--lapis); }
 .settings .set-h + .set-row { border-top: 0; }
@@ -2375,6 +2408,7 @@ button.wm-c:hover { border-color: var(--line); }
 <script src="js/goals.js"></script>
 <script src="js/quests.js"></script>
 <script src="js/play.js"></script>
+<script src="js/offdays.js"></script>
 <script src="js/invite.js"></script>
 <script src="js/story.js"></script>
 <script src="js/widget.js"></script>

@@ -26,6 +26,110 @@
   };
   G.BIG_CHEST_DAYS = 5; // days with all quests in one week (Saturday to Friday) for the big chest
 
+  /* ---------- days off («يوم إجازة») ----------
+     meta/circle.off = { dates: ['2026-11-10', …], weekly: [{ d: 5, from: '2026-11-03', to?: '…' }, …] }
+     (d = the day of the week as Date.getDay: 0 Sunday … 5 Friday, 6 Saturday). A weekly day off counts from the
+     day it was set and, once taken off, only until the day before; dates are added for today or later. On a day
+     off nothing is expected: portions skip it, streaks wait over it, goals and quests don't count it. Reading on
+     it still counts as usual. Owner and admins set it (circle settings, or a day in the plan calendar). */
+  G.offCfg = (c = S.circle) => {
+    const o = (c && c.off) || {};
+    const dates = new Set((Array.isArray(o.dates) ? o.dates : []).filter((d) => /^\d{4}-\d\d-\d\d$/.test(d)));
+    const weekly = (Array.isArray(o.weekly) ? o.weekly : []).filter((w) => w && w.d >= 0 && w.d <= 6 && w.from).map((w) => ({ d: +w.d, from: w.from, to: w.to || '' }));
+    return { dates, weekly, none: !dates.size && !weekly.length };
+  };
+  G.isOff = (d, cfg = G.offCfg()) => {
+    if (cfg.none) return false;
+    if (cfg.dates.has(d)) return true;
+    if (!cfg.weekly.length) return false;
+    const dow = U.parseD(d).getDay();
+    return cfg.weekly.some((w) => w.d === dow && d >= w.from && (!w.to || d <= w.to));
+  };
+  G.offToday = () => G.isOff(U.today());
+  /* Weekly days off in force now (for the settings and texts): [5] for «كل جمعة». */
+  G.offWeekdays = (cfg = G.offCfg(), day = U.today()) => [...new Set(cfg.weekly.filter((w) => day >= w.from && (!w.to || day <= w.to)).map((w) => w.d))].sort();
+  /* Reading days from a to b, both included. */
+  G.workDays = (a, b, cfg = G.offCfg()) => {
+    let n = 0;
+    for (let d = a, i = 0; d <= b && i < 4000; d = U.addDays(d, 1), i++) if (!G.isOff(d, cfg)) n++;
+    return n;
+  };
+  /* The first reading day on or after d. */
+  G.nextOn = (d, cfg = G.offCfg()) => {
+    for (let i = 0; i < 60 && G.isOff(d, cfg); i++) d = U.addDays(d, 1);
+    return d;
+  };
+  /* The day the n-th reading day falls on, counting from d (d itself counts when it's a reading day). */
+  G.endAfter = (d, n, cfg = G.offCfg()) => {
+    let k = 0;
+    for (let i = 0; i < 4000; i++, d = U.addDays(d, 1)) if (!G.isOff(d, cfg) && ++k >= n) return d;
+    return d;
+  };
+  /* n reading days after d (0: d itself). */
+  G.addWork = (d, n, cfg = G.offCfg()) => {
+    for (let i = 0; n > 0 && i < 4000; i++) {
+      d = U.addDays(d, 1);
+      if (!G.isOff(d, cfg)) n--;
+    }
+    return d;
+  };
+  G.weeklyOnly = (cfg) => ({ dates: new Set(), weekly: cfg.weekly, none: !cfg.weekly.length });
+  /* The day a portion that starts on s ends: `len` reading days for a short one; a week-long one (calendar
+     days `cal`) stays that week, a holiday inside it adding a day. */
+  G.wirdEnd = (s, len, cal, cfg = G.offCfg()) => (cal >= 7 ? G.endAfter(s, G.workDays(s, U.addDays(s, cal - 1), G.weeklyOnly(cfg)), cfg) : G.endAfter(s, len, cfg));
+  /* A book's portions laid out again after the days off changed (old → new): the ones already past stay; one
+     under way keeps its first day; each keeps its length in reading days (a week-long one its week). null when
+     nothing moves. */
+  G.redate = (book, oldC, newC, today = U.today()) => {
+    const ws = G.wirds(book);
+    if (!ws.length) return null;
+    const out = [];
+    let prevOld = null, prevNew = null, changed = false;
+    for (const w of ws) {
+      if (w.due < today) {
+        out.push(w);
+        prevOld = prevNew = w.due;
+        continue;
+      }
+      const cal = U.diffDays(w.start, w.due) + 1;
+      let held = 0;
+      if (cal >= 7) for (const d of oldC.dates) if (d >= w.start && d <= w.due) held++;
+      const len = cal >= 7 ? cal - held : Math.max(1, G.workDays(w.start, w.due, oldC));
+      let start;
+      if (w.start < today) start = w.start;
+      else if (prevOld) {
+        // right after the one before (in its new place), keeping any reading days left between them
+        const gap = w.start > U.addDays(prevOld, 1) ? G.workDays(U.addDays(prevOld, 1), U.addDays(w.start, -1), oldC) : 0;
+        start = G.addWork(G.nextOn(U.addDays(prevNew, 1), newC), gap, newC);
+      }
+      else start = G.nextOn(w.start, newC);
+      const due = G.wirdEnd(start, len, len, newC);
+      prevOld = w.due;
+      prevNew = due;
+      if (start !== w.start || due !== w.due) changed = true;
+      out.push(Object.assign({}, w, { start, due }));
+    }
+    return changed ? out : null;
+  };
+  G.offInWeek = (ws, cfg = G.offCfg()) => 7 - G.workDays(ws, U.addDays(ws, 6), cfg);
+  /* The circle's weekly goal for a week: smaller by a seventh for each day off in it. */
+  G.weekGoal = (ws = U.weekStart(), cfg = G.offCfg()) => {
+    const goal = (S.circle && +S.circle.weeklyGoal) || 300;
+    const on = 7 - G.offInWeek(ws, cfg);
+    return on >= 7 ? goal : Math.max(10, Math.round((goal * Math.max(1, on)) / 7));
+  };
+  /* Days with all quests that a week needs for the big chest: five, or fewer when the week has fewer reading days. */
+  G.bigChestDays = (ws = U.weekStart(), cfg = G.offCfg()) => Math.max(1, Math.min(G.BIG_CHEST_DAYS, 7 - G.offInWeek(ws, cfg)));
+  /* A portion's length in reading days, the way it was laid out: a week-long one stays a week whatever the weekly
+     days off; shorter ones are counted in reading days. */
+  G.wirdLen = (w, cfg = G.offCfg()) => {
+    const span = U.diffDays(w.start, w.due) + 1;
+    if (span < 7) return Math.max(1, G.workDays(w.start, w.due, cfg));
+    let held = 0; // holidays (dated days off) that made it longer
+    for (const d of cfg.dates) if (d >= w.start && d <= w.due) held++;
+    return Math.max(1, span - held);
+  };
+
   /* Level L needs 25·(L−1)·(L+2) XP in total: 0, 100, 250, 450, 700, 1000, 1350 … */
   G.need = (lv) => 25 * (lv - 1) * (lv + 2);
   G.levelOf = (xp) => {
@@ -263,7 +367,7 @@
       if (w.due < t || w.due > end || (p && p.done && p.done[w.id])) continue;
       pages += w.to - w.from + 1 - U.rangesCountIn(p && p.seen, w.from, w.to);
     }
-    return Math.ceil(pages / days);
+    return Math.ceil(pages / Math.max(1, G.workDays(t, end))); // spread over the reading days only
   };
   G.wirdStatus = (book, w, uid = S.me) => {
     const p = A.D.prog(book.id, uid);
@@ -292,14 +396,17 @@
     return { mode: p.mode === 'week' ? 'week' : 'day', n: U.clamp(Math.round(+p.n || 3), 1, 7) };
   };
   function weekStreak(s, sortedDays, today) {
-    const n = G.streakPref(s.uid).n;
+    const n0 = G.streakPref(s.uid).n;
+    const offc = G.offCfg();
+    const needOf = (w) => Math.max(1, Math.min(n0, 7 - G.offInWeek(w, offc))); // days off make the week shorter
+    const n = needOf(U.weekStart(today));
     const cur = U.weekStart(today);
     const per = new Map();
     for (const d of sortedDays) if (d <= today) per.set(U.weekStart(d), (per.get(U.weekStart(d)) || 0) + 1);
     let run = 0, best = 0;
     if (sortedDays.length) {
       for (let w = U.weekStart(sortedDays[0]), i = 0; w <= cur && i < 600; w = U.addDays(w, 7), i++) {
-        if ((per.get(w) || 0) >= n) run++;
+        if ((per.get(w) || 0) >= needOf(w)) run++;
         else if (w !== cur) run = 0; // this week isn't over yet
         best = Math.max(best, run);
       }
@@ -396,7 +503,7 @@
     if (!keys.length) return null;
     let start = U.addDays(end, -13);
     if (keys[0] > start) start = keys[0];
-    const span = U.diffDays(start, end) + 1;
+    const span = Math.max(1, G.workDays(start, end)); // days off don't slow the pace down
     let pages = 0, rdays = 0;
     for (const k of keys) {
       if (k < start) continue;
@@ -422,13 +529,13 @@
     const need = Math.ceil(left / pace.perDay);
     if (need > 730) return null;
     const today = U.today();
-    const date = U.addDays(today, Math.max(0, need - (pace.readToday ? 0 : 1)));
+    const date = G.addWork(pace.readToday ? today : U.addDays(today, -1), need); // counting reading days only
     const out = { date, left, perDay: pace.perDay, perReadingDay: pace.perReadingDay, pace };
     const due = ws.length ? ws[ws.length - 1].due : null;
     if (due && due >= today) {
       out.due = due;
       out.diff = U.diffDays(date, due); // > 0: ahead of the plan
-      out.catchUp = Math.ceil(left / (U.diffDays(today, due) + (pace.readToday ? 0 : 1) || 1));
+      out.catchUp = Math.ceil(left / (G.workDays(pace.readToday ? U.addDays(today, 1) : today, due) || 1));
     }
     return out;
   };
@@ -489,11 +596,19 @@
     if (!g || !g.on || !g.auto) return null;
     if (!g.at) return { auto: true, pages: g.pages, at: today };
     if (U.diffDays(g.at, today) < 7) return null;
-    let hits = 0;
-    for (let i = 1; i <= 7; i++) if ((+(days || {})[U.addDays(today, -i)] || 0) >= g.pages) hits++;
+    // the last seven days, days off left out: up after hitting all but two of them, down after two or fewer
+    const offc = G.offCfg();
+    let hits = 0, on = 0;
+    for (let i = 1; i <= 7; i++) {
+      const d = U.addDays(today, -i);
+      if (G.isOff(d, offc)) continue;
+      on++;
+      if ((+(days || {})[d] || 0) >= g.pages) hits++;
+    }
+    if (on < 3) return null;
     const st = G.GOAL_STEPS;
     let pages = g.pages;
-    if (hits >= 5) pages = st.find((x) => x > g.pages) || g.pages + 20;
+    if (hits >= on - 2) pages = st.find((x) => x > g.pages) || g.pages + 20;
     else if (hits <= 2) pages = [...st].reverse().find((x) => x < g.pages) || st[0];
     if (pages === g.pages) return null;
     return { auto: true, pages, at: today, prev: g.pages, dir: pages > g.pages ? 'up' : 'down', hits };
@@ -687,7 +802,7 @@
           const wk0 = U.weekStart(day);
           const n = (perWeek.get(wk0) || 0) + 1;
           perWeek.set(wk0, n);
-          if (n === G.BIG_CHEST_DAYS) ev(s, day, G.XP.bigChest, 'bigchest');
+          if (n === G.bigChestDays(wk0)) ev(s, day, G.XP.bigChest, 'bigchest');
         }
       }
       s.questWeek = perWeek.get(wk) || 0;
@@ -710,6 +825,7 @@
       // Streak with protection: every 7 reading days in a row earn one "freeze" (max 2),
       // which automatically covers a missed day so the streak survives.
       const act = (d) => s.active.has(d);
+      const offc = G.offCfg();
       const sorted = [...s.active].sort();
       let run = 0, fz = 0, best = 0;
       s.frozen = [];
@@ -720,6 +836,8 @@
             if (run % 7 === 0) fz = Math.min(2, fz + 1);
           } else if (d === today) {
             // today isn't over yet
+          } else if (G.isOff(d, offc)) {
+            // a day off: the streak waits over it
           } else if (run > 0 && fz > 0) {
             fz--;
             s.frozen.push(d);
@@ -730,7 +848,7 @@
       }
       s.streak = run;
       s.freezes = fz;
-      s.atRisk = run > 0 && !act(today);
+      s.atRisk = run > 0 && !act(today) && !G.isOff(today, offc);
       s.best = best;
       weekStreak(s, sorted, today);
       Object.assign(s, G.levelOf(s.xp));
@@ -745,10 +863,10 @@
 
   /* Weeks the circle beat its boss (since QUEST_V2): [week start, the day the pages reached the goal]. */
   function bossWins() {
-    const goal = (S.circle && +S.circle.weeklyGoal) || 300;
     const today = U.today();
     const out = [];
     for (let w0 = U.weekStart(G.QUEST_V2); w0 <= today; w0 = U.addDays(w0, 7)) {
+      const goal = G.weekGoal(w0);
       let sum = 0;
       for (let i = 0; i < 7; i++) {
         const d = U.addDays(w0, i);
@@ -832,7 +950,7 @@
   G.groupWeek = () => {
     let pages = 0;
     for (const uid of S.members.keys()) pages += G.weekPagesOf(uid).pages;
-    const goal = (S.circle && +S.circle.weeklyGoal) || 300;
+    const goal = G.weekGoal(); // smaller in a week with days off
     return { pages, goal };
   };
 })();

@@ -116,6 +116,12 @@ const setDays = (p, map, extra) =>
     [map, extra || null]
   );
 
+/** A setting shown as one button with a menu of choices (V.pick): open it, pick one. */
+async function pickOpt(p, act, v) {
+  await p.click(`[data-act="pick-open"][data-pk="${act}"]`);
+  await p.click(`.menu-sheet .mi[data-v="${v}"]`);
+  await new Promise((r) => setTimeout(r, 350));
+}
 (async () => {
   const env = await H.start();
   const browser = await chromium.launch();
@@ -135,8 +141,8 @@ const setDays = (p, map, extra) =>
       await until(p, 'goal stored', () => ((window.A.S.members.get(window.A.S.me) || {}).goalDaily || {}).pages === 5);
       const f = await drain(p);
       assert(!f.length, 'firsts fired for a new member: ' + f);
-      const g = await text(p, '.dgoal');
-      assert(g.includes('٠ من ٥ صفحات النهارده'), 'goal strip: ' + g);
+      const g = await p.evaluate(() => window.A.G.goalOf());
+      assert(g.on && g.pages === 5 && g.have === 0, 'goal: ' + JSON.stringify(g));
       const fz = await p.evaluate(() => Object.keys(window.A.S.priv.firsts));
       assert(fz.length === 1, 'firsts already marked: ' + fz);
     });
@@ -235,11 +241,11 @@ const setDays = (p, map, extra) =>
     await step('Hitting the daily goal celebrates once', async () => {
       await go(p, 'home');
       await p.evaluate(() => window.A.D.addPagesToday(5, 0));
-      await until(p, 'goal done', () => !!document.querySelector('.dgoal.done'));
+      await until(p, 'goal done', () => window.A.G.goalOf().done);
       await until(p, 'celebrated', () => window.A.Goals.hits === 1);
       await until(p, 'toast', () => /هدف النهارده اتحقق/.test((document.getElementById('toasts') || {}).innerText || ''), null, 15000);
-      const g = await text(p, '.dgoal');
-      assert(g.includes('٥ من ٥ صفحات النهارده'), 'strip: ' + g);
+      const g = await p.evaluate(() => window.A.G.goalOf());
+      assert(g.have === 5 && g.pages === 5, 'goal: ' + JSON.stringify(g));
       await p.evaluate(() => window.A.D.addPagesToday(1, 0));
       await T(1500);
       await drain(p);
@@ -269,21 +275,17 @@ const setDays = (p, map, extra) =>
 
     await step('Settings → Reading: daily goal off / number / auto', async () => {
       await go(p, 'settings');
-      await p.click('[data-act="goal-mode"][data-v="num"]');
+      await pickOpt(p, 'goal-mode', 'num');
       await p.waitForSelector('#set-goal-n');
       await p.fill('#set-goal-n', '12');
       await p.dispatchEvent('#set-goal-n', 'change');
       await until(p, '12 stored', () => window.A.G.goalOf().pages === 12 && !window.A.G.goalOf().auto);
-      await go(p, 'home');
-      const g = await text(p, '.dgoal');
-      assert(g.includes('٦ من ١٢ صفحة النهارده') && !g.includes('بيكبر'), 'fixed goal: ' + g);
-      await go(p, 'settings');
-      await p.click('[data-act="goal-mode"][data-v="off"]');
+      const g = await text(p, '#set-goal-row');
+      assert(g.includes('١٢') && !g.includes('بيكبر'), 'fixed goal: ' + g);
+      await pickOpt(p, 'goal-mode', 'off');
       await until(p, 'off', () => !window.A.G.goalOf().on);
-      await go(p, 'home');
-      assert(!(await p.$('.dgoal')), 'the strip is still there when off');
-      await go(p, 'settings');
-      await p.click('[data-act="goal-mode"][data-v="auto"]');
+
+      await pickOpt(p, 'goal-mode', 'auto');
       await until(p, 'auto', () => window.A.G.goalOf().auto && window.A.G.goalOf().pages === window.A.G.goalStart());
       await p.evaluate(() => document.getElementById('set-goal-row').scrollIntoView({ block: 'center' }));
       await H.shot(p, 'goals-settings');
@@ -312,8 +314,6 @@ const setDays = (p, map, extra) =>
         return { t: c.innerText.replace(/\s+/g, ' ').trim(), title: c.title, cls: c.className };
       });
       assert(chip.t === '٤ أسابيع' && chip.title === 'فاضل يومين قراية الأسبوع ده' && /risk/.test(chip.cls), 'HUD: ' + JSON.stringify(chip));
-      const hint = await text(p, '.dg-wk');
-      assert(hint.includes('فاضل يومين قراية الأسبوع ده'), 'hint: ' + hint);
       await H.shot(p, 'goals-weekly');
       await go(p, 'settings');
       await p.selectOption('#set-streak-n', '2');
@@ -423,12 +423,9 @@ const setDays = (p, map, extra) =>
       return days[0] + ' … ' + days[6];
     });
 
-    await step('English: the first cheer celebrates; the goal strip reads well', async () => {
+    await step('English: the first cheer celebrates', async () => {
       await lang(p, 'en');
       await go(p, 'home');
-      const g = await text(p, '.dgoal .dg-t');
-      const want = await p.evaluate(() => `${window.A.G.goalOf().have} of ${window.A.G.goalOf().pages} pages today`);
-      assert(g.includes(want) && g.includes('a goal that grows with you'), 'strip: ' + g + ' / want ' + want);
       const to = await q.evaluate(() => window.A.S.me);
       await p.evaluate((to) => window.A.V.poke(to, 'cheer', {}), to);
       await waitFirst(p, 'cheer');

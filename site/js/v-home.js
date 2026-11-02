@@ -37,32 +37,16 @@
         best = due;
       }
     }
-    const others = reading.filter((b) => b !== primary);
-    if (V.simple())
-      return `<div class="home simple">
+    return `<div class="home simple">
       <div class="home-main">
         ${A.Upd ? A.Upd.banner() : ''}
+        ${V.offBanner ? V.offBanner() : ''}
         ${pokesBlock()}
+        ${V.sections('home', { primary, reading })}
         ${primary ? heroCard(primary) : noBooks()}
         ${primary ? raceCard(primary) : ''}
       </div>
       <div class="home-side">${D.canWrite() ? homeCards(true) : ''}</div>
-    </div>`;
-    return `<div class="home">
-      <div class="home-main">
-        ${A.Upd ? A.Upd.banner() : ''}
-        ${pokesBlock()}
-        ${goalStrip()}
-        ${V.sections('home', { primary, reading })}
-        ${primary ? heroCard(primary) : noBooks()}
-        ${primary ? raceCard(primary) : ''}
-        ${others.length ? otherBooks(others) : ''}
-      </div>
-      <div class="home-side">
-        ${V.startChecklist ? V.startChecklist() : ''}
-        ${D.canWrite() ? homeCards() : ''}
-        ${V.sections('home-side', { primary, reading })}
-      </div>
     </div>`;
   };
 
@@ -147,7 +131,7 @@
           ? L(`فاضل ${L.count(left, 'page')} • حوالي ${t}`, `${left} pages left • about ${t}`, `بقي ${L.count(left, 'page', 'nom')} • نحو ${t}`)
           : L('قريت صفحاته كلها — علّم إنك خلّصته', 'You read every page — mark it done', 'قرأت صفحاته كلها — علّم أنك أنهيته');
     const ready = bh.readyToMark;
-    const catchRow = behind
+    const catchRow = behind && !G.offToday() // no push to catch up on a day off
       ? `<div class="catchup">
           ${ready.length > 1
             ? `<button class="btn jade sm" data-act="mark-wirds" data-b="${esc(b.id)}" data-ws="${esc(ready.map((x) => x.id).join(','))}">${icon('check')}${L(`علّم الأوراد ${L.num(ready[0].n)}–${L.num(ready[ready.length - 1].n)} خلصوا`, `Mark portions ${ready[0].n}–${ready[ready.length - 1].n} done`, `علّم أنك أنهيت الأوراد ${L.num(ready[0].n)}–${L.num(ready[ready.length - 1].n)}`)}</button>`
@@ -516,16 +500,18 @@
         <button class="q-go" data-act="quest-go" data-i="${x.i}" data-close ${x.act && !x.done ? '' : 'disabled'}><span class="q-ic">${icon(x.done ? 'check' : x.ic)}</span><div><span>${x.bonus ? `<i class="q-tag">${L(`إضافي +${L.num(G.XP.bonus)} XP`, `Bonus +${G.XP.bonus} XP`, `إضافية +${L.num(G.XP.bonus)} XP`)}</i>` : ''}${G.questText(x)}</span>${x.need > 1 ? V.bar(x.have / x.need, x.done ? 'jade' : 'gold') : ''}</div><small>${x.done ? '' : x.need > 1 ? `${L.num(Math.min(x.have, x.need))}/${L.num(x.need)}` : x.act ? icon('fwd', 'flip-rtl') : ''}</small></button>
         ${canSwap && x.swappable ? `<button class="lnk sm q-swap" data-act="quest-swap" data-i="${x.i}">${icon('refresh')}${L('بدّلها', 'Swap', 'بدّلها')}</button>` : ''}</li>`;
     const s = G.of(S.me);
-    const wk = Math.min(s.questWeek || 0, G.BIG_CHEST_DAYS || 5);
-    const dots = Array.from({ length: G.BIG_CHEST_DAYS || 5 }, (_, i) => `<i class="${i < wk ? 'on' : ''}"></i>`).join('');
+    const bigN = G.bigChestDays(); // five, or fewer in a week with days off
+    const wk = Math.min(s.questWeek || 0, bigN);
+    const dots = Array.from({ length: bigN }, (_, i) => `<i class="${i < wk ? 'on' : ''}"></i>`).join('');
     return `<section class="card quests${all ? ' complete' : ''}">
       <header><h3>${L('مهام النهارده', "Today's quests", 'مهام اليوم')}</h3><span class="muted sm">${L(`بتتجدد بعد ${L.count(hrs, 'hour')}`, `Resets in ${L.count(hrs, 'hour')}`, `تتجدد بعد ${L.count(hrs, 'hour')}`)}</span></header>
+      ${G.offToday() ? `<p class="q-off">🌴 ${L('النهارده إجازة — المهام على راحتك', "Day off today — quests if you like", 'اليوم إجازة — المهام اختيارية')}</p>` : ''}
       <ul class="qlist">${q.map(row).join('')}${bonus ? row(bonus) : ''}</ul>
       <button class="chest${all ? ' ready' : ''}${opened ? ' opened' : ''}" data-act="chest" ${all && !opened ? '' : 'disabled'} aria-label="${L('صندوق المكافأة', 'Reward chest')}">
         <span class="chest-ic">${icon('chest')}</span>
         <span>${opened ? L(`اتفتح النهارده • +${L.num(G.XP.quests)} XP`, `Opened today • +${G.XP.quests} XP`, `تم فتحه اليوم • +${L.num(G.XP.quests)} XP`) : all ? L('افتح الصندوق!', 'Open the chest!') : L(`خلّص التلاتة وافتح الصندوق (+${L.num(G.XP.quests)} XP وممكن مفاجأة)`, `Finish all three to open the chest (+${G.XP.quests} XP and maybe a surprise)`, `أنهِ المهام الثلاث وافتح الصندوق (+${L.num(G.XP.quests)} XP وربما مفاجأة)`)}</span>
       </button>
-      <p class="q-week"><span class="q-dots">${dots}</span><small>${wk >= (G.BIG_CHEST_DAYS || 5) ? L('اتفتح الصندوق الكبير الأسبوع ده 🎉', 'Big chest opened this week 🎉', 'فُتح الصندوق الكبير هذا الأسبوع 🎉') : L(`${L.num(wk)} من ${L.num(G.BIG_CHEST_DAYS || 5)} أيام الأسبوع ده للصندوق الكبير (+${L.num(G.XP.bigChest)} XP)`, `${wk} of ${G.BIG_CHEST_DAYS || 5} days this week to the big chest (+${G.XP.bigChest} XP)`, `${L.num(wk)} من ${L.num(G.BIG_CHEST_DAYS || 5)} أيام هذا الأسبوع للصندوق الكبير (+${L.num(G.XP.bigChest)} XP)`)}</small></p>
+      <p class="q-week"><span class="q-dots">${dots}</span><small>${wk >= bigN ? L('اتفتح الصندوق الكبير الأسبوع ده 🎉', 'Big chest opened this week 🎉', 'فُتح الصندوق الكبير هذا الأسبوع 🎉') : L(`${L.num(wk)} من ${L.num(bigN)} أيام الأسبوع ده للصندوق الكبير (+${L.num(G.XP.bigChest)} XP)`, `${wk} of ${bigN} days this week to the big chest (+${G.XP.bigChest} XP)`, `${L.num(wk)} من ${L.num(bigN)} أيام هذا الأسبوع للصندوق الكبير (+${L.num(G.XP.bigChest)} XP)`)}</small></p>
     </section>`;
   }
 
@@ -600,6 +586,7 @@
       for (const list of groups.values()) items.push({ t: list[0].at, kind: 'shelf', u: sh.id, list });
     }
     for (const b of S.books.values()) if (b.addedAt) items.push({ t: b.addedAt, kind: 'newbook', u: b.addedBy, b });
+    if (A.Off) for (const o of A.Off.items()) items.push({ t: o.at, kind: 'off', u: o.by, o });
     items.sort((a, b) => String(b.t).localeCompare(String(a.t)));
     // fold highlights in a row (same person and book, within 6 hours) into one card
     const out = [];
@@ -685,6 +672,10 @@
         ? L(`• كتاب جديد في المكتبة: ${names}`, `added ${names} to their shelf`) + (x.list[0].rating ? ' ' + V.stars(x.list[0].rating) : '')
         : L(`• ${L.count(x.list.length, 'book')} جداد في المكتبة: ${names}${more > 0 ? ` و${L.num(more)} كمان` : ''}`, `added ${x.list.length} books to their shelf: ${names}${more > 0 ? ` and ${more} more` : ''}`, `• إضافة ${L.count(x.list.length, 'book')} إلى المكتبة: ${names}${more > 0 ? ` و${L.num(more)} غيرها` : ''}`);
       ic = 'shelf';
+    } else if (x.kind === 'off') {
+      txt = `• ${A.Off.text(x.o)}`;
+      ic = 'calendar';
+      cls = 'jade';
     } else if (x.kind === 'newbook') {
       txt = L(`• كتاب جديد للحلقة: «${esc(x.b.title)}»`, `added a new book: “${esc(x.b.title)}”`);
       ic = 'books';

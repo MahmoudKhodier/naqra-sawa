@@ -116,6 +116,12 @@ async function menu(p, text) {
   await T(400);
 }
 
+/** A setting shown as one button with a menu of choices (V.pick): open it, pick one. */
+async function pickOpt(p, act, v) {
+  await p.click(`[data-act="pick-open"][data-pk="${act}"]`);
+  await p.click(`.menu-sheet .mi[data-v="${v}"]`);
+  await new Promise((r) => setTimeout(r, 350));
+}
 (async () => {
   const env = await H.start();
   const browser = await chromium.launch();
@@ -953,13 +959,13 @@ async function menu(p, text) {
       await p.click('[data-go="settings"]');
       await T(600);
       await p.click('[data-act="rd-tools"][data-v="right"]');
-      await p.click('[data-act="rd-marks"][data-v="mine"]');
+      await pickOpt(p, 'rd-marks', 'mine');
       await T(300);
       await H.shot(p, 'r12-reading-settings');
       const prefs = await p.evaluate(() => ({ tools: window.A.U.store.get('rdTools'), marks: window.A.U.store.get('rdMarks') }));
       assert(prefs.tools === 'right' && prefs.marks === 'mine', JSON.stringify(prefs));
       await p.click('[data-act="rd-tools"][data-v="left"]');
-      await p.click('[data-act="rd-marks"][data-v="all"]');
+      await pickOpt(p, 'rd-marks', 'all');
       return `renamed to «${h1}»; settings saved`;
     }, ['open']);
 
@@ -1004,7 +1010,7 @@ async function menu(p, text) {
       // Settings: always sideways
       await p.click('[data-go="settings"]');
       await T(400);
-      await p.click('[data-act="rd-orient"][data-v="landscape"]');
+      await pickOpt(p, 'rd-orient', 'landscape');
       await p.evaluate(() => (window.__or = []));
       await p.evaluate((id) => window.A.R.open(id), ctx.book.id);
       await until(p, 'opened sideways', () => window.__or[0] === 'landscape', null, 3000);
@@ -1030,7 +1036,7 @@ async function menu(p, text) {
       }
       await p.click('[data-go="settings"]');
       await T(400);
-      await p.click('[data-act="rd-pillshow"][data-v="bars"]');
+      await pickOpt(p, 'rd-pillshow', 'bars');
       await p.click('[data-act="rd-pillcount"][data-v="20"]');
       await p.click('[data-act="rd-linecolor"][data-v="red"]');
       await H.shot(p, 'r14-dot-settings');
@@ -1044,7 +1050,7 @@ async function menu(p, text) {
       for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
       await p.click('[data-go="settings"]');
       await T(300);
-      await p.click('[data-act="rd-pillshow"][data-v="off"]');
+      await pickOpt(p, 'rd-pillshow', 'off');
       await p.evaluate((id) => window.A.R.open(id), ctx.book.id);
       await T(1200);
       const off = await p.evaluate(() => document.querySelectorAll('.pill-edge').length);

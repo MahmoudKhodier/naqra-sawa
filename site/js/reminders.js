@@ -41,13 +41,33 @@
     const LN = P.plugin('LocalNotifications');
     const perm = await LN.requestPermissions();
     if (perm.display !== 'granted') throw new Error('denied');
-    await LN.cancel({ notifications: [{ id: NOTIF_ID }] }).catch(() => {});
+    await LN.cancel({ notifications: allIds() }).catch(() => {});
     const t = text();
-    await LN.schedule({ notifications: [{ id: NOTIF_ID, title: t.title, body: t.body, isExactNotification: false, schedule: { on: { hour, minute: 0 }, repeats: true, allowWhileIdle: true } }] });
+    const G = A.G;
+    const cfg = G && G.offCfg ? G.offCfg() : { none: true };
+    if (cfg.none) {
+      await LN.schedule({ notifications: [{ id: NOTIF_ID, title: t.title, body: t.body, isExactNotification: false, schedule: { on: { hour, minute: 0 }, repeats: true, allowWhileIdle: true } }] });
+      return;
+    }
+    // The circle has days off: one reminder per reading day for the next three weeks, none on the days off
+    // (scheduled again every time the app starts and when the days off change).
+    const now = Date.now();
+    const list = [];
+    for (let i = 0; i < AHEAD; i++) {
+      const day = U.addDays(U.today(), i);
+      if (G.isOff(day, cfg)) continue;
+      const at = U.parseD(day);
+      at.setHours(hour, 0, 0, 0);
+      if (at.getTime() <= now) continue;
+      list.push({ id: NOTIF_ID + 1 + i, title: t.title, body: t.body, schedule: { at, allowWhileIdle: true } });
+    }
+    if (list.length) await LN.schedule({ notifications: list });
   }
+  const AHEAD = 21;
+  const allIds = () => [{ id: NOTIF_ID }, ...Array.from({ length: AHEAD }, (_, i) => ({ id: NOTIF_ID + 1 + i }))];
   async function cancelNative() {
     const LN = P.plugin('LocalNotifications');
-    if (LN) await LN.cancel({ notifications: [{ id: NOTIF_ID }] }).catch(() => {});
+    if (LN) await LN.cancel({ notifications: allIds() }).catch(() => {});
   }
 
   const b64ToBytes = (b64) => {
@@ -89,6 +109,7 @@
     const p = pref();
     if (p.on && P.native && P.plugin('LocalNotifications')) scheduleNative(p.hour).catch(() => {});
   };
+  R.reschedule = R.boot; // the circle's days off changed
 
   const dailySettings = () => {
     if (!R.available()) {

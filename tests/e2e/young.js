@@ -254,22 +254,23 @@ const readHere = async (p) => {
       return JSON.stringify(size);
     });
 
-    await step('«اليوم البسيط»: the owner turns it on for the young member; their Today has three things', async () => {
-      await closeAll(a);
-      await a.evaluate(() => window.A.V.go('circle', { seg: 'members' }));
-      await a.click(`.members [data-uid="${bUid}"]`);
-      await a.click('.mi:has-text("اليوم البسيط")');
-      await until(b, 'flag arrived', (u) => !!(window.A.S.circle && window.A.S.circle.simple && window.A.S.circle.simple[u]), bUid);
+    await step('«اليوم» is always the simple one: portion, race, quests; no switch for it anywhere', async () => {
       await closeAll(b);
       await b.evaluate(() => window.A.V.go('home'));
       await until(b, 'simple home', () => !!document.querySelector('.home.simple'));
-      assert(!(await b.$('.hcard.week')) && !(await b.$('.goal-strip')), 'extra cards still there');
+      assert(!(await b.$('.hcard.week')) && !(await b.$('.dgoal')), 'extra cards still there');
       assert(await b.$('.home.simple .quests'), 'no quests');
       const pick = await b.evaluate(() => window.A.V.menuItems('shelf', {}).some((x) => /اختارلي/.test(x.t)));
       assert(!pick, '«اختارلي كتاب» still offered');
-      // their own Settings win
-      await b.evaluate(() => { window.A.U.store.set('simpleToday', false); window.A.V.go('home'); });
-      await until(b, 'full home', () => !document.querySelector('.home.simple'));
+      await b.evaluate(() => window.A.V.go('settings'));
+      await T(300);
+      assert(!(await b.$('#set-simple')), 'the Settings switch is still there');
+      await closeAll(a);
+      await a.evaluate(() => window.A.V.go('circle', { seg: 'members' }));
+      await a.click(`.members [data-uid="${bUid}"]`);
+      await T(400);
+      assert(!(await a.$('.mi:has-text("اليوم البسيط")')), 'still in the member menu');
+      await closeAll(a);
     });
 
     await step('English and no console errors', async () => {

@@ -73,6 +73,8 @@
       const g = G.goalOf(S.me);
       if (g.on) Object.assign(out, { goal: goalText(g.have, g.pages) + (g.done ? ' 🎯' : ''), goalDone: !!g.done, goalNew: goalText(0, g.pages) });
     }
+    // a day off: nothing expected today
+    if (G.offToday && G.offToday()) Object.assign(out, { goal: L('النهارده إجازة 🌴 — اقرا لو حابب', 'Day off today 🌴 — read if you like', 'اليوم إجازة 🌴 — اقرأ إن شئت'), goalDone: true, risk: false, off: true });
     return out;
   };
 

@@ -228,7 +228,7 @@
       return V.empty(L('مفيش خطة لسه', 'No reading plan yet', 'لا توجد خطة بعد'), L('قسّموا الكتاب أوراد بعدد صفحات ومواعيد، وكل واحد يعلّم لما يخلّص.', 'Split the book into portions with page ranges and dates; everyone marks theirs when done.', 'قسّموا الكتاب إلى أوراد بصفحات ومواعيد، ويعلّم كل عضو ورده عندما ينهيه.'), V.canPlan(b) ? `<button class="btn gold" data-act="plan" data-b="${esc(b.id)}">${icon('calendar')}${L('اعمل خطة', 'Make a plan', 'أنشئ خطة')}</button>` : '');
     const members = D.memberIds();
     const per = ws[0].to - ws[0].from + 1;
-    const every = U.diffDays(ws[0].start, ws[0].due) + 1;
+    const every = G.wirdLen(ws[0]); // in reading days (a week-long one stays 7)
     return `<div class="plan-head"><p>${L(`${L.count(per, 'page')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} لـ ${L.dayShort(ws[ws.length - 1].due)}`, `${per} pages ${every === 1 ? 'a day' : every === 7 ? 'a week' : `every ${every} days`} • ${L.dayShort(ws[0].start)} – ${L.dayShort(ws[ws.length - 1].due)}`, `${L.count(per, 'page', 'nom')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} إلى ${L.dayShort(ws[ws.length - 1].due)}`)}</p>${V.canPlan(b) ? `<button class="btn ghost sm" data-act="plan" data-b="${esc(b.id)}">${icon('edit')}${L('عدّل الخطة', 'Edit plan')}</button>` : ''}</div>
       ${planTime(b, ws)}
       ${wirdCal(b, ws, members)}`;
@@ -263,6 +263,8 @@
     };
     const first = U.weekStart(ws[0].start);
     const lastDay = ws[ws.length - 1].due;
+    const offc = G.offCfg();
+    const canOff = (S.isOwner || S.canEdit) && D.canWrite();
     let head = '<span></span>';
     for (let i = 0; i < 7; i++) head += `<span class="wc-h">${L.weekday(U.addDays(first, i))}</span>`;
     let rows = '';
@@ -271,15 +273,19 @@
       for (let i = 0; i < 7; i++) {
         const d = U.addDays(wk, i);
         const w = byDay.get(d);
+        const off = G.isOff(d, offc);
         if (!w) {
-          rows += `<span class="wc-x${d === today ? ' today' : ''}"></span>`;
+          // an empty day: a day off shows 🌴; the owner and admins can tap one to make it a day off
+          rows += off || (canOff && d >= today)
+            ? `<button class="wc-x${off ? ' off' : ''}${d === today ? ' today' : ''}" data-act="day-off" data-d="${d}" aria-label="${esc(L.day(d))}${off ? ' 🌴' : ''}">${off ? '🌴' : ''}</button>`
+            : `<span class="wc-x${d === today ? ' today' : ''}"></span>`;
           continue;
         }
         const lead = d === w.start || i === 0; // the portion's first day, or its first day in this row
         const others = lead ? fins(w).filter((u) => u !== S.me) : [];
         const unread = lead && V.unread(b.id, w.id);
         const label = `${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)} • ${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}`;
-        rows += `<button class="wc-c ${cls(w)}${lead ? '' : ' cont'}${d === today ? ' today' : ''}" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" aria-label="${esc(label)}">${lead ? `<b>${L.num(w.n)}</b>` : ''}${
+        rows += `<button class="wc-c ${cls(w)}${lead ? '' : ' cont'}${off ? ' off' : ''}${d === today ? ' today' : ''}" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-d="${d}" aria-label="${esc(label)}${off ? ' • 🌴' : ''}">${lead ? `<b>${L.num(w.n)}</b>` : ''}${
           others.length ? `<span class="wc-avs">${others.slice(0, others.length > 3 ? 2 : 3).map((u) => D.avatar(u, 'xs')).join('')}${others.length > 3 ? `<i>+${L.num(others.length - 2)}</i>` : ''}</span>` : ''
         }${unread ? '<i class="wc-dot"></i>' : ''}</button>`;
       }
@@ -297,7 +303,7 @@
         ${curFins.length ? `<span class="wc-now-f">${curFins.slice(0, 5).map((u) => D.avatar(u, 'xs')).join('')}<small>${L('خلّصوه', 'finished it', 'أنهوه')}</small></span>` : ''}</span>
       </button>`;
     return `${now}<div class="wcal" role="grid">${head}${rows}</div>
-      <p class="wc-key"><span><i class="k done"></i>${L('خلّصته', 'Done', 'أنهيته')}</span><span><i class="k part"></i>${L('قريت جزء', 'Started', 'قرأت جزءًا')}</span><span><i class="k cur"></i>${L('عليه الدور', 'Up now', 'الحالي')}</span><span><i class="k late"></i>${L('متأخر', 'Late')}</span><span><span class="wc-key-av">${D.avatar(S.me, 'xs')}</span>${L('خلّصوه', 'Finished it', 'أنهوه')}</span></p>`;
+      <p class="wc-key"><span><i class="k done"></i>${L('خلّصته', 'Done', 'أنهيته')}</span><span><i class="k part"></i>${L('قريت جزء', 'Started', 'قرأت جزءًا')}</span><span><i class="k cur"></i>${L('عليه الدور', 'Up now', 'الحالي')}</span><span><i class="k late"></i>${L('متأخر', 'Late')}</span><span><span class="wc-key-av">${D.avatar(S.me, 'xs')}</span>${L('خلّصوه', 'Finished it', 'أنهوه')}</span>${offc.none ? '' : `<span>🌴 ${L('إجازة', 'Day off', 'إجازة')}</span>`}</p>${canOff ? `<p class="wc-off-h muted sm">${L('دوس على يوم عشان تعمله إجازة 🌴', 'Tap a day to make it a day off 🌴', 'المس يومًا لتجعله إجازة 🌴')}</p>` : ''}`;
   }
 
   /* One portion: progress, who finished, read / discuss / mark done. */
@@ -944,26 +950,36 @@
     let keepN = 0;
     ws.forEach((w, i) => progs.some((p) => p.done && p.done[w.id]) && (keepN = i + 1));
     const keep = ws.slice(0, keepN);
-    const st = { from: ws.length ? ws[0].from : 1, to: ws.length ? ws[ws.length - 1].to : b.pages, start: ws.length ? ws[0].start : U.today(), every: ws.length ? U.diffDays(ws[0].start, ws[0].due) + 1 : 1, mode: 'per', per: ws.length ? ws[0].to - ws[0].from + 1 : Math.min(20, b.pages), end: U.addDays(U.today(), 30) };
+    const st = { from: ws.length ? ws[0].from : 1, to: ws.length ? ws[ws.length - 1].to : b.pages, start: ws.length ? ws[0].start : U.today(), every: ws.length ? G.wirdLen(ws[0]) : 1, mode: 'per', per: ws.length ? ws[0].to - ws[0].from + 1 : Math.min(20, b.pages), end: U.addDays(U.today(), 30) };
     const gen = () => {
       const last = keep[keep.length - 1];
       const from = U.clamp(Math.max(st.from | 0, last ? last.to + 1 : 1), 1, b.pages), to = U.clamp(st.to | 0, from, b.pages);
-      const start = last && st.start <= last.due ? U.addDays(last.due, 1) : st.start;
+      const offc = G.offCfg();
+      const start = G.nextOn(last && st.start <= last.due ? U.addDays(last.due, 1) : st.start, offc); // never on a day off
       const every = Math.max(1, st.every | 0);
       let per = Math.max(1, st.per | 0);
       if (last && last.to >= Math.min(b.pages, st.to | 0)) return { out: keep.slice(), per }; // nothing left to plan
+      // Days off: a portion of a day or a few lasts that many reading days; a week-long one stays a week, and
+      // only a dated day off (a holiday) inside it makes it a day longer.
+      const span = (s) => G.wirdEnd(s, every, every, offc);
       if (st.mode === 'end') {
-        const days = Math.max(1, U.diffDays(start, st.end) + 1);
-        const count = Math.max(1, Math.floor(days / every));
-        per = Math.ceil((to - from + 1) / count);
+        let count = 0;
+        for (let s = start, k = 0; s <= st.end && k < 400; k++) {
+          const due = span(s);
+          if (due > st.end && count) break;
+          count++;
+          s = G.nextOn(U.addDays(due, 1), offc);
+        }
+        per = Math.ceil((to - from + 1) / Math.max(1, count));
       }
       const out = keep.slice();
-      let p = from, i = 0;
+      let p = from, i = 0, s = start;
       while (p <= to && i < 400) {
         const a = p, z = Math.min(to, p + per - 1);
-        const s = U.addDays(start, i * every);
         const n = keep.length + i + 1;
-        out.push({ id: 'w' + n, n, from: a, to: z, start: s, due: U.addDays(s, every - 1) });
+        const due = span(s);
+        out.push({ id: 'w' + n, n, from: a, to: z, start: s, due });
+        s = G.nextOn(U.addDays(due, 1), offc);
         p = z + 1;
         i++;
       }

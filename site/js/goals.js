@@ -22,15 +22,17 @@
     const g = G.goalOf(S.me);
     const mode = !g.on ? 'off' : g.auto ? 'auto' : 'num';
     const sp = G.streakPref(S.me);
+    // «اليوم» has no goal strip any more: today's count is here (and on the widget, and a cheer when it's hit)
+    const todayLine = g.on ? L(`النهارده ${L.num(Math.min(g.have, g.pages))} من ${L.count(g.pages, 'page')}${g.done ? ' ✓' : ''}`, `Today ${Math.min(g.have, g.pages)} of ${g.pages} pages${g.done ? ' ✓' : ''}`, `اليوم ${L.num(Math.min(g.have, g.pages))} من ${L.count(g.pages, 'page')}${g.done ? ' ✓' : ''}`) : '';
     const goalSub = mode === 'auto'
-      ? L(`دلوقتي ${L.count(g.pages, 'page')} — بيكبر لما تحققه ٥ أيام من ٧`, `Now ${g.pages} pages — grows when you hit it 5 days out of 7`, `حاليًا ${L.count(g.pages, 'page')} — يزيد عندما تحققه ٥ أيام من ٧`)
+      ? `${todayLine}<br>${L('بيكبر لما تحققه ٥ أيام من ٧', 'Grows when you hit it 5 days out of 7', 'يزيد عندما تحققه ٥ أيام من ٧')}`
       : mode === 'num'
-        ? L('عدد صفحات ثابت كل يوم', 'The same number of pages every day', 'عدد صفحات ثابت كل يوم')
-        : L('مش هيظهر في «اليوم»', 'Not shown on «Today»', 'لن يظهر في «اليوم»');
+        ? `${todayLine}<br>${L('عدد صفحات ثابت كل يوم', 'The same number of pages every day', 'عدد صفحات ثابت كل يوم')}`
+        : L('مقفول', 'Off', 'متوقف');
     const streakSub = sp.mode === 'week'
       ? L(`أسابيع ورا بعض فيها ${L.count(sp.n, 'day')} قراية على الأقل`, `Weeks in a row with at least ${sp.n} reading day${sp.n === 1 ? '' : 's'}`, `أسابيع متتالية فيها ${L.count(sp.n, 'day')} قراءة على الأقل`)
       : L('كل يوم تقرأ فيه ولو صفحة', 'Every day you read at least a page', 'كل يوم تقرأ فيه ولو صفحة');
-    return `<div class="set-row" id="set-goal-row"><span>${icon('target')}<span>${L('هدف يومي', 'Daily goal')}<small class="muted">${goalSub}</small></span></span>${seg('goal-mode', mode, [['off', L('مقفول', 'Off', 'متوقف')], ['auto', L('تلقائي', 'Auto')], ['num', L('رقم', 'Number', 'عدد')]])}</div>
+    return `<div class="set-row" id="set-goal-row"><span>${icon('target')}<span>${L('هدف يومي', 'Daily goal')}<small class="muted">${goalSub}</small></span></span>${V.pick('goal-mode', mode, [['off', L('مقفول', 'Off', 'متوقف')], ['auto', L('تلقائي', 'Auto')], ['num', L('رقم', 'Number', 'عدد')]], L('هدف يومي', 'Daily goal'))}</div>
       ${mode === 'num' ? `<div class="set-row sub"><label for="set-goal-n">${L('صفحات في اليوم', 'Pages a day')}</label><input id="set-goal-n" class="set-num" type="number" min="1" max="500" inputmode="numeric" value="${g.pages}"></div>` : ''}
       <div class="set-row" id="set-streak-row"><span>${icon('flame')}<span>${L('السلسلة', 'Streak')}<small class="muted">${streakSub}</small></span></span>${seg('streak-mode', sp.mode, [['day', L('يومية', 'Daily')], ['week', L('أسبوعية', 'Weekly')]])}</div>
       ${sp.mode === 'week' ? `<div class="set-row sub"><label for="set-streak-n">${L('أيام القراية في الأسبوع', 'Reading days a week', 'أيام القراءة في الأسبوع')}</label><select id="set-streak-n" class="set-num">${[1, 2, 3, 4, 5, 6, 7].map((n) => `<option value="${n}" ${n === sp.n ? 'selected' : ''}>${L.num(n)}</option>`).join('')}</select></div>` : ''}`;
@@ -143,8 +145,10 @@
       at: () => {
         const act = [...G.of(S.me).active].filter((d) => d <= U.today()).sort();
         let run = 0, prev = '';
+        const offc = G.offCfg();
         for (const d of act) {
-          run = prev && U.addDays(prev, 1) === d ? run + 1 : 1;
+          // days off in between don't break the run
+          run = prev && G.nextOn(U.addDays(prev, 1), offc) >= d ? run + 1 : 1;
           prev = d;
           if (run >= 7) return d;
         }

@@ -31,6 +31,7 @@
     for (const m of S.msgs) if (m.re && mine.has(m.re) && m.by !== me) out.push({ t: m.at, kind: 'msgreply', who: m.by, b: m.b, ch: m.ch || 'gen', text: m.text });
     for (const b of S.books.values()) if (b.addedBy && b.addedBy !== me && b.addedAt) out.push({ t: b.addedAt, kind: 'book', who: b.addedBy, b: b.id, book: b });
     for (const t of (S.throws || new Map()).values()) if (t.to === me && t.by !== me && A.Play) out.push({ t: t.at, kind: 'throw', who: t.by, it: t.it });
+    if (A.Off) for (const o of A.Off.items()) if (o.by !== me) out.push({ t: o.at, kind: 'off', who: o.by, o });
     out.sort((a, b) => String(b.t).localeCompare(String(a.t)));
     return out.slice(0, 60);
   };
@@ -74,11 +75,12 @@
       }
       case 'msgreply': return L(`رد من ${who} على رسالتك`, `${who} replied to your message`);
       case 'book': return L(`كتاب جديد في الحلقة من ${who}: ${title}`, `${who} added a new book: ${title}`);
+      case 'off': return L(`${who}: ${A.Off.text(x.o)}`, `${who}: ${A.Off.text(x.o)}`);
       case 'throw': return L(`${A.Play.itemName(x.it)} ${A.Play.item(x.it)[1]} من ${who}`, `${A.Play.itemName(x.it)} ${A.Play.item(x.it)[1]} from ${who}`);
     }
     return '';
   };
-  const ICON = { reply: 'chat', thread: 'chat', like: 'heart', cheer: 'clap', poke: 'hand', msgreply: 'chat', book: 'books', throw: 'sparkle' };
+  const ICON = { reply: 'chat', thread: 'chat', like: 'heart', cheer: 'clap', poke: 'hand', msgreply: 'chat', book: 'books', throw: 'sparkle', off: 'calendar' };
 
   V.openInbox = () => {
     const seen = seenAt();
@@ -116,6 +118,7 @@
           else if (x.kind === 'msgreply') x.b === '_c' ? V.go('circle', { seg: 'chat' }) : V.go('book-' + x.b, { tab: 'talk', ch: x.ch });
           else if (x.kind === 'poke' && x.b && S.books.has(x.b)) A.R.open(x.b);
           else if (x.kind === 'throw' && A.Play) A.Play.throwSheet(x.who);
+          else if (x.kind === 'off') V.offSheet();
           else if (x.b && S.books.has(x.b)) V.go('book-' + x.b);
           else V.go('home');
         }),

@@ -66,13 +66,9 @@
       .join('');
   const menus = {};
   V.addMenu = (where, fn) => (menus[where] = menus[where] || []).push(fn);
-  /* «اليوم البسيط»: only the portion, who is where and today's quests on «اليوم», and nothing that suggests other
-     books. Set on this phone in Settings, or for a member by the circle's owner or an admin (meta/circle.simple);
-     this phone's own choice wins. */
-  V.simple = () => {
-    const v = U.store.get('simpleToday', null);
-    return v === null || v === undefined ? !!(S.circle && S.circle.simple && S.circle.simple[S.me]) : !!v;
-  };
+  /* «اليوم»  is always the simple one (the owner's pick, 2026-11-02): the portion, who is where in it and today's
+     quests, and nothing that suggests other books («اختارلي كتاب», «تحدياتي» are gone too). */
+  V.simple = () => true;
   V.menuItems = (where, ctx) => (menus[where] || []).map((fn) => fn(ctx)).filter(Boolean);
   /* Avatar marks people can pick (onboarding shows the first 16; Settings shows all). */
   V.EMOJI = [
@@ -496,12 +492,12 @@
   }
   V.refreshSheets = refreshSheets;
 
-  V.menu = (items) => {
+  V.menu = (items, title) => {
     const html = `<div class="menu">${items
-      .map((it, i) => `<button class="mi ${it.cls || ''} ${it.danger ? 'danger' : ''}" data-i="${i}">${icon(it.ic || 'fwd')}<span>${it.t}</span></button>`)
+      .map((it, i) => `<button class="mi ${it.cls || ''} ${it.danger ? 'danger' : ''}" data-i="${i}"${it.v != null ? ` data-v="${esc(it.v)}"` : ''}>${icon(it.ic || 'fwd')}<span>${it.t}</span></button>`)
       .join('')}</div>`;
     V.sheet({
-      title: L('اختيارات', 'Options', 'خيارات'),
+      title: title || L('اختيارات', 'Options', 'خيارات'),
       html,
       cls: 'menu-sheet',
       onMount: (body, api) =>
@@ -512,6 +508,13 @@
           items[+b.dataset.i].fn();
         }),
     });
+  };
+  /* A setting with several choices, as one small button showing the current one (the choices open as a menu):
+     keeps a settings row to its name on one side and its control on the other. Runs V.actions[act] with
+     data-v = the choice, as a row of segment buttons would. */
+  V.pick = (act, cur, opts, title) => {
+    const now = opts.find(([k]) => k === cur) || opts[0];
+    return `<button type="button" class="pick" data-act="pick-open" data-pk="${esc(act)}" data-cur="${esc(cur)}" data-opts="${esc(JSON.stringify(opts))}" data-t="${esc(title || '')}" aria-haspopup="menu"><span>${now[1]}</span><i aria-hidden="true">▾</i></button>`;
   };
 
   V.confirm = (text, ok = L('تمام', 'OK', 'حسنًا'), danger = false) =>
@@ -912,6 +915,14 @@
     else if (V.actions && V.actions[act]) V.actions[act](a, e);
   });
   V.actions = {};
+  V.actions['pick-open'] = (a) => {
+    const act = a.dataset.pk, cur = a.dataset.cur;
+    let opts = [];
+    try {
+      opts = JSON.parse(a.dataset.opts || '[]');
+    } catch (e) {}
+    V.menu(opts.map(([k, t]) => ({ ic: 'check', cls: k === cur ? 'on' : 'blank', v: k, t, fn: () => V.actions[act] && V.actions[act]({ dataset: { v: k } }) })), a.dataset.t || undefined);
+  };
   V.actions.badge = (a) => V.badgeSheet(a.dataset.g, a.dataset.uid || S.me);
   V.badgeSheet = (g, uid0) => {
     const uid = uid0 || S.me;

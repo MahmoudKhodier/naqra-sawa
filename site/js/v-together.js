@@ -75,9 +75,12 @@
   V.circleFullRun = () => {
     const set = new Set(fullDays());
     let run = 0;
+    const offc = G.offCfg();
     let d = set.has(U.today()) ? U.today() : U.addDays(U.today(), -1);
-    while (set.has(d)) {
-      run++;
+    // days off nobody read on are stepped over: they don't break the run
+    for (let i = 0; i < 4000; i++) {
+      if (set.has(d)) run++;
+      else if (!G.isOff(d, offc)) break;
       d = U.addDays(d, -1);
     }
     return run;

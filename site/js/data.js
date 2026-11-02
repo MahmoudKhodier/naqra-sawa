@@ -31,6 +31,7 @@
     pokes: new Map(),
     reacts: new Map(), // emoji reactions on a line of a page: id → {b, page, y, e, by, at}
     throws: new Map(), // things thrown at friends (play.js): id → {by, to, it, at}
+    offs: new Map(), // days off set or taken back (offdays.js): id → {by, add, date | wd, at}
     gone: new Map(), // removed books: just their portions, so the XP earned on them stays
     myBooks: new Map(), // «مكتبتي الخاصة»: books only I can see (data/users/<me>/my/books)
     myProg: new Map(), // my progress in them (data/users/<me>/my/prog), never in the circle's prog
@@ -132,6 +133,7 @@
     listen(db.collection('pokes').orderBy('at', 'desc').limit(20000), 'pokes', (s) => (S.pokes = toMap(s)));
     listen(db.collection('reacts'), 'reacts', (s) => (S.reacts = toMap(s)));
     listen(db.collection('throws').orderBy('at', 'desc').limit(5000), 'throws', (s) => (S.throws = toMap(s)));
+    listen(db.collection('offs'), 'offs', (s) => (S.offs = toMap(s))); // days off set or taken back (offdays.js)
     listen(db.doc(`data/users/${S.me}/priv`), 'priv', (s) => (S.priv = s.exists ? s.data() : null));
     listen(db.collection(`data/users/${S.me}/my/books`), 'myBooks', (s) => (S.myBooks = toMap(s)));
     listen(db.collection(`data/users/${S.me}/my/prog`), 'myProg', (s) => (S.myProg = toMap(s)));

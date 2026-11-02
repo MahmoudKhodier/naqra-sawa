@@ -64,6 +64,11 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - «ورقات» chip in the top bar (`V.hudCoins`: spendable now; title has the lifetime pages), tap → «الحلقة ← الأعضاء».
 - Reader zoom is remembered per book (`zoom:<bookId>`, else the last zoom); page-by-page zoomed past the whole page reopens in free scrolling at that zoom. «وقفت هنا» saved on leaving also keeps `x` (part of the line) when zoomed in; «كمّل من ص …» (opts.page within a page of the place, no flash) opens at that line and spot; a line put by hand on the same page wins.
 
+## Days off, Simple Today, settings (2026-11-02, round 3)
+- «يوم إجازة» (`site/js/offdays.js`, helpers in game.js): `meta/circle.off = {dates: [...], weekly: [{d, from, to?}]}` (d = getDay; a weekly day counts from `from`, taking it off sets `to` = yesterday so the past stays). `G.isOff/offCfg/workDays/nextOn/endAfter/addWork/wirdEnd/redate`. Setting one re-dates every book's portions (`G.redate(book, oldCfg, newCfg)`: past ones stay, the one under way keeps its start, each keeps its length in reading days, a week-long one stays a week); new plans skip days off. Streak and «الحلقة كاملة» runs and the first-7-days wait over a day off; the goal's 5-of-7 counts reading days; big chest = min(5, reading days of the week) (`G.bigChestDays`); boss/weekly goal × reading days/7 (`G.weekGoal`); pace/forecast in reading days; Android reminders scheduled per reading day for 3 weeks when there are days off. Owner/admins set them: circle ⋯ «أيام الإجازة», the circle details sheet, a day of the plan calendar (empty days, or the portion's sheet). News + «الجديد ليك» from col `offs`. Today: `V.offBanner()`, no catch-up push; widget `off`.
+- «اليوم» is always the simple one (`V.simple()` is true; the Settings switch and member-menu item are gone; «اختارلي كتاب» and «تحدياتي» hidden); the daily goal shows today's count in Settings, not on Today.
+- Settings rows: name on one side, control on the other (nowrap); several-choice settings are `V.pick(act, cur, opts, title)` (a button opening a menu; tests use `pickOpt`).
+
 ## Reader notes
 - When a page counts (reader.js `pageChanged`/`tick`): on going on from it one or two pages after ≥4 s on it (≥10 s past the end of my portion), or after staying on it ~0.6 × my seconds per page (20–90 s). Never on arrival. `st.front` follows forward steps after ≥2 s on a page (not pages a long scroll runs through).
 - Reading vs looking around: `st.front` is where reading goes on (resume point, saved as `prog.last`). Pages count only within ~2 pages of it; jumps further away are "looking around" (a bar offers «ارجع لمكانك» / «كمّل من هنا»). Opening the current portion counts. «وقفت هنا» (one line per book, private: `priv.place[bookId] = {p, y, manual}`) is placed with the edge dots and saved on leaving.
@@ -89,6 +94,7 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - `node tests/e2e/play.js` — characters, sheets, throwing and the scene, opening a character, the boss and its replay, the animated reaction bar.
 - `node tests/e2e/young.js` — stations, 5 minutes, no spoilers, golden page, reactions, catch-up line, story picture, Simple Today.
 - `node tests/e2e/quests.js` — daily quests from the portion, people and reflection, swap, recorded day, chest.
+- `node tests/e2e/offdays.js` — days off: a date and every Friday, portions moving, calendar 🌴, news/inbox, member read-only, streak over a day off, Today banner.
 - `node tests/e2e/plan.js` — plan calendar, who may change it, moving a portion's pages (sheet and reader), «مين وصل فين» tabs.
 - `node tests/e2e/screens.js` — screenshots of every main screen for a visual review (`LANGS=eg,ar,en THEMES=light,dark LAND=1`), in `tests/e2e/shots/screens/`.
 - `node tests/e2e/shelf.js` — Goodreads import, shelf search/sort/status moves, badge levels and details, the Android update prompt (stand-in native layer).

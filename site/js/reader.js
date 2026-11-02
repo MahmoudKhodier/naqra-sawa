@@ -196,7 +196,7 @@
     let front = U.clamp((place && place.p ? (last > place.p + 2 ? last : place.p) : last) | 0, 1, N0);
     // «كمّل من ص ١١» is the page you were on; «وقفت هنا» may be on the one next to it (the line a third down the
     // screen): open at the line, unless a note or a mark on that page is what's being opened
-    if (opts.page && !opts.flash && place && place.p && Math.abs(opts.page - place.p) <= 1 && Math.abs(front - place.p) <= 1) opts = Object.assign({}, opts, { page: place.p });
+    if (opts.page && !opts.flash && place && place.p && opts.page === last && Math.abs(opts.page - place.p) <= 1 && Math.abs(front - place.p) <= 1) opts = Object.assign({}, opts, { page: place.p });
     let start = U.clamp((opts.page || front) | 0, 1, N0);
     // Opening a portion (or right next to where you are) is reading; any other page is a look around.
     const myW = G.myCurrent(book);

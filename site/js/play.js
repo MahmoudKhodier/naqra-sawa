@@ -433,7 +433,7 @@
   };
   /* The boss card's state: health = the circle's weekly goal; hits = pages this week (in the app or on paper). */
   P.boss = (ws = U.weekStart()) => {
-    const goal = (S.circle && +S.circle.weeklyGoal) || 300;
+    const goal = G.weekGoal(ws); // smaller in a week with days off
     const hits = D.memberIds().map((u) => ({ u, n: G.weekPagesOf(u, ws).pages })).sort((a, b) => b.n - a.n);
     const total = hits.reduce((s, x) => s + x.n, 0);
     return { ws, goal, hits, total, hp: Math.max(0, goal - total), dead: total >= goal, mon: P.monster(ws) };

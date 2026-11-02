@@ -316,7 +316,7 @@
       reward: day >= G.QUEST_V2 ? G.chestReward(S.me, day) : 'wisdom',
       bonus: !!(bonus && bonus.done),
       week: s.questWeek,
-      big: !!recorded() && s.questWeek === G.BIG_CHEST_DAYS, // today was the fifth full day this week
+      big: !!recorded() && s.questWeek === G.bigChestDays(), // today was the fifth full day this week
     };
   };
 
