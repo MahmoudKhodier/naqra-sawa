@@ -586,6 +586,35 @@ async function menu(p, text) {
       return `jump to ${far}: not counted; read from here: counted; un-counted again`;
     }, ['open', 'cdp']);
 
+    await step('A page counts once you go on from it, not when you get to it', async () => {
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      const s0 = await p.evaluate(() => window.A.R._state());
+      const q = s0.front + 1;
+      await p.evaluate((pg) => window.A.R.goTo(pg, false), q);
+      await until(p, 'on the next page', (pg) => window.A.R._state().cur === pg, q, 6000);
+      await T(300);
+      if (await p.evaluate(() => window.A.R._state().browsing)) {
+        await showBars(p);
+        await p.click('[data-act="browse-here"]');
+      }
+      await p.evaluate((pg) => window.A.R._uncount && window.A.R._uncount(pg), q);
+      // on the page a while (past the end of my portion a look needs ~10 seconds): still not counted
+      await T(11000);
+      assert(!(await p.evaluate((pg) => window.A.R._counted(pg), q)), `page ${q} counted on arrival`);
+      // on to the next page: now the one before counts, the new one does not yet
+      await p.evaluate((pg) => window.A.R.goTo(pg, false), q + 1);
+      await until(p, 'moved on', (pg) => window.A.R._state().cur === pg, q + 1, 6000);
+      await T(1500);
+      assert(await p.evaluate((pg) => window.A.R._counted(pg), q), `page ${q} not counted after going on ` + JSON.stringify(await p.evaluate(() => window.A.R._state())));
+      assert(!(await p.evaluate((pg) => window.A.R._counted(pg), q + 1)), `page ${q + 1} counted on arrival`);
+      // straight on after a moment only: a page flicked past does not count
+      await p.evaluate((pg) => window.A.R.goTo(pg, false), q + 2);
+      await until(p, 'flicked on', (pg) => window.A.R._state().cur === pg, q + 2, 6000);
+      await T(500);
+      assert(!(await p.evaluate((pg) => window.A.R._counted(pg), q + 1)), `page ${q + 1} counted after a second`);
+      return `p. ${q} counted on leaving; p. ${q + 1} passed in a second: not counted`;
+    }, ['open', 'cdp']);
+
     await step('«وقفت هنا»: a pill on the edge puts the line; book look pages alternate sides; bookmarks get names and slider marks', async () => {
       for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
       await menu(p, 'صفحة صفحة');

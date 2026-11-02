@@ -38,6 +38,7 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - The weekly circle recap pops up by itself only when no sheet and no book is open (Fridays broke tests that didn't close sheets).
 
 ## Reader notes
+- When a page counts (reader.js `pageChanged`/`tick`): on going on from it one or two pages after ≥4 s on it (≥10 s past the end of my portion), or after staying on it ~0.6 × my seconds per page (20–90 s). Never on arrival. `st.front` follows forward steps after ≥2 s on a page (not pages a long scroll runs through).
 - Reading vs looking around: `st.front` is where reading goes on (resume point, saved as `prog.last`). Pages count only within ~2 pages of it; jumps further away are "looking around" (a bar offers «ارجع لمكانك» / «كمّل من هنا»). Opening the current portion counts. «وقفت هنا» (one line per book, private: `priv.place[bookId] = {p, y, manual}`) is placed with the edge dots and saved on leaving.
 - Book look (page-by-page): RTL even pages are right-hand pages; the cover board and page-edge stack are on the outer side only.
 - Private per-user data lives in `data/users/<uid>/priv`: private notes, bookmarks (`marks[book][page]` = time or `{at, t}`), `place`, `moved`/`hidden` (others' notes moved or hidden on my screen only).

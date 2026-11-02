@@ -183,7 +183,7 @@
       bookId, book, N: book.pages || 1, zoom: prefs.zoom || 1, theme: prefs.theme || 'day', mode: 'none',
       parts: (book.parts || []).map((p) => Object.assign({}, p, { pdf: null, loading: null })),
       sizeFix: {}, els: new Map(), want: [], busy: false, gen: 0, cur: start, lastSaved: start,
-      pending: new Set(), dwellP: 0, dwellN: 0, sessionPages: 0, flash: opts.flash || null, uiHidden: false,
+      pending: new Set(), dwell: new Map(), sessionPages: 0, flash: opts.flash || null, uiHidden: false,
       notesVer: -1, panel: null, filter: 'wird', lastTop: 0,
       pagedPref: !!prefs.paged, paged: !!prefs.paged && !((prefs.zoom || 1) > 1.01), startedAt: Date.now(), activeSecs: 0, secsPending: 0, userAt: 0, activeAt: Date.now(),
       front, browsing: false, counted: new Set(),
@@ -676,6 +676,18 @@
 
   let presT = 0;
   function pageChanged(p) {
+    // leaving a page forward, one or two pages on, after time on it: that page was read (not when you got to it)
+    const prev = st.cur;
+    if (p > prev && p - prev <= 2 && !st.browsing) {
+      const t = st.dwell.get(prev) || 0;
+      if (t >= leaveNeed(prev)) markSeen(prev);
+      // where reading goes on moves with you, also over a page passed in a couple of seconds (a title page, a
+      // picture), but not over pages a long scroll or a jump runs through
+      if (t >= 2 && prev > st.front) {
+        st.front = prev;
+        U.store.set('last:' + st.bookId, prev);
+      }
+    }
     st.cur = p;
     const inp = st.root.querySelector('#rd-pgin');
     if (inp && document.activeElement !== inp) inp.value = L.num(p, { useGrouping: false });
@@ -687,7 +699,14 @@
     chrome();
   }
 
-  /* A page counts as read after ~3 seconds as the current page. */
+  /* A page counts as read when you go on from it after a few seconds on it (~4; ~10 past the end of my portion,
+     where a look ahead is not reading), or after staying on it about as long as a page takes you (the last page
+     of the book, or one you read without moving on). Getting to a page is not reading it. */
+  const leaveNeed = (p) => {
+    const mine = !st.priv && G.myCurrent(st.book);
+    return mine && p > mine.to ? 10 : 4;
+  };
+  const stayNeed = () => U.clamp(Math.round(G.secsPerPage() * 0.6), 20, 90);
   function tick() {
     if (!st || document.hidden) return;
     const idle = Date.now() - st.activeAt;
@@ -697,14 +716,10 @@
       st.activeSecs++;
       st.secsPending++;
     }
-    if (st.cur === st.dwellP) {
-      st.dwellN++;
-      // ~3 seconds on a page counts it; a page past the end of my portion needs ~10 (a look ahead is not reading)
-      const mine = !st.priv && G.myCurrent(st.book);
-      if (st.dwellN === (mine && st.cur > mine.to ? 10 : 3)) markSeen(st.cur);
-    } else {
-      st.dwellP = st.cur;
-      st.dwellN = 0;
+    if (reading && !st.browsing) {
+      const t = (st.dwell.get(st.cur) || 0) + 1;
+      st.dwell.set(st.cur, t);
+      if (t === stayNeed()) markSeen(st.cur);
     }
     if (st.focus) focusTick(reading);
   }
@@ -1190,7 +1205,7 @@
     st.front = st.cur;
     U.store.set('last:' + st.bookId, st.cur);
     st.browsing = false;
-    st.dwellN = 0;
+    st.dwell.delete(st.cur);
     browseUi();
     savePlaceDoc({ p: st.cur, y: 0, at: U.nowIso(), manual: false });
     chrome();
@@ -1205,7 +1220,7 @@
         <span class="rb-acts"><button class="btn sm ghost" data-act="browse-back">${U.icon('back', 'flip')}${L(`ارجع لمكانك (ص ${L.num(st.front)})`, `Back to p. ${st.front}`, `عُد إلى مكانك (ص ${L.num(st.front)})`)}</button>
         <button class="btn sm gold" data-act="browse-here">${U.icon('play', 'flip-rtl')}${L('كمّل من هنا', 'Read from here', 'تابِع من هنا')}</button></span>`;
   }
-  R._state = () => st && { front: st.front, browsing: st.browsing, cur: st.cur, place: placeOf(st.bookId), pending: st.pending };
+  R._state = () => st && { front: st.front, browsing: st.browsing, cur: st.cur, place: placeOf(st.bookId), pending: st.pending, dwell: Object.fromEntries(st.dwell) };
 
   /* ---------- bookmarks ---------- */
   function toggleBookmark() {
@@ -2337,6 +2352,8 @@
     }
   }
   R._markSeen = (p) => st && markSeen(p); // for tests: count a page as read now
+  R._uncount = (p) => st && (st.pending.delete(p), st.dwell.delete(p)); // for tests: forget this session's count of a page
+  R._counted = (p) => !!st && (st.pending.has(p) || U.rangesHas((D.prog(st.bookId) || {}).seen, p) || D.outboxHas(st.bookId, p));
   R._awake = () => !!st && (nativeAwake || (!!wakeLock && wakeLock !== 'pending') || !!st.awakeTried);
 
   /* ---------- live data ---------- */
