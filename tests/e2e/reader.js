@@ -711,7 +711,29 @@ async function menu(p, text) {
       const z4 = await z();
       assert(z3 === z4, `page-by-page zoom ${z3} → ${z4}`);
       await p.evaluate(() => (window.A.R._paged(false), window.A.R._zoom(1)));
-      return `${z1}% → ${z2}%, ${z3}% → ${z4}%`;
+      // zoomed in, half-way down a page and over to one side: «كمّل» from Today comes back to that spot
+      // (no «وقفت هنا» put by hand: that one would win)
+      await p.evaluate(() => { const b = window.A.R._bookId(); return window.A.D.privUpdate((c) => { const place = Object.assign({}, c.place); delete place[b]; return Object.assign(c, { place }); }); });
+      await p.evaluate(() => window.A.R._zoom(1.8));
+      await T(300);
+      await p.evaluate(() => {
+        const sc = document.querySelector('#rd-scroll');
+        sc.scrollTop += Math.round(sc.clientHeight * 0.6);
+        sc.scrollLeft = sc.scrollLeft > 0 ? sc.scrollLeft - 120 : sc.scrollLeft + 120 * (sc.scrollLeft < 0 ? -1 : 1);
+      });
+      await T(2600); // a few seconds on the page: reading goes on here
+      const a0 = await p.evaluate(() => window.A.R._anchor());
+      const bid = await p.evaluate(() => window.A.R._bookId());
+      await p.evaluate(() => window.A.R.close(true));
+      await T(700);
+      // as «كمّل من ص …» on Today does: the page you were on
+      await p.evaluate((b) => window.A.R.open(b, { page: window.A.D.prog(b).last || window.A.U.store.get('last:' + b) }), bid);
+      await until(p, 'painted', () => [...document.querySelectorAll('.pg canvas')].some((x) => x.width > 100), null, 20000);
+      await T(500);
+      const a1 = await p.evaluate(() => window.A.R._anchor());
+      assert(a1.p === a0.p && Math.abs(a1.fy - a0.fy) < 0.04 && Math.abs(a1.fx - a0.fx) < 0.06, `spot ${JSON.stringify(a0)} → ${JSON.stringify(a1)}`);
+      await p.evaluate(() => window.A.R._zoom(1));
+      return `${z1}% → ${z2}%, ${z3}% → ${z4}%; spot p. ${a0.p} ${a0.fy.toFixed(2)},${a0.fx.toFixed(2)} → ${a1.fy.toFixed(2)},${a1.fx.toFixed(2)}`;
     }, ['open']);
 
     await step('Pages read offline are kept after closing the book and saved once back online', async () => {

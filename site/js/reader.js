@@ -194,6 +194,9 @@
     const place = placeOf(bookId);
     const last = (prog && prog.last) || U.store.get('last:' + bookId, 1) || 1;
     let front = U.clamp((place && place.p ? (last > place.p + 2 ? last : place.p) : last) | 0, 1, N0);
+    // «كمّل من ص ١١» is the page you were on; «وقفت هنا» may be on the one next to it (the line a third down the
+    // screen): open at the line, unless a note or a mark on that page is what's being opened
+    if (opts.page && !opts.flash && place && place.p && Math.abs(opts.page - place.p) <= 1 && Math.abs(front - place.p) <= 1) opts = Object.assign({}, opts, { page: place.p });
     let start = U.clamp((opts.page || front) | 0, 1, N0);
     // Opening a portion (or right next to where you are) is reading; any other page is a look around.
     const myW = G.myCurrent(book);
@@ -239,9 +242,12 @@
       geom();
     }
     zoomUi();
-    if (!opts.page && place && place.p === start && !st.paged && place.y > 0.02) {
+    // «كمّل» (from Today, the book or here) opens on the page of «وقفت هنا»: back to that very line (and, zoomed
+    // in, that part of it), not the top of the page
+    if ((!opts.page || (place && opts.page === place.p)) && place && place.p === start && !st.paged && (place.y > 0.02 || place.x != null)) {
       // put the «وقفت هنا» line a third of the way down the screen
-      st.sc.scrollTop = Math.max(0, st.tops[start] + place.y * st.hs[start] - st.sc.clientHeight * 0.3);
+      if (place.x != null && st.zoom > 1.01) restoreAnchor({ p: start, fy: place.y || 0, fx: place.x, ax: st.sc.clientWidth / 2, ay: st.sc.clientHeight * 0.3 });
+      else st.sc.scrollTop = Math.max(0, st.tops[start] + place.y * st.hs[start] - st.sc.clientHeight * 0.3);
       update();
     } else goTo(start, false);
     st.browsing = start > st.front + 2 || start < st.front - 1;
@@ -1472,15 +1478,16 @@
   function savePlace() {
     if (!st || st.browsing || !D.canWrite()) return;
     const old = placeOf(st.bookId);
-    let p = st.front, y = 0;
+    let p = st.front, y = 0, x = null;
     if (!st.paged && Math.abs(st.cur - st.front) <= 1) {
       const a = anchorAt(st.sc.clientWidth / 2, st.sc.clientHeight * 0.3);
       p = a.p;
       y = U.clamp(r4(a.fy), 0, 0.98);
+      if (st.zoom > 1.01) x = U.clamp(r4(a.fx), 0, 1); // zoomed in: which part of the line, too
     }
     if (old && old.manual && old.p === p) return;
-    if (old && old.p === p && Math.abs((old.y || 0) - y) < 0.01) return;
-    savePlaceDoc({ p, y, at: U.nowIso(), manual: false });
+    if (old && old.p === p && Math.abs((old.y || 0) - y) < 0.01 && (x == null ? old.x == null : Math.abs((old.x || 0) - x) < 0.01)) return;
+    savePlaceDoc(Object.assign({ p, y, at: U.nowIso(), manual: false }, x == null ? {} : { x }));
   }
   function setPlace(p, y) {
     const old = placeOf(st.bookId);
@@ -2692,6 +2699,7 @@
   R._rxClose = () => rxClose(); // for tests
   R._bookId = () => st && st.bookId;
   R._zoomNow = () => st && st.zoom;
+  R._anchor = () => st && anchorAt(st.sc.clientWidth / 2, st.sc.clientHeight * 0.3);
   R._fitZ = () => st && st.fitZ;
   R._zoom = (z) => st && setZoom(z);
   R._paged = (on) => st && setPaged(on);
