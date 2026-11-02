@@ -325,7 +325,7 @@ const items = (p) => p.evaluate(() => Object.values((window.A.S.shelf.get(window
         return { n: cards.length, perRow: 6 / tops.size, got: document.querySelectorAll('.badges .bdg.got').length };
       });
       assert(grid.perRow === 2, 'cards per row: ' + grid.perRow);
-      assert(grid.n === 23, 'groups: ' + grid.n);
+      assert(grid.n === 31, 'groups: ' + grid.n); // 23 + the 8 newer ones (gold, boss, big chest, gifts, pranks, reactions, characters, day-off reading)
       await p.click('.bdg[data-g="pages"]');
       await p.waitForSelector('.bd-tiers');
       const tiers = await p.$$eval('.bd-tiers li', (x) => x.map((e) => e.classList.contains('got')));
