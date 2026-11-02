@@ -489,7 +489,9 @@
     const arena = card.querySelector('.arena');
     if (!arena) return;
     replaying = true;
-    card.classList.add('replaying');
+    // the screen may draw itself again meanwhile (data coming in): it leaves the arena alone until the end
+    arena.setAttribute('data-rt-skip', '');
+    arena.setAttribute('data-rt-replay', '');
     let hp = b.goal;
     const setHp = (now) => {
       const w = (Math.max(0, hp) / b.goal) * 100 + '%';
@@ -517,10 +519,15 @@
       hp = b.hp;
       setHp(true);
       const mon = arena.querySelector('.ar-mon');
+      const done = () => {
+        arena.removeAttribute('data-rt-skip');
+        arena.removeAttribute('data-rt-replay');
+        if (arena.isConnected) V.render(); // catch up with anything that came in meanwhile
+      };
       if (b.dead && mon && arena.isConnected) {
         mon.classList.add('ko'); // down it goes, then the prize
-        setTimeout(() => card.classList.remove('replaying'), 700);
-      } else card.classList.remove('replaying');
+        setTimeout(done, 700);
+      } else done();
     };
     arena.addEventListener('click', finish, { once: true });
     const step = () => {

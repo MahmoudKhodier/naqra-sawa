@@ -1795,7 +1795,7 @@ html { overscroll-behavior-y: contain; }
 @keyframes arjump { 40% { transform: translateY(-16px) scale(1.1); } }
 .ar-dmg { position: absolute; z-index: 6; transform: translateX(-50%); font: 900 1.7rem/1 var(--f-ui); color: #ffd84d; -webkit-text-stroke: 2px #6b1600; paint-order: stroke fill; text-shadow: 0 3px 0 #6b1600; pointer-events: none; animation: ardmg 1s cubic-bezier(.2, .8, .3, 1) forwards; }
 @keyframes ardmg { 0% { transform: translate(-50%, 10px) scale(.3); opacity: 0; } 18% { transform: translate(-50%, -14px) scale(1.25); opacity: 1; } 32% { transform: translate(-50%, -20px) scale(1); } 100% { transform: translate(-50%, -70px); opacity: 0; } }
-.boss.dead:not(.replaying) .ar-mon, .boss.replaying .ar-win { display: none; }
+.boss.dead .arena:not([data-rt-replay]) .ar-mon, .arena[data-rt-replay] .ar-win { display: none; }
 .ar-mon.ko { animation: arko .7s cubic-bezier(.5, 0, .8, .4) forwards; }
 @keyframes arko { 30% { transform: rotate(-12deg) scale(1.05); } to { transform: rotate(25deg) translateY(60px) scale(.3); opacity: 0; } }
 .ar-party.many .ar-mate { width: 44px; font-size: .6rem; }
