@@ -150,8 +150,8 @@
         <label for="ec-motto">${L('شعار أو جملة تعريف', 'Motto', 'شعار أو جملة تعريفية')}</label><input id="ec-motto" maxlength="120" dir="auto" value="${esc(c.motto || '')}" placeholder="${L('مثلا: كل يوم ورد، وكل شهر كتاب', 'e.g. A portion a day, a book a month', 'مثلًا: كل يوم ورد، وكل شهر كتاب')}">
         <label for="ec-goal">${L('هدف الصفحات الأسبوعي للحلقة', 'Weekly page goal for the circle')}</label><input id="ec-goal" type="number" min="10" max="100000" value="${esc(c.weeklyGoal || 300)}" aria-describedby="ec-goal-h">
         <small class="muted" id="ec-goal-h">${planWeekHint()}</small>
-        <button type="button" class="btn ghost sm" data-act="days-off" data-close>🌴 ${L('أيام الإجازة', 'Days off', 'أيام الإجازة')}</button>
-        <div class="row-btns end"><button class="btn">${L('احفظ', 'Save')}</button></div></form>`,
+        <div class="row-btns end"><button class="btn">${L('احفظ', 'Save')}</button></div></form>
+        <div class="row-btns"><button type="button" class="btn ghost sm" data-act="days-off" data-close>🌴 ${L('أيام الإجازة', 'Days off', 'أيام الإجازة')}</button></div>`,
       onMount: (body, api) =>
         body.addEventListener('submit', async (e) => {
           e.preventDefault();
