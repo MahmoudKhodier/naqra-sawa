@@ -207,177 +207,13 @@ const toastText = (page) => page.$$eval('#toasts .toast', (x) => x.map((t) => t.
       await p.evaluate(() => window.A.V.go('me'));
     }, ['taste']);
 
-    await step('«اختارلي كتاب»: a pick from the want list, filters, «غيره», «هبدأ فيه»', async () => {
-      await p.click('[data-go="shelf"]');
-      await p.click('[data-act="shelf-more"]');
-      await p.click('.mi:has-text("اختارلي كتاب")');
-      await p.waitForSelector('.wm-pick-sheet #wm-pick');
-      const title = () => p.textContent('#wm-pick .wm-pt');
-      const want = ['Dune', 'الغريب', 'مئة عام من العزلة', 'كتاب بلا صفحات', 'الطنطورية'];
-      assert(want.includes(await title()), 'first pick: ' + (await title()));
-      // short: under 200 pages, plus books without a page count
-      await p.click('[data-f="len"] [data-v="short"]');
-      const short = ['الغريب', 'كتاب بلا صفحات'];
-      const t1 = await title();
-      assert(short.includes(t1), 'short pick: ' + t1);
-      assert(/واحد من كتابين/.test(await p.textContent('.wm-pc')), 'count: ' + (await p.textContent('.wm-pc')));
-      await p.click('.wm-pick-sheet [data-again]');
-      const t2 = await title();
-      assert(short.includes(t2) && t2 !== t1, `another: ${t1} → ${t2}`);
-      for (let i = 0; i < 4; i++) {
-        const a = await title();
-        await p.click('.wm-pick-sheet [data-again]');
-        assert((await title()) !== a, 'the same book twice in a row');
-      }
-      // a category
-      await p.click('[data-f="tag"] [data-v="philo"]');
-      assert((await title()) === 'كتاب بلا صفحات', 'philosophy: ' + (await title()));
-      assert(await p.$eval('.wm-pick-sheet [data-again]', (b) => b.disabled), '«غيره» with one book left');
-      assert(!(await p.$('#wm-pick .wm-time')), 'a time without pages');
-      // one of my shelves, any length
-      await p.click('[data-f="tag"] [data-v=""]');
-      await p.click('[data-f="len"] [data-v="any"]');
-      await p.click('[data-f="list"] [data-v="كلاسيكيات"]');
-      const t3 = await title();
-      assert(['الغريب', 'مئة عام من العزلة'].includes(t3), 'list pick: ' + t3);
-      if (t3 !== 'الغريب') await p.click('.wm-pick-sheet [data-again]');
-      assert((await title()) === 'الغريب', 'could not reach الغريب');
-      const time = await p.textContent('#wm-pick .wm-time');
-      assert(/ساعتين و٣٠ دقيقة/.test(time), 'time for 150 pages: ' + time);
-      await p.click('[data-f="len"] [data-v="long"]');
-      assert(/مفيش كتاب بالمواصفات دي/.test(await p.textContent('.wm-out')), 'no empty state for long classics');
-      await p.click('[data-f="len"] [data-v="short"]');
-      assert((await title()) === 'الغريب', 'back to short');
-      await T(700); // the shuffle settles
-      await H.shot(p, 'worm-pick');
-      await p.click('.wm-pick-sheet [data-start]');
-      await until(p, 'moved to reading', (d) => Object.values((window.A.S.shelf.get(window.A.S.me) || {}).items || {}).some((x) => x.title === 'الغريب' && x.status === 'reading' && x.started === d), TODAY);
-      await until(p, 'shelf on «بقرأه»', () => window.A.V.state.route === 'shelf' && window.A.V.state.opts.st === 'reading');
-      const g = (await shelfOf(p)).find((x) => x.title === 'الغريب');
-      assert(g.lists && g.lists[0] === 'كلاسيكيات' && g.pages === 150, 'other fields lost: ' + JSON.stringify(g));
-      await T(300);
-    }, ['joined']);
-
-    await step('«اختارلي كتاب» with an empty want list', async () => {
-      await q.evaluate(() => window.A.V.worm.pickSheet());
-      await q.waitForSelector('.sheet .empty');
-      assert(/«عايز أقرأه» فاضية/.test(await q.textContent('.sheet .empty')), 'empty state text');
-      await closeSheets(q);
-    }, ['joined']);
-
-    const newChallenge = async (fill) => {
-      await p.click('#wm-ch [data-act="wm-ch-new"]');
-      await p.waitForSelector('#wm-ch-form');
-      await fill();
-      await p.click('#wm-ch-form button:not([type])');
-      await until(p, 'sheet closed', () => !document.querySelector('#wm-ch-form'));
-    };
-    const rowText = (kind) =>
-      p.evaluate((k) => {
-        const c = (window.A.S.members.get(window.A.S.me).challenges || []).find((x) => x.kind === k);
-        const el = c && document.querySelector(`#wm-ch .wm-c[data-id="${c.id}"] .wm-c-n`);
-        return el ? el.textContent : null;
-      }, kind);
-
-    await step('Challenges: each kind counts the right things', async () => {
-      const days = { [MONTH1]: 100, [LASTPREV]: 999 };
-      days[TODAY] = (days[TODAY] || 0) + 50;
-      await p.evaluate((d) => window.A.D.updateMe((m) => ({ days: Object.assign({}, m.days, d) })), days);
-      ctx.pages = Object.entries(days).filter(([k]) => k >= MONTH1).reduce((t, [, v]) => t + v, 0);
-      ctx.days = Object.keys(days).filter((k) => k >= MONTH1).length;
+    await step('«اختارلي كتاب» and «تحدياتي» are gone (the owner\'s Simple Today for everyone)', async () => {
+      const pick = await p.evaluate(() => window.A.V.menuItems('shelf', {}).some((x) => /اختارلي/.test(x.t)));
+      assert(!pick, '«اختارلي كتاب» still in the shelf menu');
       await p.evaluate(() => window.A.V.go('me'));
-      await p.waitForSelector('#wm-ch');
-      assert(/تحديات بتعملها لنفسك/.test(await p.textContent('#wm-ch')), 'empty card text');
-      await closeSheets(p);
-      for (const id of ['authors12', 'pages1000', 'days30']) {
-        await newChallenge(async () => {
-          await p.click(`[data-preset="${id}"]`);
-        });
-      }
-      await newChallenge(async () => {
-        await p.selectOption('#wm-ch-kind', 'books');
-        await p.fill('#wm-ch-n', '12');
-        await p.selectOption('#wm-ch-per', 'year');
-      });
-      await newChallenge(async () => {
-        await p.selectOption('#wm-ch-kind', 'tag');
-        await p.selectOption('#wm-ch-tag', 'novel');
-        await p.fill('#wm-ch-n', '5');
-        await p.selectOption('#wm-ch-per', 'year');
-      });
-      const cs = await p.evaluate(() => window.A.S.members.get(window.A.S.me).challenges);
-      assert(cs.length === 5, 'saved: ' + JSON.stringify(cs));
-      const b12 = cs.find((c) => c.kind === 'books');
-      assert(b12.n === 12 && b12.from === YEAR + '-01-01' && b12.to === YEAR + '-12-31', 'books challenge: ' + JSON.stringify(b12));
-      const pg = cs.find((c) => c.kind === 'pages');
-      assert(pg.from === MONTH1 && pg.n === 1000, 'month preset: ' + JSON.stringify(pg));
-      const want = {
-        books: '٤ من ١٢ كتاب',
-        authors: '٣ من ١٢ كاتب', // عاشور, حسين, Clear are new this year; Harari was read last year
-        pages: `${ctx.pages.toLocaleString('ar-EG')} من ${(1000).toLocaleString('ar-EG')} صفحة`,
-        days: `${ctx.days.toLocaleString('ar-EG')} من ٣٠ يوم`,
-        tag: '١ من ٥ كتب',
-      };
-      const got = {};
-      for (const k of Object.keys(want)) got[k] = await rowText(k);
-      for (const k of Object.keys(want)) assert(got[k] === want[k], `${k}: ${got[k]} ≠ ${want[k]}`);
-      assert((await p.evaluate(() => window.__conf)) === 0, 'celebrated too early');
-      ctx.ch = true;
-      return JSON.stringify(got);
-    }, ['joined']);
-
-    await step('Reaching a challenge celebrates once and is remembered', async () => {
-      await newChallenge(async () => {
-        await p.fill('#wm-ch-t', 'أعيد كتاب');
-        await p.selectOption('#wm-ch-kind', 'list');
-        await p.fill('#wm-ch-list', 'أعيده');
-        await p.fill('#wm-ch-n', '1');
-        await p.selectOption('#wm-ch-per', 'year');
-      });
-      await until(p, 'celebrated', () => window.__conf === 1);
-      await until(p, 'done saved', () => (window.A.S.members.get(window.A.S.me).challenges || []).some((c) => c.kind === 'list' && c.done));
-      assert(/خلّصت تحدي «أعيد كتاب»/.test(await toastText(p)), 'toast: ' + (await toastText(p)));
-      assert((await rowText('list')) === '١ من كتاب واحد', 'list row: ' + (await rowText('list')));
-      await p.waitForSelector('#wm-ch .wm-c.done');
-      await shotAt(p, '#wm-ch', 'worm-challenges');
-      // more reading, a re-render: no second party
-      await p.evaluate(() => window.A.D.updateMe((m) => ({ days: Object.assign({}, m.days, { [window.A.U.today()]: ((m.days || {})[window.A.U.today()] || 0) + 5 }) })));
-      await p.evaluate(() => window.A.V.go('shelf'));
-      await p.evaluate(() => window.A.V.go('me'));
-      await T(1200);
-      assert((await p.evaluate(() => window.__conf)) === 1, 'celebrated again: ' + (await p.evaluate(() => window.__conf)));
-    }, ['ch']);
-
-    await step('Edit a challenge (lower target → done), delete one', async () => {
-      const id = await p.evaluate(() => window.A.S.members.get(window.A.S.me).challenges.find((c) => c.kind === 'books').id);
-      await p.click(`#wm-ch [data-act="wm-ch"][data-id="${id}"]`);
-      await p.click('.mi:has-text("عدّل")');
-      await p.waitForSelector('#wm-ch-form');
-      assert((await p.inputValue('#wm-ch-n')) === '12' && (await p.inputValue('#wm-ch-per')) === 'year', 'form not filled');
-      await p.fill('#wm-ch-n', '4');
-      await p.click('#wm-ch-form button:not([type])');
-      await until(p, 'second celebration', () => window.__conf === 2);
-      await until(p, 'done saved', (i) => window.A.S.members.get(window.A.S.me).challenges.find((x) => x.id === i).done, id);
-      const c = await p.evaluate((i) => window.A.S.members.get(window.A.S.me).challenges.find((x) => x.id === i), id);
-      assert(c.n === 4 && c.done && !c.t && !c.pre, 'edited: ' + JSON.stringify(c)); // no longer «١٢ كتاب…»
-      assert((await p.textContent(`#wm-ch [data-id="${id}"] .wm-c-b > b`)) === '٤ كتب', 'title after the edit');
-      const did = await p.evaluate(() => window.A.S.members.get(window.A.S.me).challenges.find((c2) => c2.kind === 'days').id);
-      await p.click(`#wm-ch [data-act="wm-ch"][data-id="${did}"]`);
-      await p.click('.mi:has-text("امسح التحدي")');
-      await p.click('.sheet [data-yes]');
-      await until(p, 'deleted', (i) => !window.A.S.members.get(window.A.S.me).challenges.some((x) => x.id === i), did);
-      await until(p, 'row gone', (i) => !document.querySelector(`#wm-ch [data-id="${i}"]`), did);
-    }, ['ch']);
-
-    await step('Another member sees my active challenges, read-only', async () => {
-      await q.evaluate((u) => window.A.V.go('me', { uid: u }), ctx.Auid);
-      await until(q, 'challenges arrived', () => document.querySelectorAll('#wm-ch .wm-c').length === 5);
-      assert(/تحديات منى/.test(await q.textContent('#wm-ch h2')), 'title: ' + (await q.textContent('#wm-ch h2')));
-      assert(!(await q.$('#wm-ch [data-act]')), 'editable on someone else’s profile');
-      const t = await q.textContent('#wm-taste .wm-pct-t');
-      assert(t.includes('٨١٪'), 'سارة sees a different score: ' + t);
-      assert((await q.evaluate(() => window.__conf)) === 0, 'my challenge celebrated on سارة’s phone');
-    }, ['ch']);
+      await p.waitForSelector('#wm-taste');
+      assert(!(await p.$('#wm-ch')), '«تحدياتي» still on «أنا»');
+    });
 
     await step('In English (and a look at فصحى)', async () => {
       await p.click('[data-go="settings"]');
@@ -391,28 +227,7 @@ const toastText = (page) => page.$$eval('#toasts .toast', (x) => x.map((t) => t.
       assert(/Books you both loved/.test(h4) && /سارة's favourites you don't have/.test(h4), 'headings: ' + h4);
       assert(/In “Want to read”/.test(await p.textContent('#wm-taste .wm-recs')), 'added marker');
       await shotAt(p, '#wm-taste', 'worm-taste-en');
-      await p.evaluate(() => window.A.V.go('me'));
-      await p.waitForSelector('#wm-ch');
-      const ch = await p.textContent('#wm-ch');
-      assert(/My challenges/.test(ch) && /New challenge/.test(ch), 'card: ' + ch.slice(0, 120));
-      assert((await rowText('authors')) === '3 of 12 new authors' && (await rowText('tag')) === '1 of 5 books', 'rows: ' + (await rowText('authors')) + ' / ' + (await rowText('tag')));
-      assert(/Closest taste to yours/.test(await p.textContent('#wm-taste')), 'ranking title');
-      const titles = await p.$$eval('#wm-ch .wm-c-b > b', (x) => x.map((e) => e.textContent));
-      assert(titles.includes('A new author every month') && titles.includes('1,000 pages this month') && titles.includes('أعيد كتاب'), 'titles: ' + titles);
-      await shotAt(p, '#wm-ch', 'worm-challenges-en');
-      await p.click('#wm-ch [data-act="wm-ch-new"]');
-      await p.waitForSelector('#wm-ch-form');
-      const presets = await p.$$eval('[data-preset]', (x) => x.map((e) => e.textContent));
-      assert(presets.includes('A new author every month') && presets.includes('1,000 pages this month'), 'presets: ' + presets);
-      await closeSheets(p);
-      await p.click('[data-go="shelf"]');
-      await p.click('[data-act="shelf-more"]');
-      await p.click('.mi:has-text("Pick a book for me")');
-      await p.waitForSelector('.wm-pick-sheet #wm-pick');
-      assert(/Length/.test(await p.textContent('.wm-filters')) && /Another/.test(await p.textContent('.wm-out')), 'pick sheet in English');
-      await T(700);
-      await H.shot(p, 'worm-pick-en');
-      await closeSheets(p);
+      assert(/Closest taste to yours/.test(await (async () => { await p.evaluate(() => window.A.V.go('me')); await p.waitForSelector('#wm-taste'); return p.textContent('#wm-taste'); })()), 'ranking title');
       // فصحى, briefly
       await p.click('[data-go="settings"]');
       await p.click('[data-act="lang"][data-l="ar"]');
@@ -424,7 +239,7 @@ const toastText = (page) => page.$$eval('#toasts .toast', (x) => x.map((t) => t.
       await p.click('[data-go="settings"]');
       await p.click('[data-act="lang"][data-l="eg"]');
       await p.waitForFunction(() => document.documentElement.lang === 'ar-EG');
-    }, ['ch']);
+    });
 
     await step('No errors in the console', async () => {
       const errs = [p, q].flatMap((pg) => (pg.__errors || []).filter((e) => !/favicon|fonts|404|Failed to fetch|openlibrary/.test(e)));
