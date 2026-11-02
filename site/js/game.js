@@ -8,7 +8,7 @@
   const S = A.S;
   const G = (A.G = {});
 
-  G.XP = { page: 1, wird: 20, onTime: 10, first: 10, note: 5, take: 8, reply: 2, liked: 2, shelf: 10, review: 5, book: 100, cheer: 1, quests: 30, bonus: 20, chestXp: 15, bigChest: 100, gold: 15 };
+  G.XP = { page: 1, wird: 20, onTime: 10, first: 10, note: 5, take: 8, reply: 2, liked: 2, shelf: 10, review: 5, book: 100, cheer: 1, quests: 30, bonus: 20, chestXp: 15, bigChest: 100, gold: 15, boss: 50 };
   /* The golden page of a portion: a page of it (never the first), different for each member and portion. Found
      when read; recorded on the member doc (gold["book|portion"] = day). Portions of 4 pages or more. */
   G.goldenPage = (bookId, w, uid = S.me) => {
@@ -691,6 +691,8 @@
         }
       }
       s.questWeek = perWeek.get(wk) || 0;
+      // the weekly boss (play.js): beaten when the circle's pages reached the goal; XP to whoever hit it
+      for (const [w0, day] of bossWins()) if (G.weekPagesOf(s.uid, w0).pages > 0) ev(s, day, G.XP.boss, 'boss');
       const pwk = U.addDays(wk, -7);
       for (const e of s.events) {
         s.xp += e.xp;
@@ -741,6 +743,43 @@
     return out;
   }
 
+  /* Weeks the circle beat its boss (since QUEST_V2): [week start, the day the pages reached the goal]. */
+  function bossWins() {
+    const goal = (S.circle && +S.circle.weeklyGoal) || 300;
+    const today = U.today();
+    const out = [];
+    for (let w0 = U.weekStart(G.QUEST_V2); w0 <= today; w0 = U.addDays(w0, 7)) {
+      let sum = 0;
+      for (let i = 0; i < 7; i++) {
+        const d = U.addDays(w0, i);
+        if (d > today) break;
+        for (const uid of S.members.keys()) {
+          const m = S.members.get(uid) || {};
+          sum += +((m.days && m.days[d]) || 0);
+        }
+        sum += paperOn(d);
+        if (sum >= goal) {
+          out.push([w0, d]);
+          break;
+        }
+      }
+    }
+    return out;
+  }
+  /* Pages of portions marked done on a day without being read in the app (as G.weekPagesOf counts them). */
+  function paperOn(day) {
+    let n = 0;
+    for (const p of S.prog.values()) {
+      const book = S.books.get(p.b) || (S.gone && S.gone.get(p.b));
+      if (!book) continue;
+      for (const [wid, t] of Object.entries(p.done || {})) {
+        if (!t || U.isoKey(t) !== day) continue;
+        const w = G.wirds(book).find((x) => x.id === wid);
+        if (w) n += Math.max(0, w.to - w.from + 1 - U.rangesCountIn(p.seen, w.from, w.to));
+      }
+    }
+    return n;
+  }
   let cache = { ver: -1, out: new Map() };
   G.all = () => {
     if (cache.ver !== S.ver) cache = { ver: S.ver, out: compute() };

@@ -23,6 +23,8 @@
   const MK_KINDS = ['hl', 'note', 'q', 'quote', 'react'];
   /* Emoji reactions on a line (long-press the page): one per member and line, in their own doc (col 'reacts'). */
   const RX = ['😂', '😮', '💔', '🔥', '🤯', '❤️'];
+  const RX_NAME = () => ({ '😂': L('ضحكني', 'Haha', 'أضحكني'), '😮': L('واو', 'Wow'), '💔': L('زعّلني', 'Sad', 'أحزنني'), '🔥': L('نار', 'Fire', 'رائع'), '🤯': L('دماغي طارت', 'Mind blown', 'أذهلني'), '❤️': L('حبيته', 'Love', 'أحببته') });
+  const RX_COL = { '😂': '#ffcc3d', '😮': '#ffcc3d', '💔': '#ff4d6d', '🔥': '#ff7a1a', '🤯': '#ffb02e', '❤️': '#ff3355' };
   const RX_LINES = 40; // a page is about this many lines: a reaction belongs to one of them
   R.marksPref = () => {
     const v = U.store.get('rdMarks', 'all');
@@ -838,7 +840,9 @@
       for (const r of rs) cnt.set(r.e, (cnt.get(r.e) || 0) + 1);
       const top = [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map((x) => x[0]).join('');
       const mine = rs.some((r) => r.by === S.me);
-      html += `<button class="rx-m${mine ? ' mine' : ''}" data-act="rx-show" data-p="${p}" data-k="${k}" style="top:${(k / RX_LINES) * 100}%" aria-label="${L(`ردود فعل: ${L.num(rs.length)}`, `Reactions: ${rs.length}`)}">${top}${rs.length > 1 ? `<i>${L.num(rs.length)}</i>` : ''}</button>`;
+      const popIt = st.rxPop === p + ':' + k && mine;
+      if (popIt) st.rxPop = null;
+      html += `<button class="rx-m${mine ? ' mine' : ''}${popIt ? ' pop' : ''}" data-act="rx-show" data-p="${p}" data-k="${k}" style="top:${(k / RX_LINES) * 100}%" aria-label="${L(`ردود فعل: ${L.num(rs.length)}`, `Reactions: ${rs.length}`)}">${top}${rs.length > 1 ? `<i>${L.num(rs.length)}</i>` : ''}</button>`;
     }
     // «وقفت هنا»: a line across the page, and pills along the edge to put it on any line with one tap.
     const pl = placeOf(st.bookId);
@@ -1037,7 +1041,7 @@
         const y = U.clamp((lp.y0 - box.top) / box.height, 0.01, 0.99);
         st.lpAt = Date.now();
         if (navigator.vibrate) try { navigator.vibrate(12); } catch (er) {}
-        rxBar(+lp.pg.dataset.p, Math.round(y * RX_LINES), lp.x0, lp.y0);
+        rxBar(+lp.pg.dataset.p, Math.round(y * RX_LINES), lp.x0, lp.y0, true);
         lp = null;
       }, 480);
     });
@@ -1052,33 +1056,118 @@
     });
   }
   const rxId = (p, k) => `${U.hash(st.bookId + '|' + S.me).toString(36)}-${p}-${k}`;
-  /* The emoji bar at the finger; the line's reactions above it when there are some. */
-  function rxBar(p, k, x, y) {
+  /* The emoji bar at the finger, like Facebook's: the emoji pop in one after the other and move; sliding the
+     finger over them (without lifting it) lifts the one under it with its name, letting go picks it; a tap works
+     too. The pick flies to its line, bursts, and the line's bubble pops. */
+  function rxBar(p, k, x, y, dragging) {
     rxClose();
     const mine = S.reacts.get(rxId(p, k));
     const rs = [...S.reacts.values()].filter((r) => r.b === st.bookId && r.page === p && Math.round((r.y || 0) * RX_LINES) === k && r.e && R.showsReact(r));
+    const names = RX_NAME();
     const el = document.createElement('div');
     el.className = 'rx-bar';
     el.id = 'rx-bar';
     el.innerHTML = `${rs.length ? `<div class="rx-who">${rs.map((r) => `<span>${D.avatar(r.by, 'xs')}<b>${U.esc(r.e)}</b></span>`).join('')}</div>` : ''}
-      <div class="rx-pick">${RX.map((e) => `<button class="${mine && mine.e === e ? 'on' : ''}" data-act="rx-set" data-p="${p}" data-k="${k}" data-e="${e}" aria-label="${e}">${e}</button>`).join('')}${mine ? `<button class="rx-off" data-act="rx-set" data-p="${p}" data-k="${k}" data-e="" aria-label="${L('شيل ردي', 'Remove mine', 'أزل ردّي')}">${U.icon('close')}</button>` : ''}</div>`;
+      <div class="rx-pick">${RX.map((e, i) => `<button class="rx-i${mine && mine.e === e ? ' on' : ''}" style="animation-delay:${i * 38}ms" data-act="rx-set" data-p="${p}" data-k="${k}" data-e="${e}" aria-label="${names[e]}"><i class="lot" data-lot="${A.Lot ? A.Lot.code(e) : ''}" data-fb="${e}"></i><span class="rx-l">${names[e]}</span></button>`).join('')}${mine ? `<button class="rx-off" data-act="rx-set" data-p="${p}" data-k="${k}" data-e="" aria-label="${L('شيل ردي', 'Remove mine', 'أزل ردّي')}">${U.icon('close')}</button>` : ''}</div>`;
     st.root.querySelector('.rd').appendChild(el);
+    if (A.Lot) A.Lot.mount(el);
+    else el.querySelectorAll('.lot').forEach((i) => (i.textContent = i.dataset.fb));
     const r = el.getBoundingClientRect();
     const host = st.root.querySelector('.rd').getBoundingClientRect();
     el.style.left = U.clamp(x - host.left - r.width / 2, 8, host.width - r.width - 8) + 'px';
-    el.style.top = U.clamp(y - host.top - r.height - 18, 8, host.height - r.height - 8) + 'px';
-    st.rx = { p, k };
+    el.style.top = U.clamp(y - host.top - r.height - 34, 8, host.height - r.height - 8) + 'px';
+    st.rx = { p, k, el };
+    // the line being reacted to glows
+    const pg = st.root.querySelector(`.pg[data-p="${p}"] .pg-ov`);
+    if (pg) {
+      const band = document.createElement('i');
+      band.className = 'rx-band';
+      band.style.top = (k / RX_LINES) * 100 + '%';
+      pg.appendChild(band);
+      st.rx.band = band;
+    }
+    if (dragging) {
+      // slide-to-pick while the finger is still down
+      let cur = null;
+      const hover = (ev) => {
+        let on = null;
+        for (const b of el.querySelectorAll('.rx-i')) {
+          const rr = b.getBoundingClientRect();
+          const hit = ev.clientX >= rr.left - 3 && ev.clientX <= rr.right + 3 && ev.clientY >= rr.top - 46 && ev.clientY <= rr.bottom + 34;
+          b.classList.toggle('hov', hit);
+          if (hit) on = b;
+        }
+        el.classList.toggle('hovering', !!on);
+        if (on && on !== cur && navigator.vibrate) try { navigator.vibrate(6); } catch (er) {}
+        cur = on;
+        return on;
+      };
+      let moved = false;
+      const mv = (ev) => {
+        moved = true;
+        hover(ev);
+      };
+      const up = (ev) => {
+        document.removeEventListener('pointermove', mv);
+        document.removeEventListener('pointerup', up);
+        if (!st || !st.rx || st.rx.el !== el) return;
+        const on = moved && hover(ev);
+        if (on) rxSet(p, k, on.dataset.e, on);
+        st.lpAt = Date.now(); // the click that follows the lift is not a tap on the page
+      };
+      document.addEventListener('pointermove', mv);
+      document.addEventListener('pointerup', up);
+    }
   }
   function rxClose() {
-    const el = st && st.root.querySelector('#rx-bar');
-    if (el) el.remove();
-    if (st) st.rx = null;
+    if (!st || !st.rx) return;
+    const { el, band } = st.rx;
+    st.rx = null;
+    if (band) band.remove();
+    if (!el) return;
+    el.classList.add('out');
+    setTimeout(() => el.remove(), 180);
   }
-  async function rxSet(p, k, e) {
+  async function rxSet(p, k, e, btn) {
+    const from = btn ? btn.getBoundingClientRect() : null;
     rxClose();
     const id = rxId(p, k);
     if (!e) return D.del(`reacts/${id}`).catch(() => {});
-    U.buzz && U.buzz('ok');
+    if (navigator.vibrate) try { navigator.vibrate(20); } catch (er) {}
+    const pg = st.root.querySelector(`.pg[data-p="${p}"]`);
+    if (from && pg && A.Lot) {
+      // the emoji flies to its line, then a little burst
+      const pr = pg.getBoundingClientRect();
+      const left = pg.dataset.side !== 'l';
+      const to = { x: left ? pr.left + 20 : pr.right - 20, y: pr.top + (k / RX_LINES) * pr.height };
+      const a = { x: from.left + from.width / 2, y: from.top + from.height / 2 };
+      const f = document.createElement('div');
+      f.className = 'rx-fly';
+      f.style.left = a.x + 'px';
+      f.style.top = a.y + 'px';
+      document.body.appendChild(f);
+      A.Lot.play(f, A.Lot.code(e), { fallback: e });
+      const mid = { x: (a.x + to.x) / 2, y: Math.min(a.y, to.y) - 60 };
+      const kf = [];
+      for (let i = 0; i <= 10; i++) {
+        const t = i / 10, u = 1 - t;
+        kf.push({ left: u * u * a.x + 2 * u * t * mid.x + t * t * to.x + 'px', top: u * u * a.y + 2 * u * t * mid.y + t * t * to.y + 'px', transform: `scale(${1.5 - t * 0.9})` });
+      }
+      f.animate(kf, { duration: 480, easing: 'cubic-bezier(.4,.1,.6,1)', fill: 'forwards' }).finished.then(() => {
+        f.remove();
+        for (let i = 0; i < 9; i++) {
+          const d = document.createElement('i');
+          d.className = 'rx-dot';
+          d.style.background = RX_COL[e] || '#ffcc3d';
+          d.style.left = to.x + 'px';
+          d.style.top = to.y + 'px';
+          document.body.appendChild(d);
+          const ang = (i / 9) * Math.PI * 2, dist = 22 + Math.random() * 16;
+          d.animate([{ transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${Math.cos(ang) * dist}px, ${Math.sin(ang) * dist}px) scale(.2)`, opacity: 0 }], { duration: 480, easing: 'cubic-bezier(.2,.8,.3,1)' }).finished.then(() => d.remove());
+        }
+      });
+    }
+    st.rxPop = p + ':' + k;
     await D.set(`reacts/${id}`, { b: st.bookId, page: p, y: r4(k / RX_LINES), e, by: S.me, at: U.nowIso() }).catch(() => U.toast(L('ماتحفظش، جرّب تاني', "Didn't save — try again", 'لم يُحفظ، حاول مجددًا'), 'warn'));
   }
 
@@ -1794,10 +1883,10 @@
       else if (act === 'more') moreMenu();
       else if (act === 'marks') marksPanel(!st.mk);
       else if (act === 'ahead') U.toast(`👀 ${t.title}`);
-      else if (act === 'rx-set') rxSet(+t.dataset.p, +t.dataset.k, t.dataset.e);
+      else if (act === 'rx-set') rxSet(+t.dataset.p, +t.dataset.k, t.dataset.e, t);
       else if (act === 'rx-show') {
         const r = t.getBoundingClientRect();
-        rxBar(+t.dataset.p, +t.dataset.k, r.left + r.width / 2, r.top);
+        rxBar(+t.dataset.p, +t.dataset.k, r.left + r.width / 2, r.top, false);
       }
       else if (act === 'mk-nospoil') {
         U.store.set('noSpoil', !(A.V.noSpoil && A.V.noSpoil()));

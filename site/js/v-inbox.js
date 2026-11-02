@@ -30,6 +30,7 @@
     const mine = new Set(S.msgs.filter((m) => m.by === me).map((m) => m.id));
     for (const m of S.msgs) if (m.re && mine.has(m.re) && m.by !== me) out.push({ t: m.at, kind: 'msgreply', who: m.by, b: m.b, ch: m.ch || 'gen', text: m.text });
     for (const b of S.books.values()) if (b.addedBy && b.addedBy !== me && b.addedAt) out.push({ t: b.addedAt, kind: 'book', who: b.addedBy, b: b.id, book: b });
+    for (const t of (S.throws || new Map()).values()) if (t.to === me && t.by !== me && A.Play) out.push({ t: t.at, kind: 'throw', who: t.by, it: t.it });
     out.sort((a, b) => String(b.t).localeCompare(String(a.t)));
     return out.slice(0, 60);
   };
@@ -73,10 +74,11 @@
       }
       case 'msgreply': return L(`رد من ${who} على رسالتك`, `${who} replied to your message`);
       case 'book': return L(`كتاب جديد في الحلقة من ${who}: ${title}`, `${who} added a new book: ${title}`);
+      case 'throw': return L(`${A.Play.itemName(x.it)} ${A.Play.item(x.it)[1]} من ${who}`, `${A.Play.itemName(x.it)} ${A.Play.item(x.it)[1]} from ${who}`);
     }
     return '';
   };
-  const ICON = { reply: 'chat', thread: 'chat', like: 'heart', cheer: 'clap', poke: 'hand', msgreply: 'chat', book: 'books' };
+  const ICON = { reply: 'chat', thread: 'chat', like: 'heart', cheer: 'clap', poke: 'hand', msgreply: 'chat', book: 'books', throw: 'sparkle' };
 
   V.openInbox = () => {
     const seen = seenAt();
@@ -113,6 +115,7 @@
           if (x.nid) V.openNote(x.nid);
           else if (x.kind === 'msgreply') x.b === '_c' ? V.go('circle', { seg: 'chat' }) : V.go('book-' + x.b, { tab: 'talk', ch: x.ch });
           else if (x.kind === 'poke' && x.b && S.books.has(x.b)) A.R.open(x.b);
+          else if (x.kind === 'throw' && A.Play) A.Play.throwSheet(x.who);
           else if (x.b && S.books.has(x.b)) V.go('book-' + x.b);
           else V.go('home');
         }),

@@ -79,7 +79,7 @@
   }
 
   function membersSeg(online) {
-    return `<section class="card members">
+    return `${V.sections('circle-members', {})}<section class="card members">
       <ul>${D.memberIds()
         .map((u) => {
           const s = G.of(u);
@@ -194,7 +194,7 @@
   };
 
   /* ---------- settings (its own tab) ---------- */
-  V.screens.settings = () => `<div class="settings-page">${settings()}</div>`;
+  V.screens.settings = () => `<div class="settings-page">${settings()}<p class="credits muted sm">${L('الإيموجي المتحركة: Noto Animated Emoji من Google، برخصة CC BY 4.0.', 'Animated emoji: Noto Animated Emoji by Google, CC BY 4.0.', 'الرموز المتحركة: Noto Animated Emoji من Google، برخصة CC BY 4.0.')}</p></div>`;
 
   function settings() {
     const m = S.members.get(S.me) || {};
@@ -208,8 +208,9 @@
       <details class="emo-pick"><summary>${D.avatar(S.me, 'sm')}<span>${L('غيّر علامتك', 'Change your mark', 'غيّر علامتك')}<small>${L('الصورة اللي بتظهر جنب اسمك', 'Shown next to your name', 'الصورة التي تظهر بجانب اسمك')}</small></span>${icon('fwd', 'flip-rtl')}</summary>
       <div class="emo emo-all" role="radiogroup" aria-label="${L('علامتك', 'Your mark')}">
         <button type="button" class="emo-b letter${m.emoji ? '' : ' on'}" data-act="set-emoji" data-emo="" role="radio" aria-checked="${!m.emoji}" aria-label="${L('أول حرف من اسمي', 'First letter of my name')}">${esc(Array.from(D.name(S.me).trim())[0] || '؟')}</button>
-        ${V.EMOJI.map((e) => `<button type="button" class="emo-b${m.emoji === e ? ' on' : ''}" data-act="set-emoji" data-emo="${e}" role="radio" aria-checked="${m.emoji === e}" aria-label="${e}">${e}</button>`).join('')}
-      </div></details>` : ''}
+        ${V.markPicker ? '' : V.EMOJI.map((e) => `<button type="button" class="emo-b${m.emoji === e ? ' on' : ''}" data-act="set-emoji" data-emo="${e}" role="radio" aria-checked="${m.emoji === e}" aria-label="${e}">${e}</button>`).join('')}
+      </div>${V.markPicker ? V.markPicker(m) : ''}</details>
+      <div class="set-row"><span>${icon('sparkle')}<span>${L('صحابي يرموا عليّا حاجات', 'Friends can throw things at me', 'يرمي أصدقائي عليّ أشياء')}<small class="muted">${L('بلونات وطماطم وورد… من الورقات اللي بيجمعوها بالقراية', 'Balloons, tomatoes, flowers… paid with the sheets they earn by reading', 'بالونات وطماطم وورود… من الأوراق التي يجمعونها بالقراءة')}</small></span></span><label class="switch"><input type="checkbox" id="set-throws" ${m.noThrows ? '' : 'checked'}><i></i></label></div>` : ''}
       <div class="set-row"><span>${icon('lang')}${L('اللغة', 'Language')}</span><div class="seg sm">${L.langs.map((l) => `<button class="${L.lang() === l ? 'on' : ''}" data-act="${L.lang() === l ? '' : 'lang'}" data-l="${l}" lang="${l === 'en' ? 'en' : 'ar'}">${L.names[l]}</button>`).join('')}</div></div>
       ${L.isAr() ? `<div class="set-row"><span>${icon('list')}${L('الأرقام', 'Digits', 'الأرقام')}</span><div class="seg sm"><button class="${L.digits() === 'arab' ? 'on' : ''}" data-act="digits" data-d="arab" lang="ar">١٢٣</button><button class="${L.digits() === 'latn' ? 'on' : ''}" data-act="digits" data-d="latn" lang="en">123</button></div></div>` : ''}
       <div class="set-row"><span>${icon('moon')}${L('المظهر', 'Appearance')}</span><div class="seg sm">${[['system', L('تلقائي', 'Auto')], ['light', L('فاتح', 'Light')], ['dark', L('غامق', 'Dark', 'داكن')]].map(([k, t]) => `<button class="${theme === k ? 'on' : ''}" data-act="theme" data-t="${k}">${t}</button>`).join('')}</div></div>
@@ -323,6 +324,7 @@
     if (e.target.id === 'set-rdask') U.store.set('rdOrientAsk', e.target.checked);
     if (e.target.id === 'set-nospoil') U.store.set('noSpoil', e.target.checked);
     if (e.target.id === 'set-simple') U.store.set('simpleToday', e.target.checked);
+    if (e.target.id === 'set-throws') D.updateMe(() => ({ noThrows: !e.target.checked })).catch(() => {});
     if (e.target.id === 'set-rdfocus') U.store.set('rdFocusAsk', e.target.checked);
     if (e.target.id === 'set-haptics') {
       U.store.set('haptics', e.target.checked);

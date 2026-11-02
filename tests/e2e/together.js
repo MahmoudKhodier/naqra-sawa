@@ -88,7 +88,7 @@ const closeAll = async (p) => {
       await b.evaluate(() => window.A.D.addPagesToday(2));
       await until(a, 'full', () => document.querySelector('.cweek.full'));
       const t = await a.$eval('.cweek', (e) => e.textContent);
-      assert(/الحلقة كاملة/.test(t) && /الحلقة الأسبوع ده/.test(t), 'no full-circle line: ' + t);
+      assert(/الحلقة كاملة/.test(t) && /زعيم الأسبوع/.test(t), 'no full-circle line: ' + t);
       await closeAll(a);
     });
 
@@ -169,7 +169,7 @@ const closeAll = async (p) => {
       });
       await a.waitForSelector('.cweek');
       const t = await a.$eval('.cweek', (e) => e.textContent);
-      assert(/The circle this week/.test(t), 'English: ' + t);
+      assert(/Boss of the week/.test(t), 'English: ' + t);
       const errs = [...(a.__errors || []), ...(b.__errors || [])].filter((e) => !/favicon|fonts|404/.test(e));
       assert(!errs.length, errs.slice(0, 4).join('\n'));
     });

@@ -50,7 +50,14 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - Reactions: long-press a line → emoji bar; one doc per member and line in col `reacts` (`{b, page, y, e, by}`, author-only via `20261102000000_reacts_guard.sql`); bubbles on the inner margin; kind `react` in the eye filter.
 - Behind: «اقرا ١٠ صفحات بس النهارده» + button in the catch-up row. Quote as a story picture: `V.storyCard` / `V.storySheet` (story.js), shared with `V.sharePicture` (invite.js).
 - «اليوم البسيط» (`V.simple()`): Today = portion, race, quests only; hides «اختارلي كتاب» and «تحدياتي». This phone's Settings, else `meta/circle.simple[uid]` set by the owner/admin from the member menu.
-- Weekly boss: waiting on professional art (owner rejected hand-drawn SVG); prototype at the «زعيم الأسبوع» artifact.
+- Weekly boss: see «Play» below (Noto animated monsters; hand-drawn SVG was rejected).
+
+## Play: characters, «ورقات», throwing, weekly boss (2026-11-02, `site/js/play.js`)
+- Animations: Google Noto Animated Emoji (CC BY 4.0, credit at the bottom of Settings) in `site/anim/<code>.json`, played by `vendor/lottie_light.min.js` through `site/js/lot.js` (`A.Lot`): placeholders `<i class="lot" data-lot="1f981" data-key="…">` are filled after each render and reused by key; off-screen ones pause, gone ones are destroyed; `anim/` is not precached by the service worker (fetched when first shown). More codes: `https://fonts.gstatic.com/s/e/notoemoji/latest/<code>/lottie.json`.
+- Characters: a member's mark; the animated ones (`P.CHARS`) open at pages read in the app (`members/<uid>.days`, never Goodreads or paper). Picker in Settings («غيّر علامتك»), a sheet when one opens.
+- «ورقات» = pages read in the app − price of what you threw. `throws/<id> = {by, to, it, at}` (author-only, `20261102000000_reacts_guard.sql`); 15 items at 1–3 sheets, friendly ones make the friend's character happy, pranks make it sad; limits 30 a day / 10 per friend; `members/<uid>.noThrows` turns it off (Settings). The receiver sees a scene once on the next open (`priv.throwsSeen`), then it's in «الجديد ليك». Where: «الحلقة ← الأعضاء» top card, a member's menu, the scene's «ردّ».
+- Weekly boss (`P.boss`, replaces the old «الحلقة الأسبوع ده» card; mini card on Today): a monster per week from 8 (all stay in place in their animation), health = `meta/circle.weeklyGoal`, hits = `G.weekPagesOf` (any pages); opening it replays the hits since this phone last looked (`bossSeen:` in U.store); beaten → +50 XP to everyone who hit it (game.js `bossWins`).
+- Reactions bar: Facebook-like (pop-in, slide-to-pick with labels, fly to the line, burst).
 
 ## Reader notes
 - When a page counts (reader.js `pageChanged`/`tick`): on going on from it one or two pages after ≥4 s on it (≥10 s past the end of my portion), or after staying on it ~0.6 × my seconds per page (20–90 s). Never on arrival. `st.front` follows forward steps after ≥2 s on a page (not pages a long scroll runs through).
@@ -74,6 +81,7 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - `node tests/e2e/ui.js` — the app's frame on a phone: back steps, one message at a time, pull to refresh, shelf header, mark picker, sign-out warning.
 - Phase 3/4 suites: `together.js` (circle recap, «خلّصناها», invite card), `focus.js`, `goals.js` (daily goal, forecast, weekly streak, firsts), `native.js` (stand-in Android layer: notifications device, widget data).
 - Phase-2 suites: `node tests/e2e/library.js` (shelf_books rows, 3,000 books, legacy shelf), `goodreads.js` (RSS sync merge), `me.js` (stats, quotes notebook), `worm.js` (taste match, pick a book, challenges), `private.js` (private library).
+- `node tests/e2e/play.js` — characters, sheets, throwing and the scene, opening a character, the boss and its replay, the animated reaction bar.
 - `node tests/e2e/young.js` — stations, 5 minutes, no spoilers, golden page, reactions, catch-up line, story picture, Simple Today.
 - `node tests/e2e/quests.js` — daily quests from the portion, people and reflection, swap, recorded day, chest.
 - `node tests/e2e/plan.js` — plan calendar, who may change it, moving a portion's pages (sheet and reader), «مين وصل فين» tabs.

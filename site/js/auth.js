@@ -290,8 +290,15 @@
         await P.removeMember(A.CIRCLE.id, uid).catch(() => U.toast(L('ماتعملش', 'Failed', 'تعذّر ذلك'), 'warn'));
         P.resync();
       } });
+    for (const fn of memberHooks) {
+      const it = fn(uid);
+      if (it) items.splice(1, 0, it);
+    }
     V.menu(items);
   };
+  /* Other parts of the app add to a member's menu (play.js: throw something at them). */
+  const memberHooks = [];
+  V.addMemberMenu = (fn) => memberHooks.push(fn);
 
   /* Extra settings shown on the Settings tab. */
   V.extraSettings = () => {

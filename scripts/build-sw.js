@@ -22,6 +22,7 @@ const EXPECTED = ['index.html', 'config.js', 'manifest.webmanifest'];
 
 const excluded = (rel) =>
   rel === 'sw.js' ||
+  rel.startsWith('anim/') || // the animated emoji (~6 MB): fetched when first shown, then cached by the worker
   rel.split('/').some((seg) => seg.startsWith('.')) ||
   /\.(map|md|txt|ts)$/i.test(rel) ||
   /(^|\/)(LICENSE|README)[^/]*$/i.test(rel) ||

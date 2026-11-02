@@ -567,7 +567,10 @@ async function menu(p, text) {
       const seenFar = await p.evaluate(({ id, pg }) => window.A.U.rangesHas((window.A.D.prog(id) || {}).seen, pg), { id: ctx.book.id, pg: far });
       assert(!seenFar, 'a page counted while looking around');
       await showBars(p);
-      await p.click('[data-act="browse-here"]');
+      // the bar slides in with the toolbars: tap it once it has settled
+      await p.waitForSelector('#rd-browse:not([hidden]) [data-act="browse-here"]');
+      await T(400);
+      await p.click('[data-act="browse-here"]', { timeout: 8000 }).catch(() => p.evaluate(() => document.querySelector('[data-act="browse-here"]').click()));
       await T(300);
       const s2 = await p.evaluate(() => window.A.R._state());
       assert(!s2.browsing && s2.front === far, 'continue-from-here did not move the reading point: ' + JSON.stringify(s2));

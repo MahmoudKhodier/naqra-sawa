@@ -404,11 +404,18 @@
         <span class="hc-t">${s.streak ? L(`${L.count(s.streak, 'day')} ورا بعض`, `${s.streak}-day streak`, `${L.count(s.streak, 'day')} على التوالي`) : L('ابدأ سلسلة النهارده', 'Start a streak today', 'ابدأ سلسلتك اليوم')}</span>
         <ol class="wk">${days}</ol>
       </button>
-      <button class="hcard goal" data-go="circle">
+      ${A.Play ? (() => {
+        const bb = A.Play.boss();
+        return `<button class="hcard goal boss-mini${bb.dead ? ' dead' : ''}" data-go="circle">
+        <span class="hc-h"><b>${L('زعيم الأسبوع', 'Weekly boss', 'زعيم الأسبوع')}</b></span>
+        <span class="bm-row"><i class="lot" data-lot="${bb.dead ? '1f381' : bb.mon[0]}" data-key="boss-mini" data-still="40"></i><span class="hc-t">${esc(bb.mon[1])}</span></span>
+        <span class="bar"><i style="width:${Math.round((bb.hp / bb.goal) * 100)}%;background:linear-gradient(90deg,#ff6b5a,#e0262f)"></i></span>
+        <small>${bb.dead ? L('اتهزم! 🎉', 'Defeated! 🎉', 'هُزم! 🎉') : L(`حياته ${L.num(bb.hp)} من ${L.num(bb.goal)}`, `${bb.hp} of ${bb.goal} health left`, `حياته ${L.num(bb.hp)} من ${L.num(bb.goal)}`)}</small>`;
+      })() : `<button class="hcard goal" data-go="circle">
         <span class="hc-h"><b>${L('تحدي الحلقة', 'Circle challenge')}</b></span>
         <span class="hc-t">${L(`${L.num(pages)} من ${L.count(goal, 'page')}`, `${pages} of ${goal} pages`)}</span>
         ${V.bar(pages / goal, pages >= goal ? 'jade' : 'gold')}
-        <small>${pages >= goal ? L('الحلقة وصلت للهدف!', 'The circle hit the goal!', 'حققت الحلقة الهدف!') : L(`فاضل ${L.count(daysLeft, 'day')}`, `${daysLeft} days left`, `بقي ${L.count(daysLeft, 'day', 'nom')}`)}</small>
+        <small>${pages >= goal ? L('الحلقة وصلت للهدف!', 'The circle hit the goal!', 'حققت الحلقة الهدف!') : L(`فاضل ${L.count(daysLeft, 'day')}`, `${daysLeft} days left`, `بقي ${L.count(daysLeft, 'day', 'nom')}`)}</small>`}
       </button>
     </div>`;
   }

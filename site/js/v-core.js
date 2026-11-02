@@ -419,6 +419,7 @@
     V.sheets.push(api);
     requestAnimationFrame(() => wrap.classList.add('in'));
     onMount && onMount(api.body, api);
+    A.Lot && A.Lot.mount(api.body);
     setTimeout(() => {
       const f = api.body.querySelector('[autofocus]') || api.el.querySelector('.sh-head .ib');
       f && f.focus({ preventScroll: true });
@@ -426,7 +427,7 @@
     return api;
   };
   function refreshSheets() {
-    for (const s of V.sheets) if (s.onData) try { s.onData(s.body, s); } catch (e) { console.error(e); }
+    for (const s of V.sheets) if (s.onData) try { s.onData(s.body, s); A.Lot && A.Lot.mount(s.body); } catch (e) { console.error(e); }
   }
   V.refreshSheets = refreshSheets;
 
