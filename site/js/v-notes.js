@@ -199,6 +199,7 @@
           ${!n.priv ? `<button class="pill${liked ? ' on' : ''}" data-like>${icon('heart')}<span>${L.num(likers.length)}</span></button><span class="likers">${likers.slice(0, 6).map((u) => D.avatar(u, 'xs')).join('')}</span>` : ''}
           ${book && n.page && !(A.R.isOpen() && A.R.bookId() === n.b) ? `<button class="pill" data-gopage>${icon('books')}<span>${L('افتح الصفحة', 'Open page')}</span></button>` : ''}
           ${book && n.page && A.R.isOpen() && A.R.bookId() === n.b ? `<button class="pill" data-gopage>${icon('fwd', 'flip')}<span>${L('روح للمكان', 'Jump there', 'انتقل إلى المكان')}</span></button>` : ''}
+          ${(n.text || n.crop) && n.kind !== 'q' && V.storySheet ? `<button class="pill" data-story>${icon('share')}<span>${L('شارك كصورة', 'Share as picture', 'شارك كصورة')}</span></button>` : ''}
           ${mine && D.canWrite() ? `<button class="pill ghost" data-editnote>${icon('edit')}<span>${L('عدّل', 'Edit')}</span></button>` : ''}
           ${!mine && n.rect && S.priv && S.priv.moved && S.priv.moved[n.id] ? `<button class="pill ghost" data-unmove>${icon('pin')}<span>${L('رجّعها مكانها', 'Put it back', 'أعدها إلى مكانها')}</span></button>` : ''}
           ${!mine && n.rect && D.canWrite() ? `<button class="pill ghost" data-hideme>${icon('eyeoff')}<span>${L('اخفيها عندي', 'Hide for me', 'أخفها عندي')}</span></button>` : ''}
@@ -219,6 +220,7 @@
           // Decide what was tapped before anything is saved: saving redraws this sheet, and the redraw can turn
           // the tapped button into a different one.
           const q = (sel) => e.target.closest(sel);
+          if (q('[data-story]')) return V.storySheet(n);
           const hit = { like: q('[data-like]'), gopage: q('[data-gopage]'), del: q('[data-del]'), unmove: q('[data-unmove]'), hideme: q('[data-hideme]'), editnote: q('[data-editnote]'), editrep: q('[data-editrep]'), delrep: q('[data-delrep]') };
           if (hit.like) return V.like(n.id);
           if (hit.gopage) {
@@ -295,7 +297,28 @@
   };
 
   /* A compact card for feeds and the notes tab. */
+  /* «من غير حرق» (on unless turned off in Settings or the reader's eye): someone else's note on a page I haven't
+     got to yet (a takeaway: of a portion I haven't started) stays closed until I get there. */
+  V.noSpoil = () => U.store.get('noSpoil', true) !== false;
+  V.isSpoiler = (n) => {
+    if (!n || !V.noSpoil() || n.by === S.me || D.isPrivate(n.b)) return false;
+    let page = n.page;
+    if (n.kind === 'take' && n.wid) {
+      const book = S.books.get(n.b);
+      const w = book && G.wirds(book).find((x) => x.id === n.wid);
+      page = w ? w.from : 0;
+    }
+    return !!page && page > D.reach(n.b);
+  };
+  V.lockedCard = (n, opts = {}) => {
+    const book = D.book(n.b);
+    return `<article class="ncard locked k-${esc(n.kind)}">
+      <header>${D.avatar(n.by, 'sm')}<div class="nc-who"><b>${esc(D.name(n.by))}</b><small>${V.kindLabel(n.kind)}${opts.showBook && book ? ` • <span dir="auto">${esc(book.title)}</span>` : ''}${n.page ? ` • ${L('ص', 'p.')} ${L.num(n.page)}` : ''} • ${L.ago(n.at)}</small></div></header>
+      <p class="nc-lock">${icon('lock')}<span>${L(`مستنياك لما توصل ص ${L.num(n.page || 0)} — من غير حرق 👀`, `Waiting for you at p. ${n.page || 0} — no spoilers 👀`, `بانتظارك حين تصل ص ${L.num(n.page || 0)} — بلا حرق 👀`)}</span></p>
+    </article>`;
+  };
   V.noteCard = (n, opts = {}) => {
+    if (V.isSpoiler(n)) return V.lockedCard(n, opts);
     const book = D.book(n.b);
     const lc = likeCount(n);
     const rc = replies(n).length;

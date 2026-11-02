@@ -272,6 +272,18 @@
       items.push(theirRole === 'admin'
         ? { ic: 'user', t: L('شيل الإشراف', 'Remove admin', 'إلغاء الإشراف'), fn: async () => { await P.setRole(A.CIRCLE.id, uid, 'member').catch(() => U.toast(L('ماتعملش', 'Failed', 'تعذّر ذلك'), 'warn')); P.resync(); } }
         : { ic: 'bolt', t: L('خلّيه مشرف', 'Make admin', 'ترقية إلى مشرف'), fn: async () => { await P.setRole(A.CIRCLE.id, uid, 'admin').catch(() => U.toast(L('ماتعملش', 'Failed', 'تعذّر ذلك'), 'warn')); P.resync(); } });
+    // «اليوم البسيط» for a member (a young reader): the owner or an admin turns it on; their own Settings still win
+    if (uid !== S.me && (myRole === 'owner' || myRole === 'admin') && D.canWrite()) {
+      const on = !!(S.circle && S.circle.simple && S.circle.simple[uid]);
+      items.push({ ic: 'home', t: on ? L('اقفل «اليوم البسيط» ليه', 'Turn off Simple Today for them', 'أوقف «اليوم البسيط» له') : L('شغّل «اليوم البسيط» ليه', 'Turn on Simple Today for them', 'شغّل «اليوم البسيط» له'), fn: async () => {
+        const c = S.circle || {};
+        const simple = Object.assign({}, c.simple || {});
+        if (on) delete simple[uid];
+        else simple[uid] = true;
+        await D.set('meta/circle', Object.assign({}, V.clean(c), { simple })).catch(() => U.toast(L('ماتعملش', 'Failed', 'تعذّر ذلك'), 'warn'));
+        U.toast(on ? L(`«اليوم البسيط» اتقفل لـ${esc(D.name(uid))}`, `Simple Today is off for ${esc(D.name(uid))}`) : L(`«اليوم البسيط» اشتغل لـ${esc(D.name(uid))}`, `Simple Today is on for ${esc(D.name(uid))}`));
+      } });
+    }
     if (uid !== S.me && (myRole === 'owner' || (myRole === 'admin' && theirRole === 'member')))
       items.push({ ic: 'trash', danger: true, t: L('شيله من الحلقة', 'Remove from circle', 'إزالة من الحلقة'), fn: async () => {
         if (!(await V.confirm(L(`هتشيل ${esc(D.name(uid))} من الحلقة.`, `Remove ${esc(D.name(uid))} from the circle?`, `ستزيل ${esc(D.name(uid))} من الحلقة.`), L('شيل', 'Remove', 'أزل'), true))) return;

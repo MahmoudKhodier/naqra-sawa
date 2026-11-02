@@ -20,7 +20,10 @@
      rdMarks: whose highlights and notes show on the pages — everyone's, only mine, none (a clean page), or custom:
      rdMarksF = {hk: kinds hidden, hp: people hidden} (others' marks only; mine always show unless the page is clean). */
   const MARKS = ['all', 'mine', 'none', 'custom'];
-  const MK_KINDS = ['hl', 'note', 'q', 'quote'];
+  const MK_KINDS = ['hl', 'note', 'q', 'quote', 'react'];
+  /* Emoji reactions on a line (long-press the page): one per member and line, in their own doc (col 'reacts'). */
+  const RX = ['😂', '😮', '💔', '🔥', '🤯', '❤️'];
+  const RX_LINES = 40; // a page is about this many lines: a reaction belongs to one of them
   R.marksPref = () => {
     const v = U.store.get('rdMarks', 'all');
     return MARKS.includes(v) ? v : 'all';
@@ -33,10 +36,23 @@
     const v = R.marksPref();
     if (v === 'none') return false;
     if (n.by === S.me) return true;
+    if (A.V.isSpoiler && A.V.isSpoiler(n)) return false; // «من غير حرق»: not before I get there
     if (v === 'mine') return false;
     if (v === 'custom') {
       const f = R.marksF();
       return !f.hk.includes(n.kind || 'hl') && !f.hp.includes(n.by);
+    }
+    return true;
+  };
+  R.showsReact = (r) => {
+    const v = R.marksPref();
+    if (v === 'none') return false;
+    if (r.by === S.me) return true;
+    if (v === 'mine') return false;
+    if (A.V.noSpoil && A.V.noSpoil() && r.page > D.reach(r.b)) return false;
+    if (v === 'custom') {
+      const f = R.marksF();
+      return !f.hk.includes('react') && !f.hp.includes(r.by);
     }
     return true;
   };
@@ -155,6 +171,7 @@
   /* Back (phone button or gesture) inside the book: the notes panel, then a tool, then the bars; true = handled. */
   R.back = () => {
     if (!st) return false;
+    if (st.rx) return rxClose(), true;
     if (st.mk) return marksPanel(false), true;
     if (st.panel) return togglePanel(false), true;
     if (st.focusPop) return focusPop(false), true;
@@ -689,6 +706,12 @@
       }
     }
     st.cur = p;
+    // further than ever: notes kept back «من غير حرق» on the pages now reached show up
+    if (p > (st.spoilTop || 0)) {
+      const was = st.spoilTop;
+      st.spoilTop = p;
+      if (was && A.V.noSpoil && A.V.noSpoil()) redrawOverlays();
+    }
     const inp = st.root.querySelector('#rd-pgin');
     if (inp && document.activeElement !== inp) inp.value = L.num(p, { useGrouping: false });
     const was = st.browsing;
@@ -734,6 +757,7 @@
     st.pending.add(p);
     st.counted.add(p);
     st.sessionPages++;
+    goldCheck(p);
     const chip = st.root.querySelector('#rd-today');
     if (chip) {
       chip.innerHTML = `${U.icon('scroll')}<b>+${L.num(st.sessionPages)}</b>`;
@@ -800,6 +824,21 @@
       } else {
         html += `<button class="hlb k-${U.esc(n.kind || 'hl')}${n.priv ? ' priv' : ''}" data-nid="${U.esc(n.id)}" data-priv="${n.priv ? 1 : ''}" style="left:${r.x * 100}%;top:${r.y * 100}%;width:${r.w * 100}%;height:${r.h * 100}%;--c:${U.esc(col)};--a:${U.esc(D.color(n.by))}" aria-label="${label}"><span class="hl-tag">${D.avatar(n.by, 'xs')}${n.kind === 'q' ? '<b>؟</b>' : ''}${rc + likes ? `<i>${L.num(rc + likes)}</i>` : ''}</span></button>`;
       }
+    }
+    // reactions: one small bubble per line on the inner margin, the two most used emoji and how many
+    const lines = new Map();
+    for (const r of S.reacts.values()) {
+      if (r.b !== st.bookId || r.page !== p || !r.e || !R.showsReact(r)) continue;
+      const k = Math.round((r.y || 0) * RX_LINES);
+      if (!lines.has(k)) lines.set(k, []);
+      lines.get(k).push(r);
+    }
+    for (const [k, rs] of lines) {
+      const cnt = new Map();
+      for (const r of rs) cnt.set(r.e, (cnt.get(r.e) || 0) + 1);
+      const top = [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map((x) => x[0]).join('');
+      const mine = rs.some((r) => r.by === S.me);
+      html += `<button class="rx-m${mine ? ' mine' : ''}" data-act="rx-show" data-p="${p}" data-k="${k}" style="top:${(k / RX_LINES) * 100}%" aria-label="${L(`ردود فعل: ${L.num(rs.length)}`, `Reactions: ${rs.length}`)}">${top}${rs.length > 1 ? `<i>${L.num(rs.length)}</i>` : ''}</button>`;
     }
     // «وقفت هنا»: a line across the page, and pills along the edge to put it on any line with one tap.
     const pl = placeOf(st.bookId);
@@ -979,6 +1018,70 @@
     st.pagesEl.addEventListener('pointerup', end);
     st.pagesEl.addEventListener('pointercancel', cancel);
   }
+  /* Long-press a line of the page: the emoji bar. Not on a note, a «وقفت هنا» dot or while drawing. */
+  function bindReact() {
+    let lp = null;
+    const cancel = () => {
+      if (lp) clearTimeout(lp.t);
+      lp = null;
+    };
+    st.pagesEl.addEventListener('pointerdown', (e) => {
+      if (st.mode !== 'none' || !D.canWrite() || st.priv || !e.isPrimary) return;
+      if (e.target.closest('[data-nid], .pill-edge, .place-line, .rx-m, button')) return;
+      const pg = e.target.closest('.pg');
+      if (!pg) return;
+      lp = { x0: e.clientX, y0: e.clientY, pg };
+      lp.t = setTimeout(() => {
+        if (!lp || !st) return;
+        const box = lp.pg.getBoundingClientRect();
+        const y = U.clamp((lp.y0 - box.top) / box.height, 0.01, 0.99);
+        st.lpAt = Date.now();
+        if (navigator.vibrate) try { navigator.vibrate(12); } catch (er) {}
+        rxBar(+lp.pg.dataset.p, Math.round(y * RX_LINES), lp.x0, lp.y0);
+        lp = null;
+      }, 480);
+    });
+    st.pagesEl.addEventListener('pointermove', (e) => {
+      if (lp && Math.hypot(e.clientX - lp.x0, e.clientY - lp.y0) > 10) cancel();
+    });
+    st.pagesEl.addEventListener('pointerup', cancel);
+    st.pagesEl.addEventListener('pointercancel', cancel);
+    st.sc.addEventListener('scroll', cancel, { passive: true });
+    st.pagesEl.addEventListener('contextmenu', (e) => {
+      if (Date.now() - (st.lpAt || 0) < 900) e.preventDefault();
+    });
+  }
+  const rxId = (p, k) => `${U.hash(st.bookId + '|' + S.me).toString(36)}-${p}-${k}`;
+  /* The emoji bar at the finger; the line's reactions above it when there are some. */
+  function rxBar(p, k, x, y) {
+    rxClose();
+    const mine = S.reacts.get(rxId(p, k));
+    const rs = [...S.reacts.values()].filter((r) => r.b === st.bookId && r.page === p && Math.round((r.y || 0) * RX_LINES) === k && r.e && R.showsReact(r));
+    const el = document.createElement('div');
+    el.className = 'rx-bar';
+    el.id = 'rx-bar';
+    el.innerHTML = `${rs.length ? `<div class="rx-who">${rs.map((r) => `<span>${D.avatar(r.by, 'xs')}<b>${U.esc(r.e)}</b></span>`).join('')}</div>` : ''}
+      <div class="rx-pick">${RX.map((e) => `<button class="${mine && mine.e === e ? 'on' : ''}" data-act="rx-set" data-p="${p}" data-k="${k}" data-e="${e}" aria-label="${e}">${e}</button>`).join('')}${mine ? `<button class="rx-off" data-act="rx-set" data-p="${p}" data-k="${k}" data-e="" aria-label="${L('شيل ردي', 'Remove mine', 'أزل ردّي')}">${U.icon('close')}</button>` : ''}</div>`;
+    st.root.querySelector('.rd').appendChild(el);
+    const r = el.getBoundingClientRect();
+    const host = st.root.querySelector('.rd').getBoundingClientRect();
+    el.style.left = U.clamp(x - host.left - r.width / 2, 8, host.width - r.width - 8) + 'px';
+    el.style.top = U.clamp(y - host.top - r.height - 18, 8, host.height - r.height - 8) + 'px';
+    st.rx = { p, k };
+  }
+  function rxClose() {
+    const el = st && st.root.querySelector('#rx-bar');
+    if (el) el.remove();
+    if (st) st.rx = null;
+  }
+  async function rxSet(p, k, e) {
+    rxClose();
+    const id = rxId(p, k);
+    if (!e) return D.del(`reacts/${id}`).catch(() => {});
+    U.buzz && U.buzz('ok');
+    await D.set(`reacts/${id}`, { b: st.bookId, page: p, y: r4(k / RX_LINES), e, by: S.me, at: U.nowIso() }).catch(() => U.toast(L('ماتحفظش، جرّب تاني', "Didn't save — try again", 'لم يُحفظ، حاول مجددًا'), 'warn'));
+  }
+
   R.hiddenHere = () => {
     const h = (S.priv && S.priv.hidden) || {};
     return Object.keys(h).filter((id) => h[id] && S.notes.has(id) && S.notes.get(id).b === (st && st.bookId));
@@ -1041,6 +1144,7 @@
       <header class="rd-top">
         <button class="ib" data-act="close" aria-label="${L('رجوع', 'Back')}">${U.icon('back', 'flip')}</button>
         <div class="rd-title"><b dir="auto">${st.priv ? `<span class="rd-lock" title="${L('كتاب ليك لوحدك', 'A book only you can see', 'كتاب لك وحدك')}">${U.icon('lock')}</span>` : ''}${U.esc(b.title)}</b><span id="rd-wird"></span><span class="rd-wprog" id="rd-wprog" hidden></span></div>
+        <button class="rd-ahead" id="rd-ahead" data-act="ahead" hidden></button>
         <span class="rd-today" id="rd-today" title="${L('صفحات قريتها في الجلسة دي', 'Pages read this session', 'صفحات قرأتها في هذه الجلسة')}">${U.icon('scroll')}<b>+${L.num(0)}</b></span>
         <label class="rd-pg"><input id="rd-pgin" inputmode="numeric" aria-label="${L('رقم الصفحة', 'Page number')}" value="${L.num(st.cur, { useGrouping: false })}"><span>/ ${L.num(st.N, { useGrouping: false })}</span></label>
         <div class="rd-acts">
@@ -1080,6 +1184,62 @@
 
   /* Progress through the portion you are on: a bar under the title, a thin line along the top edge while the
      bars are hidden, and a few words of encouragement at the start, half-way and the last pages. */
+  /* «من غير حرق»: how many notes from the circle wait in the pages ahead (this portion and the next). */
+  function aheadUi(curW) {
+    const el = st.root.querySelector('#rd-ahead');
+    if (!el) return;
+    const reach = D.reach(st.bookId);
+    const ws = G.wirds(st.book);
+    const i = curW ? ws.indexOf(curW) : -1;
+    const to = i >= 0 ? (ws[i + 1] || curW).to : reach + 30;
+    const n = st.priv || !A.V.noSpoil || !A.V.noSpoil() ? 0 : [...S.notes.values()].filter((x) => x.b === st.bookId && x.by !== S.me && x.kind !== 'take' && x.page > reach && x.page <= to).length;
+    el.hidden = !n;
+    if (n && el.dataset.n !== String(n)) {
+      el.dataset.n = String(n);
+      el.innerHTML = `👀<b>${L.num(n)}</b>`;
+      const t = L(`${L.count(n, 'note')} من الحلقة مستنياك في الصفحات الجاية`, `${n} note${n > 1 ? 's' : ''} from the circle wait for you ahead`, `${L.count(n, 'note')} من الحلقة بانتظارك في الصفحات القادمة`);
+      el.title = t;
+      el.setAttribute('aria-label', t);
+    }
+  }
+
+  /* The golden page: found when read (once per portion); a burst, +XP, recorded on my member doc. */
+  function goldCheck(p) {
+    if (st.priv || !D.canWrite()) return;
+    const w = G.wirds(st.book).find((x) => p >= x.from && p <= x.to);
+    if (!w || G.goldenPage(st.bookId, w) !== p) return;
+    const key = st.bookId + '|' + w.id;
+    const m = S.members.get(S.me) || {};
+    if (m.gold && m.gold[key]) return;
+    const day = U.today();
+    D.updateMe((cur) => ({ gold: Object.assign({}, cur.gold, { [key]: day }) })).catch(() => {});
+    if (U.confetti) U.confetti(0.8);
+    U.buzz && U.buzz('big');
+    U.chime && U.chime('big');
+    const msg = L(`🌟 لقيت الصفحة الذهبية في الورد ${L.num(w.n)}! +${L.num(G.XP.gold)} XP`, `🌟 You found portion ${w.n}'s golden page! +${G.XP.gold} XP`, `🌟 وجدت الصفحة الذهبية في الورد ${L.num(w.n)}! +${L.num(G.XP.gold)} XP`);
+    R.isQuiet() ? holdMsg(U.esc(msg)) : cheer(msg);
+  }
+  const goldFound = (w) => {
+    const m = S.members.get(S.me) || {};
+    return !!(m.gold && m.gold[st.bookId + '|' + w.id]);
+  };
+
+  /* Stations: the portion in short stretches (2–3 pages, at most ~5 stretches), each a star when all its pages
+     are read, so progress shows every few minutes and not only at the end. */
+  function stations(w, prog) {
+    const total = w.to - w.from + 1;
+    const size = total <= 6 ? 2 : total <= 15 ? 3 : Math.ceil(total / 5);
+    const n = Math.ceil(total / size);
+    const has = (p) => st.pending.has(p) || (prog && U.rangesHas(prog.seen, p));
+    let done = 0, nextLeft = 0;
+    for (let i = 0; i < n; i++) {
+      let left = 0;
+      for (let p = w.from + i * size; p <= Math.min(w.to, w.from + (i + 1) * size - 1); p++) if (!has(p)) left++;
+      if (!left) done++;
+      else if (!nextLeft) nextLeft = left;
+    }
+    return { size, n, done, nextLeft };
+  }
   function wirdProgress(w, prog) {
     const bar = st.root.querySelector('#rd-wprog');
     const line = st.root.querySelector('#rd-wline');
@@ -1090,17 +1250,22 @@
     const total = w.to - w.from + 1;
     let read = 0;
     let segs = '';
+    const sts = stations(w, prog);
+    const gp = G.goldenPage(st.bookId, w);
+    const gFound = goldFound(w);
     for (let p = w.from; p <= w.to; p++) {
       const r = st.pending.has(p) || (prog && U.rangesHas(prog.seen, p));
       if (r) read++;
-      segs += `<i class="${r ? 'r' : ''}${p === st.cur ? ' c' : ''}"></i>`;
+      const end = (p - w.from + 1) % sts.size === 0 && p !== w.to; // a station ends here: a small gap and a star
+      const gd = !st.priv && p === gp ? (gFound ? ' gd found' : ' gd') : ''; // the golden page: a «?» until found
+      segs += `<i class="${r ? 'r' : ''}${p === st.cur ? ' c' : ''}${end ? ' se' : ''}${gd}"></i>`;
     }
     const f = total ? read / total : 0;
     bar.hidden = line.hidden = false;
     // a square per page (a plain bar for very long portions): read ones filled, the one on screen ringed
     const many = total > 60;
     const html = many ? `<i class="r" style="flex:0 0 ${Math.round(f * 100)}%"></i>` : segs;
-    const key = w.id + '|' + st.cur + '|' + read;
+    const key = w.id + '|' + st.cur + '|' + read + '|' + sts.done + '|' + gFound;
     if (bar.dataset.k !== key) {
       bar.dataset.k = key;
       bar.innerHTML = html;
@@ -1116,15 +1281,18 @@
     const seenBefore = (st.cheerBase = st.cheerBase || {});
     if (seenBefore[w.id] === undefined) seenBefore[w.id] = read; // where this portion stood when we got here
     const c = (st.cheered[w.id] = st.cheered[w.id] || {});
-    const left = total - read;
+    if (c.st === undefined) c.st = sts.done; // stations already reached before this session don't cheer again
     const wn = L.num(w.n);
     let msg = '';
     if (read >= total) {
       if (!c.done && seenBefore[w.id] < total) msg = c.done = L(`خلّصت صفحات الورد ${wn}! 🎉`, `You read every page of portion ${w.n}! 🎉`, `أنهيت صفحات الورد ${wn}! 🎉`);
-    } else if (left <= 3 && total >= 6 && !c.last && read > seenBefore[w.id]) {
-      msg = c.last = L(`فاضل ${L.count(left, 'page')} بس على الورد ${wn} 💪`, `Just ${left} page${left > 1 ? 's' : ''} left in portion ${w.n} 💪`, `بقيت ${L.count(left, 'page', 'nom')} فقط في الورد ${wn} 💪`);
-    } else if (f >= 0.5 && seenBefore[w.id] < total / 2 && !c.half) {
-      msg = c.half = L(`نص الورد ${wn} خلص — كمّل كده! ✨`, `Half of portion ${w.n} done — keep going! ✨`, `انتهى نصف الورد ${wn} — تابِع! ✨`);
+    } else if (sts.done > c.st) {
+      c.st = sts.done;
+      msg = L(`⭐ محطة ${L.num(sts.done)} من ${L.num(sts.n)}! فاضل ${L.count(sts.nextLeft, 'page')} على اللي بعدها`, `⭐ Stop ${sts.done} of ${sts.n}! ${sts.nextLeft} page${sts.nextLeft > 1 ? 's' : ''} to the next`, `⭐ محطة ${L.num(sts.done)} من ${L.num(sts.n)}! بقيت ${L.count(sts.nextLeft, 'page', 'nom')} على التالية`);
+      bar.classList.remove('pop');
+      void bar.offsetWidth;
+      bar.classList.add('pop');
+      U.buzz && U.buzz('ok');
     } else if (read > 0 && seenBefore[w.id] === 0 && !c.start && read === 1 && total >= 4) {
       msg = c.start = L(`بدأت الورد ${wn} • ${L.count(total, 'page')}`, `Portion ${w.n} started • ${total} pages`);
     }
@@ -1371,9 +1539,13 @@
         ? L(`صفحة ${L.num(st.cur)} من ${L.num(st.N)}`, `Page ${st.cur} of ${st.N}`)
         : doneAt
           ? `${L(`الورد ${L.num(curW.n)} ✓`, `Portion ${curW.n} ✓`)} • ${L(`خلّصته ${L.day(U.isoKey(doneAt))}`, `done ${L.day(U.isoKey(doneAt))}`, `أنهيته ${L.day(U.isoKey(doneAt))}`)} • ${where}`
-          : `${L(`الورد ${L.num(curW.n)}`, `Portion ${curW.n}`)} • ${where} • ${read >= total ? L('قريت كل صفحاته', 'all pages read', 'قرأت كل صفحاته') : read ? L(`قريت ${L.num(Math.round((read / total) * 100))}٪`, `${Math.round((read / total) * 100)}% read`, `قرأت ${L.num(Math.round((read / total) * 100))}٪`) : L('لسه بادئ', 'just starting', 'في البداية')}`;
+          : `${L(`الورد ${L.num(curW.n)}`, `Portion ${curW.n}`)} • ${where} • ${read >= total ? L('قريت كل صفحاته', 'all pages read', 'قرأت كل صفحاته') : read ? (() => {
+              const sts = stations(curW, prog);
+              return `⭐ ${L(`${L.num(sts.done)} من ${L.num(sts.n)}`, `${sts.done} of ${sts.n}`)}`;
+            })() : L('لسه بادئ', 'just starting', 'في البداية')}`;
     }
     wirdProgress(curW, prog);
+    aheadUi(curW);
     // finish prompt
     const pr = st.root.querySelector('#rd-prompt');
     let html = '';
@@ -1554,6 +1726,11 @@
 
     root.addEventListener('click', (e) => {
       if (!st) return;
+      if (Date.now() - (st.lpAt || 0) < 600 && !e.target.closest('#rx-bar')) return; // the long-press that opened the emoji bar
+      if (st.rx && !e.target.closest('#rx-bar')) {
+        rxClose();
+        if (!e.target.closest('[data-act]')) return;
+      }
       if (st.mk && !e.target.closest('#rd-mk, #rd-eye')) {
         // a tap outside folds «اللي يظهر» away (and does nothing more, unless it hit a button)
         marksPanel(false);
@@ -1616,6 +1793,18 @@
       else if (act === 'panel') togglePanel();
       else if (act === 'more') moreMenu();
       else if (act === 'marks') marksPanel(!st.mk);
+      else if (act === 'ahead') U.toast(`👀 ${t.title}`);
+      else if (act === 'rx-set') rxSet(+t.dataset.p, +t.dataset.k, t.dataset.e);
+      else if (act === 'rx-show') {
+        const r = t.getBoundingClientRect();
+        rxBar(+t.dataset.p, +t.dataset.k, r.left + r.width / 2, r.top);
+      }
+      else if (act === 'mk-nospoil') {
+        U.store.set('noSpoil', !(A.V.noSpoil && A.V.noSpoil()));
+        redrawOverlays();
+        chrome();
+        marksPanel(true);
+      }
       else if (act === 'mk-close') marksPanel(false);
       else if (act === 'mk-pre') R.setMarks(t.dataset.v, true);
       else if (act === 'mk-kind') mkToggle('hk', t.dataset.k);
@@ -1758,6 +1947,7 @@
     document.addEventListener('keydown', onKey);
     bindDraw();
     bindMove();
+    bindReact();
   }
 
   function onKey(e) {
@@ -1769,7 +1959,8 @@
     st.userAt = st.activeAt = Date.now();
     keepAwake(true);
     if (k === 'Escape') {
-      if (st.mk) marksPanel(false);
+      if (st.rx) rxClose();
+      else if (st.mk) marksPanel(false);
       else if (st.focusPop) focusPop(false);
       else if (st.mode !== 'none') setMode(st.mode);
       else if (st.panel) togglePanel(false);
@@ -1812,15 +2003,17 @@
     people.sort((a, b2) => cnt((n) => n.by === b2) - cnt((n) => n.by === a) || D.name(a).localeCompare(D.name(b2)));
     const kOn = (k) => v === 'all' || (v === 'custom' && !f.hk.includes(k));
     const pOn = (u) => v === 'all' || (v === 'custom' && !f.hp.includes(u));
-    const KN = { hl: L('تظليلات', 'Highlights', 'تظليلات'), note: L('ملاحظات', 'Notes', 'ملاحظات'), q: L('أسئلة', 'Questions', 'أسئلة'), quote: L('اقتباسات', 'Quotes', 'اقتباسات') };
+    const KN = { hl: L('تظليلات', 'Highlights', 'تظليلات'), note: L('ملاحظات', 'Notes', 'ملاحظات'), q: L('أسئلة', 'Questions', 'أسئلة'), quote: L('اقتباسات', 'Quotes', 'اقتباسات'), react: L('ردود فعل', 'Reactions', 'ردود فعل') };
+    const rxN = [...S.reacts.values()].filter((r) => r.b === st.bookId && r.by !== S.me && r.e).length;
     const pre = [['all', L('الكل', 'All')], ['mine', L('بتاعي بس', 'Only mine', 'إضافاتي فقط')], ['none', L('صفحة نضيفة', 'Clean page', 'صفحة نظيفة')]];
     el.innerHTML = `<header class="mk-h"><b>${L('اللي يظهر على الصفحات', 'What shows on the pages', 'ما يظهر على الصفحات')}</b><button class="ib sm" data-act="mk-close" aria-label="${L('قفل', 'Close', 'إغلاق')}">${U.icon('close')}</button></header>
       <div class="seg mk-pre">${pre.map(([k, t]) => `<button class="${v === k ? 'on' : ''}" aria-pressed="${v === k}" data-act="mk-pre" data-v="${k}">${t}</button>`).join('')}</div>
       <div class="mk-cols">
-        <section><span class="mk-l">${L('النوع', 'Kind', 'النوع')}</span><div class="mk-kinds">${MK_KINDS.map((k) => `<button class="chip${kOn(k) ? ' on' : ''}" aria-pressed="${kOn(k)}" data-act="mk-kind" data-k="${k}"><i class="mk-sw k-${k}"></i>${KN[k]}${cnt((n) => (n.kind || 'hl') === k) ? `<small>${L.num(cnt((n) => (n.kind || 'hl') === k))}</small>` : ''}</button>`).join('')}</div></section>
+        <section><span class="mk-l">${L('النوع', 'Kind', 'النوع')}</span><div class="mk-kinds">${MK_KINDS.map((k) => `<button class="chip${kOn(k) ? ' on' : ''}" aria-pressed="${kOn(k)}" data-act="mk-kind" data-k="${k}"><i class="mk-sw k-${k}"></i>${KN[k]}${(k === 'react' ? rxN : cnt((n) => (n.kind || 'hl') === k)) ? `<small>${L.num(k === 'react' ? rxN : cnt((n) => (n.kind || 'hl') === k))}</small>` : ''}</button>`).join('')}</div></section>
         ${people.length ? `<section><span class="mk-l">${L('الناس', 'People', 'الأشخاص')}<span class="mk-pl"><button class="lnk sm" data-act="mk-people" data-v="all">${L('الكل', 'All')}</button>•<button class="lnk sm" data-act="mk-people" data-v="none">${L('محدش', 'Nobody', 'لا أحد')}</button></span></span>
           <div class="mk-people">${people.map((u) => `<button class="mk-p${pOn(u) ? '' : ' off'}" aria-pressed="${pOn(u)}" data-act="mk-person" data-u="${U.esc(u)}">${D.avatar(u, 'sm')}<span dir="auto">${U.esc(D.name(u))}</span>${cnt((n) => n.by === u) ? `<i>${L.num(cnt((n) => n.by === u))}</i>` : ''}</button>`).join('')}</div></section>` : ''}
       </div>
+      <button class="mk-ns" data-act="mk-nospoil" aria-pressed="${!!(A.V.noSpoil && A.V.noSpoil())}"><span>${L('من غير حرق', 'No spoilers', 'بلا حرق')}<small>${L('إضافات الصفحات اللي لسه ماوصلتهاش تستناك', "Notes on pages you haven't reached wait for you", 'إضافات الصفحات التي لم تصلها تنتظرك')}</small></span><i class="sw${A.V.noSpoil && A.V.noSpoil() ? ' on' : ''}"></i></button>
       <p class="mk-foot">${L('إضافاتك إنت بتفضل ظاهرة، إلا في «صفحة نضيفة».', 'Your own marks always show, except on a clean page.', 'إضافاتك تبقى ظاهرة دائمًا، إلا في «صفحة نظيفة».')}</p>`;
   }
   /* A kind or a person on or off. From «بتاعي بس» or «صفحة نضيفة» everything starts shown again first. */
@@ -1859,6 +2052,8 @@
     let list = [...S.notes.values()].filter((n) => n.b === st.bookId && n.kind !== 'take');
     const priv = S.priv && S.priv.notes ? Object.entries(S.priv.notes).filter(([, n]) => n && n.b === st.bookId).map(([id, n]) => Object.assign({ id, priv: true, by: S.me }, n)) : [];
     list = list.concat(priv);
+    const locked = list.filter((n) => A.V.isSpoiler && A.V.isSpoiler(n)).length;
+    if (locked) list = list.filter((n) => !A.V.isSpoiler(n));
     const f = st.filter;
     if (f === 'wird' && w) list = list.filter((n) => n.page >= w.from && n.page <= w.to);
     if (f === 'mine') list = list.filter((n) => n.by === S.me);
@@ -1869,6 +2064,7 @@
     const chip = (id, label) => `<button class="chip${f === id ? ' on' : ''}" data-act="pfilter" data-f="${id}">${label}</button>`;
     el.innerHTML = `<div class="rp-head"><b>${L('ملاحظات الكتاب', 'Notes in this book')}</b><button class="ib" data-act="panel" aria-label="${L('قفل', 'Close', 'إغلاق')}">${U.icon('close')}</button></div>
       <div class="chips">${w ? chip('wird', L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)) : ''}${chip('all', L('الكل', 'All'))}${chip('mine', L('بتوعي', 'Mine', 'ملاحظاتي'))}${chip('q', L('أسئلة', 'Questions'))}</div>
+      ${locked ? `<p class="rp-locked">👀 ${L(`${L.count(locked, 'note')} مستخبية لحد ما توصل صفحاتها`, `${locked} note${locked > 1 ? 's' : ''} wait until you reach their pages`, `${L.count(locked, 'note')} مخفية حتى تصل إلى صفحاتها`)}</p>` : ''}
       ${marks.length ? `<div class="rp-bms"><h4>${U.icon('bookmark')}${L('العلامات', 'Bookmarks')}</h4>${marks
         .map((p) => `<div class="rp-bm"><button class="rp-bm-go" data-act="pgo" data-p="${p}"><b>${L('ص', 'p.')} ${L.num(p)}</b>${mk[p] && mk[p].t ? `<span dir="auto">${U.esc(mk[p].t)}</span>` : `<small>${L('من غير اسم', 'no name', 'بلا اسم')}</small>`}</button>
           <button class="ib sm" data-act="bm-name" data-p="${p}" aria-label="${L('سمّيها', 'Name it', 'سمّها')}">${U.icon('edit')}</button><button class="ib sm" data-act="bm-del" data-p="${p}" aria-label="${L('شيلها', 'Remove', 'أزلها')}">${U.icon('trash')}</button></div>`)
@@ -2020,6 +2216,7 @@
   document.addEventListener('pointerdown', () => (tapAt = Date.now()), true);
   document.addEventListener('keydown', () => (tapAt = Date.now()), true);
   R.focusOpen = () => st && !st.focus && focusSheet(); // from a daily quest
+  R.focusQuick = (mins) => st && !st.focus && focusStart(mins, 0); // «مستعجل؟ ٥ دقايق بس»
   R.focusAsk = () => U.store.get('rdFocusAsk', true) !== false;
   R.isQuiet = () => !!(st && st.focus);
   /* For U.toast: true = kept until the session is over. Warnings and answers to something just tapped still show. */
@@ -2363,7 +2560,8 @@
     const nb = D.book(st.bookId);
     if (!nb) return R.close();
     st.book = nb;
-    if (st.notesRef !== S.notes || st.privRef !== S.priv || st.profVer !== S.profiles) {
+    if (st.notesRef !== S.notes || st.privRef !== S.priv || st.profVer !== S.profiles || st.rxRef !== S.reacts) {
+      st.rxRef = S.reacts;
       st.notesRef = S.notes;
       st.privRef = S.priv;
       st.profVer = S.profiles;

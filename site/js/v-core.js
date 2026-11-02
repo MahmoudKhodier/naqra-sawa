@@ -66,6 +66,13 @@
       .join('');
   const menus = {};
   V.addMenu = (where, fn) => (menus[where] = menus[where] || []).push(fn);
+  /* «اليوم البسيط»: only the portion, who is where and today's quests on «اليوم», and nothing that suggests other
+     books. Set on this phone in Settings, or for a member by the circle's owner or an admin (meta/circle.simple);
+     this phone's own choice wins. */
+  V.simple = () => {
+    const v = U.store.get('simpleToday', null);
+    return v === null || v === undefined ? !!(S.circle && S.circle.simple && S.circle.simple[S.me]) : !!v;
+  };
   V.menuItems = (where, ctx) => (menus[where] || []).map((fn) => fn(ctx)).filter(Boolean);
   /* Avatar marks people can pick (onboarding shows the first 16; Settings shows all). */
   V.EMOJI = [

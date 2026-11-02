@@ -42,6 +42,16 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - The day's set is picked once and kept in `priv.quests` (one swap a day, `swap: 1`). Done → `members/<me>.questDays[day] = {b}`; game.js counts XP from that (old days keep the old random quests). Chest extras the same on every phone: `G.chestReward` (freeze / +15 XP / wisdom); 5 full days in a week = big chest +100.
 - Tapping a quest runs `act` (open the reader at the right page, the note, a cheer, the takeaway, the shelf item, focus sheet via `R.focusOpen`).
 
+## Young readers (2026-11-02)
+- Stations: a portion in stretches of 2–3 pages (≤5), star gaps on `#rd-wprog`, a cheer per station (`stations()` in reader.js; replaced the half/last cheers).
+- «مستعجل؟ ٥ دقايق بس» under the Today button: the reader + `R.focusQuick(5)`.
+- «من غير حرق» (`V.noSpoil`, on by default, Settings + the eye panel): others' notes on pages past `D.reach(book)` show as `V.lockedCard` (feed, notes tab, takeaways), are hidden in the reader (count in `#rd-ahead` 👀) and are not quest targets.
+- Golden page: `G.goldenPage(book, w, uid)`; found on reading it → `members/<me>.gold["book|wid"] = day`, +15 XP.
+- Reactions: long-press a line → emoji bar; one doc per member and line in col `reacts` (`{b, page, y, e, by}`, author-only via `20261102000000_reacts_guard.sql`); bubbles on the inner margin; kind `react` in the eye filter.
+- Behind: «اقرا ١٠ صفحات بس النهارده» + button in the catch-up row. Quote as a story picture: `V.storyCard` / `V.storySheet` (story.js), shared with `V.sharePicture` (invite.js).
+- «اليوم البسيط» (`V.simple()`): Today = portion, race, quests only; hides «اختارلي كتاب» and «تحدياتي». This phone's Settings, else `meta/circle.simple[uid]` set by the owner/admin from the member menu.
+- Weekly boss: waiting on professional art (owner rejected hand-drawn SVG); prototype at the «زعيم الأسبوع» artifact.
+
 ## Reader notes
 - When a page counts (reader.js `pageChanged`/`tick`): on going on from it one or two pages after ≥4 s on it (≥10 s past the end of my portion), or after staying on it ~0.6 × my seconds per page (20–90 s). Never on arrival. `st.front` follows forward steps after ≥2 s on a page (not pages a long scroll runs through).
 - Reading vs looking around: `st.front` is where reading goes on (resume point, saved as `prog.last`). Pages count only within ~2 pages of it; jumps further away are "looking around" (a bar offers «ارجع لمكانك» / «كمّل من هنا»). Opening the current portion counts. «وقفت هنا» (one line per book, private: `priv.place[bookId] = {p, y, manual}`) is placed with the edge dots and saved on leaving.
@@ -64,6 +74,7 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - `node tests/e2e/ui.js` — the app's frame on a phone: back steps, one message at a time, pull to refresh, shelf header, mark picker, sign-out warning.
 - Phase 3/4 suites: `together.js` (circle recap, «خلّصناها», invite card), `focus.js`, `goals.js` (daily goal, forecast, weekly streak, firsts), `native.js` (stand-in Android layer: notifications device, widget data).
 - Phase-2 suites: `node tests/e2e/library.js` (shelf_books rows, 3,000 books, legacy shelf), `goodreads.js` (RSS sync merge), `me.js` (stats, quotes notebook), `worm.js` (taste match, pick a book, challenges), `private.js` (private library).
+- `node tests/e2e/young.js` — stations, 5 minutes, no spoilers, golden page, reactions, catch-up line, story picture, Simple Today.
 - `node tests/e2e/quests.js` — daily quests from the portion, people and reflection, swap, recorded day, chest.
 - `node tests/e2e/plan.js` — plan calendar, who may change it, moving a portion's pages (sheet and reader), «مين وصل فين» tabs.
 - `node tests/e2e/screens.js` — screenshots of every main screen for a visual review (`LANGS=eg,ar,en THEMES=light,dark LAND=1`), in `tests/e2e/shots/screens/`.

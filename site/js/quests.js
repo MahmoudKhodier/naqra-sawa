@@ -50,7 +50,7 @@
     const out = [];
     const mp = mainPortion();
     const books = new Set(readingBooks().map((b) => b.id));
-    const notes = [...S.notes.values()].filter((n) => books.has(n.b) && n.by !== me && S.members.has(n.by) && n.kind !== 'take');
+    const notes = [...S.notes.values()].filter((n) => books.has(n.b) && n.by !== me && S.members.has(n.by) && n.kind !== 'take' && !(V.isSpoiler && V.isSpoiler(n)));
     // an open question: nobody has answered it yet, or at least not me; the ones in my portion first
     const qs = notes.filter((n) => n.kind === 'q' && daysAgo(n.at, 21) && !repliedBy(n, me));
     qs.sort((a, b) => (inPortion(b, mp) - inPortion(a, mp)) || V.noteReplies(a).length - V.noteReplies(b).length || String(b.at).localeCompare(String(a.at)));

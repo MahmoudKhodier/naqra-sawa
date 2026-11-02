@@ -29,6 +29,7 @@
     shelf: new Map(),
     proposals: new Map(),
     pokes: new Map(),
+    reacts: new Map(), // emoji reactions on a line of a page: id → {b, page, y, e, by, at}
     gone: new Map(), // removed books: just their portions, so the XP earned on them stays
     myBooks: new Map(), // «مكتبتي الخاصة»: books only I can see (data/users/<me>/my/books)
     myProg: new Map(), // my progress in them (data/users/<me>/my/prog), never in the circle's prog
@@ -128,6 +129,7 @@
     listen(db.collection('proposals'), 'proposals', (s) => (S.proposals = toMap(s)));
     listen(db.collection('gone'), 'gone', (s) => (S.gone = toMap(s)));
     listen(db.collection('pokes').orderBy('at', 'desc').limit(20000), 'pokes', (s) => (S.pokes = toMap(s)));
+    listen(db.collection('reacts'), 'reacts', (s) => (S.reacts = toMap(s)));
     listen(db.doc(`data/users/${S.me}/priv`), 'priv', (s) => (S.priv = s.exists ? s.data() : null));
     listen(db.collection(`data/users/${S.me}/my/books`), 'myBooks', (s) => (S.myBooks = toMap(s)));
     listen(db.collection(`data/users/${S.me}/my/prog`), 'myProg', (s) => (S.myProg = toMap(s)));
@@ -190,6 +192,22 @@
   /* A book by id: the circle's, or one of mine. */
   D.book = (id) => (id && (S.books.get(id) || S.myBooks.get(id))) || null;
   D.prog = (b, u = S.me) => (D.isPrivate(b) ? (u === S.me && S.myProg.get(b)) || null : S.prog.get(D.progKey(b, u)) || null);
+  /* How far I've got in a book: the furthest page read, my place, the end of portions I marked done, the page
+     on screen if the book is open; all of it once I finished the book. Others' notes past this stay hidden
+     («من غير حرق»). */
+  D.reach = (b) => {
+    const p = D.prog(b);
+    let r = 0;
+    if (p) {
+      if (p.finished) return Infinity;
+      r = p.last || 0;
+      for (const x of p.seen || []) r = Math.max(r, x[1]);
+      const book = S.books.get(b);
+      if (book && p.done && A.G) for (const w of A.G.wirds(book)) if (p.done[w.id]) r = Math.max(r, w.to);
+    }
+    if (A.R && A.R.isOpen && A.R.isOpen() && A.R.bookId() === b) r = Math.max(r, A.R.current().page);
+    return r;
+  };
   D.bookProgs = (b) => [...S.prog.values()].filter((p) => p.b === b);
   D.joined = () => !!(S.me && S.members.has(S.me));
   D.memberIds = () =>

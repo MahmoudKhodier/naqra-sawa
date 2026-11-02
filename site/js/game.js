@@ -8,7 +8,14 @@
   const S = A.S;
   const G = (A.G = {});
 
-  G.XP = { page: 1, wird: 20, onTime: 10, first: 10, note: 5, take: 8, reply: 2, liked: 2, shelf: 10, review: 5, book: 100, cheer: 1, quests: 30, bonus: 20, chestXp: 15, bigChest: 100 };
+  G.XP = { page: 1, wird: 20, onTime: 10, first: 10, note: 5, take: 8, reply: 2, liked: 2, shelf: 10, review: 5, book: 100, cheer: 1, quests: 30, bonus: 20, chestXp: 15, bigChest: 100, gold: 15 };
+  /* The golden page of a portion: a page of it (never the first), different for each member and portion. Found
+     when read; recorded on the member doc (gold["book|portion"] = day). Portions of 4 pages or more. */
+  G.goldenPage = (bookId, w, uid = S.me) => {
+    const size = w.to - w.from + 1;
+    if (size < 4) return 0;
+    return w.from + 1 + (U.hash(uid + '|gold|' + bookId + '|' + w.id) % (size - 1));
+  };
   /* Daily quests from this day on are made from what each member is reading (quests.js) and recorded on the
      member doc when done (questDays[day] = {b: bonus done}); days before keep the old picked-at-random quests. */
   G.QUEST_V2 = '2026-11-02'; // the day the new quests went out (keep it no earlier than that)
@@ -654,6 +661,13 @@
     const horizon = U.addDays(today, -3660); // all of it: a bonus once earned never runs out
     for (const s of out.values()) {
       const qd = ((S.members.get(s.uid) || {}).questDays) || {};
+      const gold = ((S.members.get(s.uid) || {}).gold) || {};
+      s.golds = 0;
+      for (const day of Object.values(gold)) {
+        if (!day || day > today) continue;
+        s.golds++;
+        ev(s, day, G.XP.gold, 'gold');
+      }
       const days = new Set([...Object.keys(s.byDay), ...Object.keys(s.days), ...Object.keys(qd)]);
       const perWeek = new Map();
       s.freezeGifts = new Set();

@@ -223,7 +223,7 @@
       },
     });
   };
-  V.addMenu('shelf', () => (D.canWrite() ? { ic: 'sparkle', t: L('اختارلي كتاب', 'Pick a book for me', 'اختر لي كتابًا'), fn: () => W.pickSheet() } : null));
+  V.addMenu('shelf', () => (D.canWrite() && !V.simple() ? { ic: 'sparkle', t: L('اختارلي كتاب', 'Pick a book for me', 'اختر لي كتابًا'), fn: () => W.pickSheet() } : null));
   V.actions['wm-pick'] = () => W.pickSheet();
 
   /* ---------- personal challenges ---------- */
@@ -355,7 +355,7 @@
       ${past.length ? `<details class="wm-past"><summary>${L(`اللي خلصت مدتها (${L.num(past.length)})`, `Ended (${past.length})`, `المنتهية (${L.num(past.length)})`)}</summary><div class="wm-chs">${past.map((c) => chRow(S.me, c, true)).join('')}</div></details>` : ''}
     </section>`;
   }
-  V.addSection('me', { order: 25, render: (ctx) => (ready() ? challengesCard(ctx) : '') });
+  V.addSection('me', { order: 25, render: (ctx) => (ready() && !V.simple() ? challengesCard(ctx) : '') });
 
   const saveChallenges = (fn) => D.updateMe((m) => ({ challenges: fn((Array.isArray(m.challenges) ? m.challenges : []).slice()).slice(-40) }));
 

@@ -59,6 +59,37 @@
     }
     return lines;
   }
+  /* Shared with story.js (the quote as a story picture). */
+  V.cardKit = { roundRect, star, wrap, loadImg };
+  /* Share a picture (Android share sheet, or the browser's), else save it. True when it went somewhere. */
+  V.sharePicture = async (blob, name, msg, title) => {
+    if (P.native) {
+      const FS = P.plugin('Filesystem');
+      const Share = P.plugin('Share');
+      if (FS && Share) {
+        const b64 = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(String(r.result).split(',')[1]);
+          r.onerror = () => rej(r.error);
+          r.readAsDataURL(blob);
+        });
+        const w = await FS.writeFile({ path: name, data: b64, directory: 'CACHE' });
+        await Share.share({ title: title || L('نقرأ سوا', 'Read Together'), text: msg, files: [w.uri], dialogTitle: title || L('شارك', 'Share') });
+        return true;
+      }
+    }
+    const file = new File([blob], name, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ title: title || L('نقرأ سوا', 'Read Together'), text: msg, files: [file] });
+      return true;
+    }
+    if (A.S.downloads) {
+      await A.S.downloads.save({ filename: name, data: blob });
+      U.toast(L('الصورة اتحفظت', 'Picture saved', 'حُفظت الصورة'));
+      return true;
+    }
+    return false;
+  };
   const currentBook = () => {
     const reading = [...S.books.values()].filter((b) => (b.status || 'reading') === 'reading').sort((a, b) => String(b.addedAt).localeCompare(String(a.addedAt)));
     return reading[0] || null;

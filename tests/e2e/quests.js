@@ -104,6 +104,8 @@ const quests = (p) => p.evaluate(() => window.A.Q.list().map((x) => ({ id: x.id,
         return { q, h };
       }, bookId);
       await until(a, 'notes arrived', (x) => window.A.S.notes.has(x.q) && window.A.S.notes.has(x.h), ids);
+      // «من غير حرق»: notes on pages I haven't reached are not quests; I've read up to p. 4
+      await a.evaluate((bid) => window.A.D.saveProg(bid, (c) => ({ seen: window.A.U.rangesAdd(c.seen, [1, 2, 3, 4]) })), bookId);
       await a.evaluate(() => window.A.Q._reset());
       const q = await quests(a);
       const people = q[1];

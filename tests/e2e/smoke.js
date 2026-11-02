@@ -227,6 +227,14 @@ const appState = (page) =>
       const p = pages.A;
       const m = await mark(p);
       await p.click('[data-go="circle"]');
+      // «من غير حرق»: A hasn't got to that page yet, so the card waits closed; once A reads up to it, it opens
+      await until(p, 'note arrived', (id) => window.A.S.notes.has(id), ctx.noteId);
+      await until(p, 'closed card', () => !!document.querySelector('.feed .ncard.locked'));
+      await p.evaluate((id) => {
+        const n = window.A.S.notes.get(id);
+        const pages = Array.from({ length: n.page }, (_, i) => i + 1);
+        return window.A.D.saveProg(n.b, (c) => ({ seen: window.A.U.rangesAdd(c.seen, pages) }));
+      }, ctx.noteId);
       await until(p, 'note card in A’s feed', (id) => window.A.S.notes.has(id) && !!document.querySelector(`.feed .ncard [data-act="like"][data-nid="${id}"]`), ctx.noteId);
       const txt = await p.textContent('.feed .ncard');
       assert(/بسمة/.test(txt) && /جملة تستاهل/.test(txt), 'feed card lacks author/text: ' + txt.slice(0, 120));

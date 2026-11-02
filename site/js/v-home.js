@@ -38,6 +38,16 @@
       }
     }
     const others = reading.filter((b) => b !== primary);
+    if (V.simple())
+      return `<div class="home simple">
+      <div class="home-main">
+        ${A.Upd ? A.Upd.banner() : ''}
+        ${pokesBlock()}
+        ${primary ? heroCard(primary) : noBooks()}
+        ${primary ? raceCard(primary) : ''}
+      </div>
+      <div class="home-side">${D.canWrite() ? homeCards(true) : ''}</div>
+    </div>`;
     return `<div class="home">
       <div class="home-main">
         ${A.Upd ? A.Upd.banner() : ''}
@@ -141,7 +151,7 @@
       ? `<div class="catchup">
           ${ready.length > 1
             ? `<button class="btn jade sm" data-act="mark-wirds" data-b="${esc(b.id)}" data-ws="${esc(ready.map((x) => x.id).join(','))}">${icon('check')}${L(`علّم الأوراد ${L.num(ready[0].n)}–${L.num(ready[ready.length - 1].n)} خلصوا`, `Mark portions ${ready[0].n}–${ready[ready.length - 1].n} done`, `علّم أنك أنهيت الأوراد ${L.num(ready[0].n)}–${L.num(ready[ready.length - 1].n)}`)}</button>`
-            : `<span>${icon('bolt')}${L(`عشان تلحق في ٣ أيام: ~${L.count(G.catchUpPerDay(b, 3), 'page')} في اليوم`, `To catch up in 3 days: ~${G.catchUpPerDay(b, 3)} pages a day`, `لتلحق خلال ٣ أيام: ~${L.count(G.catchUpPerDay(b, 3), 'page')} في اليوم`)}</span>`}
+            : `<span>${icon('bolt')}${L(`اقرا ${L.count(Math.min(10, bh.pages), 'page')} بس النهارده وانت كده بتقرّب`, `Just ${Math.min(10, bh.pages)} pages today and you're closer`, `اقرأ ${L.count(Math.min(10, bh.pages), 'page')} فقط اليوم وستقترب`)}</span><button class="btn gold sm" data-act="read" data-b="${esc(b.id)}" data-p="${startAt}">${icon('play', 'flip-rtl')}${L(`يلا ${L.count(Math.min(10, bh.pages), 'page')}`, `Go: ${Math.min(10, bh.pages)} pages`, `هيا: ${L.count(Math.min(10, bh.pages), 'page')}`)}</button>`}
           <button class="lnk" data-act="catch-up" data-b="${esc(b.id)}">${L('خطة اللحاق', 'Catch-up plan')}</button>
         </div>`
       : '';
@@ -156,6 +166,7 @@
         <button class="btn big cta" data-act="read" data-b="${esc(b.id)}" data-p="${startAt}">${startAt > w.from ? L(`كمّل من ص ${L.num(startAt)}`, `Continue from p. ${startAt}`, `تابِع من ص ${L.num(startAt)}`) : L('يلا نقرأ', 'Start reading', 'لنقرأ')}${icon('play', 'flip-rtl')}</button>
         ${D.canWrite() ? `<button class="btn jade big" data-act="mark-wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" aria-label="${L('خلّصته', 'Done', 'أنهيته')}">${icon('check')}<span>${L('خلّصته', 'Done', 'أنهيته')}</span></button>` : ''}
       </div>
+      <button class="lnk sm hero-quick" data-act="read-quick" data-b="${esc(b.id)}" data-p="${startAt}">${icon('clock')}${L(`مستعجل؟ ${L.count(5, 'minute')} بس`, 'In a hurry? Just 5 minutes', `مستعجل؟ ${L.count(5, 'minute')} فقط`)}</button>
     </section>`;
   }
 
@@ -360,7 +371,7 @@
   }
 
   /* Small cards: today's quests, this week's reading days, the circle's weekly challenge. */
-  function homeCards() {
+  function homeCards(questOnly) {
     const q = G.myQuests();
     const nDone = q.filter((x) => x.done).length;
     const next = q.find((x) => !x.done);
@@ -380,6 +391,7 @@
     }).join('');
     const { pages, goal } = G.groupWeek();
     const daysLeft = Math.max(1, U.diffDays(today, U.addDays(ws, 6)) + 1);
+    if (questOnly) return `<div class="hcards one">${questsBlock()}</div>`;
     return `<div class="hcards" aria-label="${L('مهام وتحديات', 'Quests and challenges')}">
       <button class="hcard quest${chestReady ? ' ready' : ''}" data-act="${chestReady ? 'chest' : 'quests'}">
         <span class="hc-h"><span class="hc-ic">${icon(chestReady ? 'chest' : 'target')}</span><b>${L('مهام اليوم', "Today's quests")}</b><small>${L.num(nDone)}/${L.num(q.length)}</small></span>
@@ -454,6 +466,11 @@
     V.menu(items);
   };
   V.actions['finish-book'] = (a) => V.finishBook(a.dataset.b);
+  /* «مستعجل؟ ٥ دقايق بس»: the book with a 5-minute focus session (at the end it offers 5 more). */
+  V.actions['read-quick'] = async (a) => {
+    await A.R.open(a.dataset.b, a.dataset.p ? { page: +a.dataset.p } : {});
+    if (A.R.focusQuick) setTimeout(() => A.R.focusQuick(5), 700);
+  };
 
   function pokesBlock() {
     const ps = V.myPokes().slice(0, 4);
@@ -593,7 +610,7 @@
   }
   const feedText = (x) => {
     const parts = [D.name(x.u)];
-    if (x.kind === 'note') parts.push(x.n.text || '', (D.book(x.n.b) || {}).title || '');
+    if (x.kind === 'note') parts.push(V.isSpoiler && V.isSpoiler(x.n) ? '' : x.n.text || '', (D.book(x.n.b) || {}).title || '');
     else if (x.kind === 'hls') parts.push(...x.list.map((n) => n.text || ''), (D.book(x.list[0].b) || {}).title || '');
     else if (x.kind === 'shelf') parts.push(...x.list.map((it) => `${it.title || ''} ${it.author || ''}`));
     else if (x.b) parts.push(x.b.title || '');
@@ -636,6 +653,7 @@
     if (x.kind === 'note') return V.noteCard(x.n, { showBook: true });
     if (x.kind === 'hls') {
       const ns = x.list.slice().sort((a, b2) => a.page - b2.page);
+      if (V.isSpoiler && ns.every((n) => V.isSpoiler(n))) return V.lockedCard(ns[0], { showBook: true });
       const book = D.book(ns[0].b);
       const p0 = ns[0].page, p1 = ns[ns.length - 1].page;
       return `<article class="ncard hls">

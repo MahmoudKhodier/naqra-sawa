@@ -545,7 +545,7 @@ async function menu(p, text) {
       assert(/الورد/.test(s.label) && /من/.test(s.label), 'label: ' + s.label);
       assert(s.width === '100%', 'bar not full at the end: ' + s.width + ' ' + JSON.stringify(await p.evaluate(() => window.A.R._state())) + ' w ' + JSON.stringify(w));
       const joined = seen.join(' | ');
-      assert(/نص الورد/.test(joined) && /فاضل/.test(joined) && /خلّصت صفحات الورد/.test(joined), 'cheers: ' + joined);
+      assert(/محطة/.test(joined) && /فاضل/.test(joined) && /خلّصت صفحات الورد/.test(joined), 'cheers: ' + joined);
       await showBars(p);
       return `${w.to - w.from + 1} pages; ${seen.length} cheers`;
     }, ['open', 'cdp']);

@@ -530,6 +530,25 @@ select t.is((select data ->> 'text' from docs where circle_id = t.id('c1') and c
             'guard: D''s note is as D left it');
 commit;
 
+-- reactions on a line: only the one who reacted changes theirs
+begin;
+select t.login('D');
+select t.lives(format($$insert into docs (circle_id, col, id, data) values (t.id('c1'), 'reacts', 'gr',
+                 '{"by": "%s", "b": "bk", "page": 3, "y": 0.4, "e": "🔥"}')$$, t.v('D')), 'guard: D reacts to a line');
+select t.throws(format($$insert into docs (circle_id, col, id, data) values (t.id('c1'), 'reacts', 'gr2',
+                 '{"by": "%s", "b": "bk", "page": 3, "y": 0.4, "e": "🔥"}')$$, t.v('B')), '42501', 'guard: cannot react in someone else''s name');
+commit;
+begin;
+select t.login('B');
+select t.throws($$select doc_merge(t.id('c1'), 'reacts', 'gr', '{"e": "😂"}')$$, '42501', 'guard: B cannot change D''s reaction');
+select t.throws($$update docs set deleted = true where circle_id = t.id('c1') and col = 'reacts' and id = 'gr'$$, '42501',
+                'guard: B cannot remove D''s reaction');
+commit;
+begin;
+select t.login('D');
+select t.lives($$select doc_merge(t.id('c1'), 'reacts', 'gr', '{"e": "😂"}')$$, 'guard: D changes own reaction');
+commit;
+
 begin;
 select t.login('A');  -- A owns circle c1: may delete (moderate), not rewrite
 select t.throws($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"text": "owner rewrite"}')$$, '42501', 'guard: the owner cannot rewrite D''s note');
