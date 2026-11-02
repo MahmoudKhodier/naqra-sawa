@@ -57,7 +57,12 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - Characters: a member's mark; the animated ones (`P.CHARS`) open at pages read in the app (`members/<uid>.days`, never Goodreads or paper). Picker in Settings («غيّر علامتك»), a sheet when one opens.
 - «ورقات» = pages read in the app − price of what you threw. `throws/<id> = {by, to, it, at}` (author-only, `20261102000000_reacts_guard.sql`); 15 items at 1–3 sheets, friendly ones make the friend's character happy, pranks make it sad; limits 30 a day / 10 per friend; `members/<uid>.noThrows` turns it off (Settings). The receiver sees a scene once on the next open (`priv.throwsSeen`), then it's in «الجديد ليك». Where: «الحلقة ← الأعضاء» top card, a member's menu, the scene's «ردّ».
 - Weekly boss (`P.boss`, replaces the old «الحلقة الأسبوع ده» card; mini card on Today): a monster per week from 8 (all stay in place in their animation), health = `meta/circle.weeklyGoal`, hits = `G.weekPagesOf` (any pages); opening it replays the hits since this phone last looked (`bossSeen:` in U.store); beaten → +50 XP to everyone who hit it (game.js `bossWins`).
-- Reactions bar: Facebook-like (pop-in, slide-to-pick with labels, fly to the line, burst).
+- Reactions bar: Facebook-like (pop-in, slide-to-pick with labels, fly to the line, burst). The bar sits ~58px above the finger; on a phone the slide uses touch events with `touchmove` held (preventDefault) so the page doesn't scroll; a lift where the finger went down picks nothing and leaves the bar open for a tap.
+- Marks: only the animated characters can be picked (Settings and joining); an older plain mark stays until its owner picks a character. 32 characters (12 open from the start).
+- Throw effects play on a copy of the character laid over it (`stage()` in play.js, body-level, follows the target via a selector) because saving the throw re-draws the members list.
+- Boss: on coming to the screen (once per `V.state`, not on re-draws) the card replays the week from full health — each member hits once, smallest hit first; a tap skips; a beaten boss goes down then the prize shows.
+- «ورقات» chip in the top bar (`V.hudCoins`: spendable now; title has the lifetime pages), tap → «الحلقة ← الأعضاء».
+- Reader zoom is remembered per book (`zoom:<bookId>`, else the last zoom); page-by-page zoomed past the whole page reopens in free scrolling at that zoom.
 
 ## Reader notes
 - When a page counts (reader.js `pageChanged`/`tick`): on going on from it one or two pages after ≥4 s on it (≥10 s past the end of my portion), or after staying on it ~0.6 × my seconds per page (20–90 s). Never on arrival. `st.front` follows forward steps after ≥2 s on a page (not pages a long scroll runs through).

@@ -199,12 +199,12 @@
     const myW = G.myCurrent(book);
     if (opts.page && (opts.read || (myW && start >= myW.from && start <= myW.to) || Math.abs(start - front) <= 2)) front = start;
     st = {
-      bookId, book, N: book.pages || 1, zoom: prefs.zoom || 1, theme: prefs.theme || 'day', mode: 'none',
+      bookId, book, N: book.pages || 1, zoom: 1, theme: prefs.theme || 'day', mode: 'none',
       parts: (book.parts || []).map((p) => Object.assign({}, p, { pdf: null, loading: null })),
       sizeFix: {}, els: new Map(), want: [], busy: false, gen: 0, cur: start, lastSaved: start,
       pending: new Set(), dwell: new Map(), sessionPages: 0, flash: opts.flash || null, uiHidden: false,
       notesVer: -1, panel: null, filter: 'wird', lastTop: 0,
-      pagedPref: !!prefs.paged, paged: !!prefs.paged && !((prefs.zoom || 1) > 1.01), startedAt: Date.now(), activeSecs: 0, secsPending: 0, userAt: 0, activeAt: Date.now(),
+      pagedPref: !!prefs.paged, paged: !!prefs.paged, startedAt: Date.now(), activeSecs: 0, secsPending: 0, userAt: 0, activeAt: Date.now(),
       front, browsing: false, counted: new Set(),
       priv: D.isPrivate(bookId), // only mine: no portions, no presence, every note private
     };
@@ -224,6 +224,20 @@
     bind();
     marksUi();
     geom();
+    // Back to the zoom this book was read at (each PDF has its own), else the last zoom used.
+    const z0 = +U.store.get('zoom:' + bookId, prefs.zoom || 1) || 1;
+    const [zMin, zMax] = zoomRange();
+    if (st.pagedPref) {
+      if (z0 > st.fitZ * 1.02) {
+        st.paged = false;
+        root.querySelector('.rd').classList.remove('paged');
+        st.zoom = Math.min(z0, zMax);
+        geom();
+      }
+    } else if (Math.abs(z0 - 1) > 0.002) {
+      st.zoom = U.clamp(z0, zMin, zMax);
+      geom();
+    }
     zoomUi();
     if (!opts.page && place && place.p === start && !st.paged && place.y > 0.02) {
       // put the «وقفت هنا» line a third of the way down the screen
@@ -505,6 +519,7 @@
   }
   function savePrefs() {
     U.store.set('readerPrefs', { zoom: st.zoom, theme: st.theme, paged: st.pagedPref });
+    U.store.set('zoom:' + st.bookId, st.zoom);
   }
   function setPaged(on) {
     if (!st || (st.paged === on && st.pagedPref === on)) return;
@@ -1075,7 +1090,8 @@
     const r = el.getBoundingClientRect();
     const host = st.root.querySelector('.rd').getBoundingClientRect();
     el.style.left = U.clamp(x - host.left - r.width / 2, 8, host.width - r.width - 8) + 'px';
-    el.style.top = U.clamp(y - host.top - r.height - 34, 8, host.height - r.height - 8) + 'px';
+    // well above the finger, so it doesn't hide the line and the finger has to move up to pick
+    el.style.top = U.clamp(y - host.top - r.height - 58, 8, host.height - r.height - 8) + 'px';
     st.rx = { p, k, el };
     // the line being reacted to glows
     const pg = st.root.querySelector(`.pg[data-p="${p}"] .pg-ov`);
@@ -1087,42 +1103,74 @@
       st.rx.band = band;
     }
     if (dragging) {
-      // slide-to-pick while the finger is still down
+      /* Slide-to-pick while the finger is still down, like Facebook: the bar sits well above the finger, so the
+         finger has to travel up to it; across the row the emoji under the finger (or the nearest one) lifts with
+         its name; letting go on one picks it; letting go anywhere else leaves the bar open for a tap. On a phone
+         the page must not scroll meanwhile, so touch moves are held (pointer events would be cancelled by the
+         scroll). */
       let cur = null;
-      const hover = (ev) => {
+      const row = el.querySelector('.rx-pick');
+      let moved = false; // a finger lifted where it went down never picks (the bar may sit on it near the top)
+      const hover = (cx, cy) => {
+        if (!moved && Math.hypot(cx - x, cy - y) < 14) return null;
+        moved = true;
+        const rr = row.getBoundingClientRect();
         let on = null;
-        for (const b of el.querySelectorAll('.rx-i')) {
-          const rr = b.getBoundingClientRect();
-          const hit = ev.clientX >= rr.left - 3 && ev.clientX <= rr.right + 3 && ev.clientY >= rr.top - 46 && ev.clientY <= rr.bottom + 34;
-          b.classList.toggle('hov', hit);
-          if (hit) on = b;
+        if (cy >= rr.top - 70 && cy <= rr.bottom + 22 && cx >= rr.left - 16 && cx <= rr.right + 16) {
+          let best = 1e9;
+          for (const b of el.querySelectorAll('.rx-i')) {
+            const br = b.getBoundingClientRect();
+            const d = Math.abs(cx - (br.left + br.width / 2));
+            if (d < best) (best = d), (on = b);
+          }
         }
+        for (const b of el.querySelectorAll('.rx-i')) b.classList.toggle('hov', b === on);
         el.classList.toggle('hovering', !!on);
-        if (on && on !== cur && navigator.vibrate) try { navigator.vibrate(6); } catch (er) {}
+        if (on && on !== cur && navigator.vibrate) try { navigator.vibrate(8); } catch (er) {}
         cur = on;
         return on;
       };
-      let moved = false;
-      const mv = (ev) => {
-        moved = true;
-        hover(ev);
+      st.rxDrag = true;
+      const done = () => {
+        document.removeEventListener('touchmove', tmv, { passive: false });
+        document.removeEventListener('touchend', tend);
+        document.removeEventListener('touchcancel', tend);
+        document.removeEventListener('pointermove', pmv);
+        document.removeEventListener('pointerup', pup);
+        if (st) (st.rxDrag = false), (st.lpAt = Date.now()); // the click that follows the lift is not a tap on the page
       };
-      const up = (ev) => {
-        document.removeEventListener('pointermove', mv);
-        document.removeEventListener('pointerup', up);
+      const lift = (cx, cy) => {
+        done();
         if (!st || !st.rx || st.rx.el !== el) return;
-        const on = moved && hover(ev);
+        const on = cx == null ? null : hover(cx, cy);
+        el.classList.remove('hovering');
+        for (const b of el.querySelectorAll('.rx-i.hov')) b.classList.remove('hov');
         if (on) rxSet(p, k, on.dataset.e, on);
-        st.lpAt = Date.now(); // the click that follows the lift is not a tap on the page
       };
-      document.addEventListener('pointermove', mv);
-      document.addEventListener('pointerup', up);
+      const tmv = (ev) => {
+        if (ev.cancelable) ev.preventDefault();
+        const t = ev.touches[0];
+        if (t) hover(t.clientX, t.clientY);
+      };
+      const tend = (ev) => {
+        const t = ev.changedTouches && ev.changedTouches[0];
+        lift(ev.type === 'touchend' && t ? t.clientX : null, t ? t.clientY : null);
+      };
+      const pmv = (ev) => ev.pointerType !== 'touch' && hover(ev.clientX, ev.clientY);
+      const pup = (ev) => ev.pointerType !== 'touch' && lift(ev.clientX, ev.clientY);
+      document.addEventListener('touchmove', tmv, { passive: false });
+      document.addEventListener('touchend', tend);
+      document.addEventListener('touchcancel', tend);
+      document.addEventListener('pointermove', pmv);
+      document.addEventListener('pointerup', pup);
+      st.rx.stop = done;
     }
   }
   function rxClose() {
     if (!st || !st.rx) return;
-    const { el, band } = st.rx;
+    const { el, band, stop } = st.rx;
     st.rx = null;
+    if (stop) stop();
     if (band) band.remove();
     if (!el) return;
     el.classList.add('out');
@@ -1803,6 +1851,7 @@
     }, { passive: true });
     sc.addEventListener('touchend', (e) => {
       if (!sw || !st) return;
+      if (st.rxDrag || st.rx || Date.now() - (st.lpAt || 0) < 1500) return (sw = null);
       const t = e.changedTouches[0];
       const dx = t.clientX - sw.x, dy = t.clientY - sw.y;
       const quick = Date.now() - sw.t < 700;
@@ -2640,6 +2689,12 @@
   }
   R._markSeen = (p) => st && markSeen(p); // for tests: count a page as read now
   R._uncount = (p) => st && (st.pending.delete(p), st.dwell.delete(p)); // for tests: forget this session's count of a page
+  R._rxClose = () => rxClose(); // for tests
+  R._bookId = () => st && st.bookId;
+  R._zoomNow = () => st && st.zoom;
+  R._fitZ = () => st && st.fitZ;
+  R._zoom = (z) => st && setZoom(z);
+  R._paged = (on) => st && setPaged(on);
   R._counted = (p) => !!st && (st.pending.has(p) || U.rangesHas((D.prog(st.bookId) || {}).seen, p) || D.outboxHas(st.bookId, p));
   R._awake = () => !!st && (nativeAwake || (!!wakeLock && wakeLock !== 'pending') || !!st.awakeTried);
 

@@ -24,11 +24,11 @@
   /* ---------- characters ---------- */
   // [emoji, pages read in the app to open it]; the first ones are open from the start
   P.CHARS = [
-    ['🦁', 0], ['🐢', 0], ['🐧', 0], ['🦊', 0], ['🦉', 0], ['🐼', 0], ['🐱', 0], ['🐻', 0],
-    ['🐝', 30], ['🐬', 60], ['🦋', 100], ['🐸', 150], ['🐳', 200], ['🦄', 300], ['🦔', 400], ['🦚', 500],
+    ['🦁', 0], ['🐢', 0], ['🐧', 0], ['🦊', 0], ['🦉', 0], ['🐼', 0], ['🐱', 0], ['🐻', 0], ['🐣', 0], ['🐕', 0], ['🐇', 0], ['🐮', 0],
+    ['🐤', 15], ['🐝', 30], ['🐌', 45], ['🐬', 60], ['🦇', 80], ['🦋', 100], ['🐺', 120], ['🐸', 150], ['🐳', 200], ['🐿️', 250], ['🦄', 300], ['🦔', 400], ['🦚', 500],
     ['🐊', 650], ['🦈', 800], ['🦍', 1000], ['🦩', 1300], ['🦦', 1600], ['🦖', 2000], ['🦥', 2500],
   ];
-  const ANIM = new Set(['1f981', '1f422', '1f427', '1f98a', '1f989', '1f43c', '1f431', '1f43b', '1f41d', '1f42c', '1f98b', '1f438', '1f433', '1f984', '1f994', '1f99a', '1f40a', '1f988', '1f98d', '1f9a9', '1f9a6', '1f996', '1f9a5']);
+  const ANIM = new Set(['1f981', '1f422', '1f427', '1f98a', '1f989', '1f43c', '1f431', '1f43b', '1f423', '1f415', '1f407', '1f42e', '1f424', '1f41d', '1f40c', '1f42c', '1f987', '1f98b', '1f43a', '1f438', '1f433', '1f43f_fe0f', '1f984', '1f994', '1f99a', '1f40a', '1f988', '1f98d', '1f9a9', '1f9a6', '1f996', '1f9a5']);
   const codeOf = (e) => (A.Lot ? A.Lot.code(e) : '');
   P.animated = (e) => !!e && ANIM.has(codeOf(e));
   /* Pages read in the app (the reader counts them into members/<uid>.days). */
@@ -49,19 +49,21 @@
     if (P.animated(e)) return `<i class="lot mascot ${cls}" data-lot="${codeOf(e)}" data-key="m-${esc(uid)}-${esc(key || '')}" data-fb="${esc(e)}"></i>`;
     return `<span class="mascot-st ${cls}">${e ? esc(e) : D.avatar(uid, 'lg')}</span>`;
   };
-  /* The mark picker in Settings: animated characters (open or with the pages still to go), then the other marks. */
+  /* The mark picker in Settings: the animated characters only (open, or with the pages still to go). An older
+     plain mark stays until its owner picks a character. */
   V.markPicker = (m) => {
     const pages = P.appPages();
     const chars = P.CHARS.map(([e, need]) => {
       const open = pages >= need || m.emoji === e;
-      return `<button type="button" class="emo-b char${m.emoji === e ? ' on' : ''}${open ? '' : ' locked'}" data-act="set-emoji" data-emo="${e}" role="radio" aria-checked="${m.emoji === e}" aria-label="${e}${open ? '' : ' ' + L(`يتفتح بعد ${L.count(need, 'page')}`, `opens at ${need} pages`)}"${open ? '' : ' aria-disabled="true"'}>${e}${open ? '' : `<small>${icon('lock')}${L.num(need)}</small>`}</button>`;
+      return `<button type="button" class="emo-b char${m.emoji === e ? ' on' : ''}${open ? '' : ' locked'}" data-act="set-emoji" data-emo="${e}" role="radio" aria-checked="${m.emoji === e}" aria-label="${e}${open ? '' : ' ' + L(`يتفتح بعد ${L.count(need, 'page')}`, `opens at ${need} pages`)}"${open ? '' : ' aria-disabled="true"'}>${open ? `<i class="lot" data-lot="${codeOf(e)}" data-key="pick-${codeOf(e)}" data-fb="${e}"></i>` : e}${open ? '' : `<small>${icon('lock')}${L.num(need)}</small>`}</button>`;
     }).join('');
-    const others = V.EMOJI.filter((e) => !P.CHARS.some((c) => c[0] === e));
+    const old = m.emoji && !P.CHARS.some((c) => c[0] === m.emoji);
     return `<p class="emo-h">${L('شخصيات متحركة', 'Animated characters', 'شخصيات متحركة')}<small>${L(`بتتفتح بالقراية جوه التطبيق • قريت ${L.count(pages, 'page')}`, `They open as you read in the app • ${pages} pages read`, `تُفتح بالقراءة داخل التطبيق • قرأت ${L.count(pages, 'page')}`)}</small></p>
-      <div class="emo emo-chars">${chars}</div>
-      <p class="emo-h">${L('علامات تانية', 'Other marks', 'علامات أخرى')}</p>
-      <div class="emo">${others.map((e) => `<button type="button" class="emo-b${m.emoji === e ? ' on' : ''}" data-act="set-emoji" data-emo="${e}" role="radio" aria-checked="${m.emoji === e}" aria-label="${e}">${e}</button>`).join('')}</div>`;
+      ${old ? `<p class="emo-old"><span class="emo-b on" aria-hidden="true">${esc(m.emoji)}</span><small>${L('علامتك القديمة — فاضلة لحد ما تختار شخصية', 'Your old mark — it stays until you pick a character', 'علامتك القديمة — تبقى حتى تختار شخصية')}</small></p>` : ''}
+      <div class="emo emo-chars">${chars}</div>`;
   };
+  /* The marks to pick from when joining: the open characters. */
+  V.firstMarks = () => P.CHARS.filter((c) => !c[1]).map((c) => c[0]);
   const setEmoji = V.actions['set-emoji'];
   V.actions['set-emoji'] = (a) => {
     const e = a.dataset.emo || '';
@@ -141,7 +143,7 @@
     const names = ITEM_NAME();
     return `<section class="card playc">
       <header class="sec-h"><h3>${icon('sparkle')}${L('العب مع صحابك', 'Play with friends', 'العب مع أصدقائك')}</h3><span class="coins" title="${L('ورقة لكل صفحة تقراها جوه التطبيق', 'One for every page you read in the app', 'ورقة لكل صفحة تقرؤها داخل التطبيق')}"><span class="coin">📄</span><b>${L.num(coins)}</b></span></header>
-      <p class="muted sm">${L('كل صفحة تقراها جوه التطبيق = ورقة. اختار حاجة ودوس على حد من صحابك.', 'Every page you read in the app = one sheet. Pick something and tap a friend.', 'كل صفحة تقرؤها داخل التطبيق = ورقة. اختر شيئًا والمس أحد أصدقائك.')}</p>
+      <p class="muted sm lines"><span>${L('كل صفحة تقراها جوه التطبيق = ورقة.', 'Every page you read in the app = one sheet.', 'كل صفحة تقرؤها داخل التطبيق = ورقة.')}</span><span>${L('اختار حاجة ودوس على حد من صحابك.', 'Pick something and tap a friend.', 'اختر شيئًا والمس أحد أصدقائك.')}</span></p>
       <div class="throw-items" role="radiogroup">${P.ITEMS.map(([id, e, price]) => `<button class="ti${id === pick ? ' on' : ''}${coins < price ? ' poor' : ''}" data-act="throw-pick" data-it="${id}" role="radio" aria-checked="${id === pick}" aria-label="${esc(names[id])}">${id === pick ? `<i class="lot" data-lot="${codeOf(e)}" data-key="ti-${id}" data-fb="${e}"></i>` : `<span class="ti-e">${e}</span>`}<small><span class="coin sm">📄</span>${L.num(price)}</small></button>`).join('')}</div>
       <div class="throw-friends">${friends.map((u) => `<button class="tf" data-act="throw" data-to="${esc(u)}"><span class="tf-st pl-st">${P.mascot(u, 'play')}</span><b dir="auto">${esc(D.name(u))}</b></button>`).join('')}</div>
     </section>`;
@@ -152,8 +154,8 @@
     U.store.set('throwPick', pick);
     V.render();
   };
-  V.actions.throw = (a) => P.throwAt(a.dataset.to, pick, a.querySelector('.tf-st'));
-  P.throwAt = async (to, it, targetEl) => {
+  V.actions.throw = (a) => P.throwAt(a.dataset.to, pick, a.querySelector('.tf-st'), `.playc .tf[data-to="${CSS.escape(a.dataset.to)}"] .tf-st`);
+  P.throwAt = async (to, it, targetEl, sel) => {
     if (!P.canThrowAt(to)) return;
     const item = P.item(it);
     if (P.coins() < item[2]) return U.toast(L(`ورقاتك مش مكفّية — صفحة كمان وتقدر ترمي ${item[1]}`, `Not enough sheets — read a page and you can throw ${item[1]}`, `أوراقك لا تكفي — صفحة أخرى وتستطيع رمي ${item[1]}`));
@@ -161,9 +163,20 @@
     if (lim.all >= MAX_DAY || lim.each >= MAX_EACH) return U.toast(L('كفاية كده النهارده 😄 بكره ترمي تاني', "That's enough for today 😄 more tomorrow", 'يكفي هذا اليوم 😄 غدًا ترمي مجددًا'));
     vib(15);
     const from = document.querySelector('.playc .coins') || document.body;
-    if (targetEl) await fly(item[1], from, targetEl).then((at) => P.effect(targetEl, it, at));
+    if (targetEl) await fly(item[1], from, targetEl).then((at) => P.effect(targetEl, it, at, sel));
     await D.set(`throws/${D.newId()}`, { by: S.me, to, it, at: U.nowIso() }).catch(() => U.toast(L('ماوصلتش، جرّب تاني', "Didn't go through — try again", 'لم تصل، حاول مجددًا'), 'warn'));
   };
+
+  /* My «ورقات» in the top bar: what I can spend now (the pages read in the app in its title). A tap goes to the
+     members, where the throwing is. */
+  V.hudCoins = (home) => {
+    const m = S.members.get(S.me);
+    if (!m || m.noThrows || !D.canWrite() || !D.joined()) return '';
+    const n = P.coins();
+    const all = P.appPages();
+    return `<button class="hchip coins-h" data-act="coins-go" title="${esc(L(`${L.count(all, 'page')} جوه التطبيق • صرفت ${L.num(all - n)}`, `${all} pages in the app • ${all - n} spent`, `${L.count(all, 'page')} داخل التطبيق • أنفقت ${L.num(all - n)}`))}" aria-label="${esc(L(`معاك ${L.num(n)} ورقة — العب مع صحابك`, `${n} sheets — play with friends`, `لديك ${L.num(n)} ورقة — العب مع أصدقائك`))}"><span class="coin">📄</span><b>${L.num(n)}</b>${home ? `<span>${L('ورقة', 'sheets', 'ورقة')}</span>` : ''}</button>`;
+  };
+  V.actions['coins-go'] = () => V.go('circle', { seg: 'members' });
 
   /* ---------- effects ---------- */
   const center = (el) => {
@@ -207,11 +220,51 @@
     }
   }
   const SPLAT = (col, hi, cake) => `<svg viewBox="0 0 100 100" class="pl-splat"><g fill="${col}"${cake ? ' stroke="#f2c9b8" stroke-width="1.5"' : ''}><path d="M50 18c9 0 13 9 21 8s14 9 9 18 4 15-4 21-8 15-18 13-14 6-21 0-15-5-15-15-10-12-4-21 6-17 15-17 9-7 17-7z" opacity=".94"/><circle cx="22" cy="22" r="5"/><circle cx="84" cy="30" r="4"/><circle cx="16" cy="70" r="4"/><circle cx="82" cy="78" r="6"/><rect class="drip" x="40" y="70" width="6" height="16" rx="3"/><rect class="drip" x="58" y="72" width="5" height="12" rx="2.5"/></g><g fill="${hi}" opacity=".8"><circle cx="40" cy="38" r="4"/><circle cx="58" cy="46" r="3"/>${cake ? '<circle cx="48" cy="30" r="3" fill="#e5352b"/>' : ''}</g></svg>`;
+  /* The effect plays on a copy of the character laid over it, above everything: the screen under it may draw
+     itself again meanwhile (the throw being saved re-draws the members list), and that must not cut it short.
+     sel finds the character again after such a re-draw, so the copy stays on it and the one underneath stays
+     hidden until the copy goes. */
+  function stage(el, sel, ms) {
+    const r0 = el.getBoundingClientRect();
+    const box = document.createElement('div');
+    box.className = 'pl-st pl-stage';
+    box.style.cssText = `left:${r0.left}px;top:${r0.top}px;width:${r0.width}px;height:${r0.height}px;font-size:${getComputedStyle(el).fontSize}`;
+    const lotEl = el.querySelector('.lot.mascot[data-lot]');
+    if (lotEl && A.Lot) {
+      box.innerHTML = '<i class="lot mascot"></i>';
+      A.Lot.play(box.firstChild, lotEl.dataset.lot, { fallback: lotEl.dataset.fb || '', detached: true });
+    } else box.innerHTML = el.innerHTML;
+    document.body.appendChild(box);
+    let alive = true;
+    const find = () => (el.isConnected ? el : (sel && document.querySelector(sel)) || null);
+    const follow = () => {
+      if (!alive) return;
+      const t = find();
+      if (t) {
+        el = t;
+        t.style.visibility = 'hidden';
+        const r = t.getBoundingClientRect();
+        box.style.left = r.left + 'px';
+        box.style.top = r.top + 'px';
+      }
+      requestAnimationFrame(follow);
+    };
+    follow();
+    setTimeout(() => {
+      alive = false;
+      const t = find();
+      if (t) t.style.visibility = '';
+      box.classList.add('out');
+      setTimeout(() => box.remove(), 220);
+    }, ms);
+    return box;
+  }
   /* What it does to the character in el: happy things make it bounce, pranks make it sad (and messy). */
-  P.effect = (el, it, at) => {
+  P.effect = (el0, it, at, sel) => {
     const [, e, , kind, mood] = P.item(it);
-    at = at || center(el);
+    at = at || center(el0);
     vib(mood === 'sad' ? [20, 30, 20] : 20);
+    const el = stage(el0, sel, 3400);
     const ov = (html, ms) => {
       const o = document.createElement('div');
       o.className = 'pl-ov';
@@ -391,7 +444,7 @@
     const today = U.today();
     const daysLeft = Math.max(1, U.diffDays(today, U.addDays(b.ws, 6)) + 1);
     const max = Math.max(1, b.hits[0] ? b.hits[0].n : 1);
-    const party = b.hits.slice(0, 6);
+    const party = b.hits.slice(0, 8);
     return `<section class="card cweek boss${b.dead ? ' dead full' : ''}" data-ws="${b.ws}">
       <div class="arena" data-total="${b.total}" data-goal="${b.goal}">
         <div class="ar-stars"></div>
@@ -400,84 +453,100 @@
           <div class="ar-hp"><i class="lag" style="width:${(b.hp / b.goal) * 100}%"></i><i class="now" style="width:${(b.hp / b.goal) * 100}%"></i><span class="seg"></span><b>${L.num(b.hp)} / ${L.num(b.goal)}</b></div>
         </div>
         <div class="ar-floor"></div>
-        ${b.dead ? `<div class="ar-win"><i class="lot" data-lot="1f381" data-key="boss-gift" data-fb="🎁"></i><b>${L(`هزمنا ${esc(name)}!`, `We beat ${esc(name)}!`, `هزمنا ${esc(name)}!`)}</b><span>${L(`+${L.num(G.XP.boss)} XP لكل اللي ضربه`, `+${G.XP.boss} XP for everyone who hit it`, `+${L.num(G.XP.boss)} XP لكل من ضربه`)}</span></div>` : `<div class="ar-mon"><i class="lot" data-lot="${code}" data-key="boss-${b.ws}"></i></div>`}
-        <div class="ar-party">${party.map((x, i) => `<div class="ar-mate" data-uid="${esc(x.u)}" data-w="${WEAPONS[i % WEAPONS.length]}"><span class="pl-st sm">${P.mascot(x.u, 'boss')}</span><b dir="auto">${x.u === S.me ? L('إنت', 'You', 'أنت') : esc(D.name(x.u))}</b><small>${x.n ? '−' + L.num(x.n) : L('لسه', 'not yet', 'ليس بعد')}</small></div>`).join('')}</div>
+        <div class="ar-mon"><i class="lot" data-lot="${code}" data-key="boss-${b.ws}"></i></div>
+        ${b.dead ? `<div class="ar-win"><i class="lot" data-lot="1f381" data-key="boss-gift" data-fb="🎁"></i><b>${L(`هزمنا ${esc(name)}!`, `We beat ${esc(name)}!`, `هزمنا ${esc(name)}!`)}</b><span>${L(`+${L.num(G.XP.boss)} XP لكل اللي ضربه`, `+${G.XP.boss} XP for everyone who hit it`, `+${L.num(G.XP.boss)} XP لكل من ضربه`)}</span></div>` : ''}
+        <div class="ar-party${party.length > 5 ? ' many' : ''}">${party.map((x, i) => `<div class="ar-mate" data-uid="${esc(x.u)}" data-w="${WEAPONS[i % WEAPONS.length]}"><span class="pl-st sm">${P.mascot(x.u, 'boss')}</span><b dir="auto">${x.u === S.me ? L('إنت', 'You', 'أنت') : esc(D.name(x.u))}</b><small>${x.n ? '−' + L.num(x.n) : L('لسه', 'not yet', 'ليس بعد')}</small></div>`).join('')}</div>
       </div>
-      <p class="ar-line muted sm">${esc(line)} • ${L('كل صفحة يقراها أي حد بتضربه', 'every page anyone reads hits it', 'كل صفحة يقرؤها أي عضو تضربه')}</p>
+      <p class="ar-line muted sm"><span>${esc(line)}</span><span>${L('كل صفحة يقراها أي حد بتضربه.', 'Every page anyone reads hits it.', 'كل صفحة يقرؤها أي عضو تضربه.')}</span></p>
       <div class="ar-board">${b.hits.filter((x) => x.n).map((x, i) => `<div class="ar-row${i === 0 ? ' top' : ''}"><span class="rk">${i === 0 ? '👑' : L.num(i + 1)}</span>${D.avatar(x.u, 'xs')}<b dir="auto">${esc(D.name(x.u))}</b><span class="bb"><i style="width:${(x.n / max) * 100}%"></i></span><small>−${L.num(x.n)}</small></div>`).join('')}</div>
       ${extra || ''}
     </section>`;
   };
 
-  /* Opening the boss card: the hits since I last looked, replayed fast; then it rests where it is now. */
-  let replaying = false;
+  /* Opening the boss card (coming to the screen, not a re-draw of it): the week so far, replayed — the monster
+     starts at full health and everyone hits it once with their pages, from the smallest hit to the biggest. A tap
+     on the arena skips to the end. */
+  let replaying = false, shownFor = null;
   V.after = V.after || [];
   V.after.push((scr) => {
     const card = scr.querySelector('.cweek.boss');
     if (!card || replaying) return;
-    const ws = card.dataset.ws;
-    const b = P.boss(ws);
-    const key = 'bossSeen:' + (A.CIRCLE ? A.CIRCLE.id : '') + ':' + ws;
-    const prev = U.store.get(key, null);
-    const now = { total: b.total, hits: Object.fromEntries(b.hits.map((x) => [x.u, x.n])) };
-    U.store.set(key, now);
-    if (!prev || prev.total >= b.total) return;
-    const deltas = b.hits.map((x) => ({ u: x.u, n: x.n - ((prev.hits || {})[x.u] || 0) })).filter((x) => x.n > 0);
-    if (!deltas.length) return;
-    replay(card, b, prev.total, deltas);
+    if (shownFor === V.state) return; // the same visit: data came in and the screen drew itself again
+    shownFor = V.state;
+    const b = P.boss(card.dataset.ws);
+    const seq = b.hits.filter((x) => x.n > 0).reverse();
+    if (!seq.length || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // wait until it's on screen
+    const io = new IntersectionObserver((es) => {
+      if (!es.some((e) => e.isIntersecting)) return;
+      io.disconnect();
+      if (card.isConnected) replay(card, b, seq);
+    }, { threshold: 0.6 });
+    io.observe(card.querySelector('.arena') || card);
   });
-  function replay(card, b, from, deltas) {
+  P._replaying = () => replaying;
+  function replay(card, b, seq) {
     const arena = card.querySelector('.arena');
     if (!arena) return;
     replaying = true;
-    let hp = Math.max(0, b.goal - from);
-    const setHp = () => {
-      const w = (hp / b.goal) * 100 + '%';
+    card.classList.add('replaying');
+    let hp = b.goal;
+    const setHp = (now) => {
+      const w = (Math.max(0, hp) / b.goal) * 100 + '%';
       arena.querySelector('.ar-hp .now').style.width = w;
-      arena.querySelector('.ar-hp .lag').style.width = w;
-      arena.querySelector('.ar-hp b').textContent = `${L.num(hp)} / ${L.num(b.goal)}`;
+      if (now) arena.querySelector('.ar-hp .lag').style.width = w;
+      arena.querySelector('.ar-hp b').textContent = `${L.num(Math.max(0, hp))} / ${L.num(b.goal)}`;
     };
-    setHp();
+    // everyone back to «not yet» until their turn
+    const mates = [...arena.querySelectorAll('.ar-mate')];
+    const small = new Map(mates.map((m) => [m, m.querySelector('small').textContent]));
+    for (const m of mates) m.querySelector('small').textContent = '…';
+    setHp(true);
     const tag = document.createElement('div');
     tag.className = 'ar-replay';
-    tag.textContent = L('اللي حصل وانت مش هنا ⏩', 'While you were away ⏩', 'ما حدث في غيابك ⏩');
+    tag.textContent = L('الأسبوع لحد دلوقتي ⏩', 'The week so far ⏩', 'الأسبوع حتى الآن ⏩');
     arena.appendChild(tag);
-    // a few hits at most: big gaps are split, many people are grouped
-    const hits = [];
-    for (const d of deltas) {
-      const parts = Math.min(3, Math.max(1, Math.round(d.n / 15)));
-      for (let k = 0; k < parts; k++) hits.push({ u: d.u, n: Math.round(d.n / parts) });
-    }
-    const seq = hits.slice(0, 8);
-    let i = 0;
+    const gap = U.clamp(Math.round(3200 / seq.length), 380, 750);
+    let i = 0, stop = false;
+    const finish = () => {
+      if (!replaying) return;
+      stop = true;
+      replaying = false;
+      tag.remove();
+      for (const [m, t] of small) m.querySelector('small').textContent = t;
+      hp = b.hp;
+      setHp(true);
+      const mon = arena.querySelector('.ar-mon');
+      if (b.dead && mon && arena.isConnected) {
+        mon.classList.add('ko'); // down it goes, then the prize
+        setTimeout(() => card.classList.remove('replaying'), 700);
+      } else card.classList.remove('replaying');
+    };
+    arena.addEventListener('click', finish, { once: true });
     const step = () => {
-      if (!arena.isConnected) return (replaying = false);
-      if (i >= seq.length) {
-        tag.remove();
-        replaying = false;
-        hp = b.hp;
-        setHp();
-        if (b.dead && !card.querySelector('.ar-win')) V.render();
-        return;
-      }
+      if (stop) return;
+      if (!arena.isConnected) return finish();
+      if (i >= seq.length) return setTimeout(finish, 500);
       const h = seq[i++];
       hit(arena, h.u, h.n, () => {
-        hp = Math.max(0, hp - h.n);
+        hp -= h.n;
         setHp();
+        const m = arena.querySelector(`.ar-mate[data-uid="${CSS.escape(h.u)}"]`);
+        if (m && small.has(m)) m.querySelector('small').textContent = small.get(m);
       });
-      setTimeout(step, 520);
+      setTimeout(step, gap);
     };
-    setTimeout(step, 400);
+    setTimeout(step, 450);
   }
   function hit(arena, uid, n, done) {
     const mon = arena.querySelector('.ar-mon');
-    const mate = arena.querySelector(`.ar-mate[data-uid="${CSS.escape(uid)}"]`) || arena.querySelector('.ar-mate');
+    const mate = arena.querySelector(`.ar-mate[data-uid="${CSS.escape(uid)}"]`) || arena.querySelector('.ar-party');
     if (!mon || !mate) return done && done();
     const w = mate.dataset.w || '📚';
     mate.classList.remove('jump');
     void mate.offsetWidth;
     mate.classList.add('jump');
-    fly(w, mate.querySelector('.pl-st'), mon.querySelector('.lot') || mon, 460).then((at) => {
+    fly(w, mate.querySelector('.pl-st') || mate, mon.querySelector('.lot') || mon, 460).then((at) => {
       done && done();
       const boom = document.createElement('div');
       boom.className = 'pl-boom';
@@ -494,7 +563,7 @@
       arena.classList.add('shake');
       const d = document.createElement('div');
       d.className = 'ar-dmg';
-      d.textContent = '−' + L.num(n);
+      d.innerHTML = `<small dir="auto">${esc(uid === S.me ? L('إنت', 'You', 'أنت') : D.name(uid))}</small>−${L.num(n)}`;
       const r = arena.getBoundingClientRect();
       d.style.left = at.x - r.left + 'px';
       d.style.top = at.y - r.top - 30 + 'px';

@@ -95,18 +95,42 @@ const closeAll = async (p) => {
       await until(a, 'animated friend', (u) => !!document.querySelector(`.playc .tf[data-to="${u}"] .lot svg`), bUid, 15000);
     });
 
+    await step('My «ورقات» in the top bar; a tap goes to the members', async () => {
+      await a.evaluate(() => window.A.V.go('home'));
+      await a.waitForSelector('#hud .coins-h');
+      assert(/١٠/.test(await a.textContent('#hud .coins-h')), 'not 10 in the bar');
+      await a.click('#hud .coins-h');
+      await a.waitForSelector('.playc');
+      await H.shot(a, 'play-hud');
+    });
+
     await step('Throwing a tomato at Sara costs 2 sheets; Sara sees it once as a scene, sad', async () => {
+      await b.evaluate(() => {
+        window.__caps = [];
+        window.__splat = false;
+        new MutationObserver(() => {
+          const c = document.querySelector('.pl-sc-cap');
+          if (c && c.textContent && window.__caps[window.__caps.length - 1] !== c.textContent) window.__caps.push(c.textContent);
+          if (document.querySelector('.pl-stage.pl-squish .pl-splat, .pl-stage.pl-sad .pl-splat')) window.__splat = true;
+        }).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true });
+      });
       await a.click('.playc [data-act="throw-pick"][data-it="tomato"]');
       await a.click(`.playc .tf[data-to="${bUid}"]`);
       await until(a, 'saved', () => [...window.A.S.throws.values()].some((t) => t.it === 'tomato'));
+      // the list re-draws once the throw is saved: the splat stays on Sara's character, the one underneath hidden
+      await T(400);
+      assert(await a.$('.pl-stage.pl-squish .pl-splat, .pl-stage.pl-sad .pl-splat'), 'no splat on the character after the save');
+      assert(await a.$eval(`.playc .tf[data-to="${bUid}"] .tf-st`, (e) => e.style.visibility === 'hidden'), 'the character under the effect is not hidden');
+      await H.shot(a, 'play-splat');
+      await until(a, 'effect over', () => !document.querySelector('.pl-stage'), null, 6000);
       await until(a, '8 sheets', () => window.A.Play.coins() === 8);
       await until(b, 'arrived', () => window.A.S.throws.size === 1);
       await closeAll(b);
       await b.evaluate(() => window.A.V.go('home'));
       await b.evaluate(() => window.A.V.celebrate());
       await b.waitForSelector('.pl-scene', { timeout: 8000 });
-      await until(b, 'caption', () => /طماطماية/.test(document.querySelector('.pl-sc-cap').textContent), null, 6000);
-      await until(b, 'sad', () => !!document.querySelector('.pl-scene .pl-squish, .pl-scene .pl-sad'), null, 6000);
+      await until(b, 'caption', () => window.__caps.some((c) => /طماطماية/.test(c)), null, 8000);
+      await until(b, 'sad', () => window.__splat, null, 6000);
       await H.shot(b, 'play-scene');
       await b.waitForSelector('.pl-sc-acts:not([hidden]) [data-back]', { timeout: 8000 });
       await b.click('.pl-sc-acts [data-ok]');
@@ -140,23 +164,41 @@ const closeAll = async (p) => {
       assert(pages === 35, 'pages ' + pages);
     });
 
-    await step('The weekly boss: health = the weekly goal minus this week\'s pages; a replay of hits since the last look', async () => {
+    await step('The weekly boss: opening it replays the week — full health, then everyone hits once, smallest hit first', async () => {
       await closeAll(a);
-      await a.evaluate(() => window.A.V.go('circle'));
-      await a.waitForSelector('.cweek.boss .arena');
-      await until(a, 'monster', () => !!document.querySelector('.cweek.boss .ar-mon .lot svg'), null, 15000);
-      const hp = await a.evaluate(() => window.A.Play.boss().hp);
-      assert(hp === 300 - 35, 'hp ' + hp);
-      // Sara reads 20 pages while A looks elsewhere; coming back replays the hits
       await a.evaluate(() => window.A.V.go('home'));
       await b.evaluate(() => window.A.D.addPagesToday(20));
       await until(a, 'pages arrived', (u) => window.A.G.weekPagesOf(u).pages === 20, bUid);
+      const hp = await a.evaluate(() => window.A.Play.boss().hp);
+      assert(hp === 300 - 55, 'hp ' + hp);
+      await a.evaluate(() => {
+        window.__dmg = [];
+        window.__hp0 = null;
+        new MutationObserver((ms) => {
+          for (const m of ms) for (const n of m.addedNodes) {
+            if (n.classList && n.classList.contains('ar-dmg')) window.__dmg.push(n.textContent);
+            if (n.classList && n.classList.contains('ar-replay') && window.__hp0 == null) window.__hp0 = document.querySelector('.cweek.boss .ar-hp b').textContent;
+          }
+        }).observe(document.body, { childList: true, subtree: true });
+      });
       await a.evaluate(() => window.A.V.go('circle'));
-      await a.waitForSelector('.ar-replay', { timeout: 5000 });
+      await a.waitForSelector('.cweek.boss .arena');
+      await a.waitForSelector('.ar-replay', { timeout: 8000 });
+      await until(a, 'monster', () => !!document.querySelector('.cweek.boss .ar-mon .lot svg'), null, 15000);
+      await T(900);
       await H.shot(a, 'play-boss');
-      await T(2500);
+      await until(a, 'replay done', () => !window.A.Play._replaying(), null, 10000);
+      const r = await a.evaluate(() => ({ dmg: window.__dmg, hp0: window.__hp0 }));
+      assert(/٣٠٠ \/ ٣٠٠/.test(r.hp0), 'did not start at full health: ' + r.hp0);
+      assert(r.dmg.length === 2 && /٢٠/.test(r.dmg[0]) && /٣٥/.test(r.dmg[1]), 'order: ' + JSON.stringify(r.dmg));
       const t = await a.textContent('.cweek.boss .ar-hp b');
       assert(/٢٤٥/.test(t), 'health after: ' + t);
+      // data coming in re-draws the screen: no second replay
+      await b.evaluate(() => window.A.D.addPagesToday(1));
+      await until(a, 'arrived', (u) => window.A.G.weekPagesOf(u).pages === 21, bUid);
+      await T(600);
+      assert(!(await a.$('.ar-replay')), 'replayed on a re-draw');
+      return r.dmg.join(' → ');
     });
 
     await step('The reaction bar in the reader: animated emoji', async () => {

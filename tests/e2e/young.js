@@ -185,7 +185,40 @@ const readHere = async (p) => {
       await b.click('#rx-bar [data-e="🔥"]');
       await until(b, 'saved', () => [...window.A.S.reacts.values()].some((r) => r.e === '🔥'));
       await until(b, 'bubble', () => !!document.querySelector('.pg[data-p="20"] .rx-m'));
-      await until(a, 'owner has it', () => [...window.A.S.reacts.values()].some((r) => r.e === '🔥'));
+      // On a phone: hold, then slide the finger up to the bar and across it without lifting; let go picks.
+      await T(400);
+      const cdp = await b.context().newCDPSession(b);
+      const pt = await b.$eval('.pg[data-p="20"]', (e) => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: Math.max(r.top, 120) + 260 }; });
+      const top0 = await b.$eval('#rd-scroll', (e) => e.scrollTop);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [pt] });
+      await T(750);
+      await b.waitForSelector('#rx-bar .rx-i', { timeout: 3000 });
+      // lifting the finger where it went down picks nothing and leaves the bar open
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await T(300);
+      assert(await b.$('#rx-bar:not(.out)'), 'bar stays open after a plain lift');
+      assert([...(await b.evaluate(() => [...window.A.S.reacts.values()].map((r) => r.e)))].join() === '🔥', 'a plain lift picks nothing');
+      await b.evaluate(() => window.A.R._rxClose && window.A.R._rxClose());
+      await T(300);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [pt] });
+      await T(750);
+      await b.waitForSelector('#rx-bar .rx-i', { timeout: 3000 });
+      const at = (e) => b.$eval(`#rx-bar [data-e="${e}"]`, (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+      const wow = await at('😮'), laugh = await at('😂'), heart = await at('❤️');
+      const path = [];
+      for (let i = 1; i <= 6; i++) path.push({ x: pt.x + ((wow.x - pt.x) * i) / 6, y: pt.y + ((wow.y - pt.y) * i) / 6 });
+      for (let i = 1; i <= 6; i++) path.push({ x: wow.x + ((heart.x - wow.x) * i) / 6, y: wow.y });
+      for (let i = 1; i <= 3; i++) path.push({ x: heart.x + ((laugh.x - heart.x) * i) / 3, y: wow.y - 6 });
+      for (const q of path) {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [q] });
+        await T(30);
+      }
+      assert(await b.$('#rx-bar [data-e="😂"].hov'), 'the emoji under the finger lifts');
+      assert(Math.abs((await b.$eval('#rd-scroll', (e) => e.scrollTop)) - top0) < 4, 'the page does not scroll while sliding');
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await until(b, 'slide picked 😂', () => [...window.A.S.reacts.values()].some((r) => r.e === '😂'));
+      await cdp.detach();
+      await until(a, 'owner has it', () => [...window.A.S.reacts.values()].some((r) => r.e === '😂'));
       await a.evaluate((id) => window.A.R.open(id, { page: 20 }), bookId);
       await readerReady(a);
       await until(a, 'owner sees the bubble', () => !!document.querySelector('.pg[data-p="20"] .rx-m'), null, 8000);

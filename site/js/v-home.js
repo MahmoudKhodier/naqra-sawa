@@ -716,7 +716,7 @@
           <label for="join-name">${L('اسمك اللي صحابك هيشوفوه', 'The name your friends will see', 'الاسم الذي سيراه أصدقاؤك')}</label>
           <input id="join-name" maxlength="40" required autocomplete="nickname" dir="auto" value="${esc(pname)}" placeholder="${L('مثلا: محمود', 'e.g. Sam', 'مثلًا: محمود')}">
           <span class="lbl">${L('اختار علامة (اختياري — تقدر تغيّرها بعدين من الإعدادات)', 'Pick a mark (optional — you can change it later in Settings)', 'اختر علامة (اختياري — يمكنك تغييرها لاحقًا من الإعدادات)')}</span>
-          <div class="emo" role="radiogroup">${V.EMOJI.slice(0, 16).map((e) => `<button type="button" class="emo-b" data-emo="${e}" aria-label="${e}">${e}</button>`).join('')}</div>
+          <div class="emo" role="radiogroup">${(V.firstMarks ? V.firstMarks() : V.EMOJI.slice(0, 16)).map((e) => `<button type="button" class="emo-b char" data-emo="${e}" aria-label="${e}">${A.Lot ? `<i class="lot" data-lot="${A.Lot.code(e)}" data-key="ob-${A.Lot.code(e)}" data-fb="${e}"></i>` : e}</button>`).join('')}</div>
           <button class="btn gold big full" type="submit">${L('انضم للحلقة', 'Join the circle', 'انضم إلى الحلقة')}</button>
         </form>`
           : `<div class="ro-note">${icon('eye')}<p>${L('مش قادر تكتب في الحلقة دي دلوقتي. اطلب لينك دعوة جديد من صاحب الحلقة.', 'You cannot write in this circle right now. Ask the owner for a new invite link.', 'لا يمكنك الكتابة في هذه الحلقة الآن. اطلب رابط دعوة جديدًا من صاحب الحلقة.')}</p><button class="btn ghost" data-act="view-only">${L('اتفرّج بس', 'Just look around', 'تصفّح فقط')}</button></div>`}

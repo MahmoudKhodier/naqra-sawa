@@ -98,8 +98,18 @@ async function showBars(p) {
   }
 }
 async function menu(p, text) {
+  // a celebration (a new level…) may have come up meanwhile
+  for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(350));
   await showBars(p);
-  await p.click('.rd [data-act="more"]');
+  await p.click('.rd [data-act="more"]', { timeout: 8000 }).catch(async (e) => {
+    await p.screenshot({ path: require('path').join(__dirname, 'shots', 'debug-more.png') });
+    const info = await p.evaluate(() => {
+      const b = document.querySelector('.rd [data-act="more"]').getBoundingClientRect();
+      const top = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+      return { b: [b.left, b.top, b.width, b.height], top: top && top.outerHTML.slice(0, 200), cls: document.querySelector('.rd').className };
+    });
+    throw new Error(e.message.split('\n')[0] + ' ' + JSON.stringify(info));
+  });
   await p.click(`.mi:has-text("${text}")`);
   await T(400);
 }
@@ -674,6 +684,33 @@ async function menu(p, text) {
       assert(!reqs.length, 'fetched the file again: ' + reqs.length);
       return `page ${c2}, ${ms} ms, no download`;
     }, ['open', 'cdp']);
+
+    await step('Close and reopen at a zoom: the book opens at the same zoom (free scrolling and page-by-page)', async () => {
+      const z = async () => p.evaluate(() => Math.round(window.A.R._zoomNow() * 100));
+      const reopen = async () => {
+        const bookId = await p.evaluate(() => window.A.R._bookId());
+        await p.evaluate(() => window.A.R.close(true));
+        await T(400);
+        await p.evaluate((id) => window.A.R.open(id), bookId);
+        await until(p, 'painted', () => [...document.querySelectorAll('.pg canvas')].some((x) => x.width > 100), null, 20000);
+        await T(400);
+      };
+      await p.evaluate(() => window.A.R._zoom(1.6));
+      const z1 = await z();
+      await reopen();
+      const z2 = await z();
+      assert(z1 > 100 && z1 === z2, `zoom ${z1} → ${z2}`);
+      // page-by-page, zoomed a little past the whole page
+      await p.evaluate(() => window.A.R._paged(true));
+      await T(300);
+      await p.evaluate(() => window.A.R._zoom(window.A.R._fitZ() * 1.3));
+      const z3 = await z();
+      await reopen();
+      const z4 = await z();
+      assert(z3 === z4, `page-by-page zoom ${z3} → ${z4}`);
+      await p.evaluate(() => (window.A.R._paged(false), window.A.R._zoom(1)));
+      return `${z1}% → ${z2}%, ${z3}% → ${z4}%`;
+    }, ['open']);
 
     await step('Pages read offline are kept after closing the book and saved once back online', async () => {
       const ctxB = p.context();
