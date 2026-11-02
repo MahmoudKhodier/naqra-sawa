@@ -174,7 +174,7 @@
     if (!m || m.noThrows || !D.canWrite() || !D.joined()) return '';
     const n = P.coins();
     const all = P.appPages();
-    return `<button class="hchip coins-h" data-act="coins-go" title="${esc(L(`${L.count(all, 'page')} جوه التطبيق • صرفت ${L.num(all - n)}`, `${all} pages in the app • ${all - n} spent`, `${L.count(all, 'page')} داخل التطبيق • أنفقت ${L.num(all - n)}`))}" aria-label="${esc(L(`معاك ${L.num(n)} ورقة — العب مع صحابك`, `${n} sheets — play with friends`, `لديك ${L.num(n)} ورقة — العب مع أصدقائك`))}"><span class="coin">📄</span><b>${L.num(n)}</b>${home ? `<span>${L('ورقة', 'sheets', 'ورقة')}</span>` : ''}</button>`;
+    return `<button class="hchip coins-h" data-act="coins-go" title="${esc(L(`${L.count(all, 'page')} جوه التطبيق • صرفت ${L.num(all - n)}`, `${all} pages in the app • ${all - n} spent`, `${L.count(all, 'page')} داخل التطبيق • أنفقت ${L.num(all - n)}`))}" aria-label="${esc(L(`معاك ${L.num(n)} ورقة — العب مع صحابك`, `${n} sheets — play with friends`, `لديك ${L.num(n)} ورقة — العب مع أصدقائك`))}"><span class="coin">📄</span><b>${L.num(n)}</b></button>`;
   };
   V.actions['coins-go'] = () => V.go('circle', { seg: 'members' });
 

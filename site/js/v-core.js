@@ -82,6 +82,70 @@
     '☀️', '🌻', '🌵', '🍀', '🌊', '🔥', '🌈', '🏔️',
     '📖', '✏️', '🍵', '🎨', '🎧', '🚀', '💡', '🧩',
   ];
+  /* Hints and messages of two sentences or more: one sentence per line. Every hint, empty state, sheet intro,
+     error line and toast that lands in the page is looked at (whatever drew it); text people wrote (dir=auto)
+     is left as it is. */
+  const LINE_SEL = 'p.muted, p.lead, p.hi-sub, p.warn-t, .err-t, p.feed-none, p.rc-behind, .empty p, .celeb p, .ro-note p, .my-empty p, small.muted, .sh-body > p, .toast > span, p.rd-onlyme, p.nt-movehint, p.nc-lock, p.wm-few, ul.hints li, .bd-tip, .banner span, .goal-sub, .hint-l';
+  const BREAK = /([.!؟?])\s+(?=[\p{L}«(])|\s+—\s+(?=[\p{L}«(])/gu;
+  const splitLines = (el) => {
+    if (el.closest('[dir="auto"], [contenteditable], .no-lines')) return;
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const todo = [];
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      if (n.parentElement && n.parentElement.closest('[dir="auto"], button, a, .chip, .nv-b')) continue;
+      BREAK.lastIndex = 0;
+      if (BREAK.test(n.data)) todo.push(n);
+    }
+    // a sentence that ends in one piece of the line and the next that starts in another («<b>…!</b> لو …»)
+    const ends = (t) => /[.!؟?]\s*$/.test(t || '');
+    const starts = (t) => /^\s*[\p{L}«(]/u.test(t || '');
+    for (const n of [...el.childNodes]) {
+      if (n.nodeType !== 3) continue;
+      const prev = n.previousSibling, next = n.nextSibling;
+      if (prev && prev.nodeType === 1 && /^\s+/.test(n.data) && ends(prev.textContent) && starts(n.data)) {
+        n.data = n.data.replace(/^\s+/, '');
+        n.before(document.createElement('br'));
+      }
+      if (next && next.nodeType === 1 && next.tagName !== 'BR' && /[.!؟?]\s+$/.test(n.data) && starts(next.textContent)) {
+        n.data = n.data.replace(/\s+$/, '');
+        n.after(document.createElement('br'));
+      }
+    }
+    for (const n of todo) {
+      if (!n.isConnected) continue;
+      const parts = [];
+      let last = 0;
+      n.data.replace(BREAK, (m, punct, i) => {
+        // not after «e.g.», «i.e.» and the like
+        if (punct === '.' && /\b(e\.g|i\.e|etc|vs|p|pp)$/i.test(n.data.slice(Math.max(0, i - 4), i))) return m;
+        parts.push(n.data.slice(last, i) + (punct || ''));
+        last = i + m.length;
+        return m;
+      });
+      if (!parts.length) continue;
+      parts.push(n.data.slice(last));
+      const f = document.createDocumentFragment();
+      parts.forEach((t, k) => {
+        if (k) f.appendChild(document.createElement('br'));
+        f.appendChild(document.createTextNode(t));
+      });
+      n.replaceWith(f);
+    }
+  };
+  V.splitLines = (root) => {
+    if (!root || root.nodeType !== 1 || root instanceof SVGElement) return;
+    if (root.matches(LINE_SEL)) splitLines(root);
+    root.querySelectorAll(LINE_SEL).forEach(splitLines);
+  };
+  if (window.MutationObserver) {
+    new MutationObserver((recs) => {
+      for (const r of recs) {
+        if (r.target.nodeType === 1 && r.target.matches && r.target.matches(LINE_SEL)) splitLines(r.target);
+        for (const n of r.addedNodes) if (n.nodeType === 1 && !(n instanceof SVGElement) && !n.closest('.pg, .lot')) V.splitLines(n);
+      }
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  }
+
   /* Where back goes: the screens you came through (not just «اليوم»). */
   V.trail = [];
   V.go = (route, opts = {}, back) => {

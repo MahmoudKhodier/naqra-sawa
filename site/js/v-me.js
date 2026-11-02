@@ -171,9 +171,8 @@
     nums.push(['streak', L.num(st.streakBest), L('أطول سلسلة (يوم)', 'longest streak (days)', 'أطول سلسلة (أيام)')]);
     if (st.busiest >= 0) nums.push(['wday', esc(weekdayLong(st.busiest)), L('أنشط يوم في الأسبوع', 'busiest weekday', 'أنشط أيام الأسبوع')]);
     return `<section class="card mst" id="me-stats" data-uid="${esc(uid)}">
-      <header class="sec-h"><h2>${icon('target')}${L('إحصائيات القراية', 'Reading stats', 'إحصاءات القراءة')}</h2>
-        ${seg('mst-period', period, PERIODS.map((k) => [k, perName[k]]), L('الفترة', 'Period'))}</header>
-      <div class="mst-sub">${seg('mst-metric', met, mets.map((k) => [k, metName[k]]), L('المقياس', 'Measure'))}</div>
+      <header class="sec-h"><h2>${icon('target')}${L('إحصائيات القراية', 'Reading stats', 'إحصاءات القراءة')}</h2></header>
+      <div class="mst-sub">${seg('mst-period', period, PERIODS.map((k) => [k, perName[k]]), L('الفترة', 'Period'))}${seg('mst-metric', met, mets.map((k) => [k, metName[k]]), L('المقياس', 'Measure'))}</div>
       ${chart(st, period, met)}
       <div class="mst-nums">${nums.map(([k, n, t]) => `<div class="mst-n" data-k="${k}"><b>${n}</b><small>${t}</small></div>`).join('')}</div>
     </section>`;

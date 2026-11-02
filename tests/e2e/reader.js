@@ -89,6 +89,8 @@ async function tap(cdp, x, y) {
 }
 /** Make sure the reader's bars are showing (a middle tap toggles them). */
 async function showBars(p) {
+  // a celebration (a new level…) may have come up meanwhile
+  for (let i = 0; i < 3 && (await p.$('.sheet-wrap .celeb, .sheet-wrap.celebrate, .sheet.celebrate')); i++) await p.keyboard.press('Escape').then(() => T(350));
   if (await p.$('.rd.ui-off')) {
     const cdp = await p.context().newCDPSession(p);
     const vp = p.viewportSize();
@@ -740,6 +742,8 @@ async function menu(p, text) {
       const seen = JSON.stringify(pr[0] && pr[0].seen);
       assert(d1 === d0 + 3, `today's pages ${d0} → ${d1}`);
       assert(/110/.test(seen) || /\[1\d\d,\s*112\]/.test(seen), 'pages not in progress: ' + seen);
+      await T(1200); // the pages that came in may bring a celebration
+      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(350));
       await p.locator('[data-act="read"]:visible').first().click({ timeout: 8000 });
       await until(p, 'painted', () => [...document.querySelectorAll('.pg canvas')].some((x) => x.width > 100), null, 20000);
       return `today ${d0} → ${d1}, seen ${seen}`;
