@@ -127,13 +127,14 @@ const closeAll = async (p) => {
 
     await step('A character opens at 30 pages read in the app', async () => {
       assert(!(await a.evaluate(() => window.A.Play.unlocked('🐝'))), '🐝 open at 10 pages');
-      await a.evaluate(() => window.A.U.store.set('charsSeen:' + window.A.S.me, []));
+      await a.evaluate(() => { window.A.U.store.set('charsSeen:' + window.A.S.me, []); window.A.Goals.off = false; });
       await a.evaluate(() => window.A.D.addPagesToday(25));
       await until(a, 'open', () => window.A.Play.unlocked('🐝'));
       await closeAll(a);
       await a.evaluate(() => window.A.V.celebrate());
       await a.waitForSelector('.sheet .unlock-big', { timeout: 6000 });
       await closeAll(a);
+      await a.evaluate(() => (window.A.Goals.off = true));
       // Goodreads or paper pages don't count: only members/<uid>.days
       const pages = await a.evaluate(() => window.A.Play.appPages());
       assert(pages === 35, 'pages ' + pages);

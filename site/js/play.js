@@ -80,6 +80,7 @@
     if (seen === null) return U.store.set(key, open); // the first time on this phone: no fuss
     const fresh = open.filter((e) => !seen.includes(e));
     if (!fresh.length) return;
+    if (A.Goals && A.Goals.off) return U.store.set(key, open); // celebrations switched off (as for «أول مرة»)
     U.store.set(key, open);
     const e = fresh[fresh.length - 1];
     setTimeout(() => {
