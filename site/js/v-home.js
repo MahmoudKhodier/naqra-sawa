@@ -385,7 +385,7 @@
         <span class="hc-h"><span class="hc-ic">${icon(chestReady ? 'chest' : 'target')}</span><b>${L('مهام اليوم', "Today's quests")}</b><small>${L.num(nDone)}/${L.num(q.length)}</small></span>
         <span class="hc-t">${next ? G.questText(next) : opened ? L('خلّصت مهام النهارده ✓', 'All done for today ✓', 'أنهيت مهام اليوم ✓') : L('افتح الصندوق!', 'Open the chest!')}</span>
         ${V.bar(next ? next.have / next.need : 1, next ? 'gold' : 'jade')}
-        <small>${next ? `${L.num(Math.min(next.have, next.need))} / ${L.num(next.need)}` : ''}${!opened ? ` • ${L('الصندوق', 'Chest')} +${L.num(G.XP.quests)} XP` : ''}</small>
+        <small>${next && next.need > 1 ? `${L.num(Math.min(next.have, next.need))} / ${L.num(next.need)} • ` : ''}${!opened ? `${L('الصندوق', 'Chest')} +${L.num(G.XP.quests)} XP` : ''}</small>
       </button>
       <button class="hcard week" data-go="me">
         <span class="hc-h"><b>${L('الأسبوع ده', 'This week', 'هذا الأسبوع')}</b><small>${L.num(readDays)}/${L.num(7)}</small></span>
@@ -475,37 +475,52 @@
       .join('')}</section>`;
   }
 
+  /* Today's quests: each one takes you to it; one people/reflection quest can be swapped a day; the bonus is
+     extra; the chest opens when the three are done; five full days in a week open the big chest. */
   function questsBlock() {
+    const Q = A.Q;
     const q = G.myQuests();
+    const bonus = Q ? Q.bonus() : null;
     const n = q.filter((x) => x.done).length;
     const all = n === q.length;
     const opened = U.store.get('chest:' + S.me, '') === U.today();
     const now = new Date();
     const mid = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
     const hrs = Math.max(1, Math.ceil((mid - now) / 36e5));
+    const canSwap = Q && Q.canSwap();
+    const row = (x) => `<li class="${x.done ? 'done' : ''}${x.bonus ? ' bonus' : ''}">
+        <button class="q-go" data-act="quest-go" data-i="${x.i}" data-close ${x.act && !x.done ? '' : 'disabled'}><span class="q-ic">${icon(x.done ? 'check' : x.ic)}</span><div><span>${x.bonus ? `<i class="q-tag">${L(`إضافي +${L.num(G.XP.bonus)} XP`, `Bonus +${G.XP.bonus} XP`, `إضافية +${L.num(G.XP.bonus)} XP`)}</i>` : ''}${G.questText(x)}</span>${x.need > 1 ? V.bar(x.have / x.need, x.done ? 'jade' : 'gold') : ''}</div><small>${x.done ? '' : x.need > 1 ? `${L.num(Math.min(x.have, x.need))}/${L.num(x.need)}` : x.act ? icon('fwd', 'flip-rtl') : ''}</small></button>
+        ${canSwap && x.swappable ? `<button class="lnk sm q-swap" data-act="quest-swap" data-i="${x.i}">${icon('refresh')}${L('بدّلها', 'Swap', 'بدّلها')}</button>` : ''}</li>`;
+    const s = G.of(S.me);
+    const wk = Math.min(s.questWeek || 0, G.BIG_CHEST_DAYS || 5);
+    const dots = Array.from({ length: G.BIG_CHEST_DAYS || 5 }, (_, i) => `<i class="${i < wk ? 'on' : ''}"></i>`).join('');
     return `<section class="card quests${all ? ' complete' : ''}">
       <header><h3>${L('مهام النهارده', "Today's quests", 'مهام اليوم')}</h3><span class="muted sm">${L(`بتتجدد بعد ${L.count(hrs, 'hour')}`, `Resets in ${L.count(hrs, 'hour')}`, `تتجدد بعد ${L.count(hrs, 'hour')}`)}</span></header>
-      <ul class="qlist">${q
-        .map(
-          (x) => `<li class="${x.done ? 'done' : ''}"><span class="q-ic">${icon(x.done ? 'check' : x.ic)}</span><div><span>${G.questText(x)}</span>${V.bar(x.have / x.need, x.done ? 'jade' : 'gold')}</div><small>${L.num(Math.min(x.have, x.need))}/${L.num(x.need)}</small></li>`
-        )
-        .join('')}</ul>
+      <ul class="qlist">${q.map(row).join('')}${bonus ? row(bonus) : ''}</ul>
       <button class="chest${all ? ' ready' : ''}${opened ? ' opened' : ''}" data-act="chest" ${all && !opened ? '' : 'disabled'} aria-label="${L('صندوق المكافأة', 'Reward chest')}">
         <span class="chest-ic">${icon('chest')}</span>
-        <span>${opened ? L(`اتفتح النهارده • +${L.num(G.XP.quests)} XP`, `Opened today • +${G.XP.quests} XP`, `تم فتحه اليوم • +${L.num(G.XP.quests)} XP`) : all ? L('افتح الصندوق!', 'Open the chest!') : L(`خلّص التلاتة وافتح الصندوق (+${L.num(G.XP.quests)} XP)`, `Finish all three to open the chest (+${G.XP.quests} XP)`, `أنهِ المهام الثلاث وافتح الصندوق (+${L.num(G.XP.quests)} XP)`)}</span>
+        <span>${opened ? L(`اتفتح النهارده • +${L.num(G.XP.quests)} XP`, `Opened today • +${G.XP.quests} XP`, `تم فتحه اليوم • +${L.num(G.XP.quests)} XP`) : all ? L('افتح الصندوق!', 'Open the chest!') : L(`خلّص التلاتة وافتح الصندوق (+${L.num(G.XP.quests)} XP وممكن مفاجأة)`, `Finish all three to open the chest (+${G.XP.quests} XP and maybe a surprise)`, `أنهِ المهام الثلاث وافتح الصندوق (+${L.num(G.XP.quests)} XP وربما مفاجأة)`)}</span>
       </button>
+      <p class="q-week"><span class="q-dots">${dots}</span><small>${wk >= (G.BIG_CHEST_DAYS || 5) ? L('اتفتح الصندوق الكبير الأسبوع ده 🎉', 'Big chest opened this week 🎉', 'فُتح الصندوق الكبير هذا الأسبوع 🎉') : L(`${L.num(wk)} من ${L.num(G.BIG_CHEST_DAYS || 5)} أيام الأسبوع ده للصندوق الكبير (+${L.num(G.XP.bigChest)} XP)`, `${wk} of ${G.BIG_CHEST_DAYS || 5} days this week to the big chest (+${G.XP.bigChest} XP)`, `${L.num(wk)} من ${L.num(G.BIG_CHEST_DAYS || 5)} أيام هذا الأسبوع للصندوق الكبير (+${L.num(G.XP.bigChest)} XP)`)}</small></p>
     </section>`;
   }
 
   V.actions.chest = () => {
     U.store.set('chest:' + S.me, U.today());
     const w = WISDOM[U.hash(S.me + U.today()) % WISDOM.length];
+    const c = A.Q ? A.Q.chest() : { reward: 'wisdom' };
     U.chime('big');
+    if (c.big) U.confetti(1.2);
+    const lines = [`<span class="gold-t">${L('مهام اليوم', 'Daily quests')} <b>+${L.num(G.XP.quests)} XP</b></span>`];
+    if (c.bonus) lines.push(`<span class="gold-t">${L('المهمة الإضافية', 'Bonus quest', 'المهمة الإضافية')} <b>+${L.num(G.XP.bonus)} XP</b></span>`);
+    if (c.reward === 'xp') lines.push(`<span class="gold-t">${L('مفاجأة الصندوق', 'Chest surprise', 'مفاجأة الصندوق')} <b>+${L.num(G.XP.chestXp)} XP</b></span>`);
+    if (c.reward === 'fz') lines.push(`<span class="sky-t">${icon('snow')}${L('حماية للسلسلة: لو فوّت يوم، سلسلتك محمية', 'A streak freeze: miss a day and your streak is safe', 'حماية للسلسلة: إن فاتك يوم فسلسلتك محمية')}</span>`);
+    if (c.big) lines.push(`<span class="gold-t big">${L('الصندوق الكبير! ٥ أيام الأسبوع ده', 'The big chest! 5 days this week', 'الصندوق الكبير! ٥ أيام هذا الأسبوع')} <b>+${L.num(G.XP.bigChest)} XP</b></span>`);
     V.sheet({
-      title: L('صندوق النهارده', "Today's chest", 'صندوق اليوم'),
+      title: c.big ? L('الصندوق الكبير', 'The big chest', 'الصندوق الكبير') : L('صندوق النهارده', "Today's chest", 'صندوق اليوم'),
       cls: 'celebrate',
-      html: `<div class="celeb"><div class="chest-open">${icon('chest')}</div>
-        <div class="xp-lines"><span class="gold-t">${L('مهام اليوم', 'Daily quests')} <b>+${L.num(G.XP.quests)} XP</b></span></div>
+      html: `<div class="celeb"><div class="chest-open${c.big ? ' big' : ''}">${icon('chest')}</div>
+        <div class="xp-lines">${lines.join('')}</div>
         <blockquote class="wisdom"><p dir="auto">${esc(L(w[0], w[2]))}</p><cite>${esc(L(w[1], w[3]))}</cite></blockquote>
         <button class="btn gold" data-close autofocus>${L('حلو!', 'Nice!', 'رائع!')}</button></div>`,
     });

@@ -8,7 +8,16 @@
   const S = A.S;
   const G = (A.G = {});
 
-  G.XP = { page: 1, wird: 20, onTime: 10, first: 10, note: 5, take: 8, reply: 2, liked: 2, shelf: 10, review: 5, book: 100, cheer: 1, quests: 30 };
+  G.XP = { page: 1, wird: 20, onTime: 10, first: 10, note: 5, take: 8, reply: 2, liked: 2, shelf: 10, review: 5, book: 100, cheer: 1, quests: 30, bonus: 20, chestXp: 15, bigChest: 100 };
+  /* Daily quests from this day on are made from what each member is reading (quests.js) and recorded on the
+     member doc when done (questDays[day] = {b: bonus done}); days before keep the old picked-at-random quests. */
+  G.QUEST_V2 = '2026-11-02'; // the day the new quests went out (keep it no earlier than that)
+  /* What a day's chest holds besides its XP, the same on every phone: a streak freeze, extra XP, or just wisdom. */
+  G.chestReward = (uid, day) => {
+    const r = U.hash(uid + '|chest|' + day) % 10;
+    return r < 2 ? 'fz' : r < 5 ? 'xp' : 'wisdom';
+  };
+  G.BIG_CHEST_DAYS = 5; // days with all quests in one week (Saturday to Friday) for the big chest
 
   /* Level L needs 25·(L−1)·(L+2) XP in total: 0, 100, 250, 450, 700, 1000, 1350 … */
   G.need = (lv) => 25 * (lv - 1) * (lv + 2);
@@ -151,7 +160,7 @@
       replies: 0, msgs: 0, likesRecv: 0, likesGiven: 0, shelfRead: 0, reviews: 0,
       booksDone: 0, cheers: 0, votes: 0, questDays: 0, daysRead: 0, maxDay: 0,
       weekStreak: 0, bestWeekStreak: 0, weekDays: 0, weekNeed: 3, weekLeft: 3, weekAtRisk: false, circleFull: 0,
-      days: {}, byDay: {}, active: new Set(), events: [],
+      days: {}, byDay: {}, active: new Set(), events: [], questWeek: 0, freezeGifts: new Set(),
     };
   }
   const bump = (s, day, key, n = 1) => {
@@ -644,15 +653,30 @@
     const wk = U.weekStart(today);
     const horizon = U.addDays(today, -3660); // all of it: a bonus once earned never runs out
     for (const s of out.values()) {
-      const days = new Set([...Object.keys(s.byDay), ...Object.keys(s.days)]);
-      for (const day of days) {
+      const qd = ((S.members.get(s.uid) || {}).questDays) || {};
+      const days = new Set([...Object.keys(s.byDay), ...Object.keys(s.days), ...Object.keys(qd)]);
+      const perWeek = new Map();
+      s.freezeGifts = new Set();
+      for (const day of [...days].sort()) {
         if (day < horizon || day > today) continue;
-        const q = G.questsFor(s.uid, day, s);
-        if (q.every((x) => x.done)) {
-          s.questDays++;
-          ev(s, day, G.XP.quests, 'quests');
+        const rec = qd[day];
+        const done = day >= G.QUEST_V2 ? !!rec : !!rec || G.questsFor(s.uid, day, s).every((x) => x.done);
+        if (!done) continue;
+        s.questDays++;
+        ev(s, day, G.XP.quests, 'quests');
+        if (rec && rec.b) ev(s, day, G.XP.bonus, 'bonus');
+        if (day >= G.QUEST_V2) {
+          const r = G.chestReward(s.uid, day);
+          if (r === 'xp') ev(s, day, G.XP.chestXp, 'chest');
+          if (r === 'fz') s.freezeGifts.add(day);
+          // the big chest: the fifth full day of a week
+          const wk0 = U.weekStart(day);
+          const n = (perWeek.get(wk0) || 0) + 1;
+          perWeek.set(wk0, n);
+          if (n === G.BIG_CHEST_DAYS) ev(s, day, G.XP.bigChest, 'bigchest');
         }
       }
+      s.questWeek = perWeek.get(wk) || 0;
       const pwk = U.addDays(wk, -7);
       for (const e of s.events) {
         s.xp += e.xp;
@@ -684,6 +708,7 @@
             fz--;
             s.frozen.push(d);
           } else run = 0;
+          if (s.freezeGifts.has(d)) fz = Math.min(2, fz + 1); // a freeze from the day's chest
           best = Math.max(best, run);
         }
       }

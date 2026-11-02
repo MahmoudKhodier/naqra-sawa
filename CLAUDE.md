@@ -37,6 +37,11 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - Inbox («الجديد ليك») drops from the top (`V.sheet({top: true})`), has «علّم الكل اتقرا» (also dismisses the cheers on «اليوم»); seen time also kept in `priv.inboxSeen`.
 - The weekly circle recap pops up by itself only when no sheet and no book is open (Fridays broke tests that didn't close sheets).
 
+## Daily quests (2026-11-02, `site/js/quests.js`)
+- From `G.QUEST_V2` on (set it to the day they ship, never earlier): reading = my portion («خلّص الورد ٤») or «الحق الورد ٣», a page count when the portion is long or there's no plan; people = answer an open question / react to a friend's highlight / cheer someone behind (generic «شارك مرتين» only when there's nothing); reflection = takeaway of a portion just finished, rating a book just finished, else a highlight or question in today's portion; optional bonus (focus 15 min or a portion and a half, +20 XP).
+- The day's set is picked once and kept in `priv.quests` (one swap a day, `swap: 1`). Done → `members/<me>.questDays[day] = {b}`; game.js counts XP from that (old days keep the old random quests). Chest extras the same on every phone: `G.chestReward` (freeze / +15 XP / wisdom); 5 full days in a week = big chest +100.
+- Tapping a quest runs `act` (open the reader at the right page, the note, a cheer, the takeaway, the shelf item, focus sheet via `R.focusOpen`).
+
 ## Reader notes
 - When a page counts (reader.js `pageChanged`/`tick`): on going on from it one or two pages after ≥4 s on it (≥10 s past the end of my portion), or after staying on it ~0.6 × my seconds per page (20–90 s). Never on arrival. `st.front` follows forward steps after ≥2 s on a page (not pages a long scroll runs through).
 - Reading vs looking around: `st.front` is where reading goes on (resume point, saved as `prog.last`). Pages count only within ~2 pages of it; jumps further away are "looking around" (a bar offers «ارجع لمكانك» / «كمّل من هنا»). Opening the current portion counts. «وقفت هنا» (one line per book, private: `priv.place[bookId] = {p, y, manual}`) is placed with the edge dots and saved on leaving.
@@ -59,6 +64,7 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - `node tests/e2e/ui.js` — the app's frame on a phone: back steps, one message at a time, pull to refresh, shelf header, mark picker, sign-out warning.
 - Phase 3/4 suites: `together.js` (circle recap, «خلّصناها», invite card), `focus.js`, `goals.js` (daily goal, forecast, weekly streak, firsts), `native.js` (stand-in Android layer: notifications device, widget data).
 - Phase-2 suites: `node tests/e2e/library.js` (shelf_books rows, 3,000 books, legacy shelf), `goodreads.js` (RSS sync merge), `me.js` (stats, quotes notebook), `worm.js` (taste match, pick a book, challenges), `private.js` (private library).
+- `node tests/e2e/quests.js` — daily quests from the portion, people and reflection, swap, recorded day, chest.
 - `node tests/e2e/plan.js` — plan calendar, who may change it, moving a portion's pages (sheet and reader), «مين وصل فين» tabs.
 - `node tests/e2e/screens.js` — screenshots of every main screen for a visual review (`LANGS=eg,ar,en THEMES=light,dark LAND=1`), in `tests/e2e/shots/screens/`.
 - `node tests/e2e/shelf.js` — Goodreads import, shelf search/sort/status moves, badge levels and details, the Android update prompt (stand-in native layer).

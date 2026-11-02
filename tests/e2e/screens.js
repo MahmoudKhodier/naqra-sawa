@@ -124,6 +124,7 @@ async function closeAll(p) {
       ['me', () => p.evaluate(() => window.A.V.go('me'))],
       ['settings', () => p.evaluate(() => window.A.V.go('settings'))],
       ['inbox', () => p.evaluate(() => window.A.V.openInbox())],
+      ['quests', () => p.evaluate(() => window.A.V.actions.quests())],
       ['menu', () => p.evaluate(() => window.A.V.go('shelf')).then(() => p.click('[data-act="shelf-more"]'))],
       ['quotes', () => p.evaluate(() => window.A.V.go('quotes'))],
       ['invite', () => p.evaluate(() => window.A.V.go('circle')).then(() => p.click('[data-act="invite"]')).then(() => p.waitForSelector('#inv-card img', { timeout: 8000 }))],

@@ -539,6 +539,7 @@
     V.inboxInit && V.inboxInit();
     const s = G.of(S.me);
     const q = G.myQuests();
+    if (A.Q) A.Q.sync();
     const now = { lv: s.lv, badges: s.badges.filter((b) => b.got).map((b) => b.b.id), qday: U.today(), qdone: q.every((x) => x.done), fz: s.freezes, frozen: s.frozen || [] };
     if (!V._recapChecked && V.checkRecap) {
       V._recapChecked = true;

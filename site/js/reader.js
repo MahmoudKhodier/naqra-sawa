@@ -2019,6 +2019,7 @@
   let tapAt = 0;
   document.addEventListener('pointerdown', () => (tapAt = Date.now()), true);
   document.addEventListener('keydown', () => (tapAt = Date.now()), true);
+  R.focusOpen = () => st && !st.focus && focusSheet(); // from a daily quest
   R.focusAsk = () => U.store.get('rdFocusAsk', true) !== false;
   R.isQuiet = () => !!(st && st.focus);
   /* For U.toast: true = kept until the session is over. Warnings and answers to something just tapped still show. */
