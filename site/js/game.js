@@ -182,6 +182,14 @@
     { g: 'critic', ic: 'edit', tip: ['اكتب رأيك (أكتر من سطر) في كتب مكتبتك.', 'Write a review (more than a line) for books on your shelf.', 'اكتب رأيك (أكثر من سطر) في كتب مكتبتك.'] },
     { g: 'quests', ic: 'chest', tip: ['خلّص مهام اليوم التلاتة وافتح الصندوق.', 'Finish all three daily quests and open the chest.', 'أنهِ مهام اليوم الثلاث وافتح الصندوق.'] },
     { g: 'level', ic: 'sparkle', tip: ['كل XP بتكسبه بيقرّبك للمستوى الجاي.', 'Every XP you earn brings the next level closer.', 'كل XP تكسبه يقرّبك من المستوى التالي.'] },
+    { g: 'gold', ic: 'sparkle', tip: ['في كل ورد صفحة دهبية مستخبية — اقرا الورد كله وهتلاقيها.', 'Every portion hides a golden page — read the whole portion to find it.', 'في كل ورد صفحة ذهبية مخبأة — اقرأ الورد كله لتجدها.'] },
+    { g: 'boss', ic: 'bolt', tip: ['اقرا ولو صفحة في الأسبوع اللي الحلقة بتهزم فيه زعيم الأسبوع.', 'Read at least a page in a week the circle beats its weekly boss.', 'اقرأ ولو صفحة في الأسبوع الذي تهزم فيه الحلقة زعيم الأسبوع.'] },
+    { g: 'bigchest', ic: 'chest', tip: ['خلّص مهام اليوم ٥ أيام في نفس الأسبوع.', 'Finish the daily quests on 5 days of the same week.', 'أنهِ مهام اليوم ٥ أيام في الأسبوع نفسه.'] },
+    { g: 'gifts', ic: 'heart', tip: ['ارمي على صحابك بلونات وورد وتصقيف من «الحلقة ← الأعضاء».', 'Throw balloons, flowers and applause at friends from «Circle → Members».', 'ارمِ على أصدقائك بالونات وورودًا وتصفيقًا من «الحلقة ← الأعضاء».'] },
+    { g: 'pranks', ic: 'sparkle', tip: ['طماطماية ولا كورة تلج على صاحبك… بهزار 😄', 'A tomato or a snowball at a friend… all in fun 😄', 'طماطم أو كرة ثلج على صديقك… مزاحًا 😄'] },
+    { g: 'reacts', ic: 'heart', tip: ['دوس مطوّل على سطر في الكتاب واختار إيموجي.', 'Long-press a line in the book and pick an emoji.', 'اضغط مطولًا على سطر في الكتاب واختر رمزًا.'] },
+    { g: 'chars', ic: 'user', tip: ['الشخصيات بتتفتح بالصفحات اللي بتقراها جوه التطبيق.', 'Characters open with the pages you read in the app.', 'تُفتح الشخصيات بالصفحات التي تقرؤها داخل التطبيق.'] },
+    { g: 'offread', ic: 'calendar', tip: ['اقرا في يوم إجازة الحلقة — مش مطلوب، بس بيتحسب.', "Read on one of the circle's days off — not expected, but it counts.", 'اقرأ في يوم إجازة الحلقة — غير مطلوب، لكنه يُحسب.'] },
     { g: 'together', ic: 'users', tip: ['أيام كل اللي في الحلقة قرأوا فيها ولو صفحة. وسام للحلقة كلها.', 'Days when everyone in the circle read at least a page. A badge for the whole circle.', 'أيام قرأ فيها كل أعضاء الحلقة ولو صفحة. وسام للحلقة كلها.'] },
   ];
   const B = (g, tier, id, n, v, t, d) => ({ g, tier, id, n, v, t, d, ic: (G.BADGE_GROUPS.find((x) => x.g === g) || {}).ic || 'sparkle' });
@@ -252,6 +260,32 @@
     B('level', 1, 'lv5', 5, (s) => s.lv, ['المستوى ٥', 'Level 5'], ['اوصل للمستوى ٥', 'Reach level 5', 'ابلغ المستوى ٥']),
     B('level', 2, 'lv10', 10, (s) => s.lv, ['المستوى ١٠', 'Level 10'], ['اوصل للمستوى ١٠', 'Reach level 10', 'ابلغ المستوى ١٠']),
     B('level', 3, 'lv20', 20, (s) => s.lv, ['المستوى ٢٠', 'Level 20'], ['اوصل للمستوى ٢٠', 'Reach level 20', 'ابلغ المستوى ٢٠']),
+    B('gold', 1, 'gold1', 1, (s) => s.golds, ['أول دهب', 'First gold', 'أول ذهب'], ['لاقي صفحة دهبية', 'Find a golden page', 'اعثر على صفحة ذهبية']),
+    B('gold', 2, 'gold5', 5, (s) => s.golds, ['صياد الدهب', 'Gold hunter', 'صائد الذهب'], ['لاقي ٥ صفحات دهبية', 'Find 5 golden pages', 'اعثر على ٥ صفحات ذهبية']),
+    B('gold', 3, 'gold20', 20, (s) => s.golds, ['منجم دهب', 'Gold mine', 'منجم ذهب'], ['لاقي ٢٠ صفحة دهبية', 'Find 20 golden pages', 'اعثر على ٢٠ صفحة ذهبية']),
+    B('boss', 1, 'boss1', 1, (s) => s.bossWins, ['أول زعيم', 'First boss down', 'أول زعيم'], ['اهزموا زعيم أسبوع وانت معاهم', 'Beat a weekly boss with the circle', 'اهزموا زعيم أسبوع وأنت معهم']),
+    B('boss', 2, 'boss4', 4, (s) => s.bossWins, ['قاهر الزعماء', 'Boss slayer'], ['٤ زعماء', 'Beat 4 bosses', 'اهزم ٤ زعماء']),
+    B('boss', 3, 'boss12', 12, (s) => s.bossWins, ['أسطورة الساحة', 'Arena legend'], ['١٢ زعيم', 'Beat 12 bosses', 'اهزم ١٢ زعيمًا']),
+    B('boss', 4, 'boss52', 52, (s) => s.bossWins, ['سنة من الانتصارات', 'A year of victories', 'عام من الانتصارات'], ['٥٢ زعيم', 'Beat 52 bosses', 'اهزم ٥٢ زعيمًا']),
+    B('bigchest', 1, 'bigchest1', 1, (s) => s.bigChests, ['الصندوق الكبير', 'The big chest'], ['افتح الصندوق الكبير', 'Open the big chest', 'افتح الصندوق الكبير']),
+    B('bigchest', 2, 'bigchest4', 4, (s) => s.bigChests, ['شهر كنوز', 'A month of treasure', 'شهر من الكنوز'], ['افتحه ٤ مرات', 'Open it 4 times', 'افتحه ٤ مرات']),
+    B('bigchest', 3, 'bigchest12', 12, (s) => s.bigChests, ['خزنة الكنوز', 'Treasure vault'], ['افتحه ١٢ مرة', 'Open it 12 times', 'افتحه ١٢ مرة']),
+    B('gifts', 1, 'gifts10', 10, (s) => s.gifts, ['صاحب واجب', 'Good friend'], ['ارمي ١٠ حاجات حلوة على صحابك', 'Throw 10 nice things at friends', 'ارمِ ١٠ أشياء لطيفة على أصدقائك']),
+    B('gifts', 2, 'gifts50', 50, (s) => s.gifts, ['قلب الحلقة', 'Heart of the circle'], ['ارمي ٥٠ حاجة حلوة', 'Throw 50 nice things', 'ارمِ ٥٠ شيئًا لطيفًا']),
+    B('gifts', 3, 'gifts200', 200, (s) => s.gifts, ['بابا نويل الحلقة', "The circle's Santa", 'سانتا الحلقة'], ['ارمي ٢٠٠ حاجة حلوة', 'Throw 200 nice things', 'ارمِ ٢٠٠ شيء لطيف']),
+    B('pranks', 1, 'pranks10', 10, (s) => s.pranks, ['المقلباتي', 'Prankster', 'صاحب المقالب'], ['ارمي ١٠ مقالب على صحابك', 'Throw 10 pranks at friends', 'ارمِ ١٠ مقالب على أصدقائك']),
+    B('pranks', 2, 'pranks50', 50, (s) => s.pranks, ['ملك الطماطم', 'Tomato king'], ['ارمي ٥٠ مقلب', 'Throw 50 pranks', 'ارمِ ٥٠ مقلبًا']),
+    B('pranks', 3, 'pranks200', 200, (s) => s.pranks, ['أسطورة الهزار', 'Legend of fun', 'أسطورة المزاح'], ['ارمي ٢٠٠ مقلب', 'Throw 200 pranks', 'ارمِ ٢٠٠ مقلب']),
+    B('reacts', 1, 'reacts10', 10, (s) => s.reacts, ['متفاعل', 'Reactor'], ['اتفاعل بإيموجي على ١٠ سطور', 'React with an emoji on 10 lines', 'تفاعل برمز على ١٠ أسطر']),
+    B('reacts', 2, 'reacts50', 50, (s) => s.reacts, ['حاسس بالكتاب', 'Feels every page', 'يشعر بالكتاب'], ['اتفاعل على ٥٠ سطر', 'React on 50 lines', 'تفاعل على ٥٠ سطرًا']),
+    B('reacts', 3, 'reacts200', 200, (s) => s.reacts, ['قلب القارئ', "A reader's heart", 'قلب القارئ'], ['اتفاعل على ٢٠٠ سطر', 'React on 200 lines', 'تفاعل على ٢٠٠ سطر']),
+    B('chars', 1, 'chars15', 15, (s) => s.chars, ['جامع الشخصيات', 'Collector'], ['افتح ١٥ شخصية', 'Have 15 characters', 'افتح ١٥ شخصية']), // 12 are open from the start
+    B('chars', 2, 'chars20', 20, (s) => s.chars, ['حديقة حيوانات', 'Little zoo'], ['افتح ٢٠ شخصية', 'Have 20 characters', 'افتح ٢٠ شخصية']),
+    B('chars', 3, 'chars26', 26, (s) => s.chars, ['حارس الغابة', 'Forest keeper'], ['افتح ٢٦ شخصية', 'Have 26 characters', 'افتح ٢٦ شخصية']),
+    B('chars', 4, 'chars32', 32, (s) => s.chars, ['الكل معايا', 'Got them all', 'جمعتها كلها'], ['افتح الـ٣٢ شخصية كلهم', 'Have all 32 characters', 'افتح الشخصيات الـ٣٢ كلها']),
+    B('offread', 1, 'offread1', 1, (s) => s.offReads, ['مبيعرفش إجازة', 'No days off', 'لا يعرف الإجازة'], ['اقرا في يوم إجازة', 'Read on a day off', 'اقرأ في يوم إجازة']),
+    B('offread', 2, 'offread5', 5, (s) => s.offReads, ['الكتاب صاحبه', 'Book never off', 'الكتاب رفيقه'], ['اقرا في ٥ أيام إجازة', 'Read on 5 days off', 'اقرأ في ٥ أيام إجازة']),
+    B('offread', 3, 'offread20', 20, (s) => s.offReads, ['الإجازة قراية', 'Days off are for reading', 'الإجازة للقراءة'], ['اقرا في ٢٠ يوم إجازة', 'Read on 20 days off', 'اقرأ في ٢٠ يوم إجازة']),
     B('together', 1, 'together1', 1, (s) => s.circleFull, ['الحلقة كاملة', 'The whole circle'], ['يوم كل اللي في الحلقة قرأوا فيه', 'A day when everyone in the circle read', 'يوم قرأ فيه كل أعضاء الحلقة']),
     B('together', 2, 'together7', 7, (s) => s.circleFull, ['أسبوع الحلقة كاملة', 'Whole-circle week', 'أسبوع الحلقة الكاملة'], ['٧ أيام الحلقة كلها قرأت فيها', '7 days when the whole circle read', '٧ أيام قرأت فيها الحلقة كلها']),
     B('together', 3, 'together30', 30, (s) => s.circleFull, ['شهر الحلقة كاملة', 'Whole-circle month', 'شهر الحلقة الكاملة'], ['٣٠ يوم الحلقة كلها قرأت فيها', '30 days when the whole circle read', '٣٠ يومًا قرأت فيها الحلقة كلها']),
@@ -270,6 +304,7 @@
       wirdsDone: 0, onTime: 0, firsts: 0, notes: 0, quotes: 0, questions: 0, takes: 0,
       replies: 0, msgs: 0, likesRecv: 0, likesGiven: 0, shelfRead: 0, reviews: 0,
       booksDone: 0, cheers: 0, votes: 0, questDays: 0, daysRead: 0, maxDay: 0,
+      golds: 0, bossWins: 0, bigChests: 0, gifts: 0, pranks: 0, reacts: 0, chars: 0, offReads: 0,
       weekStreak: 0, bestWeekStreak: 0, weekDays: 0, weekNeed: 3, weekLeft: 3, weekAtRisk: false, circleFull: 0,
       days: {}, byDay: {}, active: new Set(), events: [], questWeek: 0, freezeGifts: new Set(),
     };
@@ -774,10 +809,11 @@
     const today = U.today();
     const wk = U.weekStart(today);
     const horizon = U.addDays(today, -3660); // all of it: a bonus once earned never runs out
+    const wins = bossWins();
+    const offc0 = G.offCfg();
     for (const s of out.values()) {
       const qd = ((S.members.get(s.uid) || {}).questDays) || {};
       const gold = ((S.members.get(s.uid) || {}).gold) || {};
-      s.golds = 0;
       for (const day of Object.values(gold)) {
         if (!day || day > today) continue;
         s.golds++;
@@ -802,12 +838,29 @@
           const wk0 = U.weekStart(day);
           const n = (perWeek.get(wk0) || 0) + 1;
           perWeek.set(wk0, n);
-          if (n === G.bigChestDays(wk0)) ev(s, day, G.XP.bigChest, 'bigchest');
+          if (n === G.bigChestDays(wk0)) {
+            ev(s, day, G.XP.bigChest, 'bigchest');
+            s.bigChests++;
+          }
         }
       }
       s.questWeek = perWeek.get(wk) || 0;
       // the weekly boss (play.js): beaten when the circle's pages reached the goal; XP to whoever hit it
-      for (const [w0, day] of bossWins()) if (G.weekPagesOf(s.uid, w0).pages > 0) ev(s, day, G.XP.boss, 'boss');
+      for (const [w0, day] of wins)
+        if (G.weekPagesOf(s.uid, w0).pages > 0) {
+          ev(s, day, G.XP.boss, 'boss');
+          s.bossWins++;
+        }
+      // the newer badges: what was thrown (friendly or a prank), reactions on lines, characters opened, days off read on
+      for (const t of (S.throws || new Map()).values()) {
+        if (t.by !== s.uid || !t.it) continue;
+        const it = A.Play ? A.Play.item(t.it) : null;
+        if (it && it[4] === 'happy') s.gifts++;
+        else if (it) s.pranks++;
+      }
+      for (const r of (S.reacts || new Map()).values()) if (r.by === s.uid && r.e) s.reacts++;
+      if (A.Play) s.chars = A.Play.CHARS.filter((c) => A.Play.unlocked(c[0], s.uid)).length;
+      for (const [d, n] of Object.entries(s.days)) if (+n > 0 && d <= today && G.isOff(d, offc0)) s.offReads++;
       const pwk = U.addDays(wk, -7);
       for (const e of s.events) {
         s.xp += e.xp;

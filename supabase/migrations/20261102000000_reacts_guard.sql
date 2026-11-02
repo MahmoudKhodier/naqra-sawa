@@ -1,6 +1,7 @@
 -- Emoji reactions on a line of a page (col 'reacts', one doc per member and line) and things thrown at friends
 -- (col 'throws'): like notes, only the person who reacted or threw can change or remove theirs (a circle owner
--- or admin may remove one). Same guard as 20261029000000_author_guard.sql with 'reacts' and 'throws' added.
+-- or admin may remove one). Same guard as 20261029000000_author_guard.sql with 'reacts' and 'throws' added, and
+-- 'offs' (the news line of a day off being set or taken back, offdays.js) written only in your own name.
 
 create or replace function public.tg_docs_author_guard()
 returns trigger language plpgsql set search_path = '' as $$
@@ -13,7 +14,7 @@ declare
   e      text;
 begin
   if v_uid is null then return new; end if;                  -- service role, maintenance jobs
-  if new.col not in ('notes', 'msgs', 'proposals', 'reacts', 'throws') then return new; end if;
+  if new.col not in ('notes', 'msgs', 'proposals', 'reacts', 'throws', 'offs') then return new; end if;
 
   if tg_op = 'INSERT' then
     -- a new item is written in your own name (tombstones carry no content and pass)
@@ -41,6 +42,7 @@ begin
                          when 'msgs' then array['react']
                          when 'reacts' then array[]::text[]
                          when 'throws' then array[]::text[]
+                         when 'offs' then array[]::text[]
                          else array['votes', 'chosen'] end;
   if not v_mine and (new.data - v_free) is distinct from (old.data - v_free) then
     raise exception 'only the author can change this' using errcode = '42501';

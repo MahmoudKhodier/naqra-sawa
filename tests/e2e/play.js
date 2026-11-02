@@ -215,6 +215,18 @@ const closeAll = async (p) => {
       return r.dmg.join(' → ');
     });
 
+    await step('The newer badges: boss slayer, a good friend\'s gifts and pranks, reactions, characters', async () => {
+      const r = await a.evaluate(() => {
+        const s = window.A.G.of(window.A.S.me);
+        const has = (id) => s.badges.find((x) => x.b.id === id);
+        return { boss: s.bossWins, pranks: s.pranks, chars: s.chars, groups: ['gold', 'boss', 'bigchest', 'gifts', 'pranks', 'reacts', 'chars', 'offread'].every((g) => window.A.G.BADGE_GROUPS.some((x) => x.g === g)), chars5: has('chars15') && !has('chars15').got };
+      });
+      assert(r.groups, 'a group is missing');
+      assert(r.pranks === 1, 'pranks ' + r.pranks); // the tomato
+      assert(r.chars === 14 && r.chars5, 'characters ' + r.chars); // 12 open from the start + 🐤 at 15 and 🐝 at 30 pages: not 15 yet
+      return JSON.stringify(r);
+    });
+
     await step('The reaction bar in the reader: animated emoji', async () => {
       await closeAll(b);
       await b.evaluate((id) => window.A.R.open(id, { page: 2 }), bookId);

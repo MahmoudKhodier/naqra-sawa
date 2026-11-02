@@ -548,6 +548,14 @@ begin;
 select t.login('D');
 select t.lives($$select doc_merge(t.id('c1'), 'reacts', 'gr', '{"e": "😂"}')$$, 'guard: D changes own reaction');
 commit;
+-- the news line of a day off: only in your own name
+begin;
+select t.login('B');
+select t.throws(format($$insert into docs (circle_id, col, id, data) values (t.id('c1'), 'offs', 'go1',
+                 '{"by": "%s", "add": true, "date": "2026-12-01"}')$$, t.v('D')), '42501', 'guard: no day-off news in someone else''s name');
+select t.lives(format($$insert into docs (circle_id, col, id, data) values (t.id('c1'), 'offs', 'go2',
+                 '{"by": "%s", "add": true, "date": "2026-12-01"}')$$, t.v('B')), 'guard: day-off news in your own name');
+commit;
 
 begin;
 select t.login('A');  -- A owns circle c1: may delete (moderate), not rewrite
