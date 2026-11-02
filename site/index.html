@@ -291,6 +291,10 @@ textarea { resize: vertical; line-height: 1.55; }
 .hud-xp { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 10px; max-width: 420px; margin-inline-start: 6px; }
 .hud-t { grid-column: 1 / -1; font: 600 .8rem var(--f-disp); color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hud-xp small { font-size: .72rem; color: var(--ink3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+@media (max-width: 520px) {
+  .hud:not(.is-home) .hud-row { gap: 8px; }
+  .hud-xp { margin-inline-start: 2px; }
+}
 .ib.round { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
 .ib.round:hover { background: var(--card2); }
 .ib.round .nv-b { position: absolute; top: -3px; inset-inline-end: -3px; border: 2px solid var(--bg); line-height: 15px; height: 20px; min-width: 20px; }
@@ -1205,6 +1209,12 @@ textarea { resize: vertical; line-height: 1.55; }
 .emo-pick summary .ic { transition: transform .2s; color: var(--ink3); }
 .emo-pick[open] summary .ic { transform: rotate(90deg); }
 .emo-pick .emo-all { padding: 0 10px 10px; }
+/* the characters picker: a heading, then the characters in a grid (not each piece in a narrow grid cell) */
+.emo-all:not(.emo) { display: block; }
+/* the bee is drawn small in its frame */
+.lot[data-lot="1f41d"] > svg { transform: scale(1.7); }
+.emo-all .emo-chars { display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 6px; }
+.emo-all .emo-chars .emo-b { width: auto; height: auto; aspect-ratio: 1; max-height: none; }
 .ro-note { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 14px; background: var(--gold-s); }
 .ro-note .ic { color: var(--gold-t); }
 
@@ -2224,8 +2234,11 @@ button.wm-c:hover { border-color: var(--line); }
   .hud-me .av { width: 32px; height: 32px; font-size: 13px; }
   .hud-me .lvl { --sz: 19px; inset-inline-end: -5px; bottom: -5px; }
   .hud .ib.round { width: 36px; height: 36px; }
-  .hud-xp { grid-template-columns: auto minmax(60px, 1fr) auto; max-width: 520px; }
-  .hud-t { grid-column: auto; }
+  /* title and numbers on one line (the title gives way), the bar under them: nothing runs under the chips */
+  .hud-xp { grid-template-columns: minmax(0, 1fr) auto; row-gap: 3px; max-width: 520px; }
+  .hud-t { grid-column: 1; grid-row: 1; }
+  .hud-xp small { grid-column: 2; grid-row: 1; }
+  .hud-xp > .bar { grid-column: 1 / -1; grid-row: 2; }
   .hud:not(.is-home) .hchip.flame { height: 30px; }
   .hud.is-home { flex-direction: row; align-items: center; gap: 10px; padding-top: 8px; padding-bottom: 4px; }
   .hud.is-home .hud-row { display: contents; }

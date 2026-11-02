@@ -101,6 +101,20 @@ const closeAll = async (p) => {
       assert(/١٠/.test(await a.textContent('#hud .coins-h')), 'not 10 in the bar');
       await a.click('#hud .coins-h');
       await a.waitForSelector('.playc');
+      // on the other screens the XP numbers stay clear of the chips
+      // a phone with bigger text (Android's font size) and three-digit numbers
+      await a.evaluate(() => { document.documentElement.style.fontSize = '125%'; document.querySelector('#hud .hud-xp small').textContent = '٢٨٤ / ١٢٥٠ XP'; });
+      const clash = await a.evaluate(() => {
+        const sm = document.querySelector('#hud .hud-xp small').getBoundingClientRect();
+        const bar = document.querySelector('#hud .hud-xp').getBoundingClientRect();
+        return [...document.querySelectorAll('#hud .hchip, #hud .hud-bell')].some((c) => { const r = c.getBoundingClientRect(); return r.left < sm.right - 1 && r.right > sm.left + 1; }) || sm.left < bar.left - 6 || sm.right > bar.right + 6;
+      });
+      await a.evaluate(() => document.querySelectorAll('.toast').forEach((t) => t.remove()));
+      await H.shot(a, 'play-hud-big');
+      if (clash) console.log(await a.evaluate(() => [...document.querySelectorAll('#hud .hud-xp, #hud .hud-xp small, #hud .hchip, #hud .hud-bell')].map((e) => e.className + ' ' + Math.round(e.getBoundingClientRect().left) + '-' + Math.round(e.getBoundingClientRect().right)).join(' | ')));
+      await a.evaluate(() => (document.documentElement.style.fontSize = ''));
+      assert(!clash, 'the XP numbers run under the chips');
+      await a.evaluate(() => document.querySelectorAll('.toast').forEach((t) => t.remove()));
       await H.shot(a, 'play-hud');
     });
 

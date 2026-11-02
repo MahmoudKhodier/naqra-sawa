@@ -400,7 +400,7 @@
           ${s.freezes ? `<span class="hchip fz" title="${L('حماية للسلسلة: لو فوّت يوم بتحميها', 'Streak freeze: protects a missed day', 'حماية للسلسلة: تحميها إن فاتك يوم')}">${icon('snow')}<b>×${L.num(s.freezes)}</b></span>` : ''}
         </div>`;
     } else {
-      html = `<div class="hud-row">${me}<div class="hud-xp" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`, `بقي ${L.num(s.toNext)} XP للمستوى التالي`)}"><span class="hud-t">${esc(G.title(s.lv))}</span>${V.bar(pct, 'gold')}<small>${L.num(s.cur)} / ${L.num(s.span)} XP</small></div>${flameChip}${coins}${btns}</div>`;
+      html = `<div class="hud-row">${me}<div class="hud-xp" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`, `بقي ${L.num(s.toNext)} XP للمستوى التالي`)}"><span class="hud-t">${esc(G.title(s.lv))}</span>${V.bar(pct, 'gold')}<small>${L.num(s.cur)} / ${L.num(s.span)}<span class="xpw"> XP</span></small></div>${flameChip}${coins}${btns}</div>`;
     }
     el.classList.toggle('is-home', home);
     if (el.dataset.rtH !== html) {

@@ -123,6 +123,7 @@ async function closeAll(p) {
       ['circle-members', () => p.evaluate(() => window.A.V.go('circle', { seg: 'members' }))],
       ['me', () => p.evaluate(() => window.A.V.go('me'))],
       ['settings', () => p.evaluate(() => window.A.V.go('settings'))],
+      ['settings-marks', () => p.evaluate(() => window.A.V.go('settings')).then(() => p.evaluate(() => { const d = document.querySelector('.emo-pick'); d.open = true; d.scrollIntoView(); }))],
       ['inbox', () => p.evaluate(() => window.A.V.openInbox())],
       ['quests', () => p.evaluate(() => window.A.V.actions.quests())],
       ['menu', () => p.evaluate(() => window.A.V.go('shelf')).then(() => p.click('[data-act="shelf-more"]'))],
