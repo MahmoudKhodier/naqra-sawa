@@ -83,7 +83,7 @@ const closeAll = async (p) => {
 
     await step('«قراية الحلقة النهارده»: one of two, then the whole circle', async () => {
       await a.evaluate(() => window.A.D.addPagesToday(4));
-      await a.evaluate(() => window.A.V.go('circle'));
+      await a.evaluate(() => window.A.V.go('circle', { seg: 'board' })); // the boss lives on «الساحة»
       await until(a, 'today line', () => /١ من ٢/.test((document.querySelector('.cweek .cw-today') || {}).textContent || ''));
       await b.evaluate(() => window.A.D.addPagesToday(2));
       await until(a, 'full', () => document.querySelector('.cweek.full'));
@@ -165,7 +165,7 @@ const closeAll = async (p) => {
     await step('English and no console errors', async () => {
       await a.evaluate(() => {
         window.A.L.set('en');
-        window.A.V.go('circle');
+        window.A.V.go('circle', { seg: 'board' });
       });
       await a.waitForSelector('.cweek');
       const t = await a.$eval('.cweek', (e) => e.textContent);

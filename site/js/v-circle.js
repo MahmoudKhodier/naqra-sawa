@@ -22,7 +22,7 @@
     const segs = [
       ['news', L('الأخبار', 'News')],
       ['chat', L('النقاش', 'Chat'), chatUnread],
-      ['board', L('الترتيب', 'Ranking')],
+      ['board', L('الساحة', 'Arena', 'الساحة')], // the weekly boss and the ranking
       ['members', L('الأعضاء', 'Members')],
     ];
     let body = '';
@@ -67,7 +67,7 @@
   function boardSeg(mode, online) {
     const board = G.board(mode);
     const medal = ['gold', 'silver', 'bronze'];
-    return `<section class="card board">
+    return `${V.sections('circle-board', {})}<section class="card board">
       <header><h2>${icon('trophy')}${L('الصدارة', 'Leaderboard')}</h2><div class="seg sm"><button class="${mode === 'week' ? 'on' : ''}" data-act="board" data-m="week">${L('الأسبوع ده', 'This week', 'هذا الأسبوع')}</button><button class="${mode === 'all' ? 'on' : ''}" data-act="board" data-m="all">${L('كل الوقت', 'All time', 'منذ البداية')}</button></div></header>
       ${board.length >= 3 ? podium(board.slice(0, 3), mode) : ''}
       <ol class="lb">${board

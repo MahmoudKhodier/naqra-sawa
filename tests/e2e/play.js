@@ -195,7 +195,7 @@ const closeAll = async (p) => {
           }
         }).observe(document.body, { childList: true, subtree: true });
       });
-      await a.evaluate(() => window.A.V.go('circle'));
+      await a.evaluate(() => window.A.V.go('circle', { seg: 'board' }));
       await a.waitForSelector('.cweek.boss .arena');
       await a.waitForSelector('.ar-replay', { timeout: 8000 });
       await until(a, 'monster', () => !!document.querySelector('.cweek.boss .ar-mon .lot svg'), null, 15000);

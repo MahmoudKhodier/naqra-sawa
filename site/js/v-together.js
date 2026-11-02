@@ -107,7 +107,7 @@
     </section>`;
   }
   V.addSection('home-side', { order: 10, render: () => (D.canWrite() ? todayCard() : '') });
-  V.addSection('circle-news', { order: 10, render: () => weekCard() });
+  V.addSection('circle-board', { order: 10, render: () => weekCard() }); // the weekly boss: on «الساحة», above the ranking
 
   /* «الحلقة الأسبوع ده»: who read today, the week's goal (with portions read elsewhere), who read what, and
      the week's recap — one card instead of three. */
