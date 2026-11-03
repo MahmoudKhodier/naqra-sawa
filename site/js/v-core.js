@@ -387,7 +387,9 @@
     const flameTitle = sv.hint;
     const me = `<button class="hud-me" data-go="me" aria-label="${L('ملفي', 'My profile')}">${D.avatar(S.me, 'md')}${V.star(L.num(s.lv), 'gold lvl')}</button>`;
     const btns = `${V.inboxUnread ? `<button class="ib round hud-bell" data-act="inbox" aria-label="${L('الجديد ليك', 'For you', 'الجديد لك')}">${icon('bell')}${unread ? `<i class="nv-b">${L.num(Math.min(unread, 99))}</i>` : ''}</button>` : ''}`;
-    const flameChip = `<span class="hchip flame ${flame}${sv.weekly ? ' weekly' : ''}" title="${esc(flameTitle)}">${icon('flame')}<b>${L.num(sv.n)}</b>${home ? `<span>${sv.unit}</span>` : ''}</span>`;
+    // a streak freeze is a small badge on the flame (it protects the streak), not a chip of its own
+    const fzBadge = s.freezes ? `<i class="fz-b" title="${L(`حماية للسلسلة ×${L.num(s.freezes)}: لو فوّت يوم بتحميها`, `Streak freeze ×${s.freezes}: protects a missed day`, `حماية للسلسلة ×${L.num(s.freezes)}: تحميها إن فاتك يوم`)}">${icon('snow')}<b>${L.num(s.freezes)}</b></i>` : '';
+    const flameChip = `<span class="hchip flame ${flame}${sv.weekly ? ' weekly' : ''}" title="${esc(flameTitle)}">${icon('flame')}<b>${L.num(sv.n)}</b>${home ? `<span>${sv.unit}</span>` : ''}${fzBadge}</span>`;
     const coins = V.hudCoins ? V.hudCoins(home) : '';
     let html;
     if (home) {
@@ -395,7 +397,6 @@
       html = `<div class="hud-row">${me}<div class="hud-hi"><h1 class="hud-greet">${greeting()}${L('، ', ', ')}<span dir="auto">${esc(D.name(S.me))}</span></h1><small class="hijri">${date}</small></div>${btns}</div>
         <div class="hud-chips">${flameChip}${coins}
           <span class="hchip lvl" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`, `بقي ${L.num(s.toNext)} XP للمستوى التالي`)}">${V.star('', 'gold xs')}<b>${L(`المستوى ${L.num(s.lv)}`, `Level ${s.lv}`)}</b>${V.bar(pct, 'gold')}</span>
-          ${s.freezes ? `<span class="hchip fz" title="${L('حماية للسلسلة: لو فوّت يوم بتحميها', 'Streak freeze: protects a missed day', 'حماية للسلسلة: تحميها إن فاتك يوم')}">${icon('snow')}<b>×${L.num(s.freezes)}</b></span>` : ''}
         </div>`;
     } else {
       html = `<div class="hud-row">${me}<div class="hud-xp" title="${L(`فاضل ${L.num(s.toNext)} XP للمستوى الجاي`, `${s.toNext} XP to next level`, `بقي ${L.num(s.toNext)} XP للمستوى التالي`)}"><span class="hud-t">${esc(G.title(s.lv))}</span>${V.bar(pct, 'gold')}<small>${L.num(s.cur)} / ${L.num(s.span)}<span class="xpw"> XP</span></small></div>${flameChip}${coins}${btns}</div>`;

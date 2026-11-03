@@ -391,7 +391,7 @@
   V.lockedCard = (n, opts = {}) => {
     const book = D.book(n.b);
     return `<article class="ncard locked k-${esc(n.kind)}">
-      <header>${D.avatar(n.by, 'sm')}<div class="nc-who"><b>${esc(D.name(n.by))}</b><small>${V.kindLabel(n.kind)}${opts.showBook && book ? ` • <span dir="auto">${esc(book.title)}</span>` : ''}${n.page ? ` • ${L('ص', 'p.')} ${L.num(n.page)}` : ''} • ${L.ago(n.at)}</small></div></header>
+      <header>${D.avatar(n.by, 'sm')}<div class="nc-who"><b>${esc(D.name(n.by))}</b><small><span class="nc-k">${V.kindLabel(n.kind)}</span>${opts.showBook && book ? ` <span dir="auto">${esc(book.title)}</span>` : ''}${n.page ? ` • ${L('ص', 'p.')} ${L.num(n.page)}` : ''} • ${L.ago(n.at)}</small></div></header>
       <p class="nc-lock">${icon('lock')}<span>${L(`مستنياك لما توصل ص ${L.num(n.page || 0)} — من غير حرق 👀`, `Waiting for you at p. ${n.page || 0} — no spoilers 👀`, `بانتظارك حين تصل ص ${L.num(n.page || 0)} — بلا حرق 👀`)}</span></p>
     </article>`;
   };
@@ -453,7 +453,7 @@
     const isTake = n.kind === 'take';
     const w = book && n.wid ? G.wirds(book).find((x) => x.id === n.wid) : null;
     return `<article class="ncard k-${esc(n.kind)}${isTake ? ' take' : ''}${opts.pinned ? ' is-pinned' : ''}">
-      <header>${D.avatar(n.by, 'sm')}<div class="nc-who"><b data-act="member" data-uid="${esc(n.by)}">${esc(D.name(n.by))}</b><small>${V.kindLabel(n.kind)}${opts.showBook && book ? ` • <span dir="auto">${esc(book.title)}</span>` : ''}${n.page && !isTake ? ` • ${L('ص', 'p.')} ${L.num(n.page)}` : ''}${isTake && w ? ` • ${L('الورد', 'Portion')} ${L.num(w.n)}` : ''} • ${L.ago(n.at)} ${V.editedTag(n)}</small></div></header>
+      <header>${D.avatar(n.by, 'sm')}<div class="nc-who"><b data-act="member" data-uid="${esc(n.by)}">${esc(D.name(n.by))}</b><small><span class="nc-k">${V.kindLabel(n.kind)}</span>${opts.showBook && book ? ` <span dir="auto">${esc(book.title)}</span>` : ''}${n.page && !isTake ? ` • ${L('ص', 'p.')} ${L.num(n.page)}` : ''}${isTake && w ? ` • ${L('الورد', 'Portion')} ${L.num(w.n)}` : ''} • ${L.ago(n.at)} ${V.editedTag(n)}</small></div></header>
       ${n.crop ? `<button class="nc-crop" data-act="open-note" data-nid="${esc(n.id)}" style="--c:${U.col(n.color)}"><img src="${esc(n.crop)}" alt="${esc(L('الجزء المظلّل', 'Highlighted passage'))}" loading="lazy"></button>` : ''}
       ${n.text ? `<p class="nc-text${n.kind === 'quote' ? ' quote' : ''}" dir="auto" data-act="open-note" data-nid="${esc(n.id)}">${esc(n.text.length > 420 ? n.text.slice(0, 400).replace(/\s+\S*$/, '') + '…' : n.text)}</p>${n.text.length > 420 ? `<button class="lnk nc-more" data-act="open-note" data-nid="${esc(n.id)}">${L('اقرأ الباقي', 'Read more', 'اقرأ البقية')}</button>` : ''}` : ''}
       <footer class="nc-acts">
