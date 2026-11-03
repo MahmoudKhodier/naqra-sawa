@@ -50,7 +50,7 @@ const closeAll = async (p) => {
 (async () => {
   const env = await H.start();
   const browser = await chromium.launch();
-  let a, bookId, nid;
+  let a, b, bookId, nid;
   try {
     await step('A circle with a book; a short note of mine on p. 20, low on the page', async () => {
       const A = await H.newUser(browser, env, 'na@test.local', { viewport: { width: 390, height: 844 }, hasTouch: true });
@@ -79,6 +79,17 @@ const closeAll = async (p) => {
         return n;
       }, bookId);
       await until(a, 'note in', (id) => window.A.S.notes.has(id), nid);
+      // a friend in the circle (for reactions)
+      const cid = await a.evaluate(() => window.A.P.circle().id);
+      const code = (await env.fake.sql('select invite_code from public.circles where id = $1', [cid]))[0].invite_code;
+      const B = await H.newUser(browser, env, 'nb@test.local', { url: env.siteUrl.replace(/\/?$/, '/') + '#join-' + code, viewport: { width: 390, height: 844 } });
+      b = B.page;
+      await b.waitForSelector('#join-name', { timeout: 20000 });
+      await b.fill('#join-name', 'سارة');
+      await b.click('#join-form button[type=submit]');
+      await b.waitForSelector('.shell #screen .home', { timeout: 15000 });
+      await b.evaluate(() => window.A.Goals && (window.A.Goals.off = true));
+      await until(a, 'two members', () => window.A.S.members.size === 2);
     });
 
     await step('The card: one row of buttons; a tap on a short note opens it', async () => {
@@ -91,7 +102,7 @@ const closeAll = async (p) => {
         return { acts: bs.map((b) => b.dataset.act), tops: new Set(bs.map((b) => Math.round(b.getBoundingClientRect().top))).size };
       });
       const has = await a.$eval(`${card} .nc-acts`, (f) => !!f.querySelector('[data-rx="note"]'));
-      assert(has && ['open-note', 'note-page', 'note-share', 'note-edit'].every((x) => row.acts.includes(x)), 'buttons: ' + row.acts);
+      assert(!has && ['open-note', 'note-page', 'note-share', 'note-edit'].every((x) => row.acts.includes(x)), 'buttons: ' + row.acts + (has ? ' (a reaction button on my own note with none)' : ''));
       assert(row.tops === 1, 'buttons on ' + row.tops + ' rows');
       await H.shot(a, 'notes-card');
       await a.click(`${card} .nc-text`);
@@ -229,21 +240,25 @@ const closeAll = async (p) => {
       return `${r.n} story pictures, ${r.sq} square`;
     });
 
-    await step('Reactions: a tap is 👍 (older apps still see a like); hold and slide to 😂; replies, chat and «خلّص الورد» too', async () => {
-      const id4 = await a.evaluate(async (id) => {
+    await step('Reactions: a friend\'s note — a tap is 👍, hold and slide to 😂, nothing gets selected; not on my own; replies, chat, «خلّص الورد» (the line does not move)', async () => {
+      // Sara's note with Sara's reply, and her finished portion
+      const id4 = await b.evaluate(async (id) => {
         const { D, S, U } = window.A;
         const n = D.newId();
-        await D.set(`notes/${n}`, { b: id, page: 9, kind: 'note', text: 'جملة حلوة', rect: { x: 0.5, y: 0.5, w: 0, h: 0 }, by: S.me, at: U.nowIso(), wid: '', likes: {}, replies: { r1: { by: S.me, text: 'رد صغير', at: U.nowIso() } } });
+        await D.set(`notes/${n}`, { b: id, page: 9, kind: 'note', text: 'جملة حلوة من سارة', rect: { x: 0.5, y: 0.5, w: 0, h: 0 }, by: S.me, at: U.nowIso(), wid: '', likes: {}, replies: { r1: { by: S.me, text: 'رد صغير', at: U.nowIso() } } });
+        await window.A.D.saveProg(id, (c) => ({ seen: window.A.U.rangesAdd(c.seen, Array.from({ length: 30 }, (_, i) => i + 1)) }));
+        await window.A.V.markWird(id, window.A.S.books.get(id).wirds[0].id);
+        await D.set(`msgs/${D.newId()}`, { b: '_c', ch: 'gen', by: S.me, text: 'أهلًا يا جماعة', at: U.nowIso(), re: '', react: {} });
         return n;
       }, bookId);
-      await until(a, 'in', (id) => window.A.S.notes.has(id), id4);
+      await until(a, 'in', (id) => window.A.S.notes.has(id) && window.A.S.msgs.some((m) => m.text === 'أهلًا يا جماعة'), id4);
       await closeAll(a);
       await a.evaluate(() => window.A.V.go('circle'));
       const pill = `.feed .ncard:has([data-nid="${id4}"]) [data-rx="note"]`;
       await a.waitForSelector(pill);
       await a.click(pill);
       await until(a, '👍', (id) => { const n = window.A.S.notes.get(id); return n.rx && n.rx[window.A.S.me] === '👍' && n.likes[window.A.S.me]; }, id4);
-      // hold, slide to 😂, let go
+      // hold, slide to 😂, let go — and no text gets selected on the way
       const cdp = await a.context().newCDPSession(a);
       const b0 = await a.$eval(pill, (e) => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [b0] });
@@ -254,43 +269,153 @@ const closeAll = async (p) => {
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: b0.x + ((t.x - b0.x) * i) / 8, y: b0.y + ((t.y - b0.y) * i) / 8 }] });
         await T(30);
       }
+      const sel = await a.evaluate(() => String(window.getSelection()) + '|' + getComputedStyle(document.querySelector('.feed .nc-text')).userSelect);
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       await cdp.detach();
+      assert(/^\|none$/.test(sel), 'text selectable while sliding: ' + sel);
       await until(a, '😂', (id) => window.A.S.notes.get(id).rx[window.A.S.me] === '😂', id4);
+      await until(b, 'Sara sees 😂', (id) => ((window.A.S.notes.get(id) || {}).rx || {})[Object.keys(window.A.S.notes.get(id).rx)[0]] === '😂', id4);
       await T(400);
       await H.shot(a, 'notes-react');
+      const look = await a.$eval(pill, (e) => e.textContent.replace(/\s+/g, ''));
+      assert(/😂/.test(look) && !/👍/.test(look), 'pill: ' + look);
       // a tap now takes it back
       await a.click(pill);
       await until(a, 'taken back', (id) => !window.A.S.notes.get(id).likes[window.A.S.me], id4);
-      // a reply
+      // my own note: no reacting, the button only shows who reacted
+      const myId = await a.evaluate(async (bk) => {
+        const { D, S, U } = window.A;
+        const n = D.newId();
+        await D.set(`notes/${n}`, { b: bk, page: 8, kind: 'note', text: 'ملاحظتي أنا', rect: { x: 0.5, y: 0.4, w: 0, h: 0 }, by: S.me, at: U.nowIso(), wid: '', likes: {}, replies: {} });
+        return n;
+      }, bookId);
+      await until(b, 'Sara has it', (n) => window.A.S.notes.has(n), myId);
+      const nid = myId;
+      const own = `.feed .ncard:has([data-nid="${nid}"])`;
+      await b.evaluate((n) => window.A.D.update(`notes/${n}`, { rx: { [window.A.S.me]: '❤️' }, likes: { [window.A.S.me]: window.A.U.nowIso() } }), nid);
+      await until(a, 'Sara ❤️ on mine', (n) => Object.values((window.A.S.notes.get(n) || {}).rx || {}).includes('❤️'), nid);
+      await a.waitForSelector(`${own} [data-rx="note"][data-rx-own]`);
+      await a.click(`${own} [data-rx="note"]`);
+      await a.waitForSelector('#rx-gbar .rx-who');
+      assert(!(await a.$('#rx-gbar .rx-pick')), 'I can react to my own note');
+      await a.evaluate(() => window.A.V.rxClose());
+      const mine = await a.evaluate((n) => (window.A.S.notes.get(n).rx || {})[window.A.S.me], nid);
+      assert(!mine, 'my own reaction on my note: ' + mine);
+      // a reply of Sara's
       await a.evaluate((id) => window.A.V.openNote(id), id4);
       await a.waitForSelector('.sheet .rep [data-rx="rep"]');
       await a.click('.sheet .rep [data-rx="rep"]');
       await until(a, 'reply 👍', (id) => ((window.A.S.notes.get(id).rrx || {}).r1 || {})[window.A.S.me] === '👍', id4);
       await closeAll(a);
-      // a chat message, from its ⋯ menu
+      // Sara's chat message, from its ⋯ menu
       await a.evaluate(() => window.A.V.go('circle', { seg: 'chat' }));
-      await a.fill('.thread textarea', 'أهلًا يا جماعة');
-      await a.press('.thread textarea', 'Enter').catch(() => {});
-      await a.click('.thread .composer button').catch(() => {});
-      await until(a, 'sent', () => window.A.S.msgs.some((m) => m.text === 'أهلًا يا جماعة'));
-      await a.click('.msg [data-act="msg-menu"]');
+      await a.click('.msg:not(.mine) [data-act="msg-menu"]');
       await a.click('.menu-sheet .mi:has-text("تفاعل")');
       await a.waitForSelector('#rx-gbar [data-e="🔥"]');
       await a.click('#rx-gbar [data-e="🔥"]');
       await until(a, 'chat 🔥', () => { const m = window.A.S.msgs.find((x) => x.text === 'أهلًا يا جماعة'); return m && m.react && m.react['🔥'] && m.react['🔥'][window.A.S.me]; });
       await a.waitForSelector('.msg .reacts [data-rx="msg"]');
-      // «خلّص الورد» in the news
-      await a.evaluate((id) => window.A.V.markWird(id, window.A.S.books.get(id).wirds[0].id), bookId);
+      // Sara's «خلّص الورد» in the news: the words beside the button don't move when it fills
       await a.evaluate(() => window.A.V.go('circle'));
       await closeAll(a);
-      await a.waitForSelector('.feed .ev [data-rx="ev"]');
-      await a.click('.feed .ev [data-rx="ev"]');
+      const ev = '.feed .ev:has([data-rx="ev"]:not([data-rx-own]))';
+      await a.waitForSelector(ev);
+      const w0 = await a.$eval(`${ev} p`, (e) => Math.round(e.getBoundingClientRect().width));
+      await a.click(`${ev} [data-rx="ev"]`);
       await until(a, 'event 👍', () => [...window.A.S.evrx.values()].some((r) => r.e === '👍' && r.by === window.A.S.me));
+      await T(400);
+      const w1 = await a.$eval(`${ev} p`, (e) => Math.round(e.getBoundingClientRect().width));
+      assert(Math.abs(w1 - w0) <= 2, `the line moved: ${w0} → ${w1}px`);
+      // the card's buttons fit in one row, inside the card
+      const fit = await a.$$eval('.feed .ncard .nc-acts', (fs) => fs.every((f) => { const r = f.getBoundingClientRect(); return [...f.children].every((c) => { const cr = c.getBoundingClientRect(); return cr.left >= r.left - 1 && cr.right <= r.right + 1 && Math.abs(cr.top - f.children[0].getBoundingClientRect().top) < 3; }); }));
+      assert(fit, 'a card\'s buttons spill out of the row');
+      await H.shot(a, 'notes-react-feed');
+    });
+
+    await step('«الصفحة» lands on each note: top, middle, bottom, sides; at fit, zoomed in, and page by page', async () => {
+      const ids = await a.evaluate(async (bk) => {
+        const { D, S, U } = window.A;
+        const spots = [{ page: 3, rect: { x: 0.1, y: 0.08, w: 0.35, h: 0.04 } }, { page: 5, rect: { x: 0.5, y: 0.5, w: 0, h: 0 } }, { page: 7, rect: { x: 0.6, y: 0.9, w: 0.3, h: 0.04 } }, { page: 11, rect: { x: 0.05, y: 0.7, w: 0, h: 0 } }, { page: 15, rect: { x: 0.85, y: 0.3, w: 0, h: 0 } }];
+        const out = [];
+        for (const sp of spots) {
+          const n = D.newId();
+          await D.set(`notes/${n}`, Object.assign({ b: bk, kind: sp.rect.w ? 'hl' : 'note', text: 'مكان ' + sp.page, by: S.me, at: U.nowIso(), wid: '', likes: {}, replies: {}, color: '#f5c542' }, sp));
+          out.push(n);
+        }
+        return out;
+      }, bookId);
+      await until(a, 'notes in', (xs) => xs.every((x) => window.A.S.notes.has(x)), ids);
+      const res = [];
+      for (const [mode, zoom, paged] of [['fit', 1, false], ['zoom', 1.8, false], ['page', 0.3, true]]) {
+        await a.evaluate(([bk, z, pg]) => {
+          window.A.U.store.set('zoom:' + bk, z);
+          const p = Object.assign({ theme: 'day' }, window.A.U.store.get('readerPrefs', {}));
+          p.paged = pg;
+          p.zoom = z;
+          window.A.U.store.set('readerPrefs', p);
+        }, [bookId, zoom, paged]);
+        for (const id of ids) {
+          await closeAll(a);
+          await a.evaluate(() => window.A.R.isOpen() && window.A.R.close(true));
+          await a.evaluate(() => window.A.V.go('circle'));
+          const btn = `.feed .ncard:has([data-nid="${id}"]) [data-act="note-page"]`;
+          await a.waitForSelector(btn);
+          await a.click(btn);
+          await until(a, 'painted', () => window.A.R.isOpen() && [...document.querySelectorAll('.pg canvas')].some((x) => x.width > 100), null, 20000);
+          await T(3400);
+          const at = await a.evaluate((x) => window.A.R._noteOnScreen(x), id);
+          const ok = at && at.y > 0.08 && at.y < 0.8 && at.x > 0.02 && at.x < 0.98;
+          res.push(`${mode}:${at ? at.y.toFixed(2) + ',' + at.x.toFixed(2) : 'none'}${ok ? '' : '✗'}`);
+          if (!ok) await H.shot(a, `notes-page-miss-${mode}`);
+        }
+      }
+      await a.evaluate(([bk]) => { window.A.U.store.set('zoom:' + bk, 1); const p = window.A.U.store.get('readerPrefs', {}); p.paged = false; p.zoom = 1; window.A.U.store.set('readerPrefs', p); }, [bookId]);
+      await a.evaluate(() => window.A.R.isOpen() && window.A.R.close(true));
+      assert(!res.some((r) => r.endsWith('✗')), res.join(' '));
+      return res.join(' ');
+    });
+
+    await step('«اختار جزء من الكلام»: tap sentences to leave them out of the picture', async () => {
+      const id5 = await a.evaluate(async (bk) => {
+        const { D, S, U } = window.A;
+        const n = D.newId();
+        await D.set(`notes/${n}`, { b: bk, page: 4, kind: 'note', text: 'الجملة الأولى هنا. الجملة التانية هنا؟ الجملة التالتة هنا!', rect: { x: 0.5, y: 0.5, w: 0, h: 0 }, by: S.me, at: U.nowIso(), wid: '', likes: {}, replies: {} });
+        return n;
+      }, bookId);
+      await until(a, 'in', (x) => window.A.S.notes.has(x), id5);
+      await closeAll(a);
+      await a.evaluate((x) => window.A.V.storySheet(window.A.S.notes.get(x)), id5);
+      await a.waitForSelector('#story-prev img');
+      await a.click('.st-more summary');
+      await a.click('[data-trim]');
+      await a.waitForSelector('.st-part', { timeout: 4000 }).catch(async (e) => {
+        throw new Error('no sentences: ' + JSON.stringify(await a.evaluate(() => ({ trim: !!document.querySelector('[data-trim]'), hidden: document.querySelector('.st-trim') && document.querySelector('.st-trim').hidden, parts: document.querySelectorAll('.st-part').length, open: document.querySelector('.st-more').open, html: (document.querySelector('.st-more') || {}).innerHTML.slice(0, 300) }))));
+      });
+      const n = await a.$$eval('.st-part', (x) => x.length);
+      assert(n === 3, 'sentences: ' + n);
+      const src0 = await a.$eval('#story-prev img', (i) => i.src);
+      await a.click('.st-part[data-part="1"]');
+      await until(a, 'redrawn', (s0) => document.querySelector('#story-prev img') && document.querySelector('#story-prev img').src !== s0, src0, 5000);
+      const off = await a.$eval('.st-part[data-part="1"]', (e) => !e.classList.contains('on'));
+      assert(off, 'the sentence stays chosen');
+      await H.shot(a, 'notes-story-trim');
+      // «شارك» sends the pictures (the night look too, with the page set to dark)
+      await a.click('[data-st-theme="night"]');
+      await T(600);
+      const sent = await a.evaluate(async () => {
+        let got = null;
+        navigator.canShare = () => true;
+        navigator.share = async (d) => (got = (d.files || []).length);
+        document.querySelector('[data-story-share]').click();
+        for (let i = 0; i < 50 && got == null; i++) await new Promise((r) => setTimeout(r, 100));
+        return got;
+      });
+      assert(sent >= 1, 'nothing was shared: ' + sent);
+      await closeAll(a);
     });
 
     await step('No console errors', async () => {
-      const errs = (a.__errors || []).filter((e) => !/favicon|fonts|404/.test(e));
+      const errs = [...(a.__errors || []), ...((b && b.__errors) || [])].filter((e) => !/favicon|fonts|404/.test(e));
       assert(!errs.length, errs.slice(0, 4).join('\n'));
     });
   } finally {

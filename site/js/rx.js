@@ -23,21 +23,34 @@
     }
   };
 
-  /* The button: my reaction (a grey 👍 when none), the three most used, how many. */
+  /* Whose thing it is: nobody reacts to their own (they can still see who reacted). */
+  const ownerOf = (kind, id) => {
+    try {
+      return (kinds[kind] && kinds[kind].owner && kinds[kind].owner(id)) || '';
+    } catch (e) {
+      return '';
+    }
+  };
+  /* The button. Nothing yet: a grey 👍 (nothing at all on my own things). Some: the emoji used (mine first) and
+     how many. On my own things it only shows who reacted. Its width doesn't jump when the count appears. */
   V.rxPill = (kind, id, opts = {}) => {
     const list = listOf(kind, id);
+    const own = ownerOf(kind, id) === S.me;
+    if (own && !list.length) return opts.keep ? '<span class="rxp-gap"></span>' : '';
     const mine = (list.find((x) => x.u === S.me) || {}).e || '';
     const counts = {};
     for (const x of list) counts[x.e] = (counts[x.e] || 0) + 1;
-    const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).map((x) => x[0]).filter((e) => e !== mine).slice(0, mine ? 2 : 3);
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).map((x) => x[0]).filter((e) => e !== mine);
+    const shown = (mine ? [mine, ...top] : top).slice(0, 3);
     const names = V.rxName();
-    return `<button type="button" class="pill rxp${mine ? ' on' : ''}${opts.cls ? ' ' + opts.cls : ''}" data-rx="${esc(kind)}" data-rx-id="${esc(id)}" aria-label="${esc(mine ? names[mine] || mine : L('تفاعل', 'React', 'تفاعل'))}${list.length ? ' • ' + L.num(list.length) : ''}"${D.canWrite() ? '' : ' disabled'}>
-      <span class="rxp-me${mine ? '' : ' off'}">${mine || '👍'}</span>${top.length ? `<span class="rxp-top">${top.map((e) => `<i>${e}</i>`).join('')}</span>` : ''}${list.length ? `<span class="rxp-n">${L.num(list.length)}</span>` : ''}</button>`;
+    const label = own ? L('مين اتفاعل', 'Who reacted', 'من تفاعل') : mine ? names[mine] || mine : L('تفاعل', 'React', 'تفاعل');
+    return `<button type="button" class="pill rxp${mine ? ' on' : ''}${own ? ' own' : ''}${opts.cls ? ' ' + opts.cls : ''}" data-rx="${esc(kind)}" data-rx-id="${esc(id)}"${own ? ' data-rx-own="1"' : ''} aria-label="${esc(label)}${list.length ? ' • ' + L.num(list.length) : ''}"${D.canWrite() ? '' : ' disabled'}>
+      ${shown.length ? `<span class="rxp-top">${shown.map((e) => `<i>${e}</i>`).join('')}</span><span class="rxp-n">${L.num(list.length)}</span>` : '<span class="rxp-me off">👍</span>'}</button>`;
   };
 
   async function pick(kind, id, e, from) {
     const k = kinds[kind];
-    if (!k || !D.canWrite()) return;
+    if (!k || !D.canWrite() || ownerOf(kind, id) === S.me) return;
     if (U.buzz) U.buzz('soft');
     else if (navigator.vibrate) try { navigator.vibrate(15); } catch (er) {}
     if (e && from) burst(e, from);
@@ -85,15 +98,17 @@
   V.rxOpen = (el, kind, id) => openBar({ dataset: { rx: kind, rxId: id }, getBoundingClientRect: () => el.getBoundingClientRect() }, false);
   function openBar(btn, dragging, x0, y0) {
     closeBar();
+    try { window.getSelection().removeAllRanges(); } catch (e) {}
     const kind = btn.dataset.rx, id = btn.dataset.rxId;
     const list = listOf(kind, id);
+    const own = ownerOf(kind, id) === S.me; // my own: who reacted, nothing to pick
     const mine = (list.find((x) => x.u === S.me) || {}).e || '';
     const names = V.rxName();
     const el = document.createElement('div');
     el.className = 'rx-bar fix';
     el.id = 'rx-gbar';
     el.innerHTML = `${list.length ? `<div class="rx-who">${list.slice(0, 24).map((r) => `<span title="${esc(D.name(r.u))}">${D.avatar(r.u, 'xs')}<b>${esc(r.e)}</b></span>`).join('')}</div>` : ''}
-      <div class="rx-pick">${V.RX.map((e, i) => `<button class="rx-i${mine === e ? ' on' : ''}" style="animation-delay:${i * 34}ms" data-e="${e}" aria-label="${names[e]}"><i class="lot" data-lot="${A.Lot ? A.Lot.code(e) : ''}" data-fb="${e}"></i><span class="rx-l">${names[e]}</span></button>`).join('')}${mine ? `<button class="rx-off" data-e="" aria-label="${L('شيل تفاعلي', 'Remove mine', 'أزل تفاعلي')}">${U.icon('close')}</button>` : ''}</div>`;
+      ${own ? (list.length ? '' : `<p class="rx-none muted sm">${L('لسه محدش اتفاعل', 'No reactions yet', 'لا تفاعلات بعد')}</p>`) : `<div class="rx-pick">${V.RX.map((e, i) => `<button class="rx-i${mine === e ? ' on' : ''}" style="animation-delay:${i * 34}ms" data-e="${e}" aria-label="${names[e]}"><i class="lot" data-lot="${A.Lot ? A.Lot.code(e) : ''}" data-fb="${e}"></i><span class="rx-l">${names[e]}</span></button>`).join('')}${mine ? `<button class="rx-off" data-e="" aria-label="${L('شيل تفاعلي', 'Remove mine', 'أزل تفاعلي')}">${U.icon('close')}</button>` : ''}</div>`}`;
     document.body.appendChild(el);
     if (A.Lot) A.Lot.mount(el);
     else el.querySelectorAll('.lot').forEach((i) => (i.textContent = i.dataset.fb));
@@ -111,7 +126,7 @@
       closeBar();
       pick(kind, id, b.dataset.e, { x: rr.left + rr.width / 2, y: rr.top + rr.height / 2 });
     });
-    if (!dragging) return;
+    if (!dragging || own) return;
     // slide across while the finger is down; letting go on an emoji picks it, anywhere else leaves the bar open
     let moved = false, cur = null;
     const row = el.querySelector('.rx-pick');
@@ -180,6 +195,7 @@
     const btn = e.target.closest('[data-rx]');
     if (!btn || btn.disabled || !e.isPrimary) return;
     lp = { btn, x: e.clientX, y: e.clientY };
+    document.documentElement.classList.add('rx-hold'); // no text selection while the finger is on it
     lp.t = setTimeout(() => {
       if (!lp) return;
       heldAt = Date.now();
@@ -192,6 +208,12 @@
     if (lp) clearTimeout(lp.t);
     lp = null;
   };
+  const unhold = () => setTimeout(() => !lp && !(bar && bar.stop) && document.documentElement.classList.remove('rx-hold'), 50);
+  document.addEventListener('pointerup', unhold);
+  document.addEventListener('touchend', unhold);
+  document.addEventListener('selectstart', (e) => {
+    if (lp || (bar && bar.stop)) e.preventDefault();
+  });
   document.addEventListener('pointermove', (e) => lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 10 && cancel());
   document.addEventListener('pointercancel', cancel);
   document.addEventListener('scroll', cancel, true);
@@ -203,6 +225,7 @@
     cancel();
     if (Date.now() - heldAt < 700) return; // the click that ends a hold
     if (btn.disabled) return;
+    if (btn.dataset.rxOwn) return openBar(btn, false); // my own: who reacted
     const list = listOf(btn.dataset.rx, btn.dataset.rxId);
     const mine = (list.find((x) => x.u === S.me) || {}).e || '';
     const r = btn.getBoundingClientRect();
@@ -215,6 +238,7 @@
   /* ---------- the kinds ---------- */
   // a note: rx (member → emoji); likes (member → time) is kept for older apps and counted as 👍
   V.rxKind('note', {
+    owner: (id) => (S.notes.get(id) || {}).by,
     list: (id) => {
       const n = S.notes.get(id);
       if (!n) return [];
@@ -230,6 +254,10 @@
   });
   // a reply to a note: rrx (reply → member → emoji); id = noteId|replyId
   V.rxKind('rep', {
+    owner: (id) => {
+      const [nid, rid] = id.split('|');
+      return (((S.notes.get(nid) || {}).replies || {})[rid] || {}).by;
+    },
     list: (id) => {
       const [nid, rid] = id.split('|');
       const n = S.notes.get(nid);
@@ -244,6 +272,7 @@
   // a chat message: react (emoji → member → true); the older names (heart, fire…) read as their emoji
   const OLD = { heart: '❤️', fire: '🔥', clap: '👏', idea: '💡', laugh: '😂' };
   V.rxKind('msg', {
+    owner: (id) => (S.msgs.find((x) => x.id === id) || {}).by,
     list: (id) => {
       const m = S.msgs.find((x) => x.id === id);
       const out = [], seen = new Set();
@@ -267,6 +296,7 @@
   // friend's also sends them a cheer, as the old «شجّع» button did
   const evId = (k) => `${U.hash(k).toString(36)}-${S.me}`;
   V.rxKind('ev', {
+    owner: (k) => String(k).split('|')[1],
     list: (k) => [...(S.evrx || new Map()).values()].filter((r) => r.k === k && r.e && S.members.has(r.by)).map((r) => ({ u: r.by, e: r.e })),
     set: async (k, e) => {
       if (!e) return D.del(`evrx/${evId(k)}`);

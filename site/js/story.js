@@ -264,6 +264,14 @@
     const book = D.book(n.b) || {};
     const o = Object.assign(V.storyDefaults(), { crop: true, words: true, text: null });
     const hasCrop = !!n.crop, hasText = !!(n.text && String(n.text).trim());
+    // the words as sentences (a paragraph break remembered), to keep only some of them
+    const parts = [];
+    String(n.text || '').split(/\n/).forEach((para, pi) => {
+      const ss = para.match(/[^.!؟?…]+[.!؟?…]*\s*/g) || [];
+      ss.map((x) => x.trim()).filter(Boolean).forEach((t, k) => parts.push({ t, br: pi > 0 && k === 0 }));
+    });
+    const keep = new Set(parts.map((_, i) => i));
+    const partsText = () => parts.filter((_, i) => keep.has(i)).map((pt, i) => (i && pt.br ? '\n' : i ? ' ' : '') + pt.t).join('');
     const sw = (k, on, t) => `<label class="st-sw"><input type="checkbox" data-o="${k}" ${on ? 'checked' : ''}><span>${t}</span></label>`;
     const api = V.sheet({
       title: L('شارك كصورة', 'Share as a picture', 'شارك كصورة'),
@@ -271,12 +279,14 @@
         <p class="st-n muted sm" id="st-n" hidden></p>
         <div class="st-quick">
           <div class="seg sm" role="group" aria-label="${L('المقاس', 'Size', 'المقاس')}"><button data-size="story" class="${o.size === 'story' ? 'on' : ''}">${L('ستوري', 'Story', 'قصة')}</button><button data-size="square" class="${o.size === 'square' ? 'on' : ''}">${L('مربعة', 'Square', 'مربعة')}</button></div>
-          <div class="st-themes" role="group" aria-label="${L('الشكل', 'Look', 'الشكل')}">${[['paper', '#f7f1e3', L('ورق', 'Paper', 'ورق')], ['night', '#141a33', L('ليلي', 'Night', 'ليلي')], ['cover', 'linear-gradient(135deg,#d9a22b,#23347a)', L('ألوان الغلاف', 'Cover colours', 'ألوان الغلاف')]].map(([k, c, t]) => `<button class="st-th${o.theme === k ? ' on' : ''}" data-theme="${k}" style="--c:${c}" aria-label="${t}" title="${t}"></button>`).join('')}</div>
+          <div class="st-themes" role="group" aria-label="${L('الشكل', 'Look', 'الشكل')}">${[['paper', '#f7f1e3', L('ورق', 'Paper', 'ورق')], ['night', '#141a33', L('ليلي', 'Night', 'ليلي')], ['cover', 'linear-gradient(135deg,#d9a22b,#23347a)', L('ألوان الغلاف', 'Cover colours', 'ألوان الغلاف')]].map(([k, c, t]) => `<button class="st-th${o.theme === k ? ' on' : ''}" data-st-theme="${k}" style="--c:${c}" aria-label="${t}" title="${t}"></button>`).join('')}</div>
         </div>
         <details class="st-more"><summary>${icon('gear')}${L('خيارات تانية', 'More options', 'خيارات أخرى')}</summary>
           <div class="st-sws">${hasCrop && hasText ? sw('crop', o.crop, L('الجزء المظلّل', 'The highlight', 'الجزء المظلّل')) + sw('words', o.words, L('كلامي', 'My words', 'كلماتي')) : ''}${sw('name', o.name, L('اسمي', 'My name', 'اسمي'))}${sw('meta', o.meta, L('الكتاب والصفحة', 'Book and page', 'الكتاب والصفحة'))}${book.cover ? sw('cover', o.cover, L('صورة الغلاف', 'The cover', 'صورة الغلاف')) : ''}</div>
-          ${hasText ? `<button type="button" class="lnk sm" data-trim>${icon('edit')}${L('اختار جزء من الكلام', 'Use only part of the words', 'اختر جزءًا من الكلام')}</button>
-          <div class="st-trim" hidden><textarea id="st-text" rows="5" dir="auto">${esc(n.text || '')}</textarea><small class="muted">${L('امسح اللي مش عايزه — الصورة بتتغيّر معاك.', 'Delete what you don’t want — the picture follows.', 'احذف ما لا تريده — تتغير الصورة معك.')}</small></div>` : ''}
+          ${parts.length > 1 ? `<button type="button" class="lnk sm" data-trim aria-expanded="false">${icon('edit')}${L('اختار جزء من الكلام', 'Use only part of the words', 'اختر جزءًا من الكلام')}</button>
+          <div class="st-trim" hidden><small class="muted">${L('دوس على الجمل اللي مش عايزها تتشال من الصورة — ودوس تاني ترجع.', 'Tap the sentences you don’t want to leave them out — tap again to bring them back.', 'المس الجمل التي لا تريدها لتُستبعد — والمس مجددًا لإعادتها.')}</small>
+            <div class="st-parts">${parts.map((pt, i) => `<button type="button" class="st-part on" data-part="${i}" aria-pressed="true" dir="auto">${esc(pt.t)}</button>`).join('')}</div>
+            <div class="row-btns"><button type="button" class="btn ghost sm" data-parts="all">${L('الكلام كله', 'All of it', 'النص كله')}</button></div></div>` : ''}
         </details>
         <div class="row-btns center"><button class="btn gold" data-story-share>${icon('share')}<span>${L('شارك', 'Share')}</span></button></div>`,
       onMount: (body) => {
@@ -307,18 +317,34 @@
             remember();
             return draw();
           }
-          const t = e.target.closest('[data-theme]');
+          const t = e.target.closest('[data-st-theme]');
           if (t) {
-            o.theme = t.dataset.theme;
-            body.querySelectorAll('[data-theme]').forEach((b) => b.classList.toggle('on', b === t));
+            o.theme = t.dataset.stTheme;
+            body.querySelectorAll('[data-st-theme]').forEach((b) => b.classList.toggle('on', b === t));
             remember();
             return draw();
           }
           if (e.target.closest('[data-trim]')) {
             const tr = body.querySelector('.st-trim');
             tr.hidden = !tr.hidden;
-            if (!tr.hidden) body.querySelector('#st-text').focus();
+            e.target.closest('[data-trim]').setAttribute('aria-expanded', String(!tr.hidden));
             return;
+          }
+          const part = e.target.closest('[data-part]');
+          if (part) {
+            const i = +part.dataset.part;
+            if (keep.has(i) && keep.size === 1) return U.toast(L('لازم تفضل جملة واحدة على الأقل', 'Keep at least one sentence', 'أبقِ جملة واحدة على الأقل'));
+            keep.has(i) ? keep.delete(i) : keep.add(i);
+            part.classList.toggle('on', keep.has(i));
+            part.setAttribute('aria-pressed', String(keep.has(i)));
+            o.text = keep.size === parts.length ? null : partsText();
+            return redraw();
+          }
+          if (e.target.closest('[data-parts="all"]')) {
+            parts.forEach((_, i) => keep.add(i));
+            body.querySelectorAll('[data-part]').forEach((b) => (b.classList.add('on'), b.setAttribute('aria-pressed', 'true')));
+            o.text = null;
+            return draw();
           }
           if (!e.target.closest('[data-story-share]')) return;
           try {
@@ -340,11 +366,6 @@
           }
           if (['name', 'meta', 'cover'].includes(k)) remember();
           draw();
-        });
-        body.addEventListener('input', (e) => {
-          if (e.target.id !== 'st-text') return;
-          o.text = e.target.value;
-          redraw();
         });
       },
     });

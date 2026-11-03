@@ -130,7 +130,6 @@ async function closeAll(p) {
       ['quotes', () => p.evaluate(() => window.A.V.go('quotes'))],
       ['invite', () => p.evaluate(() => window.A.V.go('circle')).then(() => p.click('[data-act="invite"]')).then(() => p.waitForSelector('#inv-card img', { timeout: 8000 }))],
       ['recap', () => p.evaluate(() => window.A.V.circleRecap(window.A.U.weekStart()))],
-      ['pick', () => p.evaluate(() => window.A.V.go('shelf')).then(() => p.click('[data-act="shelf-more"]')).then(() => p.click('.mi:has-text("اختارلي"), .mi:has-text("Pick"), .mi:has-text("اختر لي")'))],
       ['reader', () => p.evaluate((b) => (window.A.U.store.set('raceTab', 'now'), window.A.R.open(b, { page: 2 })), seed.book).then(() => T(1800))],
       ['reader-marks', () => p.evaluate((b) => window.A.R.open(b, { page: 2 }), seed.book).then(() => T(1800)).then(() => p.evaluate(() => document.querySelector('#rd-eye').click()))],
     ];

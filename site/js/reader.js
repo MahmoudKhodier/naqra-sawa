@@ -712,8 +712,32 @@
     if (!r || st.paged || !(p >= 1 && p <= st.N)) return goTo(p, false, nid);
     restoreAnchor({ p, fy: U.clamp((r.y || 0) + (r.h || 0) / 2, 0, 1), fx: U.clamp((r.x || 0) + (r.w || 0) / 2, 0, 1), ax: st.sc.clientWidth / 2, ay: st.sc.clientHeight * 0.4 });
     update();
-    setTimeout(() => st && flash(nid), 650);
+    // then by the note itself, once its page is drawn (sizes may settle as the file loads): bring it to a bit
+    // above the middle, and across when zoomed in; stop as soon as the reader touches the page
+    const user0 = st.userAt;
+    let tries = 0, flashed = false;
+    const fix = () => {
+      if (!st || st.userAt !== user0) return;
+      const el = st.root.querySelector(`.pg[data-p="${p}"] [data-nid="${CSS.escape(nid)}"]`);
+      if (el) {
+        const er = el.getBoundingClientRect(), sr = st.sc.getBoundingClientRect();
+        const dy = er.top + er.height / 2 - (sr.top + st.sc.clientHeight * 0.4);
+        const dx = er.left + er.width / 2 - (sr.left + st.sc.clientWidth / 2);
+        if (Math.abs(dy) > 3) st.sc.scrollTop += dy;
+        if (st.zoom > 1.01 && Math.abs(dx) > 3) st.sc.scrollLeft += dx;
+        if (!flashed && tries > 1) (flashed = true), flash(nid);
+      }
+      if (++tries < 14) setTimeout(fix, 220);
+      else if (!flashed) flash(nid);
+    };
+    setTimeout(fix, 120);
   }
+  R._noteOnScreen = (nid) => {
+    const el = st && st.root.querySelector(`[data-nid="${CSS.escape(nid)}"]`);
+    if (!el) return null;
+    const er = el.getBoundingClientRect(), sr = st.sc.getBoundingClientRect();
+    return { y: (er.top + er.height / 2 - sr.top) / st.sc.clientHeight, x: (er.left + er.width / 2 - sr.left) / st.sc.clientWidth };
+  };
   const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function flash(nid) {

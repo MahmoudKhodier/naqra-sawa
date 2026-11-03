@@ -424,7 +424,7 @@
       ${n.text ? `<p class="nc-text${n.kind === 'quote' ? ' quote' : ''}" dir="auto" data-act="open-note" data-nid="${esc(n.id)}">${esc(n.text.length > 420 ? n.text.slice(0, 400).replace(/\s+\S*$/, '') + '…' : n.text)}</p>${n.text.length > 420 ? `<button class="lnk nc-more" data-act="open-note" data-nid="${esc(n.id)}">${L('اقرأ الباقي', 'Read more', 'اقرأ البقية')}</button>` : ''}` : ''}
       <footer class="nc-acts">
         ${V.rxPill ? V.rxPill('note', n.id) : ''}
-        <button class="pill" data-act="open-note" data-nid="${esc(n.id)}">${icon('chat')}<span>${rc ? L.num(rc) : L('رد', 'Reply')}</span></button>
+        <button class="pill icon-n" data-act="open-note" data-nid="${esc(n.id)}" aria-label="${L('رد', 'Reply')}${rc ? ' • ' + L.num(rc) : ''}">${icon('chat')}${rc ? `<span>${L.num(rc)}</span>` : ''}</button>
         ${n.page && book && !isTake ? `<button class="pill ghost" data-act="note-page" data-nid="${esc(n.id)}">${icon('books')}<span>${L('الصفحة', 'Page')}</span></button>` : ''}
         ${(n.text || n.crop) && n.kind !== 'q' && V.storySheet ? `<button class="pill ghost icon" data-act="note-share" data-nid="${esc(n.id)}" aria-label="${L('شارك كصورة', 'Share as picture', 'شارك كصورة')}" title="${L('شارك كصورة', 'Share as picture', 'شارك كصورة')}">${icon('share')}</button>` : ''}
         ${n.by === S.me && D.canWrite() ? `<button class="pill ghost icon" data-act="note-edit" data-nid="${esc(n.id)}" aria-label="${L('عدّل', 'Edit')}" title="${L('عدّل', 'Edit')}">${icon('edit')}</button>` : ''}
