@@ -127,6 +127,8 @@ const ranges = (p) => p.evaluate(() => [...window.A.S.books.values()][0].wirds.m
       await a.click('.wc-c:not(.cont)[data-w="w2"]');
       await a.click('.wsheet [data-act="wird-pages"]');
       await a.waitForSelector('#wp-form');
+      assert((await a.$$('#wp-form [data-mode]')).length === 3, 'no «الفرق يروح فين؟» choices');
+      await a.click('#wp-form [data-mode="next"]');
       await a.click('#wp-form [data-step="to"][data-d="1"]');
       await a.click('#wp-form [data-step="to"][data-d="1"]');
       await a.click('#wp-form [data-step="to"][data-d="-1"]');
@@ -165,7 +167,9 @@ const ranges = (p) => p.evaluate(() => [...window.A.S.books.values()][0].wirds.m
       await T(600);
       await a.evaluate(() => document.querySelector('.rd [data-act="more"]').click());
       await a.click('.mi:has-text("الورد ٣ يخلص في الصفحة دي")');
-      await a.click('.sheet [data-yes]');
+      await a.waitForSelector('#wp-form');
+      await a.click('#wp-form [data-mode="next"]');
+      await a.click('#wp-form button.btn.gold');
       await until(a, 'saved', () => [...window.A.S.books.values()][0].wirds[2].to === 21);
       const r = await ranges(a);
       assert(r === '1-8 9-17 18-21 22-32 33-40', 'ranges: ' + r);
@@ -174,7 +178,8 @@ const ranges = (p) => p.evaluate(() => [...window.A.S.books.values()][0].wirds.m
       await until(a, 'on 23', () => window.A.R.current().page === 23);
       await a.evaluate(() => document.querySelector('.rd [data-act="more"]').click());
       await a.click('.mi:has-text("الورد ٣ يكمّل لحد الصفحة دي")');
-      await a.click('.sheet [data-yes]');
+      await a.waitForSelector('#wp-form');
+      await a.click('#wp-form button.btn.gold');
       await until(a, 'extended', () => [...window.A.S.books.values()][0].wirds[2].to === 23);
       await a.evaluate(() => window.A.R.close(true));
       return await ranges(a);
@@ -208,6 +213,52 @@ const ranges = (p) => p.evaluate(() => [...window.A.S.books.values()][0].wirds.m
       await until(b, 'seen cleared', (id) => !window.A.U.rangesCountIn(window.A.D.prog(id).seen, 24, 32), bookId);
       const last = await b.evaluate((id) => window.A.D.prog(id).last, bookId);
       assert(last === 23, 'the place to go on from: ' + last);
+    });
+
+    await step('Shorter portion, «رحّل الباقي»: the ones after keep their sizes and move, the pages left over are a new portion at the end', async () => {
+      await closeAll(a);
+      const before = await a.evaluate(() => [...window.A.S.books.values()][0].wirds.map((w) => ({ id: w.id, n: w.n, from: w.from, to: w.to, start: w.start, due: w.due })));
+      await a.evaluate((id) => window.A.V.go('book-' + id, { tab: 'plan' }), bookId);
+      await a.waitForSelector('.wcal');
+      await a.click('.wc-c:not(.cont)[data-w="w1"]');
+      await a.click('.wsheet [data-act="wird-pages"]');
+      await a.waitForSelector('#wp-form');
+      await a.click('#wp-form [data-mode="roll"]');
+      for (let i = 0; i < 3; i++) await a.click('#wp-form [data-step="to"][data-d="-1"]');
+      const sum = await a.textContent('#wp-form .wp-sum');
+      assert(/بنفس أحجامها/.test(sum) && /ورد جديد/.test(sum), 'summary: ' + sum);
+      await H.shot(a, 'plan-roll');
+      await a.click('#wp-form button.btn.gold');
+      await until(a, 'saved', () => [...window.A.S.books.values()][0].wirds.length === 6);
+      const after = await a.evaluate(() => [...window.A.S.books.values()][0].wirds);
+      const size = (w) => w.to - w.from + 1;
+      assert(after[0].to === before[0].to - 3, 'portion 1: ' + JSON.stringify(after[0]));
+      for (let i = 1; i < before.length; i++) assert(size(after[i]) === size(before[i]) && after[i].from === before[i].from - 3 && after[i].start === before[i].start, `portion ${i + 1}: ${JSON.stringify(after[i])}`);
+      const nw = after[5];
+      const want = await a.evaluate((d) => window.A.G.nextOn(window.A.U.addDays(d, 1)), before[4].due);
+      assert(nw.n === 6 && nw.from === before[4].to - 2 && nw.to === before[4].to && nw.start === want, 'the new one: ' + JSON.stringify(nw));
+      return await ranges(a);
+    });
+
+    await step('Longer portion, «وزّعه على الأوراد اللي جاية»: the ones after share it, the end stays', async () => {
+      const before = await a.evaluate(() => [...window.A.S.books.values()][0].wirds.map((w) => ({ from: w.from, to: w.to, due: w.due })));
+      await a.click('.wc-c:not(.cont)[data-w="w1"]');
+      await a.click('.wsheet [data-act="wird-pages"]');
+      await a.waitForSelector('#wp-form');
+      await a.click('#wp-form [data-mode="spread"]');
+      for (let i = 0; i < 3; i++) await a.click('#wp-form [data-step="to"][data-d="1"]');
+      const sum = await a.textContent('#wp-form .wp-sum');
+      assert(/بيتقسم عليهم الفرق/.test(sum), 'summary: ' + sum);
+      await H.shot(a, 'plan-spread');
+      await a.click('#wp-form button.btn.gold');
+      await until(a, 'saved', (t) => [...window.A.S.books.values()][0].wirds[0].to === t, before[0].to + 3);
+      const after = await a.evaluate(() => [...window.A.S.books.values()][0].wirds);
+      assert(after.length === before.length, 'portions: ' + after.length);
+      assert(after[after.length - 1].to === before[before.length - 1].to && after[after.length - 1].due === before[before.length - 1].due, 'the end moved');
+      for (let i = 1; i < after.length; i++) assert(after[i].from === after[i - 1].to + 1 && after[i].to >= after[i].from, 'not one after another: ' + JSON.stringify(after.map((w) => [w.from, w.to])));
+      const lost = after.slice(1).reduce((s, w, i) => s + Math.abs((w.to - w.from) - (before[i + 1].to - before[i + 1].from)), 0);
+      assert(lost === 3, 'the 3 pages were not shared out: ' + JSON.stringify(after.map((w) => [w.from, w.to])));
+      return await ranges(a);
     });
 
     await step('No errors in the console', async () => {

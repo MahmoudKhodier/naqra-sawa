@@ -591,17 +591,6 @@
   /* Who may change a book's plan: the circle's owner and admins («مشرف»), and whoever added the book. */
   V.canPlan = (b) => !!b && D.canWrite() && !D.isPrivate(b.id) && (S.isOwner || S.canEdit || b.addedBy === S.me);
 
-  /* Move where one portion starts or ends by a page or two, so a section is read in one go. The neighbour
-     takes the difference (portion 4 one page longer = portion 5 one page shorter); dates stay. */
-  V.moveBound = (ws, k, page) => {
-    // portion k ends at `page`, the next one starts right after it; null when that would empty one of them
-    const out = ws.map((w) => Object.assign({}, w));
-    const a = out[k], z = out[k + 1];
-    if (!a || !z || page < a.from || page >= z.to) return null;
-    a.to = page;
-    z.from = page + 1;
-    return out;
-  };
   /* Pages of a portion counted by mistake (a look at the next portion that lasted a few seconds): off my
      progress, and the place to go on from goes back before the portion if it was inside it. */
   V.actions['wird-uncount'] = async (a) => {
@@ -622,45 +611,185 @@
       }).catch(() => {});
     U.toast(L(`الورد ${L.num(w.n)} رجع «لسه»`, `Portion ${w.n} is back to "not yet"`, `عاد الورد ${L.num(w.n)} إلى «ليس بعد»`));
   };
+  /* Portion k now ends at page T. Where the pages it gives up (or takes) go:
+     'next'   the next portion takes the difference (to end a portion where a chapter ends);
+     'roll'   the ones after keep their sizes and move along; the pages left over become new portions at the
+              end (dated after the last one, skipping days off), or the last ones get shorter / go;
+     'spread' the ones after share the difference, each a page or so, the plan's end stays.
+     The plan before is ws0; null when it can't be done (a portion would be empty). */
+  V.reflow = (ws0, k, T, mode) => {
+    const out = ws0.map((w) => Object.assign({}, w));
+    const last = out.length - 1;
+    const E = ws0[last].to;
+    if (k >= last || T < ws0[k].from || T >= E) return null;
+    const d = T - ws0[k].to;
+    out[k].to = T;
+    if (mode === 'next') {
+      if (T >= ws0[k + 1].to) return null;
+      out[k + 1].from = T + 1;
+      return out;
+    }
+    if (mode === 'spread') {
+      const m = last - k, R0 = E - ws0[k].to, R = E - T;
+      if (R < m || R0 <= 0) return null;
+      let cum = 0, prev = T;
+      for (let i = k + 1; i <= last; i++) {
+        cum += ws0[i].to - ws0[i].from + 1;
+        let end = i === last ? E : T + Math.round((cum * R) / R0);
+        end = Math.min(Math.max(end, prev + 1), E - (last - i));
+        out[i].from = prev + 1;
+        out[i].to = end;
+        prev = end;
+      }
+      return out;
+    }
+    // roll: the same sizes, moved along; past the end they go
+    const res = out.slice(0, k + 1);
+    for (let i = k + 1; i <= last; i++) {
+      const w = out[i];
+      w.from = ws0[i].from + d;
+      w.to = Math.min(ws0[i].to + d, E);
+      if (w.from <= E) res.push(w);
+    }
+    let left = E - res[res.length - 1].to;
+    if (left > 0) {
+      // the pages left over: new portions of the plan's usual size, each a reading day (or a week) after the last
+      const sizes = ws0.map((w) => w.to - w.from + 1).sort((a, b) => a - b);
+      const typ = Math.max(1, sizes[Math.floor(sizes.length / 2)]);
+      const m = Math.ceil(left / typ);
+      const ids = new Set(res.map((w) => w.id));
+      let prev = res[res.length - 1];
+      for (let j = 0; j < m; j++) {
+        const size = Math.ceil(left / (m - j));
+        const cal = U.diffDays(prev.start, prev.due) + 1;
+        const len = G.wirdLen(prev);
+        const start = G.nextOn(U.addDays(prev.due, 1));
+        const n = prev.n + 1;
+        let id = 'w' + n;
+        if (ids.has(id)) id = D.newId();
+        ids.add(id);
+        const w = { id, n, from: prev.to + 1, to: prev.to + size, start, due: G.wirdEnd(start, len, cal >= 7 ? cal : len) };
+        res.push(w);
+        prev = w;
+        left -= size;
+      }
+    }
+    return res;
+  };
+  const MODES = ['roll', 'next', 'spread'];
   V.actions['wird-pages'] = (a) => {
     const b = S.books.get(a.dataset.b);
+    const k = b ? G.wirds(b).findIndex((x) => x.id === a.dataset.w) : -1;
+    if (k >= 0) V.wirdPages(b, k);
+  };
+  /* A portion's pages, from its sheet or the reader's menu (preset: {to} = end it on that page). */
+  V.wirdPages = (b, k, preset = {}) => {
     const ws0 = b ? G.wirds(b) : [];
-    const k = ws0.findIndex((x) => x.id === a.dataset.w);
-    if (k < 0 || !V.canPlan(b)) return;
-    let ws = ws0.map((w) => Object.assign({}, w));
+    if (!ws0[k] || !V.canPlan(b)) return;
     const N = b.pages || ws0[ws0.length - 1].to;
-    const row = (w, i) => {
-      const old = ws0[i];
-      const changed = old.from !== w.from || old.to !== w.to;
-      return `<li class="${i === k ? 'me' : ''}${changed ? ' ch' : ''}"><span class="star8 xs ${i === k ? 'gold' : 'faint'}"><b>${L.num(w.n)}</b></span><span>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</span><small>${L.count(w.to - w.from + 1, 'page')}${changed ? ` • ${L(`كان ${L.num(old.from)}–${L.num(old.to)}`, `was ${old.from}–${old.to}`, `كان ${L.num(old.from)}–${L.num(old.to)}`)}` : ''}</small></li>`;
+    const last = ws0.length - 1;
+    let from = ws0[k].from, to = ws0[k].to;
+    let mode = MODES.includes(U.store.get('boundMode', 'roll')) ? U.store.get('boundMode', 'roll') : 'roll';
+    if (preset.to) to = U.clamp(preset.to, from, k < last ? ws0[last].to - 1 : N);
+    // the plan as it would be: the start moves with the portion before (it takes the difference), the end as chosen
+    const plan = () => {
+      let ws = ws0.map((w) => Object.assign({}, w));
+      if (from !== ws0[k].from && k > 0) {
+        ws[k - 1].to = from - 1;
+        ws[k].from = from;
+      } else if (k === 0) ws[0].from = from;
+      if (to === ws0[k].to) return ws;
+      if (k === last) {
+        ws[k].to = to;
+        return ws;
+      }
+      const r = V.reflow(ws, k, to, mode);
+      return r;
+    };
+    const fits = (f, t) => {
+      const keep = [from, to];
+      from = f;
+      to = t;
+      const ok = f >= 1 && f <= t && (k === 0 || f - 1 >= ws0[k - 1].from) && (k < last ? !!plan() : t <= N);
+      [from, to] = keep;
+      return ok;
+    };
+    const row = (w, old) => {
+      const changed = !old || old.from !== w.from || old.to !== w.to;
+      return `<li class="${w.n === ws0[k].n ? 'me' : ''}${changed ? ' ch' : ''}"><span class="star8 xs ${w.n === ws0[k].n ? 'gold' : 'faint'}"><b>${L.num(w.n)}</b></span><span>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</span><small>${L.count(w.to - w.from + 1, 'page')}${old && changed ? ` • ${L(`كان ${L.num(old.from)}–${L.num(old.to)}`, `was ${old.from}–${old.to}`, `كان ${L.num(old.from)}–${L.num(old.to)}`)}` : !old ? ` • ${L('جديد', 'new', 'جديد')} • ${esc(L.day(w.start))}` : ''}</small></li>`;
     };
     const stepper = (id, label, val, canDown, canUp) => `<div class="wp-step"><span>${label}</span><div><button type="button" class="ib round" data-step="${id}" data-d="-1" ${canDown ? '' : 'disabled'} aria-label="${L('صفحة أقل', 'One page earlier', 'صفحة أقل')}">−</button><b>${L('ص', 'p.')} ${L.num(val)}</b><button type="button" class="ib round" data-step="${id}" data-d="1" ${canUp ? '' : 'disabled'} aria-label="${L('صفحة أكتر', 'One page later', 'صفحة أكثر')}">+</button></div></div>`;
+    const summary = (ws) => {
+      if (to === ws0[k].to || k === last) return '';
+      const old = new Map(ws0.map((w) => [w.id, w]));
+      const after = ws.slice(k + 1);
+      if (mode === 'next') return L(`الورد ${L.num(ws0[k + 1].n)} بياخد الفرق، والمواعيد زي ما هي.`, `Portion ${ws0[k + 1].n} takes the difference; dates stay.`, `يأخذ الورد ${L.num(ws0[k + 1].n)} الفرق، وتبقى المواعيد كما هي.`);
+      if (mode === 'spread') {
+        const sz = after.map((w) => w.to - w.from + 1);
+        const lo = Math.min(...sz), hi = Math.max(...sz);
+        return L(`الأوراد من ${L.num(after[0].n)} لـ ${L.num(after[after.length - 1].n)} بيتقسم عليهم الفرق: كل ورد ${lo === hi ? L.num(lo) : `${L.num(lo)}–${L.num(hi)}`} صفحة، وآخر يوم زي ما هو.`, `Portions ${after[0].n}–${after[after.length - 1].n} share the difference: ${lo === hi ? lo : `${lo}–${hi}`} pages each; the last day stays.`, `تتقاسم الأوراد من ${L.num(after[0].n)} إلى ${L.num(after[after.length - 1].n)} الفرق: كل ورد ${lo === hi ? L.num(lo) : `${L.num(lo)}–${L.num(hi)}`} صفحة، ويبقى آخر يوم كما هو.`);
+      }
+      const added = ws.filter((w) => !old.has(w.id));
+      const gone = ws0.filter((w) => !ws.some((x) => x.id === w.id));
+      const end0 = ws0[last].due, end1 = ws[ws.length - 1].due;
+      return [
+        L('الأوراد اللي بعده بتترحّل بنفس أحجامها.', 'The portions after it move along, same sizes.', 'تتأخر الأوراد التي بعده بأحجامها نفسها.'),
+        added.length ? L(`وفي الآخر ${added.length > 1 ? `${L.count(added.length, 'wird')} جداد` : 'ورد جديد'}، والكتاب هيخلص ${esc(L.day(end1))} بدل ${esc(L.day(end0))}.`, `${added.length > 1 ? `${added.length} new portions` : 'A new portion'} at the end; the book ends ${esc(L.day(end1))} instead of ${esc(L.day(end0))}.`, `وفي النهاية ${added.length > 1 ? `${L.count(added.length, 'wird')} جديدة` : 'ورد جديد'}، وينتهي الكتاب ${esc(L.day(end1))} بدل ${esc(L.day(end0))}.`) : '',
+        gone.length ? L(`وآخر ${gone.length > 1 ? L.count(gone.length, 'wird') : 'ورد'} هيتشال، والكتاب هيخلص ${esc(L.day(end1))}.`, `The last ${gone.length > 1 ? `${gone.length} portions go` : 'portion goes'}; the book ends ${esc(L.day(end1))}.`, `ويُحذف آخر ${gone.length > 1 ? L.count(gone.length, 'wird') : 'ورد'}، وينتهي الكتاب ${esc(L.day(end1))}.`) : '',
+      ].filter(Boolean).join(' ');
+    };
     const html = () => {
-      const w = ws[k], prev = ws[k - 1], next = ws[k + 1];
-      return `${stepper('from', L('بيبدأ من', 'Starts at', 'يبدأ من'), w.from, prev ? w.from - 1 > prev.from : w.from > 1, w.from < w.to)}
-        ${stepper('to', L('بيخلص عند', 'Ends at', 'ينتهي عند'), w.to, w.to > w.from, next ? w.to + 1 < next.to : w.to < N)}
-        <ol class="pv-list wp-list">${ws.map(row).filter((x, i) => Math.abs(i - k) <= 1).join('')}</ol>
-        <p class="muted sm">${L('الورد اللي جنبه بياخد الفرق، والمواعيد زي ما هي.', 'The portion next to it takes the difference; dates stay the same.', 'يأخذ الورد المجاور الفرق، وتبقى المواعيد كما هي.')}</p>`;
+      const ws = plan() || ws0;
+      const old = new Map(ws0.map((w) => [w.id, w]));
+      const show = new Set([k - 1, k, k + 1].filter((i) => i >= 0 && i < ws.length));
+      if (to !== ws0[k].to && mode !== 'next') for (let i = Math.max(k + 2, ws.length - 2); i < ws.length; i++) show.add(i); // the end of the plan too
+      if (mode === 'roll') ws.forEach((w, i) => !old.has(w.id) && show.add(i));
+      const idx = [...show].sort((x, y) => x - y);
+      let list = '';
+      idx.forEach((i, j) => {
+        if (j && i - idx[j - 1] > 1) list += `<li class="gap">⋯</li>`;
+        list += row(ws[i], old.get(ws[i].id));
+      });
+      const gone = mode === 'roll' ? ws0.filter((w) => !ws.some((x) => x.id === w.id)) : [];
+      list += gone.map((w) => `<li class="ch gone"><span class="star8 xs faint"><b>${L.num(w.n)}</b></span><span>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</span><small>${L('هيتشال', 'goes', 'سيُحذف')}</small></li>`).join('');
+      const endMoved = to !== ws0[k].to && k < last;
+      return `${stepper('from', L('بيبدأ من', 'Starts at', 'يبدأ من'), from, fits(from - 1, to), fits(from + 1, to))}
+        ${stepper('to', L('بيخلص عند', 'Ends at', 'ينتهي عند'), to, fits(from, to - 1), fits(from, to + 1))}
+        ${k < last ? `<div class="wp-modes" role="radiogroup" aria-label="${L('الفرق يروح فين؟', 'Where does the difference go?', 'أين يذهب الفرق؟')}"><span>${L('الفرق يروح فين؟', 'Where does the difference go?', 'أين يذهب الفرق؟')}</span>${[
+          ['roll', L('رحّل الباقي، والزيادة في الآخر', 'Move the rest along; extra pages at the end', 'أخّر الباقي، والزيادة في النهاية')],
+          ['next', L('الورد اللي بعده بس', 'Only the next portion', 'الورد التالي فقط')],
+          ['spread', L('وزّعه على الأوراد اللي جاية', 'Share it over the coming portions', 'وزّعه على الأوراد القادمة')],
+        ].map(([m, t]) => `<button type="button" class="wp-mode${mode === m ? ' on' : ''}" data-mode="${m}" role="radio" aria-checked="${mode === m}"><i></i><span>${t}</span></button>`).join('')}</div>` : ''}
+        <ol class="pv-list wp-list">${list}</ol>
+        ${endMoved ? `<p class="muted sm wp-sum">${summary(ws)}</p>` : k > 0 && from !== ws0[k].from ? `<p class="muted sm wp-sum">${L(`الورد ${L.num(ws0[k - 1].n)} بياخد الفرق.`, `Portion ${ws0[k - 1].n} takes the difference.`, `يأخذ الورد ${L.num(ws0[k - 1].n)} الفرق.`)}</p>` : ''}`;
     };
     V.sheet({
       title: L(`صفحات الورد ${L.num(ws0[k].n)}`, `Pages of portion ${ws0[k].n}`),
       html: `<form id="wp-form" class="wp-form"><div id="wp-body">${html()}</div>
         <div class="row-btns end"><button class="btn gold big">${icon('check')}${L('احفظ', 'Save')}</button></div></form>`,
       onMount: (body, api) => {
+        const redraw = () => (body.querySelector('#wp-body').innerHTML = html());
         body.addEventListener('click', (e) => {
+          const m = e.target.closest('[data-mode]');
+          if (m) {
+            mode = m.dataset.mode;
+            U.store.set('boundMode', mode);
+            // the other way may not fit this end: step back until it does
+            while (to !== ws0[k].to && !fits(from, to)) to += to > ws0[k].to ? -1 : 1;
+            return redraw();
+          }
           const st = e.target.closest('[data-step]');
           if (!st) return;
           const d = +st.dataset.d;
-          let out = null;
-          if (st.dataset.step === 'to') out = k + 1 < ws.length ? V.moveBound(ws, k, ws[k].to + d) : ((ws[k].to = U.clamp(ws[k].to + d, ws[k].from, N)), ws);
-          else out = k > 0 ? V.moveBound(ws, k - 1, ws[k].from - 1 + d) : ((ws[k].from = U.clamp(ws[k].from + d, 1, ws[k].to)), ws);
-          if (out) ws = out;
-          body.querySelector('#wp-body').innerHTML = html();
+          if (st.dataset.step === 'to' && fits(from, to + d)) to += d;
+          if (st.dataset.step === 'from' && fits(from + d, to)) from += d;
+          redraw();
         });
         body.addEventListener('submit', async (e) => {
           e.preventDefault();
+          const ws = plan();
           api.close();
-          if (ws.every((w, i) => w.from === ws0[i].from && w.to === ws0[i].to)) return;
+          if (!ws || (ws.length === ws0.length && ws.every((w, i) => w.from === ws0[i].from && w.to === ws0[i].to))) return;
           await D.update(`books/${b.id}`, { wirds: ws });
           U.chime('ok');
           U.toast(L(`الورد ${L.num(ws[k].n)} بقى ص ${L.num(ws[k].from)}–${L.num(ws[k].to)}`, `Portion ${ws[k].n} is now p. ${ws[k].from}–${ws[k].to}`, `أصبح الورد ${L.num(ws[k].n)} ص ${L.num(ws[k].from)}–${L.num(ws[k].to)}`));

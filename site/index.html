@@ -483,6 +483,15 @@ textarea { resize: vertical; line-height: 1.55; }
 .wp-step .ib:disabled { opacity: .35; }
 .wp-list li.me { font-weight: 700; }
 .wp-list li.ch small { color: var(--gold-t); }
+.wp-list li.gap { justify-content: center; color: var(--ink3); font-weight: 800; letter-spacing: 2px; }
+.wp-list li.gone { opacity: .6; text-decoration: line-through; }
+.wp-modes { display: grid; gap: 6px; margin: 12px 0 2px; }
+.wp-modes > span { font-size: .82rem; font-weight: 800; color: var(--ink2); }
+.wp-mode { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--card); text-align: start; color: var(--ink); font: inherit; font-size: .9rem; font-weight: 600; }
+.wp-mode i { flex: none; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); }
+.wp-mode.on { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 9%, var(--card)); }
+.wp-mode.on i { border: 5px solid var(--gold); }
+.wp-sum { margin: 8px 0 0; }
 .rc-tabs { display: flex; width: 100%; }
 .rc-tabs button { flex: 1; padding-inline: .4em; font-size: .8rem; white-space: nowrap; }
 .rc-pane { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
