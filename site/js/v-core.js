@@ -478,6 +478,7 @@
       }
     });
     V.sheets.push(api);
+    swipeToClose(api, top);
     requestAnimationFrame(() => wrap.classList.add('in'));
     onMount && onMount(api.body, api);
     A.Lot && A.Lot.mount(api.body);
@@ -487,6 +488,46 @@
     }, 60);
     return api;
   };
+  /* A sheet follows a finger pulling it down (a top sheet: up) from its scrolled-to-the-top edge, and closes when
+     let go far or fast enough; anything less springs back. Text boxes and sideways rows keep their own gestures. */
+  function swipeToClose(api, top) {
+    const sh = api.el;
+    let g = null;
+    sh.addEventListener('touchstart', (e) => {
+      g = null;
+      if (e.touches.length !== 1 || e.target.closest('textarea, input, select, [contenteditable], .no-swipe')) return;
+      const atEdge = top ? sh.scrollTop + sh.clientHeight >= sh.scrollHeight - 2 : sh.scrollTop <= 0;
+      if (atEdge) g = { y0: e.touches[0].clientY, x0: e.touches[0].clientX, t0: Date.now(), dy: 0, on: false };
+    }, { passive: true });
+    sh.addEventListener('touchmove', (e) => {
+      if (!g) return;
+      const t = e.touches[0];
+      const dy = (t.clientY - g.y0) * (top ? -1 : 1), dx = t.clientX - g.x0;
+      if (!g.on) {
+        if (dy > 8 && dy > Math.abs(dx) * 1.3) g.on = true;
+        else {
+          if (dy < -4 || Math.abs(dx) > 12) g = null; // scrolling the sheet, or a sideways row
+          return;
+        }
+      }
+      g.dy = Math.max(0, dy);
+      sh.style.transition = 'none';
+      sh.style.transform = `translateY(${top ? -g.dy : g.dy}px)`;
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    const end = () => {
+      const d = g;
+      g = null;
+      if (!d || !d.on) return;
+      sh.style.transition = '';
+      if (d.dy > 110 || (d.dy > 40 && Date.now() - d.t0 < 260)) {
+        sh.style.transform = `translateY(${top ? '-' : ''}110%)`;
+        api.close();
+      } else sh.style.transform = '';
+    };
+    sh.addEventListener('touchend', end);
+    sh.addEventListener('touchcancel', end);
+  }
   function refreshSheets() {
     for (const s of V.sheets) if (s.onData) try { s.onData(s.body, s); A.Lot && A.Lot.mount(s.body); } catch (e) { console.error(e); }
   }

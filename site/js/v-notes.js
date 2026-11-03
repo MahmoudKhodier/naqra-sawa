@@ -104,20 +104,53 @@
     api.onClose = onClose;
   };
 
-  /* Edit my note or highlight: its text, its kind, and the colour of a highlight. */
+  /* A note of mine, by id: in the circle's notes or my private ones. */
+  const myNote = (nid) => {
+    const n = S.notes.get(nid);
+    if (n) return n.by === S.me ? n : null;
+    const p = S.priv && S.priv.notes && S.priv.notes[nid];
+    return p ? Object.assign({ id: nid, by: S.me, priv: true }, p) : null;
+  };
+  const privWrite = (fn) =>
+    D.mutate(`data/users/${S.me}/priv`, () => {
+      const cur = S.priv || {};
+      const notes = Object.assign({}, cur.notes);
+      fn(notes);
+      return Object.assign({}, cur, { notes });
+    });
+  /* Delete a note of mine (with its replies), after asking. */
+  V.deleteNote = async (n) => {
+    if (!n || n.by !== S.me) return false;
+    if (!(await V.confirm(L('هتمسح الملاحظة دي وكل الردود عليها.', 'This deletes the note and its replies.', 'ستحذف هذه الملاحظة وكل الردود عليها.'), L('امسح', 'Delete', 'احذف'), true))) return false;
+    if (n.priv) await privWrite((notes) => delete notes[n.id]);
+    else await D.del(`notes/${n.id}`);
+    U.toast(L('اتمسحت', 'Deleted', 'حُذفت'));
+    return true;
+  };
+
+  /* Edit my note or highlight: its text, its kind, the colour of a highlight, who sees it (the whole circle or
+     only me — the same id moves between the circle's notes and my private ones), and delete it. */
   V.editNote = (n) => {
     if (!n || n.by !== S.me) return;
     const hasRect = n.rect && n.rect.w > 0;
     let kind = n.kind || 'note';
     let color = n.color || A.R.COLORS[0];
+    let priv = !!n.priv;
+    const onlyMeBook = D.isPrivate(n.b); // a book only I can see: its notes stay only mine
+    const lost = !n.priv && (V.likeCount(n) || V.noteReplies(n).length); // what going private would drop
     V.sheet({
       title: L('عدّل الملاحظة', 'Edit note'),
       html: `${n.crop ? `<div class="crop-prev"><img src="${esc(n.crop)}" alt=""></div>` : ''}
         <div class="seg-pick" role="radiogroup">${KINDS.map((k) => `<button type="button" class="sp${k === kind ? ' on' : ''}" data-kind="${k}" role="radio" aria-checked="${k === kind}">${icon(KIND_IC[k])}<span>${V.kindLabel(k)}</span></button>`).join('')}</div>
         <div class="colors" ${hasRect ? '' : 'hidden'}>${A.R.COLORS.map((c) => `<button type="button" class="cdot${c === color ? ' on' : ''}" data-color="${c}" style="--c:${c}" aria-label="${c}"></button>`).join('')}</div>
         <textarea id="en-text" rows="5" dir="auto" maxlength="${U.MAX.note}">${esc(n.text || '')}</textarea>
+        ${onlyMeBook ? '' : `<div class="vis" role="radiogroup" aria-label="${L('مين يشوفها', 'Who sees it', 'من يراها')}">
+          <button type="button" class="sp${priv ? '' : ' on'}" data-vis="all" role="radio" aria-checked="${!priv}">${icon('users')}<span>${L('للحلقة كلها', 'Whole circle')}</span></button>
+          <button type="button" class="sp${priv ? ' on' : ''}" data-vis="me" role="radio" aria-checked="${priv}">${icon('lock')}<span>${L('ليا بس', 'Only me', 'لي فقط')}</span></button>
+        </div>
+        ${lost ? `<p class="warn-t" id="en-lost" hidden>${icon('info')}<span>${L('لو خلّيتها ليك بس، الإعجابات والردود اللي عليها هتتشال.', 'Making it private removes its likes and replies.', 'إن جعلتها لك فقط، ستُزال الإعجابات والردود التي عليها.')}</span></p>` : ''}`}
         <p class="err-t" hidden></p>
-        <div class="row-btns end"><button class="btn ghost" data-close>${L('إلغاء', 'Cancel')}</button><button class="btn gold" data-save>${icon('check')}${L('احفظ', 'Save')}</button></div>`,
+        <div class="row-btns en-btns"><button type="button" class="btn ghost danger" data-del>${icon('trash')}${L('امسحها', 'Delete', 'احذفها')}</button><span class="sp-grow"></span><button class="btn ghost" data-close>${L('إلغاء', 'Cancel')}</button><button class="btn gold" data-save>${icon('check')}${L('احفظ', 'Save')}</button></div>`,
       onMount: (body, api) =>
         body.addEventListener('click', async (e) => {
           const k = e.target.closest('[data-kind]');
@@ -132,6 +165,18 @@
             body.querySelectorAll('[data-color]').forEach((b) => b.classList.toggle('on', b === c));
             return;
           }
+          const v = e.target.closest('[data-vis]');
+          if (v) {
+            priv = v.dataset.vis === 'me';
+            body.querySelectorAll('[data-vis]').forEach((b) => (b.classList.toggle('on', b === v), b.setAttribute('aria-checked', b === v)));
+            const w = body.querySelector('#en-lost');
+            if (w) w.hidden = !priv;
+            return;
+          }
+          if (e.target.closest('[data-del]')) {
+            if (await V.deleteNote(n)) api.close();
+            return;
+          }
           if (!e.target.closest('[data-save]')) return;
           const text = body.querySelector('#en-text').value.trim();
           if (!text && (kind === 'note' || kind === 'q' || !hasRect)) return body.querySelector('#en-text').focus();
@@ -139,17 +184,26 @@
           btn.disabled = true;
           const patch = { text, kind, color, edited: U.nowIso() };
           try {
-            if (n.priv)
-              await D.mutate(`data/users/${S.me}/priv`, () => {
-                const cur = S.priv || {};
-                const notes = Object.assign({}, cur.notes);
-                if (!notes[n.id]) return null;
-                notes[n.id] = Object.assign({}, notes[n.id], patch);
-                return Object.assign({}, cur, { notes });
-              });
-            else await D.update(`notes/${n.id}`, patch);
+            if (priv === !!n.priv) {
+              if (n.priv)
+                await privWrite((notes) => {
+                  if (notes[n.id]) notes[n.id] = Object.assign({}, notes[n.id], patch);
+                });
+              else await D.update(`notes/${n.id}`, patch);
+            } else if (priv) {
+              // the circle's note becomes only mine: the same id in my private notes, then gone from the circle
+              const keep = { b: n.b, page: n.page, rect: n.rect || null, at: n.at || U.nowIso() };
+              await privWrite((notes) => (notes[n.id] = Object.assign(keep, patch)));
+              await D.del(`notes/${n.id}`);
+            } else {
+              // mine only → the whole circle
+              const book = D.book(n.b);
+              const w = book && G.wirds(book).find((x) => n.page >= x.from && n.page <= x.to);
+              await D.set(`notes/${n.id}`, Object.assign({ b: n.b, page: n.page, rect: n.rect || null, at: n.at || U.nowIso(), by: S.me, crop: n.crop || null, wid: w ? w.id : '', likes: {}, replies: {} }, patch));
+              await privWrite((notes) => delete notes[n.id]);
+            }
             api.close();
-            U.toast(L('اتعدّلت ✓', 'Updated ✓', 'تم التعديل ✓'));
+            U.toast(priv !== !!n.priv ? (priv ? L('بقت ليك لوحدك 🔒', 'Now only yours 🔒', 'صارت لك وحدك 🔒') : L('بقت للحلقة كلها 👥', 'Now for the whole circle 👥', 'صارت للحلقة كلها 👥')) : L('اتعدّلت ✓', 'Updated ✓', 'تم التعديل ✓'));
           } catch (x) {
             btn.disabled = false;
             const er = body.querySelector('.err-t');
@@ -159,7 +213,6 @@
         }),
     });
   };
-
   V.like = async (nid) => {
     if (!D.canWrite()) return;
     const n = S.notes.get(nid);
@@ -203,7 +256,6 @@
           ${mine && D.canWrite() ? `<button class="pill ghost" data-editnote>${icon('edit')}<span>${L('عدّل', 'Edit')}</span></button>` : ''}
           ${!mine && n.rect && S.priv && S.priv.moved && S.priv.moved[n.id] ? `<button class="pill ghost" data-unmove>${icon('pin')}<span>${L('رجّعها مكانها', 'Put it back', 'أعدها إلى مكانها')}</span></button>` : ''}
           ${!mine && n.rect && D.canWrite() ? `<button class="pill ghost" data-hideme>${icon('eyeoff')}<span>${L('اخفيها عندي', 'Hide for me', 'أخفها عندي')}</span></button>` : ''}
-          ${mine ? `<button class="pill ghost" data-del>${icon('trash')}<span>${L('امسح', 'Delete', 'احذف')}</span></button>` : ''}
         </div>
         ${!n.priv ? `<div class="replies" id="nt-replies" data-keep-scroll>${rs.length ? rs.map((r) => `<div class="rep">${D.avatar(r.by, 'sm')}<div class="rep-b"><b>${esc(D.name(r.by))}</b><small>${L.ago(r.at)} ${V.editedTag(r)}</small><p dir="auto">${esc(r.text)}</p></div>${r.by === S.me ? `<span class="rep-acts"><button class="ib sm" data-editrep="${esc(r.id)}" aria-label="${L('عدّل', 'Edit')}">${icon('edit')}</button><button class="ib sm" data-delrep="${esc(r.id)}" aria-label="${L('امسح', 'Delete', 'احذف')}">${icon('trash')}</button></span>` : ''}</div>`).join('') : `<p class="muted sm">${L('محدش رد لسه. ابدأ النقاش!', 'No replies yet. Start the conversation!', 'لا ردود بعد. ابدأ النقاش!')}</p>`}</div>
         ${D.canWrite() ? `<form class="composer" data-reply><textarea id="nt-reply-${esc(n.id)}" rows="1" dir="auto" maxlength="${U.MAX.reply}" placeholder="${L('اكتب ردك…', 'Write a reply…')}"></textarea><button class="btn icon-only" aria-label="${L('ابعت', 'Send', 'أرسل')}">${icon('send', 'flip-rtl')}</button></form>` : ''}` : ''}
@@ -221,25 +273,12 @@
           // the tapped button into a different one.
           const q = (sel) => e.target.closest(sel);
           if (q('[data-story]')) return V.storySheet(n);
-          const hit = { like: q('[data-like]'), gopage: q('[data-gopage]'), del: q('[data-del]'), unmove: q('[data-unmove]'), hideme: q('[data-hideme]'), editnote: q('[data-editnote]'), editrep: q('[data-editrep]'), delrep: q('[data-delrep]') };
+          const hit = { like: q('[data-like]'), gopage: q('[data-gopage]'), unmove: q('[data-unmove]'), hideme: q('[data-hideme]'), editnote: q('[data-editnote]'), editrep: q('[data-editrep]'), delrep: q('[data-delrep]') };
           if (hit.like) return V.like(n.id);
           if (hit.gopage) {
             api.close();
             if (A.R.isOpen() && A.R.bookId() === n.b) A.R.goTo(n.page, n.id);
             else A.R.open(n.b, { page: n.page, flash: n.id });
-            return;
-          }
-          if (hit.del) {
-            if (!(await V.confirm(L('هتمسح الملاحظة دي وكل الردود عليها.', 'This deletes the note and its replies.', 'ستحذف هذه الملاحظة وكل الردود عليها.'), L('امسح', 'Delete', 'احذف'), true))) return;
-            api.close();
-            if (n.priv) {
-              await D.mutate(`data/users/${S.me}/priv`, () => {
-                const cur = S.priv || {};
-                const notes = Object.assign({}, cur.notes);
-                delete notes[n.id];
-                return Object.assign({}, cur, { notes });
-              });
-            } else await D.del(`notes/${n.id}`);
             return;
           }
           if (hit.unmove) {
@@ -317,6 +356,19 @@
       <p class="nc-lock">${icon('lock')}<span>${L(`مستنياك لما توصل ص ${L.num(n.page || 0)} — من غير حرق 👀`, `Waiting for you at p. ${n.page || 0} — no spoilers 👀`, `بانتظارك حين تصل ص ${L.num(n.page || 0)} — بلا حرق 👀`)}</span></p>
     </article>`;
   };
+  // the card's own buttons
+  const noteOf = (nid) => S.notes.get(nid) || myNote(nid);
+  V.actions['note-page'] = (a) => {
+    const n = noteOf(a.dataset.nid);
+    if (!n || !n.page) return;
+    if (A.R.isOpen() && A.R.bookId() === n.b) A.R.goTo(n.page, n.id);
+    else A.R.open(n.b, { page: n.page, flash: n.id });
+  };
+  V.actions['note-share'] = (a) => {
+    const n = noteOf(a.dataset.nid);
+    if (n && V.storySheet) V.storySheet(n);
+  };
+  V.actions['note-edit'] = (a) => V.editNote(myNote(a.dataset.nid));
   V.noteCard = (n, opts = {}) => {
     if (V.isSpoiler(n)) return V.lockedCard(n, opts);
     const book = D.book(n.b);
@@ -328,11 +380,13 @@
     return `<article class="ncard k-${esc(n.kind)}${isTake ? ' take' : ''}">
       <header>${D.avatar(n.by, 'sm')}<div class="nc-who"><b data-act="member" data-uid="${esc(n.by)}">${esc(D.name(n.by))}</b><small>${V.kindLabel(n.kind)}${opts.showBook && book ? ` • <span dir="auto">${esc(book.title)}</span>` : ''}${n.page && !isTake ? ` • ${L('ص', 'p.')} ${L.num(n.page)}` : ''}${isTake && w ? ` • ${L('الورد', 'Portion')} ${L.num(w.n)}` : ''} • ${L.ago(n.at)} ${V.editedTag(n)}</small></div></header>
       ${n.crop ? `<button class="nc-crop" data-act="open-note" data-nid="${esc(n.id)}" style="--c:${U.col(n.color)}"><img src="${esc(n.crop)}" alt="${esc(L('الجزء المظلّل', 'Highlighted passage'))}" loading="lazy"></button>` : ''}
-      ${n.text ? `<p class="nc-text${n.kind === 'quote' ? ' quote' : ''}" dir="auto">${esc(n.text.length > 420 ? n.text.slice(0, 400).replace(/\s+\S*$/, '') + '…' : n.text)}</p>${n.text.length > 420 ? `<button class="lnk nc-more" data-act="open-note" data-nid="${esc(n.id)}">${L('اقرأ الباقي', 'Read more', 'اقرأ البقية')}</button>` : ''}` : ''}
-      <footer>
+      ${n.text ? `<p class="nc-text${n.kind === 'quote' ? ' quote' : ''}" dir="auto" data-act="open-note" data-nid="${esc(n.id)}">${esc(n.text.length > 420 ? n.text.slice(0, 400).replace(/\s+\S*$/, '') + '…' : n.text)}</p>${n.text.length > 420 ? `<button class="lnk nc-more" data-act="open-note" data-nid="${esc(n.id)}">${L('اقرأ الباقي', 'Read more', 'اقرأ البقية')}</button>` : ''}` : ''}
+      <footer class="nc-acts">
         <button class="pill${liked ? ' on' : ''}" data-act="like" data-nid="${esc(n.id)}" aria-label="${L('إعجاب', 'Like')}">${icon('heart')}<span>${L.num(lc)}</span></button>
         <button class="pill" data-act="open-note" data-nid="${esc(n.id)}">${icon('chat')}<span>${rc ? L.num(rc) : L('رد', 'Reply')}</span></button>
-        ${n.page && book && !isTake ? `<button class="pill ghost" data-act="read" data-b="${esc(n.b)}" data-p="${n.page}">${icon('books')}<span>${L('الصفحة', 'Page')}</span></button>` : ''}
+        ${n.page && book && !isTake ? `<button class="pill ghost" data-act="note-page" data-nid="${esc(n.id)}">${icon('books')}<span>${L('الصفحة', 'Page')}</span></button>` : ''}
+        ${(n.text || n.crop) && n.kind !== 'q' && V.storySheet ? `<button class="pill ghost icon" data-act="note-share" data-nid="${esc(n.id)}" aria-label="${L('شارك كصورة', 'Share as picture', 'شارك كصورة')}" title="${L('شارك كصورة', 'Share as picture', 'شارك كصورة')}">${icon('share')}</button>` : ''}
+        ${n.by === S.me && D.canWrite() ? `<button class="pill ghost icon" data-act="note-edit" data-nid="${esc(n.id)}" aria-label="${L('عدّل', 'Edit')}" title="${L('عدّل', 'Edit')}">${icon('edit')}</button>` : ''}
       </footer>
     </article>`;
   };

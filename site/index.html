@@ -191,6 +191,15 @@ textarea { resize: vertical; line-height: 1.55; }
 .chips.wrap { flex-wrap: wrap; }
 .row-btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
 .row-btns.end { justify-content: flex-end; }
+/* a note card's buttons: one row; share and edit as icons */
+.ncard .nc-acts { display: flex; flex-wrap: nowrap; gap: 6px; align-items: center; overflow: hidden; }
+.ncard .nc-acts .pill { flex: none; }
+.ncard .nc-acts .pill.icon { width: 38px; padding: 0; justify-content: center; }
+.ncard .nc-acts .pill.icon .ic { margin: 0; }
+.ncard .nc-text[data-act] { cursor: pointer; }
+.en-btns { align-items: center; }
+.en-btns .sp-grow { flex: 1; }
+.btn.danger { color: var(--rubric); border-color: color-mix(in srgb, var(--rubric) 35%, var(--line)); }
 /* the quests card inside its sheet: no second frame, no second title */
 .sh-body > .card.quests { background: none; box-shadow: none; border: 0; padding: 0; margin: 0; }
 .sh-body > .card.quests > header h3 { display: none; }

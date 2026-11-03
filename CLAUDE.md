@@ -69,6 +69,9 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - «اليوم» is always the simple one (`V.simple()` is true; the Settings switch and member-menu item are gone; «اختارلي كتاب» and «تحدياتي» hidden); the daily goal shows today's count in Settings, not on Today.
 - Settings rows: name on one side, control on the other (nowrap); several-choice settings are `V.pick(act, cur, opts, title)` (a button opening a menu; tests use `pickOpt`).
 
+## Notes in the news (2026-11-03)
+- Note card (`V.noteCard`): a tap on the text opens it (short ones too); one row: like, reply, «الصفحة» (`note-page` → `R.open(b, {page, flash: nid})` / `R.goTo(p, nid)`, which scroll to the note itself via `goToNote`, zoomed in too), share as picture, edit (mine). Delete lives in «عدّل» (`V.deleteNote`); «عدّل» also moves a note between the circle and «ليا بس» (same id; going private drops likes/replies, a warning says so). Any bottom sheet closes with a swipe down from its top (`swipeToClose` in v-core; a top sheet: swipe up). Test: `tests/e2e/notes.js`.
+
 ## Reader notes
 - When a page counts (reader.js `pageChanged`/`tick`): on going on from it one or two pages after ≥4 s on it (≥10 s past the end of my portion), or after staying on it ~0.6 × my seconds per page (20–90 s). Never on arrival. `st.front` follows forward steps after ≥2 s on a page (not pages a long scroll runs through).
 - Reading vs looking around: `st.front` is where reading goes on (resume point, saved as `prog.last`). Pages count only within ~2 pages of it; jumps further away are "looking around" (a bar offers «ارجع لمكانك» / «كمّل من هنا»). Opening the current portion counts. «وقفت هنا» (one line per book, private: `priv.place[bookId] = {p, y, manual}`) is placed with the edge dots and saved on leaving.

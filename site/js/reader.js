@@ -244,7 +244,8 @@
     zoomUi();
     // «كمّل» (from Today, the book or here) opens on the page of «وقفت هنا»: back to that very line (and, zoomed
     // in, that part of it), not the top of the page
-    if ((!opts.page || (place && opts.page === place.p)) && place && place.p === start && !st.paged && (place.y > 0.02 || place.x != null)) {
+    if (opts.flash && opts.page) goToNote(start, opts.flash); // «افتح الصفحة» of a note: at the note itself
+    else if ((!opts.page || (place && opts.page === place.p)) && place && place.p === start && !st.paged && (place.y > 0.02 || place.x != null)) {
       // put the «وقفت هنا» line a third of the way down the screen
       if (place.x != null && st.zoom > 1.01) restoreAnchor({ p: start, fy: place.y || 0, fx: place.x, ax: st.sc.clientWidth / 2, ay: st.sc.clientHeight * 0.3 });
       else st.sc.scrollTop = Math.max(0, st.tops[start] + place.y * st.hs[start] - st.sc.clientHeight * 0.3);
@@ -702,7 +703,17 @@
     sc.scrollTop = y;
     requestAnimationFrame(() => (sc.style.scrollSnapType = ''));
   }
-  R.goTo = (p, nid) => goTo(p, true, nid);
+  R.goTo = (p, nid) => (nid ? goToNote(p, nid) : goTo(p, true));
+  /* To a note: the page, with the note itself a little above the middle of the screen (zoomed in: across too),
+     and a flash on it. */
+  function goToNote(p, nid) {
+    const n = S.notes.get(nid) || (S.priv && S.priv.notes && S.priv.notes[nid]);
+    const r = n && n.rect;
+    if (!r || st.paged || !(p >= 1 && p <= st.N)) return goTo(p, false, nid);
+    restoreAnchor({ p, fy: U.clamp((r.y || 0) + (r.h || 0) / 2, 0, 1), fx: U.clamp((r.x || 0) + (r.w || 0) / 2, 0, 1), ax: st.sc.clientWidth / 2, ay: st.sc.clientHeight * 0.4 });
+    update();
+    setTimeout(() => st && flash(nid), 650);
+  }
   const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function flash(nid) {
