@@ -370,7 +370,7 @@
       else setTimeout(toastNext, 260);
     };
     t.end = end;
-    t.timer = setTimeout(end, toastQ.length ? 1700 : t.kind === 'warn' ? 4200 : 3000);
+    t.timer = setTimeout(end, t.kind === 'undo' ? 8000 : toastQ.length ? 1700 : t.kind === 'warn' ? 4200 : 3000);
   };
   // The answer to something you just did shows at once; messages that arrive on their own wait in line.
   let tappedAt = 0;

@@ -111,6 +111,41 @@
     }
     return changed ? out : null;
   };
+  /* Portions from i on laid out again from `start`: each keeps its length in reading days (a week-long one its
+     week) and any reading day left empty between two of them (a catch-up day) stays. */
+  G.relay = (ws, i, start, cfg = G.offCfg()) => {
+    const out = ws.map((w) => Object.assign({}, w));
+    for (let j = i; j < out.length; j++) {
+      const w0 = ws[j];
+      const cal = U.diffDays(w0.start, w0.due) + 1;
+      const len = G.wirdLen(w0, cfg);
+      let s;
+      if (j === i) s = G.nextOn(start, cfg);
+      else {
+        const gap = w0.start > U.addDays(ws[j - 1].due, 1) ? G.workDays(U.addDays(ws[j - 1].due, 1), U.addDays(w0.start, -1), cfg) : 0;
+        s = gap ? G.addWork(G.nextOn(U.addDays(out[j - 1].due, 1), cfg), gap, cfg) : G.nextOn(U.addDays(out[j - 1].due, 1), cfg);
+      }
+      out[j].start = s;
+      out[j].due = G.wirdEnd(s, len, cal >= 7 ? cal : len, cfg);
+    }
+    return out;
+  };
+  /* A catch-up day of a book: a reading day inside its plan with no portion on it (a day the plan left empty so
+     the circle can catch up). */
+  G.gapDay = (book, d = U.today(), cfg = G.offCfg()) => {
+    const ws = G.wirds(book);
+    if (!ws.length || d < ws[0].start || d > ws[ws.length - 1].due || G.isOff(d, cfg)) return false;
+    return !ws.some((w) => d >= w.start && d <= w.due);
+  };
+  /* The plan's usual portion size (the middle one), and whether a portion is far from it. */
+  G.typSize = (ws) => {
+    const sz = ws.map((w) => w.to - w.from + 1).sort((a, b) => a - b);
+    return sz.length ? sz[Math.floor(sz.length / 2)] : 0;
+  };
+  G.oddSize = (w, typ) => {
+    const n = w.to - w.from + 1;
+    return typ >= 4 && (n >= Math.ceil(typ * 1.6) || n <= Math.floor(typ / 2)) ? (n > typ ? 'long' : 'short') : '';
+  };
   G.offInWeek = (ws, cfg = G.offCfg()) => 7 - G.workDays(ws, U.addDays(ws, 6), cfg);
   /* The circle's weekly goal for a week: smaller by a seventh for each day off in it. */
   G.weekGoal = (ws = U.weekStart(), cfg = G.offCfg()) => {

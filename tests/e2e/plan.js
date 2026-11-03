@@ -224,19 +224,24 @@ const ranges = (p) => p.evaluate(() => [...window.A.S.books.values()][0].wirds.m
       await a.click('.wsheet [data-act="wird-pages"]');
       await a.waitForSelector('#wp-form');
       await a.click('#wp-form [data-mode="roll"]');
+      // three pages less: a little left over, it goes on the last portion
       for (let i = 0; i < 3; i++) await a.click('#wp-form [data-step="to"][data-d="-1"]');
-      const sum = await a.textContent('#wp-form .wp-sum');
-      assert(/بنفس أحجامها/.test(sum) && /ورد جديد/.test(sum), 'summary: ' + sum);
+      let sum = await a.textContent('#wp-form .wp-sum');
+      assert(/بنفس أحجامها/.test(sum) && /اتضافت على آخر ورد/.test(sum), 'summary (3): ' + sum);
+      // five less: more than half a portion, a new one at the end
+      for (let i = 0; i < 2; i++) await a.click('#wp-form [data-step="to"][data-d="-1"]');
+      sum = await a.textContent('#wp-form .wp-sum');
+      assert(/بنفس أحجامها/.test(sum) && /ورد جديد/.test(sum), 'summary (5): ' + sum);
       await H.shot(a, 'plan-roll');
       await a.click('#wp-form button.btn.gold');
       await until(a, 'saved', () => [...window.A.S.books.values()][0].wirds.length === 6);
       const after = await a.evaluate(() => [...window.A.S.books.values()][0].wirds);
       const size = (w) => w.to - w.from + 1;
-      assert(after[0].to === before[0].to - 3, 'portion 1: ' + JSON.stringify(after[0]));
-      for (let i = 1; i < before.length; i++) assert(size(after[i]) === size(before[i]) && after[i].from === before[i].from - 3 && after[i].start === before[i].start, `portion ${i + 1}: ${JSON.stringify(after[i])}`);
+      assert(after[0].to === before[0].to - 5, 'portion 1: ' + JSON.stringify(after[0]));
+      for (let i = 1; i < before.length; i++) assert(size(after[i]) === size(before[i]) && after[i].from === before[i].from - 5 && after[i].start === before[i].start, `portion ${i + 1}: ${JSON.stringify(after[i])}`);
       const nw = after[5];
       const want = await a.evaluate((d) => window.A.G.nextOn(window.A.U.addDays(d, 1)), before[4].due);
-      assert(nw.n === 6 && nw.from === before[4].to - 2 && nw.to === before[4].to && nw.start === want, 'the new one: ' + JSON.stringify(nw));
+      assert(nw.n === 6 && nw.from === before[4].to - 4 && nw.to === before[4].to && nw.start === want, 'the new one: ' + JSON.stringify(nw));
       return await ranges(a);
     });
 

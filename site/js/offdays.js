@@ -24,6 +24,20 @@
   Off.pastFrom = () => U.addDays(U.today(), -Off.PAST);
   /* The text of a change, for the news and «الجديد ليك». */
   Off.text = (o) => {
+    if (o.kind === 'plan') {
+      const b = D.book(o.b) || (S.gone && S.gone.get(o.b));
+      const w = o.what || {};
+      const n = L.num(w.n || '');
+      const what =
+        w.k === 'pages' ? L(`صفحات الورد ${n} اتغيّرت`, `portion ${w.n}'s pages changed`, `تغيّرت صفحات الورد ${n}`)
+        : w.k === 'extend' ? L(`الورد ${n} بقى ياخد يوم زيادة`, `portion ${w.n} has a day more`, `صار للورد ${n} يوم زيادة`)
+        : w.k === 'gap' ? L(`يوم تعويض بعد الورد ${n} 🔄`, `a catch-up day after portion ${w.n} 🔄`, `يوم تعويض بعد الورد ${n} 🔄`)
+        : w.k === 'ungap' ? L('يوم التعويض اتشال', 'the catch-up day is gone', 'أُزيل يوم التعويض')
+        : w.k === 'replan' ? L(`الأوراد من ${n} اتقسّمت من جديد${w.per ? ` (${L.count(w.per, 'page')} في اليوم)` : ''}`, `portions from ${w.n} re-split${w.per ? ` (${w.per} pages a day)` : ''}`, `أُعيد تقسيم الأوراد من ${n}${w.per ? ` (${L.count(w.per, 'page')} في اليوم)` : ''}`)
+        : L('الخطة اتعدّلت', 'the plan changed', 'عُدّلت الخطة');
+      const end = o.end0 && o.end1 && o.end0 !== o.end1 ? L(` — آخر يوم بقى ${dayName(o.end1)} بدل ${dayName(o.end0)}`, ` — the last day is now ${dayName(o.end1)} instead of ${dayName(o.end0)}`, ` — صار آخر يوم ${dayName(o.end1)} بدل ${dayName(o.end0)}`) : '';
+      return `📅 ${L('تعديل في خطة', 'Plan of', 'تعديل في خطة')} «${esc((b && b.title) || '')}»: ${what}${end}`;
+    }
     if (o.date && o.add && o.past) return L(`يوم ${dayName(o.date)} بقى إجازة 🌴 — الأوراد اترحّلت يوم`, `${dayName(o.date)} became a day off 🌴 — the portions moved a day`, `صار يوم ${dayName(o.date)} إجازة 🌴 — وتأخرت الأوراد يومًا`);
     if (o.date) return o.add ? L(`يوم ${dayName(o.date)} إجازة 🌴`, `${dayName(o.date)} is a day off 🌴`, `يوم ${dayName(o.date)} إجازة 🌴`) : L(`إجازة ${dayName(o.date)} اتلغت — يوم قراية عادي`, `${dayName(o.date)} is a reading day again`, `أُلغيت إجازة ${dayName(o.date)} — يوم قراءة عادي`);
     if (o.wd != null) return o.add ? L(`كل ${wdName(o.wd)} إجازة من دلوقتي 🌴`, `Every ${wdName(o.wd)} is a day off from now on 🌴`, `كل ${wdName(o.wd)} إجازة من الآن 🌴`) : L(`${wdName(o.wd)} رجع يوم قراية`, `${wdName(o.wd)} is a reading day again`, `عاد ${wdName(o.wd)} يوم قراءة`);

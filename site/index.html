@@ -492,6 +492,26 @@ textarea { resize: vertical; line-height: 1.55; }
 .wp-mode.on { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 9%, var(--card)); }
 .wp-mode.on i { border: 5px solid var(--gold); }
 .wp-sum { margin: 8px 0 0; }
+/* the planner's tools in a portion's sheet */
+.ws-plan { display: grid; gap: 6px; margin: 4px 0 10px; padding: 10px 12px; border-radius: 14px; background: var(--bg2); }
+.ws-plan > b { font-size: .8rem; color: var(--ink2); }
+.ws-plan > div { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ws-plan .pill { justify-content: center; background: var(--card); min-height: 38px; font-size: .82rem; }
+/* catch-up days, odd sizes, the re-split sheet, «رجّعها» */
+.wcal .wc-x.gap { display: grid; place-items: center; font-size: .9rem; border: 1.5px dashed color-mix(in srgb, var(--lapis) 45%, var(--line)); border-radius: 12px; background: var(--lapis-s); }
+.wcal .wc-c small.odd { color: var(--rubric); opacity: 1; font-weight: 800; }
+.wcal .wc-c.done small.odd, .wcal .wc-c.cur small.odd { color: inherit; text-decoration: underline wavy; }
+.odd-k { color: var(--rubric); font-size: .72rem; margin-inline-end: 4px; }
+.wl-odd { font-style: normal; color: var(--rubric); font-weight: 700; margin-inline-end: 6px; }
+.wl-off.gap { border-color: color-mix(in srgb, var(--lapis) 45%, var(--line)); background: var(--lapis-s); color: var(--lapis); }
+.hi-gap { margin: 4px 0 0; font-size: .86rem; font-weight: 700; color: var(--lapis); }
+.rp-by { margin: 8px 0 10px; }
+.rp-by button { font-size: .86rem; }
+.rp-sum { display: grid; gap: 2px; margin: 12px 0 4px; }
+.rp-sum small { color: var(--ink3); }
+.wp-step input[type="date"] { width: auto; min-width: 0; }
+.toast.undo { pointer-events: auto; }
+.toast .undo { color: var(--gold); font-weight: 800; text-decoration: underline; margin-inline-start: 4px; white-space: nowrap; padding: 4px 2px; }
 .rc-tabs { display: flex; width: 100%; }
 .rc-tabs button { flex: 1; padding-inline: .4em; font-size: .8rem; white-space: nowrap; }
 .rc-pane { display: flex; flex-direction: column; gap: 8px; min-width: 0; }

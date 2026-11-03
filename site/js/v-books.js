@@ -227,9 +227,10 @@
     if (!ws.length)
       return V.empty(L('مفيش خطة لسه', 'No reading plan yet', 'لا توجد خطة بعد'), L('قسّموا الكتاب أوراد بعدد صفحات ومواعيد، وكل واحد يعلّم لما يخلّص.', 'Split the book into portions with page ranges and dates; everyone marks theirs when done.', 'قسّموا الكتاب إلى أوراد بصفحات ومواعيد، ويعلّم كل عضو ورده عندما ينهيه.'), V.canPlan(b) ? `<button class="btn gold" data-act="plan" data-b="${esc(b.id)}">${icon('calendar')}${L('اعمل خطة', 'Make a plan', 'أنشئ خطة')}</button>` : '');
     const members = D.memberIds();
-    const per = ws[0].to - ws[0].from + 1;
+    const per = G.typSize(ws);
+    const even = ws.every((w) => w.to - w.from + 1 === per || w === ws[ws.length - 1]);
     const every = G.wirdLen(ws[0]); // in reading days (a week-long one stays 7)
-    return `<div class="plan-head"><p>${L(`${L.count(per, 'page')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} لـ ${L.dayShort(ws[ws.length - 1].due)}`, `${per} pages ${every === 1 ? 'a day' : every === 7 ? 'a week' : `every ${every} days`} • ${L.dayShort(ws[0].start)} – ${L.dayShort(ws[ws.length - 1].due)}`, `${L.count(per, 'page', 'nom')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} إلى ${L.dayShort(ws[ws.length - 1].due)}`)}</p>${V.canPlan(b) ? `<button class="btn ghost sm" data-act="plan" data-b="${esc(b.id)}">${icon('edit')}${L('عدّل الخطة', 'Edit plan')}</button>` : ''}</div>
+    return `<div class="plan-head"><p>${even ? '' : L('حوالي ', 'About ', 'نحو ')}${L(`${L.count(per, 'page')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} لـ ${L.dayShort(ws[ws.length - 1].due)}`, `${per} pages ${every === 1 ? 'a day' : every === 7 ? 'a week' : `every ${every} days`} • ${L.dayShort(ws[0].start)} – ${L.dayShort(ws[ws.length - 1].due)}`, `${L.count(per, 'page', 'nom')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} إلى ${L.dayShort(ws[ws.length - 1].due)}`)}</p>${V.canPlan(b) ? `<button class="btn ghost sm" data-act="plan" data-b="${esc(b.id)}">${icon('edit')}${L('عدّل الخطة', 'Edit plan')}</button>` : ''}</div>
       ${planTime(b, ws)}
       ${nowCard(b, ws, members)}
       ${planViews()}
@@ -304,6 +305,8 @@
     const canOff = (S.isOwner || S.canEdit) && D.canWrite();
     const pastOk = A.Off ? A.Off.pastFrom() : today;
     const others = Math.max(1, members.filter((u) => u !== S.me).length);
+    const typ = G.typSize(ws);
+    let hasGap = false, hasOdd = false;
     let head = '';
     for (let i = 0; i < 7; i++) head += `<span class="wc-h">${L.weekday(U.addDays(first, i))}</span>`;
     let rows = '', mo = '';
@@ -318,6 +321,11 @@
         const w = byDay.get(d);
         const off = G.isOff(d, offc);
         const dn = `<span class="wc-d">${L.num(+d.slice(8))}</span>`;
+        if (!w && !off && G.gapDay(b, d, offc)) {
+          hasGap = true;
+          rows += `<button class="wc-x gap${d === today ? ' today' : ''}" data-act="gap-day" data-b="${esc(b.id)}" data-d="${d}" aria-label="${esc(L.day(d))} • ${L('يوم تعويض', 'Catch-up day', 'يوم تعويض')}">${dn}🔄</button>`;
+          continue;
+        }
         if (!w) {
           // an empty day: a day off shows 🌴; the owner and admins can tap one to make it a day off
           rows += off || (canOff && d >= pastOk && d >= ws[0].start)
@@ -329,13 +337,13 @@
         const f = lead ? fins(w).filter((u) => u !== S.me).length : 0;
         const unread = lead && V.unread(b.id, w.id);
         const label = `${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)} • ${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)} • ${L.count(w.to - w.from + 1, 'page')}`;
-        rows += `<button class="wc-c ${cls(w)}${lead ? '' : ' cont'}${off ? ' off' : ''}${d === today ? ' today' : ''}" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-d="${d}" aria-label="${esc(label)}${off ? ' • 🌴' : ''}">${dn}${lead ? `<b>${L.num(w.n)}</b><small>${pagesShort(w.to - w.from + 1)}</small>` : ''}${
+        rows += `<button class="wc-c ${cls(w)}${lead ? '' : ' cont'}${off ? ' off' : ''}${d === today ? ' today' : ''}" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-d="${d}" aria-label="${esc(label)}${off ? ' • 🌴' : ''}">${dn}${lead ? `<b>${L.num(w.n)}</b><small class="${G.oddSize(w, typ) ? ((hasOdd = true), 'odd') : ''}">${pagesShort(w.to - w.from + 1)}</small>` : ''}${
           f ? `<i class="wc-f" style="width:${Math.round((Math.min(f, others) / others) * 100)}%" title="${esc(L(`${L.num(f)} من الحلقة خلّصوه`, `${f} in the circle finished it`, `${L.num(f)} من الحلقة أنهوه`))}"></i>` : ''
         }${unread ? '<i class="wc-dot"></i>' : ''}</button>`;
       }
     }
     return `<div class="wcal" role="grid">${head}${rows}</div>
-      <p class="wc-key"><span><i class="k done"></i>${L('خلّصته', 'Done', 'أنهيته')}</span><span><i class="k part"></i>${L('قريت جزء', 'Started', 'قرأت جزءًا')}</span><span><i class="k cur"></i>${L('عليه الدور', 'Up now', 'الحالي')}</span><span><i class="k late"></i>${L('متأخر', 'Late')}</span><span><i class="k-f"></i>${L('خلّصوه من الحلقة', 'Finished in the circle', 'أنهوه من الحلقة')}</span>${offc.none ? '' : `<span>🌴 ${L('إجازة', 'Day off', 'إجازة')}</span>`}</p>${canOff ? `<p class="wc-off-h muted sm">${L('دوس على يوم عشان تعمله إجازة 🌴 — حتى لو فات (لحد أسبوع)', 'Tap a day to make it a day off 🌴 — even a past one (up to a week)', 'المس يومًا لتجعله إجازة 🌴 — ولو مضى (حتى أسبوع)')}</p>` : ''}`;
+      <p class="wc-key"><span><i class="k done"></i>${L('خلّصته', 'Done', 'أنهيته')}</span><span><i class="k part"></i>${L('قريت جزء', 'Started', 'قرأت جزءًا')}</span><span><i class="k cur"></i>${L('عليه الدور', 'Up now', 'الحالي')}</span><span><i class="k late"></i>${L('متأخر', 'Late')}</span><span><i class="k-f"></i>${L('خلّصوه من الحلقة', 'Finished in the circle', 'أنهوه من الحلقة')}</span>${offc.none ? '' : `<span>🌴 ${L('إجازة', 'Day off', 'إجازة')}</span>`}${hasGap ? `<span>🔄 ${L('يوم تعويض', 'Catch-up day', 'يوم تعويض')}</span>` : ''}${hasOdd ? `<span><b class="odd-k">٢٦ ص</b>${L('أطول أو أقصر من العادي بكتير', 'Much longer or shorter than usual', 'أطول أو أقصر من المعتاد بكثير')}</span>` : ''}</p>${canOff ? `<p class="wc-off-h muted sm">${L('دوس على يوم عشان تعمله إجازة 🌴 — حتى لو فات (لحد أسبوع)', 'Tap a day to make it a day off 🌴 — even a past one (up to a week)', 'المس يومًا لتجعله إجازة 🌴 — ولو مضى (حتى أسبوع)')}</p>` : ''}`;
   }
   function wirdList(b, ws, members) {
     const { myCur, fins, cls } = planCtx(b, members);
@@ -352,11 +360,13 @@
       if (w.start !== w.due) return w.start <= today && today <= w.due ? L.due(w.due) : `${L.dayShort(w.start)} – ${L.dayShort(w.due)}`;
       return w.start === today ? L('النهارده', 'Today', 'اليوم') : w.start === U.addDays(today, 1) ? L('بكرة', 'Tomorrow', 'غدًا') : w.start === U.addDays(today, -1) ? L('امبارح', 'Yesterday', 'أمس') : L.day(w.start);
     };
+    const typ = G.typSize(ws);
     const row = (w) => {
       const c = cls(w);
       const n = w.to - w.from + 1;
+      const odd = G.oddSize(w, typ);
       return `<button class="wl-r ${c}" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-d="${w.start}">${V.star(L.num(w.n), c.includes('late') ? 'rubric' : c === 'done' ? 'jade' : c.startsWith('cur') ? 'gold' : 'lapis')}
-        <span class="wl-t"><b>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</b><small>${L.count(n, 'page')} • ${L(`حوالي ${G.timeText(G.minutesFor(n))}`, `about ${G.timeText(G.minutesFor(n))}`, `نحو ${G.timeText(G.minutesFor(n))}`)}</small></span>
+        <span class="wl-t"><b>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</b><small>${odd ? `<i class="wl-odd">${odd === 'long' ? L('أطول من العادي', 'Longer than usual', 'أطول من المعتاد') : L('أقصر من العادي', 'Shorter than usual', 'أقصر من المعتاد')}</i>` : ''}${L.count(n, 'page')} • ${L(`حوالي ${G.timeText(G.minutesFor(n))}`, `about ${G.timeText(G.minutesFor(n))}`, `نحو ${G.timeText(G.minutesFor(n))}`)}</small></span>
         <span class="wl-e"><small>${esc(when(w, c))}</small>${faces(w)}</span></button>`;
     };
     let h = '';
@@ -367,7 +377,10 @@
     const rest = ws.filter((w) => cls(w) !== 'done');
     const ws0 = U.weekStart();
     const limit = U.addDays(ws0, 20); // this week and the next two, then «اعرض كل الأوراد»
-    let label = '', shown = 0, prevDue = null;
+    let label = '', shown = 0;
+    // the days between the last one I finished and the first one left count too (a catch-up day today)
+    const i0 = rest.length ? ws.indexOf(rest[0]) : -1;
+    let prevDue = i0 > 0 ? ws[i0 - 1].due : null;
     for (const w of rest) {
       if (!planAll && w.start > limit && shown >= 3) break;
       const wk = U.weekStart(w.start);
@@ -377,8 +390,10 @@
         h += `<h4 class="wl-wk">${lbl}</h4>`;
       }
       // the days off between the one before and this one
-      if (prevDue) for (let d = U.addDays(prevDue, 1); d < w.start; d = U.addDays(d, 1)) if (G.isOff(d, offc) && d >= today)
-        h += `<${canOff ? 'button' : 'div'} class="wl-off" ${canOff ? `data-act="day-off" data-d="${d}"` : ''}><span>🌴</span><span>${esc(L.day(d))} — ${L('إجازة', 'Day off', 'إجازة')}</span></${canOff ? 'button' : 'div'}>`;
+      if (prevDue) for (let d = U.addDays(prevDue, 1); d < w.start; d = U.addDays(d, 1)) if (d >= today) {
+        if (G.isOff(d, offc)) h += `<${canOff ? 'button' : 'div'} class="wl-off" ${canOff ? `data-act="day-off" data-d="${d}"` : ''}><span>🌴</span><span>${esc(L.day(d))} — ${L('إجازة', 'Day off', 'إجازة')}</span></${canOff ? 'button' : 'div'}>`;
+        else h += `<button class="wl-off gap" data-act="gap-day" data-b="${esc(b.id)}" data-d="${d}"><span>🔄</span><span>${esc(L.day(d))} — ${L('يوم تعويض: الحق اللي فاتك', 'Catch-up day', 'يوم تعويض: الحق ما فاتك')}</span></button>`;
+      }
       prevDue = w.due;
       h += row(w);
       shown++;
@@ -414,7 +429,7 @@
         <div class="ws-prog">${V.bar(seen / total, done ? 'jade' : 'lapis')}<small>${L(`قريت ${L.num(seen)} من ${L.count(total, 'page')}`, `${seen} of ${total} pages read`, `قرأت ${L.num(seen)} من ${L.count(total, 'page')}`)}</small></div>
         ${done ? '' : `<p class="ws-time">${icon('clock')}${seen && seen < total ? L(`فاضل حوالي ${G.timeText(G.minutesFor(total - seen))}`, `About ${G.timeText(G.minutesFor(total - seen))} left`, `بقي نحو ${G.timeText(G.minutesFor(total - seen))}`) : L(`الورد ده حوالي ${G.timeText(G.minutesFor(total))}`, `This portion takes about ${G.timeText(G.minutesFor(total))}`, `هذا الورد نحو ${G.timeText(G.minutesFor(total))}`)}</p>`}
         ${!done && seen && D.canWrite() ? `<button class="lnk sm ws-edit" data-act="wird-uncount" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-close>${icon('close')}${L(`مقرتش فيه؟ شيل الصفحات اللي اتحسبت (${L.num(seen)})`, `Didn't read it? Remove the counted pages (${seen})`, `لم تقرأ فيه؟ أزل الصفحات المحسوبة (${L.num(seen)})`)}</button>` : ''}
-        ${V.canPlan(b) ? `<button class="lnk sm ws-edit" data-act="wird-pages" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-close>${icon('edit')}${L('عدّل صفحات الورد ده', "Change this portion's pages", 'عدّل صفحات هذا الورد')}</button>` : ''}
+        ${V.canPlan(b) ? planTools(b, w) : ''}
         <div class="ws-fins"><b>${L('خلّصوه', 'Finished', 'أنهوه')}</b>${fins.length ? `<span class="mavs">${fins.map((x, i) => `<span class="fin${i === 0 ? ' first' : ''}" title="${esc(D.name(x.u))}">${D.avatar(x.u, 'sm')}</span>`).join('')}</span><small>${L.num(fins.length)}/${L.num(members.length)}</small>` : `<small>${L('لسه محدش', 'Nobody yet', 'لا أحد بعد')}</small>`}</div>
         <div class="row-btns">
           <button class="btn big" data-act="read" data-b="${esc(b.id)}" data-p="${startAt}" data-close>${icon('play', 'flip-rtl')}${startAt > w.from ? L(`كمّل من ص ${L.num(startAt)}`, `Continue from p. ${startAt}`, `تابِع من ص ${L.num(startAt)}`) : L('اقرأ الورد', 'Read it')}</button>
@@ -653,9 +668,18 @@
     }
     let left = E - res[res.length - 1].to;
     if (left > 0) {
-      // the pages left over: new portions of the plan's usual size, each a reading day (or a week) after the last
-      const sizes = ws0.map((w) => w.to - w.from + 1).sort((a, b) => a - b);
-      const typ = Math.max(1, sizes[Math.floor(sizes.length / 2)]);
+      // the pages left over: first the last portion comes up to the usual size, and a little left (half a portion
+      // or less) goes on it too, so the end isn't cut into tiny days; the rest: new portions of the usual size,
+      // each a reading day (or a week) after the last
+      const typ = Math.max(1, G.typSize(ws0));
+      const tail = res[res.length - 1];
+      let add = Math.min(left, Math.max(0, typ - (tail.to - tail.from + 1)));
+      if (left - add <= Math.floor(typ / 2)) add = left;
+      tail.to += add;
+      left -= add;
+    }
+    if (left > 0) {
+      const typ = Math.max(1, G.typSize(ws0));
       const m = Math.ceil(left / typ);
       const ids = new Set(res.map((w) => w.id));
       let prev = res[res.length - 1];
@@ -677,6 +701,204 @@
     return res;
   };
   const MODES = ['roll', 'next', 'spread'];
+
+  /* ---------- the planner's tools on a portion ---------- */
+  function planTools(b, w) {
+    const ws = G.wirds(b);
+    const k = ws.findIndex((x) => x.id === w.id);
+    const btn = (act, ic, t) => `<button type="button" class="pill ghost" data-act="${act}" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-close>${ic}<span>${t}</span></button>`;
+    return `<div class="ws-plan"><b>${L('عدّل في الخطة', 'Change the plan', 'عدّل الخطة')}</b><div>
+      ${btn('wird-pages', icon('edit'), L('صفحاته', 'Its pages', 'صفحاته'))}
+      ${btn('wird-extend', icon('calendar'), L('يوم زيادة ليه', 'A day more for it', 'يوم زيادة له'))}
+      ${k < ws.length - 1 ? btn('wird-gap', '🔄', L('يوم تعويض بعده', 'A catch-up day after it', 'يوم تعويض بعده')) : ''}
+      ${btn('wird-replan', icon('layers'), L('قسّم الباقي من هنا', 'Re-split from here', 'أعد تقسيم الباقي من هنا'))}
+    </div></div>`;
+  }
+  /* Portion k now ends on `due`; the ones after follow, keeping the reading days left empty between them
+     (catch-up days), `extra` more (or fewer) of those right after it. */
+  const relayAfter = (ws, k, due, extra = 0) => {
+    const out = ws.map((w) => Object.assign({}, w));
+    out[k].due = due;
+    if (k + 1 >= ws.length) return out;
+    const g0 = ws[k + 1].start > U.addDays(ws[k].due, 1) ? G.workDays(U.addDays(ws[k].due, 1), U.addDays(ws[k + 1].start, -1)) : 0;
+    const g = Math.max(0, g0 + extra);
+    const first = G.nextOn(U.addDays(due, 1));
+    return G.relay(out, k + 1, g ? G.addWork(first, g) : first);
+  };
+  V.relayAfter = relayAfter;
+  const endLine = (ws0, ws) => {
+    const e0 = ws0[ws0.length - 1].due, e1 = ws[ws.length - 1].due;
+    return e0 === e1 ? '' : L(`الكتاب هيخلص ${esc(L.day(e1))} بدل ${esc(L.day(e0))}.`, `The book ends ${esc(L.day(e1))} instead of ${esc(L.day(e0))}.`, `ينتهي الكتاب ${esc(L.day(e1))} بدل ${esc(L.day(e0))}.`);
+  };
+  const portionAt = (a) => {
+    const b = S.books.get(a.dataset.b);
+    const ws = b ? G.wirds(b) : [];
+    const k = ws.findIndex((x) => x.id === a.dataset.w);
+    return k >= 0 && V.canPlan(b) ? { b, ws, k, w: ws[k] } : null;
+  };
+  // «يوم زيادة»: the portion takes one more reading day, the ones after move a day
+  V.actions['wird-extend'] = async (a) => {
+    const p = portionAt(a);
+    if (!p) return;
+    const due = G.addWork(p.w.due, 1);
+    const out = relayAfter(p.ws, p.k, due);
+    if (!(await V.confirm(`${L(`الورد ${L.num(p.w.n)} هياخد يوم زيادة (لحد ${esc(L.day(due))}) بنفس صفحاته، والأوراد اللي بعده هتتأخر يوم.`, `Portion ${p.w.n} gets one more day (to ${esc(L.day(due))}) with the same pages; the ones after move a day.`, `سيأخذ الورد ${L.num(p.w.n)} يومًا زيادة (حتى ${esc(L.day(due))}) بصفحاته نفسها، وتتأخر الأوراد التي بعده يومًا.`)}<br><small class="muted">${endLine(p.ws, out)}</small>`, L('تمام', 'OK', 'حسنًا'))))
+      return;
+    await V.savePlan(p.b, out, { k: 'extend', n: p.w.n }, L(`الورد ${L.num(p.w.n)} بقى ياخد يوم زيادة`, `Portion ${p.w.n} has a day more`, `صار للورد ${L.num(p.w.n)} يوم زيادة`));
+  };
+  // «يوم تعويض بعده»: a reading day with no new pages after it, to catch up; the ones after move a day
+  V.actions['wird-gap'] = async (a) => {
+    const p = portionAt(a);
+    if (!p || p.k >= p.ws.length - 1) return;
+    const out = relayAfter(p.ws, p.k, p.w.due, 1);
+    const day = G.nextOn(U.addDays(p.w.due, 1));
+    if (!(await V.confirm(`${L(`يوم ${esc(L.day(day))} هيبقى يوم تعويض: مفيش ورد جديد، اللي متأخر يلحق. الأوراد اللي بعده هتتأخر يوم.`, `${esc(L.day(day))} becomes a catch-up day: no new portion, whoever is behind catches up. The ones after move a day.`, `سيكون ${esc(L.day(day))} يوم تعويض: لا ورد جديد، ويلحق المتأخر. وتتأخر الأوراد التي بعده يومًا.`)}<br><small class="muted">${endLine(p.ws, out)}</small>`, L('تمام', 'OK', 'حسنًا'))))
+      return;
+    await V.savePlan(p.b, out, { k: 'gap', n: p.w.n, d: day }, L(`🔄 يوم تعويض ${L.day(day)}`, `🔄 Catch-up day ${L.day(day)}`, `🔄 يوم تعويض ${L.day(day)}`));
+  };
+  // a catch-up day in the calendar: what it is; the planner can take it out (the ones after come a day earlier)
+  V.actions['gap-day'] = (a) => {
+    const b = S.books.get(a.dataset.b);
+    const d = a.dataset.d;
+    const ws = b ? G.wirds(b) : [];
+    const k = ws.reduce((x, w, i) => (w.due < d ? i : x), -1);
+    const info = L(`${L.day(d)}: يوم تعويض — مفيش ورد جديد، الحق اللي فاتك 🔄`, `${L.day(d)}: a catch-up day — no new portion, catch up 🔄`, `${L.day(d)}: يوم تعويض — لا ورد جديد، الحق ما فاتك 🔄`);
+    if (!V.canPlan(b) || k < 0) return U.toast(esc(info));
+    V.menu(
+      [{ ic: 'close', t: L('شيل يوم التعويض ده', 'Take this catch-up day out', 'أزل يوم التعويض هذا'), fn: () => V.savePlan(b, relayAfter(ws, k, ws[k].due, -1), { k: 'ungap', n: ws[k].n }, L('يوم التعويض اتشال', 'Catch-up day removed', 'أُزيل يوم التعويض')) }],
+      esc(info),
+    );
+  };
+
+  /* A change of the plan: saved, told to the circle (a line in the news, from col 'offs' with kind 'plan'),
+     and for a minute «رجّعها» puts it back as it was. */
+  let undoPlan = null;
+  V.savePlan = async (b, ws, what, msg) => {
+    const prev = G.wirds(b).map((w) => Object.assign({}, w));
+    try {
+      await D.update(`books/${b.id}`, { wirds: ws });
+    } catch (e) {
+      return false;
+    }
+    const nid = D.newId();
+    D.set(`offs/${nid}`, { by: S.me, kind: 'plan', b: b.id, what, end0: prev.length ? prev[prev.length - 1].due : '', end1: ws[ws.length - 1].due, at: U.nowIso() }).catch(() => {});
+    undoPlan = { b: b.id, prev, nid, at: Date.now() };
+    if (A.Remind && A.Remind.reschedule) A.Remind.reschedule();
+    U.chime('ok');
+    U.toast(`${icon('calendar')}<span>${esc(msg || L('الخطة اتعدّلت', 'Plan changed', 'عُدّلت الخطة'))}</span><button type="button" class="lnk undo" data-act="plan-undo">${L('رجّعها', 'Undo', 'تراجع')}</button>`, 'undo');
+    return true;
+  };
+  V.actions['plan-undo'] = async () => {
+    const u = undoPlan;
+    undoPlan = null;
+    if (!u || Date.now() - u.at > 60000) return;
+    await D.update(`books/${u.b}`, { wirds: u.prev }).catch(() => {});
+    D.del(`offs/${u.nid}`).catch(() => {});
+    if (A.Remind && A.Remind.reschedule) A.Remind.reschedule();
+    U.toast(L('رجعت زي ما كانت ↩️', 'Back as it was ↩️', 'عادت كما كانت ↩️'));
+  };
+
+  /* «قسّم الباقي من هنا»: the portions from k to the plan's end split again, by pages a portion or by the day
+     to finish on; ids are kept in order (discussions stay), the ones before don't move. */
+  V.replanFrom = (ws0, k, o) => {
+    const last = ws0.length - 1;
+    const F = ws0[k].from, E = ws0[last].to, R = E - F + 1;
+    const len = G.wirdLen(ws0[k]);
+    const cal = U.diffDays(ws0[k].start, ws0[k].due) + 1;
+    const step = (s) => G.wirdEnd(s, len, cal >= 7 ? cal : len);
+    let sizes;
+    if (o.by === 'end') {
+      // how many portions fit from its start to the day chosen
+      let n = 0;
+      for (let s = ws0[k].start, i = 0; i < 2000; i++) {
+        const due = step(s);
+        if (due > o.end) break;
+        n++;
+        s = G.nextOn(U.addDays(due, 1));
+      }
+      n = Math.max(1, Math.min(n, R));
+      sizes = Array.from({ length: n }, (_, i) => Math.floor(R / n) + (i < R % n ? 1 : 0));
+    } else {
+      const per = Math.max(1, Math.min(o.per, R));
+      const n = Math.ceil(R / per);
+      sizes = Array.from({ length: n }, () => per);
+      sizes[n - 1] = R - per * (n - 1);
+      // a little left at the end goes on the one before, not a day of its own
+      if (n > 1 && sizes[n - 1] <= Math.floor(per / 2)) sizes.splice(n - 2, 2, per + sizes[n - 1]);
+    }
+    const out = ws0.slice(0, k).map((w) => Object.assign({}, w));
+    const ids = new Set(ws0.map((w) => w.id));
+    let from = F, s = ws0[k].start;
+    sizes.forEach((sz, i) => {
+      const keep = ws0[k + i];
+      const n = ws0[k].n + i;
+      let id = keep ? keep.id : 'w' + n;
+      if (!keep) {
+        if (ids.has(id)) id = D.newId();
+        ids.add(id);
+      }
+      const due = step(s);
+      out.push({ id, n, from, to: from + sz - 1, start: s, due });
+      from += sz;
+      s = G.nextOn(U.addDays(due, 1));
+    });
+    return out;
+  };
+  V.actions['wird-replan'] = (a) => {
+    const p = portionAt(a);
+    if (p) V.replan(p.b, p.k);
+  };
+  V.replan = (b, k) => {
+    const ws0 = G.wirds(b);
+    const last = ws0.length - 1;
+    const R = ws0[last].to - ws0[k].from + 1;
+    const o = { by: U.store.get('replanBy', 'per') === 'end' ? 'end' : 'per', per: G.typSize(ws0.slice(k)) || 10, end: ws0[last].due };
+    const html = () => {
+      const ws = V.replanFrom(ws0, k, o);
+      const mine = ws.slice(k);
+      const sz = mine.map((w) => w.to - w.from + 1);
+      const lo = Math.min(...sz), hi = Math.max(...sz);
+      return `<p class="muted">${L(`من الورد ${L.num(ws0[k].n)} (ص ${L.num(ws0[k].from)}) لآخر الخطة (ص ${L.num(ws0[last].to)}): ${L.count(R, 'page')}، من ${esc(L.day(ws0[k].start))}.`, `From portion ${ws0[k].n} (p. ${ws0[k].from}) to the plan's end (p. ${ws0[last].to}): ${R} pages, from ${esc(L.day(ws0[k].start))}.`, `من الورد ${L.num(ws0[k].n)} (ص ${L.num(ws0[k].from)}) إلى آخر الخطة (ص ${L.num(ws0[last].to)}): ${L.count(R, 'page')}، من ${esc(L.day(ws0[k].start))}.`)}</p>
+        <div class="segs rp-by" role="tablist"><button type="button" class="${o.by === 'per' ? 'on' : ''}" data-by="per">${L('صفحات في اليوم', 'Pages a day', 'صفحات في اليوم')}</button><button type="button" class="${o.by === 'end' ? 'on' : ''}" data-by="end">${L('نخلّص يوم', 'Finish on', 'ننهي يوم')}</button></div>
+        ${o.by === 'per'
+          ? `<div class="wp-step"><span>${L('كل ورد', 'Each portion', 'كل ورد')}</span><div><button type="button" class="ib round" data-per="-1" ${o.per > 1 ? '' : 'disabled'}>−</button><b>${L.count(o.per, 'page')}</b><button type="button" class="ib round" data-per="1" ${o.per < R ? '' : 'disabled'}>+</button></div></div>`
+          : `<label class="wp-step"><span>${L('آخر يوم', 'Last day', 'آخر يوم')}</span><input type="date" id="rp-end" min="${ws0[k].start}" value="${o.end}"></label>`}
+        <p class="rp-sum"><b>${L(`${L.count(mine.length, 'wird')}، ${lo === hi ? `كل ورد ${L.count(lo, 'page')}` : `من ${L.num(lo)} لـ ${L.count(hi, 'page')}`}`, `${mine.length} portions, ${lo === hi ? `${lo} pages each` : `${lo}–${hi} pages`}`, `${L.count(mine.length, 'wird')}، ${lo === hi ? `كل ورد ${L.count(lo, 'page')}` : `من ${L.num(lo)} إلى ${L.count(hi, 'page')}`}`)}</b><small>${L(`آخر يوم ${esc(L.day(ws[ws.length - 1].due))}`, `Last day ${esc(L.day(ws[ws.length - 1].due))}`, `آخر يوم ${esc(L.day(ws[ws.length - 1].due))}`)}${ws[ws.length - 1].due !== ws0[last].due ? ` • ${L(`كان ${esc(L.day(ws0[last].due))}`, `was ${esc(L.day(ws0[last].due))}`, `كان ${esc(L.day(ws0[last].due))}`)}` : ''}</small></p>
+        <p class="muted sm">${L('الأوراد اللي قبله زي ما هي، وأيام التعويض اللي بعده بتتشال.', 'The portions before it stay; catch-up days after it go.', 'تبقى الأوراد التي قبله كما هي، وتُزال أيام التعويض بعده.')}</p>`;
+    };
+    V.sheet({
+      title: L(`قسّم الأوراد من الورد ${L.num(ws0[k].n)}`, `Re-split from portion ${ws0[k].n}`, `أعد تقسيم الأوراد من الورد ${L.num(ws0[k].n)}`),
+      html: `<form id="rp-form" class="wp-form"><div id="rp-body">${html()}</div><div class="row-btns end"><button class="btn gold big">${icon('check')}${L('احفظ', 'Save')}</button></div></form>`,
+      onMount: (body, api) => {
+        const redraw = () => (body.querySelector('#rp-body').innerHTML = html());
+        body.addEventListener('click', (e) => {
+          const by = e.target.closest('[data-by]');
+          if (by) {
+            o.by = by.dataset.by;
+            U.store.set('replanBy', o.by);
+            return redraw();
+          }
+          const pd = e.target.closest('[data-per]');
+          if (pd) {
+            o.per = U.clamp(o.per + +pd.dataset.per, 1, R);
+            redraw();
+          }
+        });
+        body.addEventListener('change', (e) => {
+          if (e.target.id !== 'rp-end' || !e.target.value) return;
+          o.end = e.target.value < ws0[k].start ? ws0[k].start : e.target.value;
+          redraw();
+        });
+        body.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const ws = V.replanFrom(ws0, k, o);
+          api.close();
+          const mine = ws.slice(k);
+          await V.savePlan(b, ws, { k: 'replan', n: ws0[k].n, per: o.by === 'per' ? o.per : 0 }, L(`الأوراد من ${L.num(ws0[k].n)} اتقسّمت: ${L.count(mine.length, 'wird')}`, `Re-split from portion ${ws0[k].n}: ${mine.length} portions`, `أُعيد تقسيم الأوراد من ${L.num(ws0[k].n)}: ${L.count(mine.length, 'wird')}`));
+        });
+      },
+    });
+  };
   V.actions['wird-pages'] = (a) => {
     const b = S.books.get(a.dataset.b);
     const k = b ? G.wirds(b).findIndex((x) => x.id === a.dataset.w) : -1;
@@ -731,10 +953,13 @@
       }
       const added = ws.filter((w) => !old.has(w.id));
       const gone = ws0.filter((w) => !ws.some((x) => x.id === w.id));
+      const lastNow = ws[ws.length - 1], lastOld = old.get(lastNow.id);
+      const toppedUp = !added.length && !gone.length && lastOld && lastNow.to - lastNow.from > lastOld.to - lastOld.from;
       const end0 = ws0[last].due, end1 = ws[ws.length - 1].due;
       return [
         L('الأوراد اللي بعده بتترحّل بنفس أحجامها.', 'The portions after it move along, same sizes.', 'تتأخر الأوراد التي بعده بأحجامها نفسها.'),
         added.length ? L(`وفي الآخر ${added.length > 1 ? `${L.count(added.length, 'wird')} جداد` : 'ورد جديد'}، والكتاب هيخلص ${esc(L.day(end1))} بدل ${esc(L.day(end0))}.`, `${added.length > 1 ? `${added.length} new portions` : 'A new portion'} at the end; the book ends ${esc(L.day(end1))} instead of ${esc(L.day(end0))}.`, `وفي النهاية ${added.length > 1 ? `${L.count(added.length, 'wird')} جديدة` : 'ورد جديد'}، وينتهي الكتاب ${esc(L.day(end1))} بدل ${esc(L.day(end0))}.`) : '',
+        toppedUp ? L(`والزيادة اتضافت على آخر ورد (الورد ${L.num(lastNow.n)})، والمواعيد زي ما هي.`, `The extra pages go on the last portion (portion ${lastNow.n}); dates stay.`, `وتُضاف الزيادة إلى آخر ورد (الورد ${L.num(lastNow.n)})، وتبقى المواعيد كما هي.`) : '',
         gone.length ? L(`وآخر ${gone.length > 1 ? L.count(gone.length, 'wird') : 'ورد'} هيتشال، والكتاب هيخلص ${esc(L.day(end1))}.`, `The last ${gone.length > 1 ? `${gone.length} portions go` : 'portion goes'}; the book ends ${esc(L.day(end1))}.`, `ويُحذف آخر ${gone.length > 1 ? L.count(gone.length, 'wird') : 'ورد'}، وينتهي الكتاب ${esc(L.day(end1))}.`) : '',
       ].filter(Boolean).join(' ');
     };
@@ -790,9 +1015,7 @@
           const ws = plan();
           api.close();
           if (!ws || (ws.length === ws0.length && ws.every((w, i) => w.from === ws0[i].from && w.to === ws0[i].to))) return;
-          await D.update(`books/${b.id}`, { wirds: ws });
-          U.chime('ok');
-          U.toast(L(`الورد ${L.num(ws[k].n)} بقى ص ${L.num(ws[k].from)}–${L.num(ws[k].to)}`, `Portion ${ws[k].n} is now p. ${ws[k].from}–${ws[k].to}`, `أصبح الورد ${L.num(ws[k].n)} ص ${L.num(ws[k].from)}–${L.num(ws[k].to)}`));
+          await V.savePlan(b, ws, { k: 'pages', n: ws0[k].n, mode }, L(`الورد ${L.num(ws[k].n)} بقى ص ${L.num(ws[k].from)}–${L.num(ws[k].to)}`, `Portion ${ws[k].n} is now p. ${ws[k].from}–${ws[k].to}`, `أصبح الورد ${L.num(ws[k].n)} ص ${L.num(ws[k].from)}–${L.num(ws[k].to)}`));
         });
       },
     });

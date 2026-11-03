@@ -142,7 +142,7 @@
     return `<section class="card wcard hero${behind ? ' behind' : ''}">
       ${head(`${behind ? `<span class="tag late">${L(`متأخر ${L.count(bh.late.length, 'wird')}`, `${bh.late.length} portion${bh.late.length > 1 ? 's' : ''} behind`, `متأخر بـ${L.count(bh.late.length, 'wird')}`)}</span>` : ''}<p class="hi-w">${L(`الورد ${L.num(w.n)} • ص ${L.num(w.from)}–${L.num(w.to)}`, `Portion ${w.n} • p. ${w.from}–${w.to}`)}</p>
         <p class="hi-sub">${sub}</p>
-        <p class="due ${st}">${L.due(w.due)}</p>`)}
+        <p class="due ${st}">${L.due(w.due)}</p>${G.gapDay(b) ? `<p class="hi-gap">🔄 ${behind ? L('النهارده يوم تعويض: الحق اللي فاتك', 'Today is a catch-up day: catch up', 'اليوم يوم تعويض: الحق ما فاتك') : L('النهارده يوم تعويض: مفيش ورد جديد', 'Today is a catch-up day: no new portion', 'اليوم يوم تعويض: لا ورد جديد')}</p>` : ''}`)}
       ${V.forecastLine(b, 'hero-fc')}
       ${catchRow}
       ${pathStrip(b, ws, w)}

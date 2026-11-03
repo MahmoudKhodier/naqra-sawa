@@ -131,7 +131,7 @@
           else if (x.kind === 'msgreply') x.b === '_c' ? V.go('circle', { seg: 'chat' }) : V.go('book-' + x.b, { tab: 'talk', ch: x.ch });
           else if (x.kind === 'poke' && x.b && S.books.has(x.b)) A.R.open(x.b);
           else if (x.kind === 'throw' && A.Play) A.Play.throwSheet(x.who);
-          else if (x.kind === 'off') V.offSheet();
+          else if (x.kind === 'off') x.o && x.o.kind === 'plan' && S.books.has(x.o.b) ? V.go('book-' + x.o.b, { tab: 'plan' }) : V.offSheet();
           else if (x.b && S.books.has(x.b)) V.go('book-' + x.b);
           else V.go('home');
         }),
