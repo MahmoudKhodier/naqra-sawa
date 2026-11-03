@@ -332,6 +332,41 @@ const closeAll = async (p) => {
       await H.shot(a, 'notes-react-feed');
     });
 
+    await step('Reacting with no connection: no error, it goes through once back online; an old reaction on my own note is not shown', async () => {
+      const id6 = await b.evaluate(async (bk) => {
+        const { D, S, U } = window.A;
+        const n = D.newId();
+        await D.set(`notes/${n}`, { b: bk, page: 6, kind: 'note', text: 'من غير نت', rect: { x: 0.4, y: 0.4, w: 0, h: 0 }, by: S.me, at: U.nowIso(), wid: '', likes: {}, replies: {} });
+        return n;
+      }, bookId);
+      await until(a, 'in', (x) => window.A.S.notes.has(x), id6);
+      await closeAll(a);
+      await a.evaluate(() => window.A.V.go('circle'));
+      const pill = `.feed .ncard:has([data-nid="${id6}"]) [data-rx="note"]`;
+      await a.waitForSelector(pill);
+      const ctxA = a.context();
+      await ctxA.setOffline(true);
+      await a.click(pill);
+      await T(800);
+      const warn = await a.evaluate(() => [...document.querySelectorAll('.toast.warn')].map((t) => t.textContent).join(' | '));
+      const shown = await a.$eval(pill, (e) => e.textContent.replace(/\s+/g, ''));
+      assert(/👍/.test(shown) && /[1١]/.test(shown), 'not shown as done while offline: ' + shown);
+      await ctxA.setOffline(false);
+      await until(b, 'Sara gets 👍 after reconnecting', (x) => Object.values(((window.A.S.notes.get(x) || {}).rx) || {}).includes('👍'), id6, 20000);
+      assert(!/مسموح/.test(warn), 'a permission error while offline: ' + warn);
+      // my own reaction on my own note (left from before): not counted, not shown
+      const own = await a.evaluate(async (bk) => {
+        const { D, S, U } = window.A;
+        const n = D.newId();
+        await D.set(`notes/${n}`, { b: bk, page: 6, kind: 'note', text: 'قديمة', rect: { x: 0.4, y: 0.6, w: 0, h: 0 }, by: S.me, at: U.nowIso(), wid: '', likes: { [S.me]: U.nowIso() }, replies: {}, rx: { [S.me]: '😂' } });
+        return n;
+      }, bookId);
+      await until(a, 'in', (x) => window.A.S.notes.has(x), own);
+      await T(500);
+      assert(!(await a.$(`.feed .ncard:has([data-nid="${own}"]) [data-rx="note"]`)), 'my own old 😂 still shows on my note');
+      return warn ? 'offline note: ' + warn : 'no warning';
+    });
+
     await step('«الصفحة» lands on each note: top, middle, bottom, sides; at fit, zoomed in, and page by page', async () => {
       const ids = await a.evaluate(async (bk) => {
         const { D, S, U } = window.A;
@@ -415,7 +450,7 @@ const closeAll = async (p) => {
     });
 
     await step('No console errors', async () => {
-      const errs = [...(a.__errors || []), ...((b && b.__errors) || [])].filter((e) => !/favicon|fonts|404/.test(e));
+      const errs = [...(a.__errors || []), ...((b && b.__errors) || [])].filter((e) => !/favicon|fonts|404|INTERNET_DISCONNECTED|Failed to fetch|realtime|websocket/i.test(e));
       assert(!errs.length, errs.slice(0, 4).join('\n'));
     });
   } finally {

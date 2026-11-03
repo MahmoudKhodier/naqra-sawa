@@ -15,13 +15,48 @@
   V.RX_COL = { '👍': '#3b82f6', '😂': '#ffcc3d', '😮': '#ffcc3d', '💔': '#ff4d6d', '🔥': '#ff7a1a', '🤯': '#ffb02e', '❤️': '#ff3355' };
   const kinds = {};
   V.rxKind = (name, def) => (kinds[name] = def);
+  /* Reactions made with no connection wait on this phone (and show as made) until they go through. */
+  const QKEY = () => 'rxQueue:' + S.me;
+  const queue = () => U.store.get(QKEY(), []) || [];
+  const queued = (kind, id) => queue().find((q) => q.kind === kind && q.id === id);
+  // (a reaction someone left on their own thing, from before that was stopped, doesn't count or show)
   const listOf = (kind, id) => {
     try {
-      return (kinds[kind] && kinds[kind].list(id)) || [];
+      const own = kinds[kind] && kinds[kind].owner ? kinds[kind].owner(id) : '';
+      let list = ((kinds[kind] && kinds[kind].list(id)) || []).filter((x) => !own || x.u !== own);
+      const q = queued(kind, id);
+      if (q) list = [...list.filter((x) => x.u !== S.me), ...(q.e ? [{ u: S.me, e: q.e }] : [])];
+      return list;
     } catch (e) {
       return [];
     }
   };
+  const offlineError = (er) => !er || !er.code || !['invalid_argument', 'too_large', 'quota_exceeded', 'resource_exhausted'].includes(er.code);
+  let flushing = false;
+  V.rxFlush = async () => {
+    if (flushing || !S.me || !navigator.onLine) return;
+    const q = queue();
+    if (!q.length) return;
+    flushing = true;
+    try {
+      for (const it of q) {
+        try {
+          await kinds[it.kind].set(it.id, it.e);
+        } catch (er) {
+          if (offlineError(er)) break; // still no connection: try again later
+        }
+        U.store.set(QKEY(), queue().filter((x) => !(x.kind === it.kind && x.id === it.id && x.at === it.at)));
+      }
+    } finally {
+      flushing = false;
+      V.render && V.render();
+    }
+  };
+  window.addEventListener('online', () => setTimeout(V.rxFlush, 800));
+  V.after = V.after || [];
+  let booted = false;
+  V.after.push(() => !booted && S.loaded && S.loaded.notes && ((booted = true), setTimeout(V.rxFlush, 1500))); // what waited from last time
+  setInterval(() => queue().length && V.rxFlush(), 30000);
 
   /* Whose thing it is: nobody reacts to their own (they can still see who reacted). */
   const ownerOf = (kind, id) => {
@@ -54,11 +89,18 @@
     if (U.buzz) U.buzz('soft');
     else if (navigator.vibrate) try { navigator.vibrate(15); } catch (er) {}
     if (e && from) burst(e, from);
+    const wait = (msg) => {
+      U.store.set(QKEY(), [...queue().filter((x) => !(x.kind === kind && x.id === id)), { kind, id, e, at: Date.now() }]);
+      V.render && V.render();
+      if (msg) U.toast(L('مفيش نت دلوقتي — هيتبعت لوحده لما النت يرجع', 'No connection — it goes out by itself once you’re back online', 'لا اتصال الآن — سيُرسل تلقائيًا عند عودة الاتصال'));
+    };
+    if (!navigator.onLine) return wait(true);
     try {
       await k.set(id, e);
       if (e) U.chime && U.chime('soft');
+      if (queued(kind, id)) U.store.set(QKEY(), queue().filter((x) => !(x.kind === kind && x.id === id)));
     } catch (er) {
-      U.toast(L('ماتحفظش. اتأكد من النت وجرّب تاني.', "Didn't save. Check your connection and try again.", 'لم يُحفظ. تأكد من الاتصال وحاول مجددًا.'), 'warn');
+      if (offlineError(er)) wait(true); // the data layer already said why when it's anything else
     }
   }
   /* The picked emoji pops up from where it was picked, with a few dots. */
