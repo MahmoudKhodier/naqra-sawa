@@ -710,7 +710,7 @@
   /* To a note: the page, with the note itself a little above the middle of the screen (zoomed in: across too),
      and a flash on it. */
   function goToNote(p, nid) {
-    const n = S.notes.get(nid) || (S.priv && S.priv.notes && S.priv.notes[nid]);
+    const n = S.notes.get(nid) || (S.priv && S.priv.notes && S.priv.notes[nid]) || (S.myNotes && S.myNotes.get(nid));
     const r = n && n.rect;
     if (!r || st.paged || !(p >= 1 && p <= st.N)) return goTo(p, false, nid);
     restoreAnchor({ p, fy: U.clamp((r.y || 0) + (r.h || 0) / 2, 0, 1), fx: U.clamp((r.x || 0) + (r.w || 0) / 2, 0, 1), ax: st.sc.clientWidth / 2, ay: st.sc.clientHeight * 0.4 });
@@ -863,6 +863,8 @@
     for (const n of S.notes.values()) if (n.b === st.bookId && n.page === p && n.rect) out.push(n);
     const priv = S.priv && S.priv.notes;
     if (priv) for (const [id, n] of Object.entries(priv)) if (n && n.b === st.bookId && n.page === p && n.rect) out.push(Object.assign({ id, priv: true, by: S.me }, n));
+    // brought in from a backup (mine, or a friend's from another circle, kept only for me)
+    if (S.myNotes) for (const n of S.myNotes.values()) if (n.b === st.bookId && n.page === p && n.rect && n.kind !== 'arch') out.push(Object.assign({ by: S.me }, n, { priv: true, my: true }));
     return out;
   }
   function drawOverlay(p, el) {
@@ -881,11 +883,12 @@
       const col = U.col(n.color, COLORS[0]);
       const rc = n.replies ? Object.values(n.replies).filter(Boolean).length : 0;
       const likes = n.likes ? Object.values(n.likes).filter(Boolean).length : 0;
-      const label = U.esc(D.name(n.by) + (n.text ? ': ' + n.text.slice(0, 80) : ''));
+      const label = U.esc(D.authorName(n) + (n.text ? ': ' + n.text.slice(0, 80) : ''));
+      const pv = n.my ? 'my' : n.priv ? 1 : '';
       if (r.w < 0.012 && r.h < 0.012) {
-        html += `<button class="pinb${n.priv ? ' priv' : ''}${mv ? ' moved' : ''}" data-nid="${U.esc(n.id)}" data-priv="${n.priv ? 1 : ''}" style="left:${r.x * 100}%;top:${r.y * 100}%;--c:${U.esc(col)}" aria-label="${label}">${D.avatar(n.by, 'xs')}${rc ? `<i>${L.num(rc)}</i>` : ''}</button>`;
+        html += `<button class="pinb${n.priv ? ' priv' : ''}${mv ? ' moved' : ''}" data-nid="${U.esc(n.id)}" data-priv="${pv}" style="left:${r.x * 100}%;top:${r.y * 100}%;--c:${U.esc(col)}" aria-label="${label}">${D.authorAvatar(n, 'xs')}${rc ? `<i>${L.num(rc)}</i>` : ''}</button>`;
       } else {
-        html += `<button class="hlb k-${U.esc(n.kind || 'hl')}${n.priv ? ' priv' : ''}" data-nid="${U.esc(n.id)}" data-priv="${n.priv ? 1 : ''}" style="left:${r.x * 100}%;top:${r.y * 100}%;width:${r.w * 100}%;height:${r.h * 100}%;--c:${U.esc(col)};--a:${U.esc(D.color(n.by))}" aria-label="${label}"><span class="hl-tag">${D.avatar(n.by, 'xs')}${n.kind === 'q' ? '<b>؟</b>' : ''}${rc + likes ? `<i>${L.num(rc + likes)}</i>` : ''}</span></button>`;
+        html += `<button class="hlb k-${U.esc(n.kind || 'hl')}${n.priv ? ' priv' : ''}" data-nid="${U.esc(n.id)}" data-priv="${pv}" style="left:${r.x * 100}%;top:${r.y * 100}%;width:${r.w * 100}%;height:${r.h * 100}%;--c:${U.esc(col)};--a:${U.esc(D.color(n.by))}" aria-label="${label}"><span class="hl-tag">${D.authorAvatar(n, 'xs')}${n.kind === 'q' ? '<b>؟</b>' : ''}${rc + likes ? `<i>${L.num(rc + likes)}</i>` : ''}</span></button>`;
       }
     }
     // reactions: one small bubble per line on the inner margin, the two most used emoji and how many
@@ -1028,7 +1031,10 @@
         if (!mv) return;
         const nid = mv.pin.dataset.nid;
         const priv = !!mv.pin.dataset.priv;
-        mv.n = priv ? Object.assign({ id: nid, by: S.me, priv: true }, (S.priv && S.priv.notes && S.priv.notes[nid]) || {}) : S.notes.get(nid);
+        mv.n =
+          mv.pin.dataset.priv === 'my'
+            ? S.myNotes.get(nid) && Object.assign({ by: S.me }, S.myNotes.get(nid), { priv: true, my: true })
+            : priv ? Object.assign({ id: nid, by: S.me, priv: true }, (S.priv && S.priv.notes && S.priv.notes[nid]) || {}) : S.notes.get(nid);
         if (!mv.n) return cancel();
         mv.mine = mv.n.by === S.me;
         mv.on = true;
@@ -1068,6 +1074,8 @@
         if (!m.mine) {
           await D.privUpdate((cur) => Object.assign(cur, { moved: Object.assign({}, cur.moved, { [m.n.id]: { x, y } }) }));
           U.toast(L('اتحرّكت عندك بس. تقدر ترجّعها من الملاحظة نفسها.', 'Moved on your screen only. Put it back from the note itself.', 'تحرّكت على شاشتك فقط. يمكنك إعادتها من الملاحظة نفسها.'));
+        } else if (m.n.my) {
+          await D.update(D.myNotePath(m.n.id), { rect: Object.assign({}, m.n.rect, { x, y }) });
         } else if (m.n.priv) {
           await D.privUpdate((cur) => {
             const notes = Object.assign({}, cur.notes);
@@ -1931,7 +1939,7 @@
       const nb = e.target.closest('[data-nid]');
       if (nb && Date.now() - (st.movedAt || 0) < 600) return;
       if (nb && st.mode === 'none' && nb.closest('.pg-ov')) {
-        A.V.openNote(nb.dataset.nid, { priv: !!nb.dataset.priv });
+        A.V.openNote(nb.dataset.nid, { priv: !!nb.dataset.priv, my: nb.dataset.priv === 'my' });
         return;
       }
       const t = e.target.closest('[data-act]');
@@ -2754,8 +2762,9 @@
     const nb = D.book(st.bookId);
     if (!nb) return R.close();
     st.book = nb;
-    if (st.notesRef !== S.notes || st.privRef !== S.priv || st.profVer !== S.profiles || st.rxRef !== S.reacts) {
+    if (st.notesRef !== S.notes || st.privRef !== S.priv || st.profVer !== S.profiles || st.rxRef !== S.reacts || st.myRef !== S.myNotes) {
       st.rxRef = S.reacts;
+      st.myRef = S.myNotes;
       st.notesRef = S.notes;
       st.privRef = S.priv;
       st.profVer = S.profiles;

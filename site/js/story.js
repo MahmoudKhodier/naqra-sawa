@@ -80,7 +80,7 @@
     o = Object.assign(V.storyDefaults(), { crop: true, words: true }, o);
     if (document.fonts && document.fonts.ready) await document.fonts.ready.catch(() => {});
     const { roundRect, star, loadImg } = V.cardKit;
-    const book = D.book(n.b) || {};
+    const book = D.book(n.b) || (n.xt ? { title: n.xt, author: n.xa || '' } : {});
     const [W, H] = SIZES[o.size] || SIZES.story;
     const sq = o.size === 'square';
     const T = await themeOf(o.theme, book);
@@ -240,7 +240,7 @@
       if (o.name) {
         ctx.fillStyle = T.ink2;
         ctx.font = disp(sq ? 26 : 32, 500);
-        ctx.fillText(L(`اختيار ${D.name(n.by)}`, `Chosen by ${D.name(n.by)}`, `اختيار ${D.name(n.by)}`), W / 2, o.meta ? Y.chosen : Y.pill - 30);
+        ctx.fillText(L(`اختيار ${D.authorName(n)}`, `Chosen by ${D.authorName(n)}`, `اختيار ${D.authorName(n)}`), W / 2, o.meta ? Y.chosen : Y.pill - 30);
       }
       // the invitation at the bottom
       ctx.fillStyle = T.gold;
@@ -261,7 +261,7 @@
   V.storySheet = (n) => {
     let urls = [];
     let gen = 0;
-    const book = D.book(n.b) || {};
+    const book = D.book(n.b) || (n.xt ? { title: n.xt, author: n.xa || '' } : {});
     const o = Object.assign(V.storyDefaults(), { crop: true, words: true, text: null });
     const hasCrop = !!n.crop, hasText = !!(n.text && String(n.text).trim());
     // the words as sentences (a paragraph break remembered), to keep only some of them

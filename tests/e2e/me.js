@@ -231,9 +231,14 @@ const cards = (p) => p.$$eval('.qn-list .qn', (x) => x.length);
       await p.click('[data-go="shelf"]');
       await p.click('[data-act="shelf-more"]');
       await p.click('.mi:has-text("دفتر اقتباساتي")');
-      await until(p, 'notebook opened', () => window.A.V.state.route === 'quotes' && !!document.querySelector('.qn-list'));
+      await until(p, 'notebook opened', () => window.A.V.state.route === 'quotes' && !!document.querySelector('.qn-shelf'));
       const nav = await p.$eval('.nav .nv.on', (e) => e.dataset.go);
       assert(nav === 'me', 'tab lit: ' + nav);
+      // by book first: the book and the removed one, as covers with their counts
+      const tiles = await p.$$eval('.qn-shelf .qn-bk', (x) => x.map((e) => e.querySelector('.qn-bk-n').textContent));
+      assert(tiles.length === 2 && tiles.includes('٧٢') && tiles.includes('١'), 'tiles: ' + tiles);
+      await p.click('.qn-views [data-v="all"]');
+      await until(p, 'all of them', () => !!document.querySelector('.qn-list'));
     });
 
     await step('Notebook: newest first, 60 at a time, more as you scroll', async () => {
@@ -259,10 +264,13 @@ const cards = (p) => p.$$eval('.qn-list .qn', (x) => x.length);
       await until(p, 'questions only', () => document.querySelectorAll('.qn-list .qn').length === 1 && !!document.querySelector('.qn.k-q'));
       await p.click('.qn-kinds [data-v="quote"]');
       await until(p, 'quotes only', () => document.querySelectorAll('.qn-list .qn').length === 3);
-      await p.click(`.qn-books [data-v="${gone}"]`);
-      await until(p, 'quotes in the removed book', () => document.querySelectorAll('.qn-list .qn').length === 1);
-      await p.click('.qn-books [data-v=""]');
-      await until(p, 'all books', () => document.querySelectorAll('.qn-list .qn').length === 3);
+      // a book's own notes: from its cover
+      await p.click('.qn-views [data-v="books"]');
+      await p.click(`.qn-bk[data-v="${gone}"]`);
+      await until(p, 'the removed book', () => document.querySelectorAll('.qn-bookpage .qn').length === 1);
+      await p.click('[data-act="qn-books"]');
+      await p.click('.qn-views [data-v="all"]');
+      await until(p, 'all books', () => document.querySelectorAll('.qn-list .qn').length >= 3);
     });
 
     await step('Notebook: long text folds with «اقرأ الباقي»', async () => {
@@ -286,16 +294,17 @@ const cards = (p) => p.$$eval('.qn-list .qn', (x) => x.length);
       await until(p, 'reader open on page 3', () => window.A.R.isOpen() && window.A.R.current().page === 3, null, 15000);
       await p.evaluate(() => window.A.R.close(true));
       await p.evaluate(() => window.A.V.render(true));
-      await p.click(`.qn-books [data-v="${gone}"]`);
-      await p.click('.qn-list .qn-main');
+      await p.click('.qn-views [data-v="books"]');
+      await p.click(`.qn-bk[data-v="${gone}"]`);
+      await p.click('.qn-bookpage .qn-main');
       await p.waitForSelector('#toasts .toast', { timeout: 5000, state: 'attached' });
       assert(!(await p.evaluate(() => window.A.R.isOpen())), 'a removed book opened');
     });
 
     await step('Dark theme pictures', async () => {
       await theme(p, 'dark');
-      await p.click('.qn-books [data-v=""]');
-      await p.click('.qn-kinds [data-v=""]');
+      await p.evaluate(() => window.A.V.go('quotes', { v: 'all' }));
+      await p.waitForSelector('.qn-list');
       await T(300);
       await shot(p, 'me-quotes-dark', 'top');
       await p.evaluate(() => window.A.V.go('me'));
@@ -321,7 +330,7 @@ const cards = (p) => p.$$eval('.qn-list .qn', (x) => x.length);
       await p.click('#me-stats [data-act="mst-metric"][data-v="pages"]');
       await shot(p, 'me-stats-en', 'stats');
       await p.click('.qn-entry');
-      await p.waitForSelector('.qn-list');
+      await p.waitForSelector('.quotes-page .qn-views');
       assert((await p.textContent('.quotes-page h1')).includes('My quotes notebook'), 'notebook title');
       await p.fill('#qn-q', 'old book'); // nothing matches in English text
       await p.waitForSelector('.quotes-page .empty');

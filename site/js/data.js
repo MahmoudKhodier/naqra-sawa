@@ -36,6 +36,7 @@
     gone: new Map(), // removed books: just their portions, so the XP earned on them stays
     myBooks: new Map(), // «مكتبتي الخاصة»: books only I can see (data/users/<me>/my/books)
     myProg: new Map(), // my progress in them (data/users/<me>/my/prog), never in the circle's prog
+    myNotes: new Map(), // notes brought in from a file (Kindle, a backup), only mine: data/users/<me>/my/notes (export.js)
     priv: null,
     peers: [],
     profiles: {},
@@ -139,6 +140,7 @@
     listen(db.doc(`data/users/${S.me}/priv`), 'priv', (s) => (S.priv = s.exists ? s.data() : null));
     listen(db.collection(`data/users/${S.me}/my/books`), 'myBooks', (s) => (S.myBooks = toMap(s)));
     listen(db.collection(`data/users/${S.me}/my/prog`), 'myProg', (s) => (S.myProg = toMap(s)));
+    listen(db.collection(`data/users/${S.me}/my/notes`), 'myNotes', (s) => (S.myNotes = toMap(s)));
   }
 
   /* ---------- writes (one at a time per document) ---------- */
@@ -186,6 +188,22 @@
   D.set = (path, body) => (leaks(path, body) ? Promise.reject(Object.assign(new Error('private book'), { code: 'invalid_argument' })) : queue(path, () => S.db.doc(path).set(body)));
   D.update = (path, patch) => queue(path, () => S.db.doc(path).update(patch));
   D.del = (path) => queue(path, () => S.db.doc(path).delete());
+  /* Many new documents at once (an import), in batches: entries = [[path, body], …]. */
+  D.setMany = (entries, onProg) => {
+    if (entries.some(([p, b]) => leaks(p, b))) return Promise.reject(Object.assign(new Error('private book'), { code: 'invalid_argument' }));
+    const go = S.db.setMany
+      ? S.db.setMany(entries, onProg)
+      : (async () => {
+          for (let i = 0; i < entries.length; i++) {
+            await S.db.doc(entries[i][0]).set(entries[i][1]);
+            if (onProg) onProg((i + 1) / entries.length);
+          }
+        })();
+    return go.catch((e) => {
+      handleWriteError(e);
+      throw e;
+    });
+  };
   D.canWrite = () => !!S.db && !S.readOnly;
 
   /* ---------- lookups ---------- */
@@ -195,6 +213,7 @@
   D.isPrivate = (b) => typeof b === 'string' && b.startsWith('my-');
   D.myBookPath = (b) => `data/users/${S.me}/my/books/${b}`;
   const myProgPath = (b) => `data/users/${S.me}/my/prog/${b}`;
+  D.myNotePath = (id) => `data/users/${S.me}/my/notes/${id}`;
   /* A book by id: the circle's, or one of mine. */
   D.book = (id) => (id && (S.books.get(id) || S.myBooks.get(id))) || null;
   D.prog = (b, u = S.me) => (D.isPrivate(b) ? (u === S.me && S.myProg.get(b)) || null : S.prog.get(D.progKey(b, u)) || null);
@@ -241,6 +260,16 @@
     }
     const ch = Array.from(n.trim())[0] || '؟';
     return `<span class="av av-${size}" style="--c:${U.esc(col)}" title="${U.esc(n)}"><span class="av-ch">${U.esc(ch)}</span></span>`;
+  };
+
+  /* A note's author: a note brought in from a backup may carry the name of someone from another circle
+     (`from`); it is kept only in my own notes and shown with a letter, never matched to a member. */
+  D.authorName = (n) => (n && n.from ? String(n.from) : D.name(n && n.by));
+  D.authorAvatar = (n, size = 'md') => {
+    if (!n || !n.from) return D.avatar(n && n.by, size);
+    const nm = String(n.from);
+    const col = `hsl(${U.hash(nm) % 360} 45% 52%)`;
+    return `<span class="av av-${size}" style="--c:${col}" title="${U.esc(nm)}"><span class="av-ch">${U.esc(Array.from(nm.trim())[0] || '؟')}</span></span>`;
   };
 
   let lastIds = '';

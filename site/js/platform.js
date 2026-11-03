@@ -909,6 +909,56 @@
       }
       applyDoc(row);
     }
+    /* Many plain documents at once (an import): they show at once and go out in batches (up to 200 rows or
+       ~1.5 MB each); a failed batch and the ones after it are taken back, earlier batches stay saved. */
+    async function writeMany(entries, onProg) {
+      const rows = [];
+      for (const [path, body] of entries) {
+        checkPath(path, true);
+        if (!isObj(body)) throw err('invalid_argument', 'body must be an object');
+        const r = route(path);
+        if (r.kind !== 'doc') throw err('invalid_argument', 'only documents');
+        rows.push({ k: r.col + '|' + r.id, col: r.col, id: r.id, data: freeze(clone(body)) });
+      }
+      if (!rows.length) return;
+      const prev = new Map(rows.map((x) => [x.k, st.docs.get(x.k)]));
+      const cols = new Set(rows.map((x) => x.col));
+      for (const x of rows) st.docs.set(x.k, { col: x.col, id: x.id, data: x.data, at: prev.get(x.k) ? prev.get(x.k).at : null });
+      cols.forEach(touch);
+      const batches = [];
+      let cur = [], chars = 0;
+      for (const x of rows) {
+        const n = JSON.stringify(x.data).length + 120;
+        if (cur.length && (cur.length >= 200 || chars + n > 1500000)) {
+          batches.push(cur);
+          cur = [];
+          chars = 0;
+        }
+        cur.push(x);
+        chars += n;
+      }
+      if (cur.length) batches.push(cur);
+      let done = 0;
+      for (let i = 0; i < batches.length; i++) {
+        const { data: back, error } = await client
+          .from('docs')
+          .upsert(batches[i].map((x) => ({ circle_id: C, col: x.col, id: x.id, data: x.data, deleted: false })))
+          .select('circle_id, col, id, data, deleted, updated_at');
+        if (error) {
+          for (const b of batches.slice(i))
+            for (const x of b) {
+              const p = prev.get(x.k);
+              if (p) st.docs.set(x.k, p);
+              else st.docs.delete(x.k);
+            }
+          cols.forEach(touch);
+          throw mapErr(error);
+        }
+        for (const row of back || []) applyDoc(row);
+        done += batches[i].length;
+        if (onProg) onProg(done / rows.length);
+      }
+    }
 
     function docRef(path) {
       checkPath(path, true);
@@ -960,7 +1010,7 @@
         },
       });
     }
-    const db = Object.freeze({ doc: docRef, collection: colRef });
+    const db = Object.freeze({ doc: docRef, collection: colRef, setMany: (entries, onProg) => writeMany(entries, onProg) });
 
     /* ---------- people ---------- */
     const color = (uid) => A.U.SPINES[A.U.hash(uid || '') % A.U.SPINES.length][0];
@@ -1101,6 +1151,9 @@
         a.href = url;
         a.download = filename;
         document.body.appendChild(a);
+        // Chrome may fire popstate / hashchange for a download started by a tap, though the page stays where it
+        // is: the app ignores them for a moment (v-core.js), so the open sheet and screen stay
+        P.dlAt = Date.now();
         a.click();
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 60000);

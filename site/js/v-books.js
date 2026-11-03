@@ -500,6 +500,8 @@
     }
     if (S.sample) items.push({ ic: 'claude', t: L('خلّي Claude يقترح أسئلة نقاش', 'Ask Claude for discussion questions', 'اطلب من Claude أسئلة للنقاش'), fn: () => V.askBook(b.id) });
     if ((b.parts || []).length) items.push({ ic: 'download', t: L('حمّل الكتاب', 'Download the book'), fn: () => V.download(b.id) });
+    if (V.exportSheet) items.push({ ic: 'file', t: L('صدّر الملاحظات', 'Export the notes', 'صدّر الملاحظات'), fn: () => V.exportSheet({ b: b.id }) });
+    if (V.importPick && D.canWrite()) items.push({ ic: 'upload', t: L('استورد ملاحظات', 'Import notes', 'استورد ملاحظات'), fn: () => V.importPick({ b: b.id }) });
     if (b.addedBy === S.me || S.isOwner || S.canEdit) items.push({ ic: 'trash', danger: true, t: L('امسح الكتاب من الحلقة', 'Remove book from circle', 'احذف الكتاب من الحلقة'), fn: () => V.deleteBook(b.id) });
     V.menu(items);
   };
@@ -1236,6 +1238,8 @@
       if (p && p.finished) items.push({ ic: 'books', t: L('حطه على رفّي كـ«قرأته»', 'Put it on my shelf as read', 'ضعه على رفّي كـ«قرأته»'), fn: () => V.shelvePrivate(b.id) });
     }
     if ((b.parts || []).length) items.push({ ic: 'download', t: L('حمّل الكتاب', 'Download the book'), fn: () => V.download(b.id) });
+    if (V.exportSheet) items.push({ ic: 'file', t: L('صدّر الملاحظات', 'Export the notes', 'صدّر الملاحظات'), fn: () => V.exportSheet({ b: b.id }) });
+    if (V.importPick && D.canWrite()) items.push({ ic: 'upload', t: L('استورد ملاحظات', 'Import notes', 'استورد ملاحظات'), fn: () => V.importPick({ b: b.id }) });
     if (D.canWrite()) items.push({ ic: 'trash', danger: true, t: L('امسح الكتاب', 'Delete the book', 'احذف الكتاب'), fn: () => V.deletePrivate(b.id) });
     V.menu(items);
   };

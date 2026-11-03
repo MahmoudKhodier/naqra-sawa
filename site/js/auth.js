@@ -204,7 +204,9 @@
       U.store.set('circles:' + uid, list);
       return list;
     });
-    if (!circles || !circles.length) {
+    // a circle just made or joined isn't in the remembered list yet: wait for the fresh one
+    const want = U.store.get('circle', null);
+    if (!circles || !circles.length || (want && !circles.some((c) => c.id === want))) {
       try {
         circles = await fresh;
       } catch (e) {

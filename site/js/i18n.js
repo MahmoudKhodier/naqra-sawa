@@ -127,6 +127,21 @@
       ar: { one: 'دقيقة', two: 'دقيقتين', two_nom: 'دقيقتان', few: '{n} دقائق', other: '{n} دقيقة' },
       en: { one: '1 minute', other: '{n} minutes' },
     },
+    week: {
+      eg: { one: 'أسبوع', two: 'أسبوعين', few: '{n} أسابيع', other: '{n} أسبوع' },
+      ar: { one: 'أسبوع', two: 'أسبوعين', two_nom: 'أسبوعان', few: '{n} أسابيع', many: '{n} أسبوعًا', other: '{n} أسبوع' },
+      en: { one: '1 week', other: '{n} weeks' },
+    },
+    month: {
+      eg: { one: 'شهر', two: 'شهرين', few: '{n} شهور', other: '{n} شهر' },
+      ar: { one: 'شهر', two: 'شهرين', two_nom: 'شهران', few: '{n} أشهر', many: '{n} شهرًا', other: '{n} شهر' },
+      en: { one: '1 month', other: '{n} months' },
+    },
+    year: {
+      eg: { one: 'سنة', two: 'سنتين', few: '{n} سنين', other: '{n} سنة' },
+      ar: { one: 'سنة', two: 'سنتين', two_nom: 'سنتان', few: '{n} سنوات', many: '{n} سنةً', other: '{n} سنة' },
+      en: { one: '1 year', other: '{n} years' },
+    },
   };
   L.count = (n, noun, kase) => {
     const forms = NOUNS[noun][lang];
@@ -168,6 +183,14 @@
     if (d === 1) return L('امبارح', 'yesterday', 'أمس');
     if (d < 7) return L(`من ${L.count(d, 'day')}`, `${L.count(d, 'day')} ago`, `منذ ${L.count(d, 'day')}`);
     return L.dayShort(k);
+  };
+  /* «من ٣ شهور»: how long ago, in weeks, months or years past a week. */
+  L.agoLong = (iso) => {
+    if (!iso) return '';
+    const d = U.diffDays(U.isoKey(iso), U.today());
+    if (d < 7) return L.ago(iso);
+    const [n, u] = d < 30 ? [Math.floor(d / 7), 'week'] : d < 365 ? [Math.max(1, Math.floor(d / 30.4)), 'month'] : [Math.floor(d / 365), 'year'];
+    return L(`من ${L.count(n, u)}`, `${L.count(n, u)} ago`, `منذ ${L.count(n, u)}`);
   };
 
   L.apply();

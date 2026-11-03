@@ -213,6 +213,8 @@
       return;
     }
     const top = V.sheets[V.sheets.length - 1];
+    // still on the top sheet's own step (Chrome fires this for a download started by a tap): not a step back
+    if (top && top.hist && history.state && history.state.qs === top.hist) return;
     if (top && top.hist) {
       top.hist = null; // this step is already gone
       return top.close();
@@ -1048,6 +1050,7 @@
       V._silentHash = false;
       return;
     }
+    if (Date.now() - (A.P.dlAt || 0) < 2500 && (location.hash || '').slice(1) === V.state.route) return; // a download, not a move
     if (A.R.isOpen()) A.R.close(true);
     V.fromHash();
     V.render(true);

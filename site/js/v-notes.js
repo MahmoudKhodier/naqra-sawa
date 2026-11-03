@@ -231,38 +231,58 @@
   V.noteReplies = replies;
   V.likeCount = likeCount;
 
+  /* Replies kept from a backup (only mine to see): in a note brought in (`arch`), or for a note of mine put back
+     in the circle, in my own notes ({kind: 'arch', of: <note id>, arch}). arch = [{n: name, t: text, at}] */
+  const archOf = (n) => {
+    if (n.arch && n.arch.length) return n.arch;
+    if (!S.myNotes) return [];
+    for (const x of S.myNotes.values()) if (x.kind === 'arch' && x.of === n.id) return x.arch || [];
+    return [];
+  };
   V.openNote = (nid, opts = {}) => {
-    const isPriv = opts.priv || (!S.notes.has(nid) && S.priv && S.priv.notes && S.priv.notes[nid]);
-    const get = () => (isPriv ? (S.priv && S.priv.notes && S.priv.notes[nid] ? Object.assign({ id: nid, by: S.me, priv: true }, S.priv.notes[nid]) : null) : S.notes.get(nid));
+    const inPriv = () => S.priv && S.priv.notes && S.priv.notes[nid];
+    const isMy = opts.my || (!S.notes.has(nid) && !inPriv() && S.myNotes && S.myNotes.has(nid));
+    const isPriv = !isMy && (opts.priv || (!S.notes.has(nid) && inPriv()));
+    const get = () =>
+      isMy
+        ? S.myNotes.get(nid) ? Object.assign({ by: S.me }, S.myNotes.get(nid), { id: nid, priv: true, my: true }) : null
+        : isPriv
+          ? inPriv() ? Object.assign({ id: nid, by: S.me, priv: true }, S.priv.notes[nid]) : null
+          : S.notes.get(nid);
     const n0 = get();
     if (!n0) return U.toast(L('الملاحظة دي اتمسحت', 'That note was deleted', 'تم حذف هذه الملاحظة'), 'warn');
     const book = D.book(n0.b);
     const body = (n) => {
       if (!n) return V.empty(L('الملاحظة دي اتمسحت', 'This note was deleted', 'تم حذف هذه الملاحظة'), '');
-      const mine = n.by === S.me;
+      const mine = n.by === S.me && !n.from;
       const rs = replies(n);
+      const arch = archOf(n);
+      const where = n.page && n.kind !== 'take' ? `${L('ص', 'p.')} ${L.num(n.page)}` : n.loc ? `${L('مكان', 'Loc.', 'موضع')} ${esc(L.num(String(n.loc)))}` : '';
       return `<div class="nt">
-        <div class="nt-head">${D.avatar(n.by, 'md')}<div><b>${esc(D.name(n.by))}</b><small>${L.ago(n.at)} • ${n.page ? `${L('ص', 'p.')} ${L.num(n.page)}` : ''} ${V.editedTag(n)}</small></div><span class="kind k-${esc(n.kind)}">${V.kindLabel(n.kind)}</span>${n.priv ? `<span class="kind">${icon('lock')}${L('خاصة', 'Private')}</span>` : ''}</div>
+        <div class="nt-head">${D.authorAvatar(n, 'md')}<div><b>${esc(D.authorName(n))}</b><small>${L.ago(n.at)}${where ? ' • ' + where : ''} ${V.editedTag(n)}</small></div><span class="kind k-${esc(n.kind)}">${V.kindLabel(n.kind)}</span>${n.priv && !n.my ? `<span class="kind">${icon('lock')}${L('خاصة', 'Private')}</span>` : ''}${n.my ? `<span class="kind">${icon('lock')}${n.via === 'kindle' ? 'Kindle' : L('مستورَدة', 'Imported', 'مستورَدة')}</span>` : ''}</div>
         ${n.crop ? `<figure class="nt-crop" style="--c:${U.col(n.color)}"><img src="${esc(n.crop)}" alt=""></figure>` : ''}
         ${n.text ? `<p class="nt-text" dir="auto">${esc(n.text)}</p>` : ''}
-        ${n.rect && !(n.rect.w > 0.012) && D.canWrite() ? `<p class="nt-movehint">${icon('pin')}<span>${mine ? L('عشان تحرّكها: دوس عليها مطوّل في الصفحة واسحبها — هتتحرك عند الكل.', 'To move it: long-press it on the page and drag — it moves for everyone.', 'لتحريكها: اضغط عليها مطولًا في الصفحة واسحبها — ستتحرك عند الجميع.') : L('مغطّية على الكلام؟ دوس عليها مطوّل واسحبها — هتتحرك عندك بس.', 'Covering the text? Long-press and drag it — it moves on your screen only.', 'تغطي النص؟ اضغط عليها مطولًا واسحبها — ستتحرك عندك فقط.')}</span></p>` : ''}
+        ${n.rect && !(n.rect.w > 0.012) && !n.my && D.canWrite() ? `<p class="nt-movehint">${icon('pin')}<span>${mine ? L('عشان تحرّكها: دوس عليها مطوّل في الصفحة واسحبها — هتتحرك عند الكل.', 'To move it: long-press it on the page and drag — it moves for everyone.', 'لتحريكها: اضغط عليها مطولًا في الصفحة واسحبها — ستتحرك عند الجميع.') : L('مغطّية على الكلام؟ دوس عليها مطوّل واسحبها — هتتحرك عندك بس.', 'Covering the text? Long-press and drag it — it moves on your screen only.', 'تغطي النص؟ اضغط عليها مطولًا واسحبها — ستتحرك عندك فقط.')}</span></p>` : ''}
         <div class="nt-acts">
           ${!n.priv && V.rxPill ? V.rxPill('note', n.id) : ''}
+          ${V.toggleStar && D.canWrite() ? `<button class="pill ghost nt-star${V.isStar(n.id) ? ' on' : ''}" data-star aria-pressed="${V.isStar(n.id)}">${icon('star')}<span>${V.isStar(n.id) ? L('في المفضلة', 'Favourite', 'في المفضلة') : L('المفضلة', 'Favourite', 'المفضلة')}</span></button>` : ''}
           ${book && n.page && !(A.R.isOpen() && A.R.bookId() === n.b) ? `<button class="pill" data-gopage>${icon('books')}<span>${L('افتح الصفحة', 'Open page')}</span></button>` : ''}
           ${book && n.page && A.R.isOpen() && A.R.bookId() === n.b ? `<button class="pill" data-gopage>${icon('fwd', 'flip')}<span>${L('روح للمكان', 'Jump there', 'انتقل إلى المكان')}</span></button>` : ''}
           ${(n.text || n.crop) && n.kind !== 'q' && V.storySheet ? `<button class="pill" data-story>${icon('share')}<span>${L('شارك كصورة', 'Share as picture', 'شارك كصورة')}</span></button>` : ''}
           ${n.text ? `<button class="pill ghost" data-copy>${icon('copy')}<span>${L('انسخ', 'Copy', 'انسخ')}</span></button>` : ''}
           ${!n.priv && V.canPin() ? `<button class="pill ghost${V.pinOf(n.id) ? ' on' : ''}" data-pin>${icon('pin')}<span>${V.pinOf(n.id) ? L('متثبّتة', 'Pinned', 'مثبّتة') : L('ثبّت', 'Pin', 'ثبّت')}</span></button>` : ''}
-          ${mine && D.canWrite() ? `<button class="pill ghost" data-editnote>${icon('edit')}<span>${L('عدّل', 'Edit')}</span></button>` : ''}
-          ${!mine && n.rect && S.priv && S.priv.moved && S.priv.moved[n.id] ? `<button class="pill ghost" data-unmove>${icon('pin')}<span>${L('رجّعها مكانها', 'Put it back', 'أعدها إلى مكانها')}</span></button>` : ''}
-          ${!mine && n.rect && D.canWrite() ? `<button class="pill ghost" data-hideme>${icon('eyeoff')}<span>${L('اخفيها عندي', 'Hide for me', 'أخفها عندي')}</span></button>` : ''}
+          ${mine && !n.my && D.canWrite() ? `<button class="pill ghost" data-editnote>${icon('edit')}<span>${L('عدّل', 'Edit')}</span></button>` : ''}
+          ${n.my && D.canWrite() ? `<button class="pill ghost" data-editmy>${icon('edit')}<span>${L('عدّل', 'Edit')}</span></button><button class="pill ghost danger" data-delmy>${icon('trash')}<span>${L('امسح', 'Delete', 'احذف')}</span></button>` : ''}
+          ${!mine && !n.my && n.rect && S.priv && S.priv.moved && S.priv.moved[n.id] ? `<button class="pill ghost" data-unmove>${icon('pin')}<span>${L('رجّعها مكانها', 'Put it back', 'أعدها إلى مكانها')}</span></button>` : ''}
+          ${!mine && !n.my && n.rect && D.canWrite() ? `<button class="pill ghost" data-hideme>${icon('eyeoff')}<span>${L('اخفيها عندي', 'Hide for me', 'أخفها عندي')}</span></button>` : ''}
         </div>
+        ${arch.length ? `<div class="replies arch"><p class="arch-h">${icon('lock')}<span>${L('ردود اتحفظت معاها (ليك بس)', 'Replies kept with it (only you)', 'ردود حُفظت معها (لك وحدك)')}</span></p>${arch.map((r) => `<div class="rep">${D.authorAvatar({ from: r.n || '؟' }, 'sm')}<div class="rep-b"><b>${esc(r.n || '')}</b><small>${L.ago(r.at)}</small><p dir="auto">${esc(r.t || '')}</p></div></div>`).join('')}</div>` : ''}
         ${!n.priv ? `<div class="replies" id="nt-replies" data-keep-scroll>${rs.length ? rs.map((r) => `<div class="rep">${D.avatar(r.by, 'sm')}<div class="rep-b"><b>${esc(D.name(r.by))}</b><small>${L.ago(r.at)} ${V.editedTag(r)}</small><p dir="auto">${esc(r.text)}</p>${V.rxPill ? V.rxPill('rep', `${n.id}|${r.id}`, { cls: 'sm' }) : ''}</div>${r.by === S.me ? `<span class="rep-acts"><button class="ib sm" data-editrep="${esc(r.id)}" aria-label="${L('عدّل', 'Edit')}">${icon('edit')}</button><button class="ib sm" data-delrep="${esc(r.id)}" aria-label="${L('امسح', 'Delete', 'احذف')}">${icon('trash')}</button></span>` : ''}</div>`).join('') : `<p class="muted sm">${L('محدش رد لسه. ابدأ النقاش!', 'No replies yet. Start the conversation!', 'لا ردود بعد. ابدأ النقاش!')}</p>`}</div>
         ${D.canWrite() ? `<form class="composer" data-reply><textarea id="nt-reply-${esc(n.id)}" rows="1" dir="auto" maxlength="${U.MAX.reply}" placeholder="${L('اكتب ردك…', 'Write a reply…')}"></textarea><button class="btn icon-only" aria-label="${L('ابعت', 'Send', 'أرسل')}">${icon('send', 'flip-rtl')}</button></form>` : ''}` : ''}
       </div>`;
     };
     V.sheet({
-      title: `${icon(KIND_IC[n0.kind] || 'note')} ${book ? esc(book.title) : ''}`,
+      title: `${icon(KIND_IC[n0.kind] || 'note')} ${book ? esc(book.title) : n0.xt ? esc(n0.xt) : ''}`,
       html: body(n0),
       onData: (el) => V.patch(el, body(get())),
       onMount: (el, api) => {
@@ -278,6 +298,20 @@
             return U.toast(ok ? L('اتنسخ ✓', 'Copied ✓', 'نُسخ ✓') : L('مقدرتش أنسخ', "Couldn't copy", 'تعذّر النسخ'), ok ? '' : 'warn');
           }
           if (q('[data-pin]')) return V.pinMenu(n);
+          if (q('[data-star]')) return V.toggleStar(n.id);
+          if (q('[data-editmy]'))
+            return V.editText({
+              title: L('عدّل الكلام', 'Edit the text', 'عدّل النص'),
+              value: n.text || '',
+              max: U.MAX.note,
+              onSave: (text) => D.update(D.myNotePath(n.id), { text, edited: U.nowIso() }),
+            });
+          if (q('[data-delmy]')) {
+            if (!(await V.confirm(L('هتمسح الملاحظة دي من دفترك.', 'This deletes the note from your notebook.', 'ستحذف هذه الملاحظة من دفترك.'), L('امسح', 'Delete', 'احذف'), true))) return;
+            api.close();
+            await D.del(D.myNotePath(n.id));
+            return U.toast(L('اتمسحت', 'Deleted', 'حُذفت'));
+          }
           const hit = { like: q('[data-like]'), gopage: q('[data-gopage]'), unmove: q('[data-unmove]'), hideme: q('[data-hideme]'), editnote: q('[data-editnote]'), editrep: q('[data-editrep]'), delrep: q('[data-delrep]') };
           if (hit.like) return V.like(n.id);
           if (hit.gopage) {
