@@ -59,7 +59,9 @@
       const at = U.parseD(day);
       at.setHours(hour, 0, 0, 0);
       if (at.getTime() <= now) continue;
-      list.push({ id: NOTIF_ID + 1 + i, title: t.title, body: t.body, schedule: { at, allowWhileIdle: true } });
+      // inexact, like the daily one: a reminder a few minutes late is fine, and Android 12+ then never opens the
+      // «Alarms & reminders» settings screen (the plugin does when an exact alarm isn't allowed)
+      list.push({ id: NOTIF_ID + 1 + i, title: t.title, body: t.body, isExactNotification: false, schedule: { at, allowWhileIdle: true } });
     }
     if (list.length) await LN.schedule({ notifications: list });
   }

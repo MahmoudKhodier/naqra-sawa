@@ -114,7 +114,17 @@ function nativeStub() {
   window.Capacitor = {
     isNativePlatform: () => true,
     getPlatform: () => 'android',
-    Plugins: { Inbox, Widget, SystemUi: noop('SystemUi'), KeepAwake: noop('KeepAwake') },
+    Plugins: {
+      Inbox,
+      Widget,
+      SystemUi: noop('SystemUi'),
+      KeepAwake: noop('KeepAwake'),
+      LocalNotifications: {
+        requestPermissions: async () => ({ display: 'granted' }),
+        cancel: async (o) => log('LocalNotifications', 'cancel', o),
+        schedule: async (o) => (log('LocalNotifications', 'schedule', o), { notifications: [] }),
+      },
+    },
   };
 }
 
@@ -322,6 +332,37 @@ function nativeStub() {
       await until(p, 'reader open', (b) => window.A.R.isOpen() && window.A.R.current().bookId === b, bookId, 15000);
       await p.evaluate(() => window.A.R.close());
       await T(300);
+    }, ['Widget: «no book yet», then the book and today\'s portion after a plan']);
+
+    await step('The daily reminder never asks Android for exact alarms (no «Alarms & reminders» screen): plain, with days off, after a plan change', async () => {
+      await closeSheets(p);
+      const exact = () => calls.filter((c) => c.plugin === 'LocalNotifications' && c.method === 'schedule').flatMap((c) => c.arg.notifications).filter((n) => n.isExactNotification !== false);
+      const n0 = count('LocalNotifications', 'schedule');
+      await p.evaluate(() => window.A.Remind.set(true, 20));
+      await until(p, 'scheduled', () => true);
+      await T(500);
+      assert(count('LocalNotifications', 'schedule') > n0, 'nothing scheduled');
+      // a day off: one reminder per reading day for three weeks
+      await p.evaluate(() => window.A.Off.addDate(window.A.U.addDays(window.A.U.today(), 2)));
+      await until(p, 'day off', () => window.A.G.isOff(window.A.U.addDays(window.A.U.today(), 2)));
+      await T(800);
+      const last = lastCall('LocalNotifications', 'schedule');
+      assert(last.arg.notifications.length > 10, 'per-day reminders: ' + last.arg.notifications.length);
+      // a plan change reschedules too
+      const n1 = count('LocalNotifications', 'schedule');
+      await p.evaluate(async (id) => {
+        const { S, V, G } = window.A;
+        const b = S.books.get(id);
+        await V.savePlan(b, V.relayAfter(G.wirds(b), 1, G.wirds(b)[1].due, 1), { k: 'gap', n: 2 });
+      }, bookId);
+      await T(800);
+      assert(count('LocalNotifications', 'schedule') > n1, 'not rescheduled after the plan changed');
+      const ex = exact();
+      assert(!ex.length, `${ex.length} reminders ask for an exact alarm: ` + JSON.stringify(ex[0]));
+      await p.evaluate(() => window.A.V.actions['plan-undo']());
+      await p.evaluate(() => window.A.Off.removeDate(window.A.U.addDays(window.A.U.today(), 2)));
+      await T(500);
+      return `${count('LocalNotifications', 'schedule')} schedule calls, none exact`;
     }, ['Widget: «no book yet», then the book and today\'s portion after a plan']);
 
     await step('Sign-out: notifications off, the phone forgotten on the server, the widget emptied', async () => {
