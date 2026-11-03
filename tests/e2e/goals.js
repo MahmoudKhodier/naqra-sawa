@@ -280,6 +280,7 @@ async function pickOpt(p, act, v) {
       await p.fill('#set-goal-n', '12');
       await p.dispatchEvent('#set-goal-n', 'change');
       await until(p, '12 stored', () => window.A.G.goalOf().pages === 12 && !window.A.G.goalOf().auto);
+      await until(p, 'row shows 12', () => /١٢/.test(document.querySelector('#set-goal-row').textContent));
       const g = await text(p, '#set-goal-row');
       assert(g.includes('١٢') && !g.includes('بيكبر'), 'fixed goal: ' + g);
       await pickOpt(p, 'goal-mode', 'off');

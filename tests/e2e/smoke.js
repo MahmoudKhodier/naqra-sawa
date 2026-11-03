@@ -235,20 +235,20 @@ const appState = (page) =>
         const pages = Array.from({ length: n.page }, (_, i) => i + 1);
         return window.A.D.saveProg(n.b, (c) => ({ seen: window.A.U.rangesAdd(c.seen, pages) }));
       }, ctx.noteId);
-      await until(p, 'note card in A’s feed', (id) => window.A.S.notes.has(id) && !!document.querySelector(`.feed .ncard [data-act="like"][data-nid="${id}"]`), ctx.noteId);
+      await until(p, 'note card in A’s feed', (id) => window.A.S.notes.has(id) && !!document.querySelector(`.feed .ncard [data-rx="note"][data-rx-id="${id}"]`), ctx.noteId);
       const txt = await p.textContent('.feed .ncard');
       assert(/بسمة/.test(txt) && /جملة تستاهل/.test(txt), 'feed card lacks author/text: ' + txt.slice(0, 120));
       await notReloaded(p, m);
       await H.shot(p, '09-A-feed');
     }, ['noteId']);
 
-    await step('A likes the highlight; B sees the like live', async () => {
+    await step('A reacts 👍 to the highlight; B sees it live', async () => {
       const p = pages.A;
       const mB = await mark(pages.B);
-      await p.click(`.feed .ncard [data-act="like"][data-nid="${ctx.noteId}"]`);
+      await p.click(`.feed .ncard [data-rx="note"][data-rx-id="${ctx.noteId}"]`);
       await until(p, 'like stored in A’s state', ([id, a]) => !!((window.A.S.notes.get(id).likes || {})[a]), [ctx.noteId, ctx.Auid]);
       await until(pages.B, 'B sees A’s like', ([id, a]) => !!(((window.A.S.notes.get(id) || {}).likes || {})[a]), [ctx.noteId, ctx.Auid]);
-      const likeTxt = (await p.textContent(`.feed .ncard [data-act="like"][data-nid="${ctx.noteId}"]`)).trim();
+      const likeTxt = (await p.textContent(`.feed .ncard [data-rx="note"][data-rx-id="${ctx.noteId}"]`)).trim();
       assert(/[1١]/.test(likeTxt), 'like count not shown as 1: ' + likeTxt);
       const row = await env.fake.sql(`select data->'likes' as likes from public.docs where circle_id = $1 and col = 'notes' and id = $2`, [ctx.circleId, ctx.noteId]);
       assert(row[0].likes && row[0].likes[ctx.Auid], 'like not in DB');
@@ -525,7 +525,7 @@ const appState = (page) =>
       await T(1800);
       await pages.B.close();
       await pages.A.evaluate((id) => window.A.D.update('books/' + id, { author: 'مؤلف مجهول' }), ctx.bookId);
-      await pages.A.click(`.feed .ncard [data-act="like"][data-nid="${ctx.noteId}"]`); // unlike
+      await pages.A.click(`.feed .ncard [data-rx="note"][data-rx-id="${ctx.noteId}"]`); // unlike
       await until(pages.A, 'unlike applied', ([id, a]) => !(window.A.S.notes.get(id).likes || {})[a], [ctx.noteId, ctx.Auid]);
       const before = env.fake.queries.length;
       const p = H.attachErrors(await ctxB.newPage());
