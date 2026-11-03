@@ -63,29 +63,36 @@
   V.cardKit = { roundRect, star, wrap, loadImg };
   /* Share a picture (Android share sheet, or the browser's), else save it. True when it went somewhere. */
   V.sharePicture = async (blob, name, msg, title) => {
+    // one picture or several (a long note over a few): all go out together
+    const blobs = (Array.isArray(blob) ? blob : [blob]).filter(Boolean);
+    const nameOf = (i) => (blobs.length > 1 ? name.replace(/(\.png)?$/, `-${i + 1}.png`) : name);
     if (P.native) {
       const FS = P.plugin('Filesystem');
       const Share = P.plugin('Share');
       if (FS && Share) {
-        const b64 = await new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = () => res(String(r.result).split(',')[1]);
-          r.onerror = () => rej(r.error);
-          r.readAsDataURL(blob);
-        });
-        const w = await FS.writeFile({ path: name, data: b64, directory: 'CACHE' });
-        await Share.share({ title: title || L('نقرأ سوا', 'Read Together'), text: msg, files: [w.uri], dialogTitle: title || L('شارك', 'Share') });
+        const uris = [];
+        for (let i = 0; i < blobs.length; i++) {
+          const b64 = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(String(r.result).split(',')[1]);
+            r.onerror = () => rej(r.error);
+            r.readAsDataURL(blobs[i]);
+          });
+          const w = await FS.writeFile({ path: nameOf(i), data: b64, directory: 'CACHE' });
+          uris.push(w.uri);
+        }
+        await Share.share({ title: title || L('نقرأ سوا', 'Read Together'), text: msg, files: uris, dialogTitle: title || L('شارك', 'Share') });
         return true;
       }
     }
-    const file = new File([blob], name, { type: 'image/png' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ title: title || L('نقرأ سوا', 'Read Together'), text: msg, files: [file] });
+    const files = blobs.map((b, i) => new File([b], nameOf(i), { type: 'image/png' }));
+    if (navigator.canShare && navigator.canShare({ files })) {
+      await navigator.share({ title: title || L('نقرأ سوا', 'Read Together'), text: msg, files });
       return true;
     }
     if (A.S.downloads) {
-      await A.S.downloads.save({ filename: name, data: blob });
-      U.toast(L('الصورة اتحفظت', 'Picture saved', 'حُفظت الصورة'));
+      for (let i = 0; i < blobs.length; i++) await A.S.downloads.save({ filename: nameOf(i), data: blobs[i] });
+      U.toast(blobs.length > 1 ? L('الصور اتحفظت', 'Pictures saved', 'حُفظت الصور') : L('الصورة اتحفظت', 'Picture saved', 'حُفظت الصورة'));
       return true;
     }
     return false;

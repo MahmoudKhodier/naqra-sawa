@@ -189,6 +189,45 @@ const closeAll = async (p) => {
       await until(a, 'unpinned', () => !document.querySelector('.pinned'));
     });
 
+    await step('Share as pictures: a long note over several, square, night, the cover colours; the sheet\'s few choices', async () => {
+      const long = Array.from({ length: 14 }, (_, i) => `فقرة ${i + 1}: جَهّز الجيش قوامه ثلاثة آلاف مقاتل، ووضع نظامًا فريدًا للقيادة المتعاقبة لحماية الراية، ثم كانت المعركة.`).join('\n\n');
+      const r = await a.evaluate(async ({ id, text }) => {
+        const { V, S, U } = window.A;
+        const n = { id: 'x', b: id, page: 7, kind: 'note', text, by: S.me, at: U.nowIso() };
+        const dims = async (b) => { const im = await createImageBitmap(b); return [im.width, im.height]; };
+        const story = await V.storyCards(n, { size: 'story', theme: 'paper' });
+        const sq = await V.storyCards(n, { size: 'square', theme: 'night' });
+        const one = await V.storyCards(Object.assign({}, n, { text: 'جملة قصيرة' }), { size: 'story', theme: 'cover' });
+        const toUrl = (b) => new Promise((res) => { const f = new FileReader(); f.onload = () => res(f.result); f.readAsDataURL(b); });
+        return { n: story.length, sq: sq.length, sqDims: await dims(sq[0]), stDims: await dims(story[0]), one: one.length, shots: [await toUrl(story[0]), await toUrl(story[1]), await toUrl(sq[0]), await toUrl(one[0])] };
+      }, { id: bookId, text: long });
+      assert(r.n >= 2 && r.n <= 6, 'story pages ' + r.n);
+      assert(r.sqDims.join() === '1080,1080' && r.stDims.join() === '1080,1920', 'sizes ' + r.sqDims + ' / ' + r.stDims);
+      assert(r.one === 1, 'a short note made ' + r.one + ' pictures');
+      const fs = require('fs');
+      r.shots.forEach((d, i) => fs.writeFileSync(path.join(H.SHOTS, `notes-story-${i + 1}.png`), Buffer.from(d.split(',')[1], 'base64')));
+      // the sheet: a few choices up front, the rest folded away
+      const nid3 = await a.evaluate(async ({ id, text }) => {
+        const { D, S, U } = window.A;
+        const n = D.newId();
+        await D.set(`notes/${n}`, { b: id, page: 7, kind: 'note', text, rect: { x: 0.5, y: 0.5, w: 0, h: 0 }, by: S.me, at: U.nowIso(), wid: '', likes: {}, replies: {} });
+        return n;
+      }, { id: bookId, text: long });
+      await until(a, 'in', (id) => window.A.S.notes.has(id), nid3);
+      await closeAll(a);
+      await a.evaluate((id) => window.A.V.storySheet(window.A.S.notes.get(id)), nid3);
+      await until(a, 'pictures', () => document.querySelectorAll('#story-prev img').length >= 2, null, 15000);
+      assert(!(await a.isVisible('.st-sws')), 'the switches are not folded away');
+      await a.click('[data-size="square"]');
+      await until(a, 'square', () => document.querySelector('#story-prev.sq img'), null, 15000);
+      const lay = await a.evaluate(() => { const box = document.querySelector('#story-prev'); const im = [...box.querySelectorAll('img')]; return { disp: getComputedStyle(box).display, tops: new Set(im.map((i) => Math.round(i.getBoundingClientRect().top))).size, w: Math.round(im[0].getBoundingClientRect().width) }; });
+      if (lay.tops !== 1) lay.rules = await a.evaluate(() => { const out = []; for (const ss of document.styleSheets) { try { for (const r of ss.cssRules) if (r.cssText && r.cssText.includes('story-prev')) out.push(r.cssText.slice(0, 120)); } catch (e) { out.push('x ' + ss.href); } } return out; });
+      assert(lay.tops === 1, 'pictures not side by side: ' + JSON.stringify(lay));
+      await H.shot(a, 'notes-story-sheet');
+      await closeAll(a);
+      return `${r.n} story pictures, ${r.sq} square`;
+    });
+
     await step('No console errors', async () => {
       const errs = (a.__errors || []).filter((e) => !/favicon|fonts|404/.test(e));
       assert(!errs.length, errs.slice(0, 4).join('\n'));

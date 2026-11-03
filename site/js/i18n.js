@@ -87,6 +87,11 @@
       ar: { one: 'تظليل واحد', two: 'تظليلين', two_nom: 'تظليلان', few: '{n} تظليلات', many: '{n} تظليلًا', other: '{n} تظليل' },
       en: { one: '1 highlight', other: '{n} highlights' },
     },
+    picture: {
+      eg: { one: 'صورة واحدة', two: 'صورتين', few: '{n} صور', other: '{n} صورة' },
+      ar: { one: 'صورة واحدة', two: 'صورتين', two_nom: 'صورتان', few: '{n} صور', many: '{n} صورة', other: '{n} صورة' },
+      en: { one: '1 picture', other: '{n} pictures' },
+    },
     member: {
       eg: { one: 'عضو واحد', two: 'عضوين', few: '{n} أعضاء', other: '{n} عضو' },
       ar: { one: 'عضو واحد', two: 'عضوين', two_nom: 'عضوان', few: '{n} أعضاء', many: '{n} عضوًا', other: '{n} عضو' },
