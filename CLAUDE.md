@@ -70,6 +70,7 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - Settings rows: name on one side, control on the other (nowrap); several-choice settings are `V.pick(act, cur, opts, title)` (a button opening a menu; tests use `pickOpt`).
 
 ## Notes in the news (2026-11-03)
+- «انسخ» in a note's sheet; owner/admins pin a note on top of the news for a day / 3 / a week / until removed (`meta/circle.pins = [{nid, until, by, at}]`, 3 at most, `V.pinMenu`, `V.pinnedBlock`; pinned notes leave the list below).
 - Note card (`V.noteCard`): a tap on the text opens it (short ones too); one row: like, reply, «الصفحة» (`note-page` → `R.open(b, {page, flash: nid})` / `R.goTo(p, nid)`, which scroll to the note itself via `goToNote`, zoomed in too), share as picture, edit (mine). Delete lives in «عدّل» (`V.deleteNote`); «عدّل» also moves a note between the circle and «ليا بس» (same id; going private drops likes/replies, a warning says so). Any bottom sheet closes with a swipe down from its top (`swipeToClose` in v-core; a top sheet: swipe up). Test: `tests/e2e/notes.js`.
 
 ## Reader notes

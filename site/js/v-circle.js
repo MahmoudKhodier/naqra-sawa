@@ -60,6 +60,7 @@
   function newsSeg() {
     const feed = V.feedBlock ? V.feedBlock() : '';
     return `${V.liveBlock ? V.liveBlock() : ''}
+      ${V.pinnedBlock ? V.pinnedBlock() : ''}
       ${V.sections('circle-news', {})}
       ${feed || V.empty(L('مفيش أخبار لسه', 'No news yet', 'لا أخبار بعد'), L('لما حد يخلّص ورد أو يكتب ملاحظة هتلاقيه هنا.', 'Finished portions and notes will show up here.', 'عندما ينهي أحد وردًا أو يكتب ملاحظة ستجده هنا.'))}`;
   }

@@ -158,6 +158,37 @@ const closeAll = async (p) => {
       await until(a, 'deleted', (id) => !window.A.S.notes.has(id), nid);
     });
 
+    await step('«انسخ» copies the words; the owner pins a note on top of the news for a day; it goes when the time is up', async () => {
+      await a.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+      const id2 = await a.evaluate(async (id) => {
+        const { D, S, U } = window.A;
+        const n = D.newId();
+        await D.set(`notes/${n}`, { b: id, page: 12, kind: 'note', text: 'ملاحظة مهمة للحلقة كلها', rect: { x: 0.5, y: 0.3, w: 0, h: 0 }, by: S.me, at: U.nowIso(), wid: '', likes: {}, replies: {} });
+        return n;
+      }, bookId);
+      await until(a, 'in', (id) => window.A.S.notes.has(id), id2);
+      await closeAll(a);
+      await a.evaluate((id) => window.A.V.openNote(id), id2);
+      await a.click('.sheet [data-copy]');
+      await T(300);
+      const clip = await a.evaluate(() => navigator.clipboard.readText().catch(() => ''));
+      assert(clip === 'ملاحظة مهمة للحلقة كلها', 'clipboard: ' + clip);
+      await a.click('.sheet [data-pin]');
+      await a.click('.menu-sheet .mi:has-text("يوم")');
+      await until(a, 'pinned', (id) => ((window.A.S.circle || {}).pins || []).some((p) => p.nid === id), id2);
+      await closeAll(a);
+      await a.evaluate(() => window.A.V.go('circle'));
+      await a.waitForSelector(`.pinned .ncard [data-nid="${id2}"]`);
+      assert(!(await a.$(`#feed-list [data-nid="${id2}"]`)), 'also in the news below');
+      await H.shot(a, 'notes-pinned');
+      // the day is over: it goes back among the news
+      await a.evaluate(async () => {
+        const { D, S, V } = window.A;
+        await D.set('meta/circle', Object.assign({}, V.clean(S.circle), { pins: S.circle.pins.map((p) => Object.assign({}, p, { until: '2020-01-01T00:00:00.000Z' })) }));
+      });
+      await until(a, 'unpinned', () => !document.querySelector('.pinned'));
+    });
+
     await step('No console errors', async () => {
       const errs = (a.__errors || []).filter((e) => !/favicon|fonts|404/.test(e));
       assert(!errs.length, errs.slice(0, 4).join('\n'));

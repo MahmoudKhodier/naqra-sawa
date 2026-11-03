@@ -565,7 +565,8 @@
   };
   function feedItems() {
     const items = [];
-    for (const n of S.notes.values()) items.push({ t: n.at, kind: 'note', n, u: n.by });
+    const pinned = V.pinnedIds ? V.pinnedIds() : new Set(); // shown on top instead
+    for (const n of S.notes.values()) if (!pinned.has(n.id)) items.push({ t: n.at, kind: 'note', n, u: n.by });
     for (const p of S.prog.values()) {
       const b = S.books.get(p.b);
       if (!b) continue;

@@ -286,6 +286,7 @@
     chat: '<path d="M4 5h16v11H9l-5 4z"/>',
     note: '<path d="M5 4h14v11l-5 5H5z"/><path d="M14 20v-5h5"/>',
     hl: '<path d="m4 20 3.5-1 10-10-2.5-2.5-10 10z"/><path d="m14 6.5 2.5 2.5"/><path d="M13 20h7"/>',
+    copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
     pin: '<path d="M12 21s6-5.4 6-11a6 6 0 1 0-12 0c0 5.6 6 11 6 11z"/><circle cx="12" cy="10" r="2.2"/>',
     zin: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4M11 8v6M8 11h6"/>',
     zout: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4M8 11h6"/>',

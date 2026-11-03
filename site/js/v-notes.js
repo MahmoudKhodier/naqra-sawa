@@ -253,6 +253,8 @@
           ${book && n.page && !(A.R.isOpen() && A.R.bookId() === n.b) ? `<button class="pill" data-gopage>${icon('books')}<span>${L('افتح الصفحة', 'Open page')}</span></button>` : ''}
           ${book && n.page && A.R.isOpen() && A.R.bookId() === n.b ? `<button class="pill" data-gopage>${icon('fwd', 'flip')}<span>${L('روح للمكان', 'Jump there', 'انتقل إلى المكان')}</span></button>` : ''}
           ${(n.text || n.crop) && n.kind !== 'q' && V.storySheet ? `<button class="pill" data-story>${icon('share')}<span>${L('شارك كصورة', 'Share as picture', 'شارك كصورة')}</span></button>` : ''}
+          ${n.text ? `<button class="pill ghost" data-copy>${icon('copy')}<span>${L('انسخ', 'Copy', 'انسخ')}</span></button>` : ''}
+          ${!n.priv && V.canPin() ? `<button class="pill ghost${V.pinOf(n.id) ? ' on' : ''}" data-pin>${icon('pin')}<span>${V.pinOf(n.id) ? L('متثبّتة', 'Pinned', 'مثبّتة') : L('ثبّت', 'Pin', 'ثبّت')}</span></button>` : ''}
           ${mine && D.canWrite() ? `<button class="pill ghost" data-editnote>${icon('edit')}<span>${L('عدّل', 'Edit')}</span></button>` : ''}
           ${!mine && n.rect && S.priv && S.priv.moved && S.priv.moved[n.id] ? `<button class="pill ghost" data-unmove>${icon('pin')}<span>${L('رجّعها مكانها', 'Put it back', 'أعدها إلى مكانها')}</span></button>` : ''}
           ${!mine && n.rect && D.canWrite() ? `<button class="pill ghost" data-hideme>${icon('eyeoff')}<span>${L('اخفيها عندي', 'Hide for me', 'أخفها عندي')}</span></button>` : ''}
@@ -273,6 +275,11 @@
           // the tapped button into a different one.
           const q = (sel) => e.target.closest(sel);
           if (q('[data-story]')) return V.storySheet(n);
+          if (q('[data-copy]')) {
+            const ok = await U.copy(n.text || '');
+            return U.toast(ok ? L('اتنسخ ✓', 'Copied ✓', 'نُسخ ✓') : L('مقدرتش أنسخ', "Couldn't copy", 'تعذّر النسخ'), ok ? '' : 'warn');
+          }
+          if (q('[data-pin]')) return V.pinMenu(n);
           const hit = { like: q('[data-like]'), gopage: q('[data-gopage]'), unmove: q('[data-unmove]'), hideme: q('[data-hideme]'), editnote: q('[data-editnote]'), editrep: q('[data-editrep]'), delrep: q('[data-delrep]') };
           if (hit.like) return V.like(n.id);
           if (hit.gopage) {
@@ -356,6 +363,44 @@
       <p class="nc-lock">${icon('lock')}<span>${L(`مستنياك لما توصل ص ${L.num(n.page || 0)} — من غير حرق 👀`, `Waiting for you at p. ${n.page || 0} — no spoilers 👀`, `بانتظارك حين تصل ص ${L.num(n.page || 0)} — بلا حرق 👀`)}</span></p>
     </article>`;
   };
+  /* Pinned on top of the circle's news by the owner or an admin, for a day, three, a week or until taken off:
+     meta/circle.pins = [{ nid, until ('' = until taken off), by, at }], three at most. */
+  V.canPin = () => !!((S.isOwner || S.canEdit) && D.canWrite());
+  const pinsNow = () => {
+    const now = U.nowIso();
+    return ((S.circle && S.circle.pins) || []).filter((p) => p && p.nid && (!p.until || p.until > now) && S.notes.has(p.nid));
+  };
+  V.pinOf = (nid) => pinsNow().find((p) => p.nid === nid) || null;
+  V.pinnedIds = () => new Set(pinsNow().map((p) => p.nid));
+  const savePins = async (fn) => {
+    const c = S.circle || {};
+    const pins = fn(pinsNow()).slice(-3);
+    await D.set('meta/circle', Object.assign({}, V.clean(c), { pins })).catch(() => U.toast(L('ماتحفظش. اتأكد من النت وجرّب تاني.', "Didn't save. Check your connection and try again.", 'لم يُحفظ. تأكد من الاتصال وحاول مجددًا.'), 'warn'));
+  };
+  V.pinMenu = (n) => {
+    if (!V.canPin()) return;
+    const cur = V.pinOf(n.id);
+    const pin = (days) => () =>
+      savePins((ps) => [...ps.filter((p) => p.nid !== n.id), { nid: n.id, until: days ? new Date(Date.now() + days * 864e5).toISOString() : '', by: S.me, at: U.nowIso() }]).then(() => U.toast(`📌 ${L('اتثبّتت فوق الأخبار', 'Pinned on top of the news', 'ثُبّتت أعلى الأخبار')}`));
+    const items = [
+      { ic: 'pin', t: L('يوم', 'A day', 'يوم'), fn: pin(1) },
+      { ic: 'pin', t: L('٣ أيام', '3 days', '٣ أيام'), fn: pin(3) },
+      { ic: 'pin', t: L('أسبوع', 'A week', 'أسبوع'), fn: pin(7) },
+      { ic: 'pin', t: L('لحد ما أشيلها', 'Until I take it off', 'حتى أزيلها'), fn: pin(0) },
+    ];
+    if (cur) items.push({ ic: 'close', t: L('شيل التثبيت', 'Unpin', 'ألغِ التثبيت'), danger: true, fn: () => savePins((ps) => ps.filter((p) => p.nid !== n.id)).then(() => U.toast(L('اتشال التثبيت', 'Unpinned', 'أُلغي التثبيت'))) });
+    V.menu(items, cur ? L(`متثبّتة${cur.until ? ` لحد ${L.day(cur.until.slice(0, 10))}` : ''} — غيّر المدة`, `Pinned${cur.until ? ` until ${L.day(cur.until.slice(0, 10))}` : ''} — change it`, `مثبّتة${cur.until ? ` حتى ${L.day(cur.until.slice(0, 10))}` : ''} — غيّر المدة`) : L('ثبّتها فوق الأخبار قد إيه؟', 'Pin on top of the news for how long?', 'ثبّتها أعلى الأخبار لأي مدة؟'));
+  };
+  /* The pinned notes, on top of the news. */
+  V.pinnedBlock = () => {
+    const ps = pinsNow();
+    if (!ps.length) return '';
+    return `<section class="pinned"><h3>📌 ${L('متثبّت', 'Pinned', 'مثبّت')}</h3>${ps
+      .slice()
+      .reverse()
+      .map((p) => V.noteCard(S.notes.get(p.nid), { showBook: true, pinned: true }))
+      .join('')}</section>`;
+  };
   // the card's own buttons
   const noteOf = (nid) => S.notes.get(nid) || myNote(nid);
   V.actions['note-page'] = (a) => {
@@ -377,7 +422,7 @@
     const liked = n.likes && n.likes[S.me];
     const isTake = n.kind === 'take';
     const w = book && n.wid ? G.wirds(book).find((x) => x.id === n.wid) : null;
-    return `<article class="ncard k-${esc(n.kind)}${isTake ? ' take' : ''}">
+    return `<article class="ncard k-${esc(n.kind)}${isTake ? ' take' : ''}${opts.pinned ? ' is-pinned' : ''}">
       <header>${D.avatar(n.by, 'sm')}<div class="nc-who"><b data-act="member" data-uid="${esc(n.by)}">${esc(D.name(n.by))}</b><small>${V.kindLabel(n.kind)}${opts.showBook && book ? ` • <span dir="auto">${esc(book.title)}</span>` : ''}${n.page && !isTake ? ` • ${L('ص', 'p.')} ${L.num(n.page)}` : ''}${isTake && w ? ` • ${L('الورد', 'Portion')} ${L.num(w.n)}` : ''} • ${L.ago(n.at)} ${V.editedTag(n)}</small></div></header>
       ${n.crop ? `<button class="nc-crop" data-act="open-note" data-nid="${esc(n.id)}" style="--c:${U.col(n.color)}"><img src="${esc(n.crop)}" alt="${esc(L('الجزء المظلّل', 'Highlighted passage'))}" loading="lazy"></button>` : ''}
       ${n.text ? `<p class="nc-text${n.kind === 'quote' ? ' quote' : ''}" dir="auto" data-act="open-note" data-nid="${esc(n.id)}">${esc(n.text.length > 420 ? n.text.slice(0, 400).replace(/\s+\S*$/, '') + '…' : n.text)}</p>${n.text.length > 420 ? `<button class="lnk nc-more" data-act="open-note" data-nid="${esc(n.id)}">${L('اقرأ الباقي', 'Read more', 'اقرأ البقية')}</button>` : ''}` : ''}
