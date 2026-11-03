@@ -1606,6 +1606,17 @@ html { overscroll-behavior-y: contain; }
 .rx-off .ic { width: 18px; height: 18px; color: var(--ink3); }
 .rx-band { position: absolute; inset-inline: 0; height: 3.4%; transform: translateY(-50%); background: color-mix(in srgb, var(--gold) 26%, transparent); border-radius: 4px; pointer-events: none; animation: rxband .2s ease-out; }
 @keyframes rxband { from { opacity: 0; } }
+.rx-bar.fix { position: fixed; z-index: 150; }
+.pill.rxp { gap: 4px; padding-inline: 10px; }
+.rxp .rxp-me { font-size: 1.05rem; line-height: 1; }
+.rxp .rxp-me.off { filter: grayscale(1); opacity: .55; }
+.rxp.on { background: color-mix(in srgb, var(--lapis) 12%, var(--bg2)); }
+.rxp .rxp-top { display: inline-flex; }
+.rxp .rxp-top i { font-style: normal; font-size: .85rem; margin-inline-start: -3px; filter: drop-shadow(0 0 1px var(--card)); }
+.rxp .rxp-n { font-weight: 700; font-size: .82rem; }
+.pill.rxp.sm { min-height: 28px; padding: 0 8px; font-size: .8rem; }
+.rep .rxp { margin-top: 4px; }
+.ev .rxp { flex: none; align-self: center; }
 .rx-fly { position: fixed; z-index: 120; width: 52px; height: 52px; margin: -26px 0 0 -26px; pointer-events: none; display: grid; place-items: center; font-size: 34px; }
 .rx-dot { position: fixed; z-index: 119; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; pointer-events: none; }
 .rx-m.pop { animation: rxmpop .55s cubic-bezier(.3, 1.8, .5, 1) .45s backwards; }
@@ -2418,6 +2429,7 @@ button.wm-c:hover { border-color: var(--line); }
 <script src="js/game.js"></script>
 <script src="js/v-core.js"></script>
 <script src="js/lot.js"></script>
+<script src="js/rx.js"></script>
 <script src="js/v-notes.js"></script>
 <script src="js/v-home.js"></script>
 <script src="js/v-books.js"></script>

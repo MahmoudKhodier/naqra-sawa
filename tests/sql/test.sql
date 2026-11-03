@@ -548,6 +548,22 @@ begin;
 select t.login('D');
 select t.lives($$select doc_merge(t.id('c1'), 'reacts', 'gr', '{"e": "😂"}')$$, 'guard: D changes own reaction');
 commit;
+-- reactions on a note, on its replies, and on news events: only your own
+begin;
+select t.login('B');
+select t.lives(format($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"rx": {"%s": "😂"}, "likes": {"%s": "2026-11-03T10:00:00Z"}}')$$, t.v('B'), t.v('B')), 'guard: B reacts to D''s note');
+select t.throws(format($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"rx": {"%s": "😂"}}')$$, t.v('D')), '42501', 'guard: B cannot react in D''s name');
+select t.lives(format($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"rrx": {"r1": {"%s": "🔥"}}}')$$, t.v('B')), 'guard: B reacts to a reply');
+select t.throws(format($$select doc_merge(t.id('c1'), 'notes', 'gn', '{"rrx": {"r1": {"%s": "🔥"}}}')$$, t.v('D')), '42501', 'guard: not someone else''s reaction on a reply');
+select t.lives(format($$insert into docs (circle_id, col, id, data) values (t.id('c1'), 'evrx', 'ev1',
+                 '{"by": "%s", "k": "wird|x|bk|w1", "e": "👏"}')$$, t.v('B')), 'guard: B reacts to a news event');
+select t.throws(format($$insert into docs (circle_id, col, id, data) values (t.id('c1'), 'evrx', 'ev2',
+                 '{"by": "%s", "k": "wird|x|bk|w1", "e": "👏"}')$$, t.v('D')), '42501', 'guard: no event reaction in someone else''s name');
+commit;
+begin;
+select t.login('D');
+select t.throws($$select doc_merge(t.id('c1'), 'evrx', 'ev1', '{"e": "😂"}')$$, '42501', 'guard: D cannot change B''s event reaction');
+commit;
 -- the news line of a day off: only in your own name
 begin;
 select t.login('B');

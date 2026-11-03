@@ -22,9 +22,9 @@
   const MARKS = ['all', 'mine', 'none', 'custom'];
   const MK_KINDS = ['hl', 'note', 'q', 'quote', 'react'];
   /* Emoji reactions on a line (long-press the page): one per member and line, in their own doc (col 'reacts'). */
-  const RX = ['😂', '😮', '💔', '🔥', '🤯', '❤️'];
-  const RX_NAME = () => ({ '😂': L('ضحكني', 'Haha', 'أضحكني'), '😮': L('واو', 'Wow'), '💔': L('زعّلني', 'Sad', 'أحزنني'), '🔥': L('نار', 'Fire', 'رائع'), '🤯': L('دماغي طارت', 'Mind blown', 'أذهلني'), '❤️': L('حبيته', 'Love', 'أحببته') });
-  const RX_COL = { '😂': '#ffcc3d', '😮': '#ffcc3d', '💔': '#ff4d6d', '🔥': '#ff7a1a', '🤯': '#ffb02e', '❤️': '#ff3355' };
+  const RX = A.V.RX; // the same emoji everywhere (rx.js)
+  const RX_NAME = A.V.rxName;
+  const RX_COL = A.V.RX_COL;
   const RX_LINES = 40; // a page is about this many lines: a reaction belongs to one of them
   R.marksPref = () => {
     const v = U.store.get('rdMarks', 'all');

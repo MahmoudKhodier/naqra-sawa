@@ -240,8 +240,6 @@
     const body = (n) => {
       if (!n) return V.empty(L('الملاحظة دي اتمسحت', 'This note was deleted', 'تم حذف هذه الملاحظة'), '');
       const mine = n.by === S.me;
-      const liked = n.likes && n.likes[S.me];
-      const likers = Object.entries(n.likes || {}).filter(([, v]) => v).map(([u]) => u);
       const rs = replies(n);
       return `<div class="nt">
         <div class="nt-head">${D.avatar(n.by, 'md')}<div><b>${esc(D.name(n.by))}</b><small>${L.ago(n.at)} • ${n.page ? `${L('ص', 'p.')} ${L.num(n.page)}` : ''} ${V.editedTag(n)}</small></div><span class="kind k-${esc(n.kind)}">${V.kindLabel(n.kind)}</span>${n.priv ? `<span class="kind">${icon('lock')}${L('خاصة', 'Private')}</span>` : ''}</div>
@@ -249,7 +247,7 @@
         ${n.text ? `<p class="nt-text" dir="auto">${esc(n.text)}</p>` : ''}
         ${n.rect && !(n.rect.w > 0.012) && D.canWrite() ? `<p class="nt-movehint">${icon('pin')}<span>${mine ? L('عشان تحرّكها: دوس عليها مطوّل في الصفحة واسحبها — هتتحرك عند الكل.', 'To move it: long-press it on the page and drag — it moves for everyone.', 'لتحريكها: اضغط عليها مطولًا في الصفحة واسحبها — ستتحرك عند الجميع.') : L('مغطّية على الكلام؟ دوس عليها مطوّل واسحبها — هتتحرك عندك بس.', 'Covering the text? Long-press and drag it — it moves on your screen only.', 'تغطي النص؟ اضغط عليها مطولًا واسحبها — ستتحرك عندك فقط.')}</span></p>` : ''}
         <div class="nt-acts">
-          ${!n.priv ? `<button class="pill${liked ? ' on' : ''}" data-like>${icon('heart')}<span>${L.num(likers.length)}</span></button><span class="likers">${likers.slice(0, 6).map((u) => D.avatar(u, 'xs')).join('')}</span>` : ''}
+          ${!n.priv && V.rxPill ? V.rxPill('note', n.id) : ''}
           ${book && n.page && !(A.R.isOpen() && A.R.bookId() === n.b) ? `<button class="pill" data-gopage>${icon('books')}<span>${L('افتح الصفحة', 'Open page')}</span></button>` : ''}
           ${book && n.page && A.R.isOpen() && A.R.bookId() === n.b ? `<button class="pill" data-gopage>${icon('fwd', 'flip')}<span>${L('روح للمكان', 'Jump there', 'انتقل إلى المكان')}</span></button>` : ''}
           ${(n.text || n.crop) && n.kind !== 'q' && V.storySheet ? `<button class="pill" data-story>${icon('share')}<span>${L('شارك كصورة', 'Share as picture', 'شارك كصورة')}</span></button>` : ''}
@@ -259,7 +257,7 @@
           ${!mine && n.rect && S.priv && S.priv.moved && S.priv.moved[n.id] ? `<button class="pill ghost" data-unmove>${icon('pin')}<span>${L('رجّعها مكانها', 'Put it back', 'أعدها إلى مكانها')}</span></button>` : ''}
           ${!mine && n.rect && D.canWrite() ? `<button class="pill ghost" data-hideme>${icon('eyeoff')}<span>${L('اخفيها عندي', 'Hide for me', 'أخفها عندي')}</span></button>` : ''}
         </div>
-        ${!n.priv ? `<div class="replies" id="nt-replies" data-keep-scroll>${rs.length ? rs.map((r) => `<div class="rep">${D.avatar(r.by, 'sm')}<div class="rep-b"><b>${esc(D.name(r.by))}</b><small>${L.ago(r.at)} ${V.editedTag(r)}</small><p dir="auto">${esc(r.text)}</p></div>${r.by === S.me ? `<span class="rep-acts"><button class="ib sm" data-editrep="${esc(r.id)}" aria-label="${L('عدّل', 'Edit')}">${icon('edit')}</button><button class="ib sm" data-delrep="${esc(r.id)}" aria-label="${L('امسح', 'Delete', 'احذف')}">${icon('trash')}</button></span>` : ''}</div>`).join('') : `<p class="muted sm">${L('محدش رد لسه. ابدأ النقاش!', 'No replies yet. Start the conversation!', 'لا ردود بعد. ابدأ النقاش!')}</p>`}</div>
+        ${!n.priv ? `<div class="replies" id="nt-replies" data-keep-scroll>${rs.length ? rs.map((r) => `<div class="rep">${D.avatar(r.by, 'sm')}<div class="rep-b"><b>${esc(D.name(r.by))}</b><small>${L.ago(r.at)} ${V.editedTag(r)}</small><p dir="auto">${esc(r.text)}</p>${V.rxPill ? V.rxPill('rep', `${n.id}|${r.id}`, { cls: 'sm' }) : ''}</div>${r.by === S.me ? `<span class="rep-acts"><button class="ib sm" data-editrep="${esc(r.id)}" aria-label="${L('عدّل', 'Edit')}">${icon('edit')}</button><button class="ib sm" data-delrep="${esc(r.id)}" aria-label="${L('امسح', 'Delete', 'احذف')}">${icon('trash')}</button></span>` : ''}</div>`).join('') : `<p class="muted sm">${L('محدش رد لسه. ابدأ النقاش!', 'No replies yet. Start the conversation!', 'لا ردود بعد. ابدأ النقاش!')}</p>`}</div>
         ${D.canWrite() ? `<form class="composer" data-reply><textarea id="nt-reply-${esc(n.id)}" rows="1" dir="auto" maxlength="${U.MAX.reply}" placeholder="${L('اكتب ردك…', 'Write a reply…')}"></textarea><button class="btn icon-only" aria-label="${L('ابعت', 'Send', 'أرسل')}">${icon('send', 'flip-rtl')}</button></form>` : ''}` : ''}
       </div>`;
     };
@@ -417,9 +415,7 @@
   V.noteCard = (n, opts = {}) => {
     if (V.isSpoiler(n)) return V.lockedCard(n, opts);
     const book = D.book(n.b);
-    const lc = likeCount(n);
     const rc = replies(n).length;
-    const liked = n.likes && n.likes[S.me];
     const isTake = n.kind === 'take';
     const w = book && n.wid ? G.wirds(book).find((x) => x.id === n.wid) : null;
     return `<article class="ncard k-${esc(n.kind)}${isTake ? ' take' : ''}${opts.pinned ? ' is-pinned' : ''}">
@@ -427,7 +423,7 @@
       ${n.crop ? `<button class="nc-crop" data-act="open-note" data-nid="${esc(n.id)}" style="--c:${U.col(n.color)}"><img src="${esc(n.crop)}" alt="${esc(L('الجزء المظلّل', 'Highlighted passage'))}" loading="lazy"></button>` : ''}
       ${n.text ? `<p class="nc-text${n.kind === 'quote' ? ' quote' : ''}" dir="auto" data-act="open-note" data-nid="${esc(n.id)}">${esc(n.text.length > 420 ? n.text.slice(0, 400).replace(/\s+\S*$/, '') + '…' : n.text)}</p>${n.text.length > 420 ? `<button class="lnk nc-more" data-act="open-note" data-nid="${esc(n.id)}">${L('اقرأ الباقي', 'Read more', 'اقرأ البقية')}</button>` : ''}` : ''}
       <footer class="nc-acts">
-        <button class="pill${liked ? ' on' : ''}" data-act="like" data-nid="${esc(n.id)}" aria-label="${L('إعجاب', 'Like')}">${icon('heart')}<span>${L.num(lc)}</span></button>
+        ${V.rxPill ? V.rxPill('note', n.id) : ''}
         <button class="pill" data-act="open-note" data-nid="${esc(n.id)}">${icon('chat')}<span>${rc ? L.num(rc) : L('رد', 'Reply')}</span></button>
         ${n.page && book && !isTake ? `<button class="pill ghost" data-act="note-page" data-nid="${esc(n.id)}">${icon('books')}<span>${L('الصفحة', 'Page')}</span></button>` : ''}
         ${(n.text || n.crop) && n.kind !== 'q' && V.storySheet ? `<button class="pill ghost icon" data-act="note-share" data-nid="${esc(n.id)}" aria-label="${L('شارك كصورة', 'Share as picture', 'شارك كصورة')}" title="${L('شارك كصورة', 'Share as picture', 'شارك كصورة')}">${icon('share')}</button>` : ''}

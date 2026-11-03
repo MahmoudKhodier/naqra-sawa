@@ -360,7 +360,7 @@
         <div class="bub">${cont ? '' : `<header><b data-act="member" data-uid="${esc(m.by)}">${esc(D.name(m.by))}</b>${m.kind === 'ai' ? `<span class="kind">${icon('claude')}Claude</span>` : ''}<small>${L.ago(m.at)}</small>${V.editedTag(m)}</header>`}
           ${re ? `<div class="re" dir="auto"><b>${esc(D.name(re.by))}</b> ${esc(String(re.text).slice(0, 90))}</div>` : ''}
           <p dir="auto">${esc(m.text)}</p>
-          ${reacts.length ? `<div class="reacts">${reacts.map(([k, us]) => `<button class="rx${us.includes(S.me) ? ' on' : ''}" data-act="react" data-mid="${esc(m.id)}" data-r="${k}" title="${esc(us.map((u) => D.name(u)).join('، '))}">${REACTS[k] || ''}<span>${L.num(us.length)}</span></button>`).join('')}</div>` : ''}
+          ${reacts.length && V.rxPill ? `<div class="reacts">${V.rxPill('msg', m.id, { cls: 'sm' })}</div>` : ''}
         </div>
         ${D.canWrite() ? `<button class="ib sm msg-more" data-act="msg-menu" data-mid="${esc(m.id)}" aria-label="${L('اختيارات', 'Options', 'خيارات')}">${icon('more')}</button>` : ''}
       </div>`;
@@ -420,7 +420,8 @@
     const m = S.msgs.find((x) => x.id === a.dataset.mid);
     if (!m) return;
     const key = `${m.b}-${m.ch || 'gen'}`.replace(/[^a-z0-9_-]/gi, '');
-    const items = Object.entries(REACTS).map(([k, e]) => ({ ic: 'heart', t: `${e} ${L('تفاعل', 'React')}`, fn: () => V.actions.react({ dataset: { mid: m.id, r: k } }) }));
+    const anchor = document.querySelector(`.msg[data-mid="${CSS.escape(m.id)}"] .bub`) || a;
+    const items = V.rxOpen ? [{ ic: 'heart', t: `👍❤️😂 ${L('تفاعل', 'React', 'تفاعل')}`, fn: () => setTimeout(() => V.rxOpen(anchor, 'msg', m.id), 250) }] : [];
     items.unshift({ ic: 'chat', t: L('رد', 'Reply'), fn: () => { V.replyTo = { key, mid: m.id }; V.render(); setTimeout(() => { const t = document.getElementById('in-' + key); t && t.focus(); }, 50); } });
     if (m.by === S.me && m.kind !== 'ai') items.push({ ic: 'edit', t: L('عدّل الرسالة', 'Edit message'), fn: () => V.editText({ title: L('عدّل رسالتك', 'Edit your message'), value: m.text, max: U.MAX.msg, onSave: (text) => D.update(`msgs/${m.id}`, { text, edited: U.nowIso() }) }) });
     if (m.by === S.me) items.push({ ic: 'trash', danger: true, t: L('امسح الرسالة', 'Delete message', 'احذف الرسالة'), fn: async () => (await V.confirm(L('هتمسح الرسالة دي.', 'Delete this message?', 'ستُحذف هذه الرسالة.'), L('امسح', 'Delete', 'احذف'), true)) && D.del(`msgs/${m.id}`) });

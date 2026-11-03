@@ -24,7 +24,13 @@
         else if (iReplied && replies.find((x) => x.by === me && x.at < r.at)) out.push({ t: r.at, kind: 'thread', who: r.by, nid: n.id, text: r.text, book });
       }
       if (n.by === me)
-        for (const [uid, v] of Object.entries(n.likes || {})) if (v && uid !== me && typeof v === 'string') out.push({ t: v, kind: 'like', who: uid, nid: n.id, book, text: n.text || '' });
+        for (const [uid, v] of Object.entries(n.likes || {})) if (v && uid !== me && typeof v === 'string') out.push({ t: v, kind: 'like', who: uid, nid: n.id, book, text: n.text || '', e: (n.rx && n.rx[uid]) || '' });
+      // reactions to my replies
+      for (const [rid, m] of Object.entries(n.rrx || {})) {
+        const r = (n.replies || {})[rid];
+        if (!r || r.by !== me) continue;
+        for (const [uid, e] of Object.entries(m || {})) if (e && uid !== me) out.push({ t: r.at, kind: 'rrx', who: uid, nid: n.id, book, text: r.text || '', e });
+      }
     }
     for (const p of S.pokes.values()) if (p.to === me && p.from !== me) out.push({ t: p.at, kind: p.kind === 'cheer' ? 'cheer' : 'poke', who: p.from, b: p.b, wid: p.wid });
     const mine = new Set(S.msgs.filter((m) => m.by === me).map((m) => m.id));
@@ -32,6 +38,11 @@
     for (const b of S.books.values()) if (b.addedBy && b.addedBy !== me && b.addedAt) out.push({ t: b.addedAt, kind: 'book', who: b.addedBy, b: b.id, book: b });
     for (const t of (S.throws || new Map()).values()) if (t.to === me && t.by !== me && A.Play) out.push({ t: t.at, kind: 'throw', who: t.by, it: t.it });
     if (A.Off) for (const o of A.Off.items()) if (o.by !== me) out.push({ t: o.at, kind: 'off', who: o.by, o });
+    // reactions to my «خلّص الورد / الكتاب»
+    for (const r of (S.evrx || new Map()).values()) {
+      const [kind, who, b] = String(r.k || '').split('|');
+      if (who === me && r.by !== me && r.e) out.push({ t: r.at, kind: 'evrx', who: r.by, e: r.e, b, book: S.books.get(b), what: kind });
+    }
     out.sort((a, b) => String(b.t).localeCompare(String(a.t)));
     return out.slice(0, 60);
   };
@@ -66,7 +77,9 @@
     switch (x.kind) {
       case 'reply': return L(`رد من ${who} على ملاحظتك في ${title}`, `${who} replied to your note in ${title}`);
       case 'thread': return L(`رد جديد من ${who} في نقاش شاركت فيه`, `${who} replied in a thread you're in`);
-      case 'like': return L(`إعجاب من ${who} بملاحظتك في ${title}`, `${who} liked your note in ${title}`);
+      case 'like': return x.e ? L(`${x.e} من ${who} على ملاحظتك في ${title}`, `${x.e} from ${who} on your note in ${title}`) : L(`إعجاب من ${who} بملاحظتك في ${title}`, `${who} liked your note in ${title}`);
+      case 'rrx': return L(`${x.e} من ${who} على ردك`, `${x.e} from ${who} on your reply`);
+      case 'evrx': return x.what === 'book' ? L(`${x.e} من ${who} على إنك خلّصت ${title}`, `${x.e} from ${who} on finishing ${title}`) : L(`${x.e} من ${who} على الورد اللي خلّصته`, `${x.e} from ${who} on the portion you finished`);
       case 'cheer': return L(`تشجيع من ${who} 👏`, `${who} cheered you on 👏`);
       case 'poke': {
         const b = S.books.get(x.b);
@@ -80,7 +93,7 @@
     }
     return '';
   };
-  const ICON = { reply: 'chat', thread: 'chat', like: 'heart', cheer: 'clap', poke: 'hand', msgreply: 'chat', book: 'books', throw: 'sparkle', off: 'calendar' };
+  const ICON = { reply: 'chat', thread: 'chat', like: 'heart', cheer: 'clap', poke: 'hand', msgreply: 'chat', book: 'books', throw: 'sparkle', off: 'calendar', rrx: 'heart', evrx: 'heart' };
 
   V.openInbox = () => {
     const seen = seenAt();

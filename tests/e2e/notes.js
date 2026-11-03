@@ -90,7 +90,8 @@ const closeAll = async (p) => {
         const bs = [...f.children];
         return { acts: bs.map((b) => b.dataset.act), tops: new Set(bs.map((b) => Math.round(b.getBoundingClientRect().top))).size };
       });
-      assert(['like', 'open-note', 'note-page', 'note-share', 'note-edit'].every((x) => row.acts.includes(x)), 'buttons: ' + row.acts);
+      const has = await a.$eval(`${card} .nc-acts`, (f) => !!f.querySelector('[data-rx="note"]'));
+      assert(has && ['open-note', 'note-page', 'note-share', 'note-edit'].every((x) => row.acts.includes(x)), 'buttons: ' + row.acts);
       assert(row.tops === 1, 'buttons on ' + row.tops + ' rows');
       await H.shot(a, 'notes-card');
       await a.click(`${card} .nc-text`);
@@ -226,6 +227,66 @@ const closeAll = async (p) => {
       await H.shot(a, 'notes-story-sheet');
       await closeAll(a);
       return `${r.n} story pictures, ${r.sq} square`;
+    });
+
+    await step('Reactions: a tap is 👍 (older apps still see a like); hold and slide to 😂; replies, chat and «خلّص الورد» too', async () => {
+      const id4 = await a.evaluate(async (id) => {
+        const { D, S, U } = window.A;
+        const n = D.newId();
+        await D.set(`notes/${n}`, { b: id, page: 9, kind: 'note', text: 'جملة حلوة', rect: { x: 0.5, y: 0.5, w: 0, h: 0 }, by: S.me, at: U.nowIso(), wid: '', likes: {}, replies: { r1: { by: S.me, text: 'رد صغير', at: U.nowIso() } } });
+        return n;
+      }, bookId);
+      await until(a, 'in', (id) => window.A.S.notes.has(id), id4);
+      await closeAll(a);
+      await a.evaluate(() => window.A.V.go('circle'));
+      const pill = `.feed .ncard:has([data-nid="${id4}"]) [data-rx="note"]`;
+      await a.waitForSelector(pill);
+      await a.click(pill);
+      await until(a, '👍', (id) => { const n = window.A.S.notes.get(id); return n.rx && n.rx[window.A.S.me] === '👍' && n.likes[window.A.S.me]; }, id4);
+      // hold, slide to 😂, let go
+      const cdp = await a.context().newCDPSession(a);
+      const b0 = await a.$eval(pill, (e) => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [b0] });
+      await T(650);
+      await a.waitForSelector('#rx-gbar .rx-i');
+      const t = await a.$eval('#rx-gbar [data-e="😂"]', (e) => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+      for (let i = 1; i <= 8; i++) {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: b0.x + ((t.x - b0.x) * i) / 8, y: b0.y + ((t.y - b0.y) * i) / 8 }] });
+        await T(30);
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await cdp.detach();
+      await until(a, '😂', (id) => window.A.S.notes.get(id).rx[window.A.S.me] === '😂', id4);
+      await T(400);
+      await H.shot(a, 'notes-react');
+      // a tap now takes it back
+      await a.click(pill);
+      await until(a, 'taken back', (id) => !window.A.S.notes.get(id).likes[window.A.S.me], id4);
+      // a reply
+      await a.evaluate((id) => window.A.V.openNote(id), id4);
+      await a.waitForSelector('.sheet .rep [data-rx="rep"]');
+      await a.click('.sheet .rep [data-rx="rep"]');
+      await until(a, 'reply 👍', (id) => ((window.A.S.notes.get(id).rrx || {}).r1 || {})[window.A.S.me] === '👍', id4);
+      await closeAll(a);
+      // a chat message, from its ⋯ menu
+      await a.evaluate(() => window.A.V.go('circle', { seg: 'chat' }));
+      await a.fill('.thread textarea', 'أهلًا يا جماعة');
+      await a.press('.thread textarea', 'Enter').catch(() => {});
+      await a.click('.thread .composer button').catch(() => {});
+      await until(a, 'sent', () => window.A.S.msgs.some((m) => m.text === 'أهلًا يا جماعة'));
+      await a.click('.msg [data-act="msg-menu"]');
+      await a.click('.menu-sheet .mi:has-text("تفاعل")');
+      await a.waitForSelector('#rx-gbar [data-e="🔥"]');
+      await a.click('#rx-gbar [data-e="🔥"]');
+      await until(a, 'chat 🔥', () => { const m = window.A.S.msgs.find((x) => x.text === 'أهلًا يا جماعة'); return m && m.react && m.react['🔥'] && m.react['🔥'][window.A.S.me]; });
+      await a.waitForSelector('.msg .reacts [data-rx="msg"]');
+      // «خلّص الورد» in the news
+      await a.evaluate((id) => window.A.V.markWird(id, window.A.S.books.get(id).wirds[0].id), bookId);
+      await a.evaluate(() => window.A.V.go('circle'));
+      await closeAll(a);
+      await a.waitForSelector('.feed .ev [data-rx="ev"]');
+      await a.click('.feed .ev [data-rx="ev"]');
+      await until(a, 'event 👍', () => [...window.A.S.evrx.values()].some((r) => r.e === '👍' && r.by === window.A.S.me));
     });
 
     await step('No console errors', async () => {

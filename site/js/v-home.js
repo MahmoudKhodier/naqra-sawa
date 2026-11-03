@@ -682,8 +682,9 @@
       ic = 'books';
       cls = 'lapis';
     }
-    const canCheer = x.u && x.u !== S.me && D.canWrite() && (x.kind === 'wird' || x.kind === 'book');
-    return `<div class="ev ${cls}"><span class="ev-ic">${icon(ic)}</span>${D.avatar(x.u, 'sm')}<p><b data-act="member" data-uid="${esc(x.u || '')}">${esc(D.name(x.u))}</b> <span dir="auto">${txt}</span><small>${L.ago(x.t)}</small></p>${canCheer ? `<button class="pill" data-act="poke" data-to="${esc(x.u)}" data-kind="cheer" data-b="${esc(x.b.id)}" ${x.w ? `data-w="${esc(x.w.id)}"` : ''}>${icon('clap')}</button>` : ''}</div>`;
+    // «خلّص الورد / الكتاب»: reactions (the first one to a friend's also cheers them on)
+    const evKey = x.kind === 'wird' ? `wird|${x.u}|${x.b.id}|${x.w.id}` : x.kind === 'book' ? `book|${x.u}|${x.b.id}` : '';
+    return `<div class="ev ${cls}"><span class="ev-ic">${icon(ic)}</span>${D.avatar(x.u, 'sm')}<p><b data-act="member" data-uid="${esc(x.u || '')}">${esc(D.name(x.u))}</b> <span dir="auto">${txt}</span><small>${L.ago(x.t)}</small></p>${evKey && x.u && V.rxPill ? V.rxPill('ev', evKey, { cls: 'sm' }) : ''}</div>`;
   }
 
   /* ---------- onboarding ---------- */
