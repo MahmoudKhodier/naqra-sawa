@@ -18,15 +18,20 @@
   Off.wdName = wdName;
   const dayName = (d) => L.day(d);
 
+  /* A day off can also be set on a day that has gone by, up to a week back (a feast nobody read on): the
+     portions from that day on move a day later. */
+  Off.PAST = 7;
+  Off.pastFrom = () => U.addDays(U.today(), -Off.PAST);
   /* The text of a change, for the news and «الجديد ليك». */
   Off.text = (o) => {
+    if (o.date && o.add && o.past) return L(`يوم ${dayName(o.date)} بقى إجازة 🌴 — الأوراد اترحّلت يوم`, `${dayName(o.date)} became a day off 🌴 — the portions moved a day`, `صار يوم ${dayName(o.date)} إجازة 🌴 — وتأخرت الأوراد يومًا`);
     if (o.date) return o.add ? L(`يوم ${dayName(o.date)} إجازة 🌴`, `${dayName(o.date)} is a day off 🌴`, `يوم ${dayName(o.date)} إجازة 🌴`) : L(`إجازة ${dayName(o.date)} اتلغت — يوم قراية عادي`, `${dayName(o.date)} is a reading day again`, `أُلغيت إجازة ${dayName(o.date)} — يوم قراءة عادي`);
     if (o.wd != null) return o.add ? L(`كل ${wdName(o.wd)} إجازة من دلوقتي 🌴`, `Every ${wdName(o.wd)} is a day off from now on 🌴`, `كل ${wdName(o.wd)} إجازة من الآن 🌴`) : L(`${wdName(o.wd)} رجع يوم قراية`, `${wdName(o.wd)} is a reading day again`, `عاد ${wdName(o.wd)} يوم قراءة`);
     return '';
   };
 
   /* Change the days off: write the circle, move the portions after them, tell everyone. */
-  async function change(mut, news) {
+  async function change(mut, news, pivot) {
     const c = S.circle || {};
     const cur = c.off || {};
     const next = { dates: [...(Array.isArray(cur.dates) ? cur.dates : [])], weekly: (Array.isArray(cur.weekly) ? cur.weekly : []).map((w) => Object.assign({}, w)) };
@@ -42,7 +47,7 @@
     }
     let moved = 0;
     for (const b of S.books.values()) {
-      const r = G.redate(b, oldC, newC);
+      const r = G.redate(b, oldC, newC, pivot && pivot < U.today() ? pivot : U.today());
       if (!r) continue;
       moved++;
       await D.update(`books/${b.id}`, { wirds: r }).catch(() => {});
@@ -53,14 +58,14 @@
   }
   Off.addDate = (d) =>
     change((n) => {
-      if (d < U.today()) return false;
+      if (d < Off.pastFrom()) return false;
       n.dates.push(d);
-    }, { add: true, date: d });
+    }, Object.assign({ add: true, date: d }, d < U.today() ? { past: true } : {}), d);
   Off.removeDate = (d) =>
     change((n) => {
-      if (!n.dates.includes(d) || d < U.today()) return false;
+      if (!n.dates.includes(d) || d < Off.pastFrom()) return false;
       n.dates = n.dates.filter((x) => x !== d);
-    }, { add: false, date: d });
+    }, { add: false, date: d }, d);
   Off.setWeekly = (wd, on) => {
     const today = U.today();
     return change((n) => {
@@ -83,7 +88,7 @@
     const today = U.today();
     const weekly = new Set(G.offWeekdays(cfg));
     for (const w of cfg.weekly) if (w.from > today && !w.to) weekly.add(w.d);
-    const dates = [...cfg.dates].filter((d) => d >= today).sort();
+    const dates = [...cfg.dates].filter((d) => d >= Off.pastFrom()).sort();
     const edit = canEdit();
     return `<div class="offs">
       <p class="muted">${L('في يوم الإجازة مفيش ورد، والسلسلة ما بتتقطعش.', 'On a day off there is no portion, and streaks wait.', 'في يوم الإجازة لا ورد، ولا تنقطع السلسلة.')} ${L('واللي يحب يقرا بتتحسبله عادي.', 'Anyone who reads still gets it counted.', 'ومن يقرأ تُحسب له قراءته كالمعتاد.')}</p>
@@ -91,8 +96,8 @@
       <div class="off-wk" role="group" aria-label="${L('أيام الإجازة كل أسبوع', 'Weekly days off', 'أيام الإجازة الأسبوعية')}">${WEEK.map((d) => `<button type="button" class="off-d${weekly.has(d) ? ' on' : ''}" ${edit ? `data-wd="${d}"` : 'disabled'} aria-pressed="${weekly.has(d)}">${esc(wdName(d))}${weekly.has(d) ? ' 🌴' : ''}</button>`).join('')}</div>
       <h4>${icon('calendar')}${L('أيام معيّنة', 'Particular days', 'أيام محددة')}</h4>
       ${dates.length ? `<ul class="off-list">${dates.map((d) => `<li><span>🌴 ${esc(dayName(d))}</span>${edit ? `<button class="ib" data-rm="${d}" aria-label="${L('شيل الإجازة دي', 'Remove this day off', 'أزل هذه الإجازة')}">${icon('close')}</button>` : ''}</li>`).join('')}</ul>` : `<p class="muted sm">${L('مفيش أيام إجازة جاية.', 'No days off coming up.', 'لا أيام إجازة قادمة.')}</p>`}
-      ${edit ? `<form class="off-add row"><input type="date" id="off-date" min="${today}" value="${U.addDays(today, 1)}" required><button class="btn gold sm">${icon('plus')}${L('ضيف', 'Add', 'أضف')}</button></form>
-      <p class="muted sm">${L('الأوراد اللي بعد يوم الإجازة بتتأخر يوم، والكتاب بيخلص بعد ميعاده بيوم.', 'Portions after a day off move a day later, and the book ends a day later.', 'تتأخر الأوراد التي بعد يوم الإجازة يومًا، وينتهي الكتاب بعد موعده بيوم.')}</p>` : `<p class="muted sm">${L('صاحب الحلقة والمشرفين بس يقدروا يغيّروها.', 'Only the owner and admins can change these.', 'يغيّرها صاحب الحلقة والمشرفون فقط.')}</p>`}
+      ${edit ? `<form class="off-add row"><input type="date" id="off-date" min="${Off.pastFrom()}" value="${U.addDays(today, 1)}" required><button class="btn gold sm">${icon('plus')}${L('ضيف', 'Add', 'أضف')}</button></form>
+      <p class="muted sm">${L('الأوراد اللي بعد يوم الإجازة بتتأخر يوم، والكتاب بيخلص بعد ميعاده بيوم.', 'Portions after a day off move a day later, and the book ends a day later.', 'تتأخر الأوراد التي بعد يوم الإجازة يومًا، وينتهي الكتاب بعد موعده بيوم.')} ${L('وتقدر تخلّي يوم فات إجازة (لحد أسبوع): ورده والأوراد اللي بعده يترحّلوا، والسلسلة ما تتقطعش عليه.', 'A day that has gone by (up to a week) can be a day off too: its portion and the ones after move, and no streak breaks on it.', 'ويمكن جعل يوم مضى إجازة (حتى أسبوع): يتأخر ورده والأوراد التي بعده، ولا تنقطع السلسلة عليه.')}</p>` : `<p class="muted sm">${L('صاحب الحلقة والمشرفين بس يقدروا يغيّروها.', 'Only the owner and admins can change these.', 'يغيّرها صاحب الحلقة والمشرفون فقط.')}</p>`}
     </div>`;
   };
   V.offSheet = () =>
@@ -111,7 +116,7 @@
           if (!e.target.closest('.off-add')) return;
           e.preventDefault();
           const d = body.querySelector('#off-date').value;
-          if (!d || d < U.today()) return;
+          if (!d || d < Off.pastFrom()) return U.toast(L('ينفع لحد أسبوع فات بس', 'Only up to a week back', 'حتى أسبوع مضى فقط'), 'warn');
           if (G.isOff(d)) return U.toast(L('اليوم ده إجازة أصلًا 🌴', 'That day is already off 🌴', 'هذا اليوم إجازة أصلًا 🌴'));
           Off.addDate(d);
         });
@@ -119,15 +124,20 @@
     });
   V.actions['days-off'] = () => V.offSheet();
 
+  // «اعمل … إجازة»; a day gone by also says the portions move
+  const offLabel = (d) =>
+    d < U.today()
+      ? L(`اعمل ${dayName(d)} إجازة 🌴 ورحّل الأوراد`, `Make ${dayName(d)} a day off 🌴 and move the portions`, `اجعل ${dayName(d)} إجازة 🌴 وأخّر الأوراد`)
+      : L(`اعمل ${dayName(d)} إجازة 🌴`, `Make ${dayName(d)} a day off 🌴`, `اجعل ${dayName(d)} إجازة 🌴`);
   /* A day in a plan's calendar (or from a portion's sheet). */
   V.actions['day-off'] = (a) => {
     const d = a.dataset.d;
     if (!d) return;
     const off = G.isOff(d);
-    if (!canEdit() || d < U.today()) return U.toast(off ? L(`${dayName(d)} إجازة 🌴`, `${dayName(d)} is a day off 🌴`, `${dayName(d)} إجازة 🌴`) : esc(dayName(d)));
+    if (!canEdit() || d < Off.pastFrom()) return U.toast(off ? L(`${dayName(d)} إجازة 🌴`, `${dayName(d)} is a day off 🌴`, `${dayName(d)} إجازة 🌴`) : esc(dayName(d)));
     const cfg = G.offCfg();
     const items = [];
-    if (!off) items.push({ ic: 'calendar', t: L(`اعمل ${dayName(d)} إجازة 🌴`, `Make ${dayName(d)} a day off 🌴`, `اجعل ${dayName(d)} إجازة 🌴`), fn: () => Off.addDate(d) });
+    if (!off) items.push({ ic: 'calendar', t: offLabel(d), fn: () => Off.addDate(d) });
     else if (cfg.dates.has(d)) items.push({ ic: 'close', t: L(`شيل إجازة ${dayName(d)}`, `Remove the day off on ${dayName(d)}`, `أزل إجازة ${dayName(d)}`), fn: () => Off.removeDate(d) });
     items.push({ ic: 'list', t: L('كل أيام الإجازة', 'All days off', 'كل أيام الإجازة'), fn: () => V.offSheet() });
     V.menu(items);
@@ -137,12 +147,12 @@
   V.actions.wird = (a) => {
     wird(a);
     const d = a.dataset && a.dataset.d;
-    if (!d || !canEdit() || d < U.today() || G.isOff(d)) return;
+    if (!d || !canEdit() || d < Off.pastFrom() || G.isOff(d)) return;
     const api = V.sheets[V.sheets.length - 1];
     if (!api || !api.body) return;
     const row = document.createElement('div');
     row.className = 'off-row';
-    row.innerHTML = `<button class="btn ghost sm" data-act="day-off-set" data-d="${d}" data-close>🌴 ${L(`اعمل ${dayName(d)} إجازة`, `Make ${dayName(d)} a day off`, `اجعل ${dayName(d)} إجازة`)}</button>`;
+    row.innerHTML = `<button class="btn ghost sm" data-act="day-off-set" data-d="${d}" data-close>${offLabel(d)}</button>`;
     api.body.appendChild(row);
   };
   V.actions['day-off-set'] = (a) => Off.addDate(a.dataset.d);

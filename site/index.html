@@ -1015,9 +1015,45 @@ textarea { resize: vertical; line-height: 1.55; }
 button.wc-x { border: 0; padding: 0; background: transparent; }
 button.wc-x.off { background: color-mix(in srgb, var(--jade) 10%, var(--card2)); }
 .k.off { background: color-mix(in srgb, var(--jade) 25%, var(--card2)); }
-.wcal { display: grid; grid-template-columns: auto repeat(7, minmax(0, 1fr)); gap: 5px; align-items: center; }
+.wcal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; align-items: center; }
+.wc-mo { grid-column: 1 / -1; margin: 8px 2px 0; font-size: .8rem; font-weight: 800; color: var(--ink2); }
+.wc-d { position: absolute; top: 3px; inset-inline-start: 5px; font-size: .58rem; font-weight: 600; opacity: .7; line-height: 1; font-variant-numeric: tabular-nums; }
+.wc-x .wc-d { opacity: .45; }
+.wcal .wc-c, .wcal .wc-x { aspect-ratio: auto; height: 56px; min-height: 0; }
+.wcal .wc-c { justify-content: center; gap: 1px; padding: 8px 2px 4px; overflow: hidden; }
+.wcal .wc-c b { font-size: 1.02rem; line-height: 1.1; }
+.wcal .wc-c small { font-size: .62rem; font-weight: 700; opacity: .8; line-height: 1.1; white-space: nowrap; }
+.wc-f { position: absolute; bottom: 0; inset-inline-start: 0; height: 4px; border-radius: 0 3px 3px 0; background: var(--jade); }
+.wc-c.done .wc-f { background: rgb(255 255 255 / .75); }
+.k-f { display: inline-block; width: 16px; height: 4px; border-radius: 2px; background: var(--jade); }
+.wc-x.off { font-size: .95rem; }
+/* the plan as a list */
+.plan-views { margin: 0 0 12px; }
+.plan-views button .ic { width: 17px; height: 17px; }
+.wlist { display: grid; gap: 6px; margin-bottom: 18px; }
+.wl-wk { margin: 10px 4px 0; font-size: .8rem; font-weight: 800; color: var(--ink3); }
+.wl-r { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); text-align: start; color: var(--ink); font: inherit; }
+.wl-r .star8 { --sz: 34px; }
+.wl-t { display: grid; gap: 1px; min-width: 0; }
+.wl-t b { font-size: .95rem; }
+.wl-t small { color: var(--ink3); font-size: .76rem; }
+.wl-e { display: grid; justify-items: end; gap: 4px; }
+.wl-e > small { font-size: .74rem; color: var(--ink3); font-weight: 700; white-space: nowrap; }
+.wl-avs { display: flex; align-items: center; }
+.wl-avs .av { box-shadow: 0 0 0 2px var(--card); }
+.wl-avs .av + .av, .wl-avs i { margin-inline-start: -6px; }
+.wl-avs i { font: 700 .62rem/18px var(--f-ui); font-style: normal; padding: 0 4px; border-radius: 99px; background: var(--bg2); color: var(--ink2); }
+.wl-r.cur { border: 2px solid var(--gold); background: color-mix(in srgb, var(--gold) 8%, var(--card)); }
+.wl-r.cur .wl-e > small { color: var(--gold-t); }
+.wl-r.late .wl-e > small { color: var(--rubric); }
+.wl-r.part { border-color: color-mix(in srgb, var(--jade) 35%, var(--line)); }
+.wl-r.done { background: var(--jade-s); border-color: color-mix(in srgb, var(--jade) 30%, transparent); }
+.wl-fold { display: flex; align-items: center; gap: 8px; width: 100%; padding: 11px 12px; border-radius: 14px; background: var(--jade-s); color: var(--jade); font: inherit; font-weight: 700; font-size: .9rem; text-align: start; }
+.wl-fold small { margin-inline-start: auto; font-weight: 700; text-decoration: underline; }
+.wl-done { display: grid; gap: 6px; }
+.wl-off { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 14px; border-radius: 14px; border: 1.5px dashed color-mix(in srgb, var(--jade) 40%, var(--line)); background: transparent; color: var(--ink2); font: inherit; font-size: .85rem; text-align: start; }
+.wl-more { justify-self: center; margin-top: 6px; }
 .wc-h { text-align: center; font-size: .72rem; color: var(--ink3); font-weight: 600; }
-.wc-wl { font-size: .68rem; color: var(--ink3); white-space: nowrap; padding-inline-end: 2px; font-variant-numeric: tabular-nums; }
 .wc-c, .wc-x { position: relative; aspect-ratio: 1; min-height: 38px; border-radius: 12px; }
 .wc-x.today { outline: 2px dashed var(--line); }
 .wc-c { display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 4px 2px 3px; background: var(--card2); border: 1px solid var(--line); color: var(--ink3); font-weight: 700; transition: transform .08s; }

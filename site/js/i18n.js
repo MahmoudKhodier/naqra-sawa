@@ -161,6 +161,8 @@
   L.day = (k) => (k ? fmt({ weekday: 'short', day: 'numeric', month: 'short' }).format(U.parseD(k)) : '');
   L.dayShort = (k) => (k ? fmt({ day: 'numeric', month: 'short' }).format(U.parseD(k)) : '');
   L.monthYear = (k) => (k ? fmt({ month: 'long', year: 'numeric' }).format(U.parseD(k.length === 7 ? k + '-01' : k)) : '');
+  /* «نوفمبر», with the year only when it isn't this year's. */
+  L.month = (k) => (!k ? '' : k.slice(0, 4) === U.today().slice(0, 4) ? fmt({ month: 'long' }).format(U.parseD(k.length === 7 ? k + '-01' : k)) : L.monthYear(k));
   L.weekday = (k) => fmt({ weekday: 'narrow' }).format(U.parseD(k));
 
   /* Due date relative to today. */

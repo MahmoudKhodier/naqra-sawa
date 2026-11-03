@@ -112,17 +112,37 @@ const closeAll = async (p) => {
     await a.$eval('.wc-now', (e) => e.scrollIntoView());
     await T(300);
     await H.shot(a, 'po-0-now');
-    await a.addScriptTag({ path: path.join(__dirname, 'mocks', 'plan-options.js') });
-    for (const s of ['calm', 'list', 'bar', 'week']) {
-      await a.evaluate(() => window.A.V.go('home'));
-      await a.evaluate((id) => window.A.V.go('book-' + id, { tab: 'plan' }), bookId);
-      await a.waitForSelector('.wcal');
-      await a.evaluate((s) => window.PlanMock.show(s), s);
-      await a.$eval('.pm-note', (e) => e.scrollIntoView());
-      await a.evaluate(() => (document.getElementById('screen').scrollTop -= 8));
-      await T(300);
-      await H.shot(a, 'po-' + s);
-    }
+    // the two looks: the calendar and the list (the done ones folded, then open)
+    await a.click('.plan-views [data-v="cal"]');
+    await a.waitForSelector('.wcal .wc-mo');
+    await a.$eval('.plan-views', (e) => e.scrollIntoView());
+    await T(300);
+    await H.shot(a, 'po-cal');
+    await a.click('.plan-views [data-v="list"]');
+    await a.waitForSelector('.wlist .wl-r');
+    await a.$eval('.plan-views', (e) => e.scrollIntoView());
+    await T(300);
+    await H.shot(a, 'po-list');
+    await a.click('.wl-fold');
+    await a.waitForSelector('.wl-done .wl-r');
+    await T(300);
+    await H.shot(a, 'po-list-open');
+    // yesterday becomes a day off: its portion and the ones after move a day
+    const before = await a.evaluate((id) => window.A.S.books.get(id).wirds.map((w) => w.n + ':' + w.start), bookId);
+    await a.click('.plan-views [data-v="cal"]');
+    const y = await a.evaluate(() => window.A.U.addDays(window.A.U.today(), -1));
+    await a.click(`.wcal .wc-c[data-d="${y}"]`);
+    await a.waitForSelector('.off-row [data-act="day-off-set"]');
+    await H.shot(a, 'po-past-off-sheet');
+    await a.click('.off-row [data-act="day-off-set"]');
+    await a.waitForFunction((y) => window.A.G.isOff(y), y);
+    await a.waitForFunction(({ id, b }) => window.A.S.books.get(id).wirds.map((w) => w.n + ':' + w.start).join() !== b, { id: bookId, b: before.join() });
+    const after = await a.evaluate((id) => window.A.S.books.get(id).wirds.map((w) => w.n + ':' + w.start), bookId);
+    console.log('before', before.slice(4, 10).join(' '), '\nafter ', after.slice(4, 10).join(' '));
+    await closeAll(a);
+    await a.$eval('.wcal', (e) => e.scrollIntoView());
+    await T(300);
+    await H.shot(a, 'po-cal-past-off');
     console.log('done');
   } finally {
     await browser.close();

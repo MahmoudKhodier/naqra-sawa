@@ -231,7 +231,29 @@
     const every = G.wirdLen(ws[0]); // in reading days (a week-long one stays 7)
     return `<div class="plan-head"><p>${L(`${L.count(per, 'page')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} لـ ${L.dayShort(ws[ws.length - 1].due)}`, `${per} pages ${every === 1 ? 'a day' : every === 7 ? 'a week' : `every ${every} days`} • ${L.dayShort(ws[0].start)} – ${L.dayShort(ws[ws.length - 1].due)}`, `${L.count(per, 'page', 'nom')} ${every === 1 ? 'كل يوم' : every === 7 ? 'كل أسبوع' : `كل ${L.count(every, 'day')}`} • من ${L.dayShort(ws[0].start)} إلى ${L.dayShort(ws[ws.length - 1].due)}`)}</p>${V.canPlan(b) ? `<button class="btn ghost sm" data-act="plan" data-b="${esc(b.id)}">${icon('edit')}${L('عدّل الخطة', 'Edit plan')}</button>` : ''}</div>
       ${planTime(b, ws)}
-      ${wirdCal(b, ws, members)}`;
+      ${nowCard(b, ws, members)}
+      ${planViews()}
+      ${U.store.get('planView', 'cal') === 'list' ? wirdList(b, ws, members) : wirdCal(b, ws, members)}`;
+  }
+  const planViews = () => {
+    const v = U.store.get('planView', 'cal') === 'list' ? 'list' : 'cal';
+    return `<div class="segs plan-views" role="tablist">${[['cal', 'calendar', L('تقويم', 'Calendar', 'تقويم')], ['list', 'list', L('قايمة', 'List', 'قائمة')]].map(([k, ic, t]) => `<button role="tab" class="${v === k ? 'on' : ''}" aria-selected="${v === k}" data-act="plan-view" data-v="${k}">${icon(ic)}<span>${t}</span></button>`).join('')}</div>`;
+  };
+  /* My portion now (or the last one): its pages, how far I got, when it's due, who finished it. */
+  function nowCard(b, ws, members) {
+    const { myCur, prog, fins } = planCtx(b, members);
+    const cur = myCur || ws[ws.length - 1];
+    const curFins = fins(cur).filter((u) => u !== S.me);
+    const st = G.wirdStatus(b, cur);
+    const curDone = st === 'done' || st === 'late-done';
+    const seen = U.rangesCountIn(prog && prog.seen, cur.from, cur.to);
+    const total = cur.to - cur.from + 1;
+    return `<button class="card wc-now" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(cur.id)}">
+        ${V.star(L.num(cur.n), curDone ? 'jade' : st === 'late' ? 'rubric' : 'gold')}
+        <span class="wc-now-t"><b>${L(`الورد ${L.num(cur.n)}`, `Portion ${cur.n}`)} • ${L('ص', 'p.')} ${L.num(cur.from)}–${L.num(cur.to)}</b>
+        <small>${curDone ? L('خلّصت الخطة كلها 🎉', 'You finished the whole plan 🎉', 'أنهيت الخطة كلها 🎉') : `${L.count(total, 'page')} • ${seen ? L(`قريت ${L.num(seen)} من ${L.num(total)}`, `${seen} of ${total} read`, `قرأت ${L.num(seen)} من ${L.num(total)}`) + ' • ' : ''}${L.due(cur.due)}`}</small>
+        ${curFins.length ? `<span class="wc-now-f">${curFins.slice(0, 5).map((u) => D.avatar(u, 'xs')).join('')}<small>${L('خلّصوه', 'finished it', 'أنهوه')}</small></span>` : ''}</span>
+      </button>`;
   }
 
   /* About how long my current portion (or a typical one) and the whole plan take at my reading speed. */
@@ -242,14 +264,21 @@
     return `<p class="plan-time">${icon('clock')}<span>${L(`الورد ده حوالي ${G.timeText(G.minutesFor(n))}<br>الكتاب كله حوالي ${G.timeText(G.minutesFor(all))}`, `This portion takes about ${G.timeText(G.minutesFor(n))}<br>the whole book about ${G.timeText(G.minutesFor(all))}`, `هذا الورد نحو ${G.timeText(G.minutesFor(n))}<br>الكتاب كله نحو ${G.timeText(G.minutesFor(all))}`)}</span></p>`;
   }
 
-  /* The plan as a calendar: a row per week (Saturday first), each portion on its days, coloured by where I am
-     in it, with the faces of the others who finished it. Tapping a day opens its portion. */
-  function wirdCal(b, ws, members) {
+  /* The plan, two ways (the choice kept on this phone): a calendar (a row per week, Saturday first, a month's
+     name where one starts; each portion on its days with its number and how many pages, coloured by where I
+     am in it, a green line under it as long as the share of the others who finished it) or a list (a row per
+     portion: its pages, how many, about how long, its day and the faces of who finished it; the ones I finished
+     folded on top). Tapping a portion opens it; the owner and admins tap a day to make it a day off. */
+  let planDoneOpen = false, planAll = false;
+  V.actions['plan-view'] = (a) => {
+    U.store.set('planView', a.dataset.v);
+    V.render();
+  };
+  V.actions['plan-done'] = () => ((planDoneOpen = !planDoneOpen), V.render());
+  V.actions['plan-all'] = () => ((planAll = !planAll), V.render());
+  function planCtx(b, members) {
     const myCur = G.myCurrent(b);
-    const today = U.today();
     const prog = D.prog(b.id);
-    const byDay = new Map();
-    for (const w of ws) for (let d = w.start; d <= w.due; d = U.addDays(d, 1)) if (!byDay.has(d)) byDay.set(d, w);
     const fins = (w) => members.filter((u) => {
       const p = D.prog(b.id, u);
       return p && p.done && p.done[w.id];
@@ -261,49 +290,102 @@
       if (st === 'late') return 'late';
       return U.rangesCountIn(prog && prog.seen, w.from, w.to) ? 'part' : 'soon';
     };
+    return { myCur, prog, fins, cls };
+  }
+  const pagesShort = (n) => L(`${L.num(n)} ص`, `${n} p`, `${L.num(n)} ص`);
+  function wirdCal(b, ws, members) {
+    const { myCur, prog, fins, cls } = planCtx(b, members);
+    const today = U.today();
+    const byDay = new Map();
+    for (const w of ws) for (let d = w.start; d <= w.due; d = U.addDays(d, 1)) if (!byDay.has(d)) byDay.set(d, w);
     const first = U.weekStart(ws[0].start);
     const lastDay = ws[ws.length - 1].due;
     const offc = G.offCfg();
     const canOff = (S.isOwner || S.canEdit) && D.canWrite();
-    let head = '<span></span>';
+    const pastOk = A.Off ? A.Off.pastFrom() : today;
+    const others = Math.max(1, members.filter((u) => u !== S.me).length);
+    let head = '';
     for (let i = 0; i < 7; i++) head += `<span class="wc-h">${L.weekday(U.addDays(first, i))}</span>`;
-    let rows = '';
+    let rows = '', mo = '';
     for (let wk = first; wk <= lastDay; wk = U.addDays(wk, 7)) {
-      rows += `<span class="wc-wl">${L.dayShort(wk)}</span>`;
+      const m = U.addDays(wk, 6).slice(0, 7);
+      if (m !== mo) {
+        mo = m;
+        rows += `<span class="wc-mo">${esc(L.month(m))}</span>`;
+      }
       for (let i = 0; i < 7; i++) {
         const d = U.addDays(wk, i);
         const w = byDay.get(d);
         const off = G.isOff(d, offc);
+        const dn = `<span class="wc-d">${L.num(+d.slice(8))}</span>`;
         if (!w) {
           // an empty day: a day off shows 🌴; the owner and admins can tap one to make it a day off
-          rows += off || (canOff && d >= today)
-            ? `<button class="wc-x${off ? ' off' : ''}${d === today ? ' today' : ''}" data-act="day-off" data-d="${d}" aria-label="${esc(L.day(d))}${off ? ' 🌴' : ''}">${off ? '🌴' : ''}</button>`
-            : `<span class="wc-x${d === today ? ' today' : ''}"></span>`;
+          rows += off || (canOff && d >= pastOk && d >= ws[0].start)
+            ? `<button class="wc-x${off ? ' off' : ''}${d === today ? ' today' : ''}" data-act="day-off" data-d="${d}" aria-label="${esc(L.day(d))}${off ? ' 🌴' : ''}">${dn}${off ? '🌴' : ''}</button>`
+            : `<span class="wc-x${d === today ? ' today' : ''}">${d >= ws[0].start && d <= lastDay ? dn : ''}</span>`;
           continue;
         }
         const lead = d === w.start || i === 0; // the portion's first day, or its first day in this row
-        const others = lead ? fins(w).filter((u) => u !== S.me) : [];
+        const f = lead ? fins(w).filter((u) => u !== S.me).length : 0;
         const unread = lead && V.unread(b.id, w.id);
-        const label = `${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)} • ${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}`;
-        rows += `<button class="wc-c ${cls(w)}${lead ? '' : ' cont'}${off ? ' off' : ''}${d === today ? ' today' : ''}" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-d="${d}" aria-label="${esc(label)}${off ? ' • 🌴' : ''}">${lead ? `<b>${L.num(w.n)}</b>` : ''}${
-          others.length ? `<span class="wc-avs">${others.slice(0, others.length > 3 ? 2 : 3).map((u) => D.avatar(u, 'xs')).join('')}${others.length > 3 ? `<i>+${L.num(others.length - 2)}</i>` : ''}</span>` : ''
+        const label = `${L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)} • ${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)} • ${L.count(w.to - w.from + 1, 'page')}`;
+        rows += `<button class="wc-c ${cls(w)}${lead ? '' : ' cont'}${off ? ' off' : ''}${d === today ? ' today' : ''}" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-d="${d}" aria-label="${esc(label)}${off ? ' • 🌴' : ''}">${dn}${lead ? `<b>${L.num(w.n)}</b><small>${pagesShort(w.to - w.from + 1)}</small>` : ''}${
+          f ? `<i class="wc-f" style="width:${Math.round((Math.min(f, others) / others) * 100)}%" title="${esc(L(`${L.num(f)} من الحلقة خلّصوه`, `${f} in the circle finished it`, `${L.num(f)} من الحلقة أنهوه`))}"></i>` : ''
         }${unread ? '<i class="wc-dot"></i>' : ''}</button>`;
       }
     }
-    const cur = myCur || ws[ws.length - 1];
-    const curFins = fins(cur).filter((u) => u !== S.me);
-    const st = G.wirdStatus(b, cur);
-    const curDone = st === 'done' || st === 'late-done';
-    const seen = U.rangesCountIn(prog && prog.seen, cur.from, cur.to);
-    const total = cur.to - cur.from + 1;
-    const now = `<button class="card wc-now" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(cur.id)}">
-        ${V.star(L.num(cur.n), curDone ? 'jade' : st === 'late' ? 'rubric' : 'gold')}
-        <span class="wc-now-t"><b>${L(`الورد ${L.num(cur.n)}`, `Portion ${cur.n}`)} • ${L('ص', 'p.')} ${L.num(cur.from)}–${L.num(cur.to)}</b>
-        <small>${curDone ? L('خلّصت الخطة كلها 🎉', 'You finished the whole plan 🎉', 'أنهيت الخطة كلها 🎉') : `${seen ? L(`قريت ${L.num(seen)} من ${L.num(total)}`, `${seen} of ${total} read`, `قرأت ${L.num(seen)} من ${L.num(total)}`) + ' • ' : ''}${L.due(cur.due)}`}</small>
-        ${curFins.length ? `<span class="wc-now-f">${curFins.slice(0, 5).map((u) => D.avatar(u, 'xs')).join('')}<small>${L('خلّصوه', 'finished it', 'أنهوه')}</small></span>` : ''}</span>
-      </button>`;
-    return `${now}<div class="wcal" role="grid">${head}${rows}</div>
-      <p class="wc-key"><span><i class="k done"></i>${L('خلّصته', 'Done', 'أنهيته')}</span><span><i class="k part"></i>${L('قريت جزء', 'Started', 'قرأت جزءًا')}</span><span><i class="k cur"></i>${L('عليه الدور', 'Up now', 'الحالي')}</span><span><i class="k late"></i>${L('متأخر', 'Late')}</span><span><span class="wc-key-av">${D.avatar(S.me, 'xs')}</span>${L('خلّصوه', 'Finished it', 'أنهوه')}</span>${offc.none ? '' : `<span>🌴 ${L('إجازة', 'Day off', 'إجازة')}</span>`}</p>${canOff ? `<p class="wc-off-h muted sm">${L('دوس على يوم عشان تعمله إجازة 🌴', 'Tap a day to make it a day off 🌴', 'المس يومًا لتجعله إجازة 🌴')}</p>` : ''}`;
+    return `<div class="wcal" role="grid">${head}${rows}</div>
+      <p class="wc-key"><span><i class="k done"></i>${L('خلّصته', 'Done', 'أنهيته')}</span><span><i class="k part"></i>${L('قريت جزء', 'Started', 'قرأت جزءًا')}</span><span><i class="k cur"></i>${L('عليه الدور', 'Up now', 'الحالي')}</span><span><i class="k late"></i>${L('متأخر', 'Late')}</span><span><i class="k-f"></i>${L('خلّصوه من الحلقة', 'Finished in the circle', 'أنهوه من الحلقة')}</span>${offc.none ? '' : `<span>🌴 ${L('إجازة', 'Day off', 'إجازة')}</span>`}</p>${canOff ? `<p class="wc-off-h muted sm">${L('دوس على يوم عشان تعمله إجازة 🌴 — حتى لو فات (لحد أسبوع)', 'Tap a day to make it a day off 🌴 — even a past one (up to a week)', 'المس يومًا لتجعله إجازة 🌴 — ولو مضى (حتى أسبوع)')}</p>` : ''}`;
+  }
+  function wirdList(b, ws, members) {
+    const { myCur, fins, cls } = planCtx(b, members);
+    const today = U.today();
+    const offc = G.offCfg();
+    const canOff = (S.isOwner || S.canEdit) && D.canWrite();
+    const done = ws.filter((w) => cls(w) === 'done');
+    const faces = (w) => {
+      const us = fins(w).filter((u) => u !== S.me);
+      return us.length ? `<span class="wl-avs">${us.slice(0, 3).map((u) => D.avatar(u, 'xs')).join('')}${us.length > 3 ? `<i>+${L.num(us.length - 3)}</i>` : ''}</span>` : '';
+    };
+    const when = (w, c) => {
+      if (c.includes('late')) return L.due(w.due);
+      if (w.start !== w.due) return w.start <= today && today <= w.due ? L.due(w.due) : `${L.dayShort(w.start)} – ${L.dayShort(w.due)}`;
+      return w.start === today ? L('النهارده', 'Today', 'اليوم') : w.start === U.addDays(today, 1) ? L('بكرة', 'Tomorrow', 'غدًا') : w.start === U.addDays(today, -1) ? L('امبارح', 'Yesterday', 'أمس') : L.day(w.start);
+    };
+    const row = (w) => {
+      const c = cls(w);
+      const n = w.to - w.from + 1;
+      return `<button class="wl-r ${c}" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-d="${w.start}">${V.star(L.num(w.n), c.includes('late') ? 'rubric' : c === 'done' ? 'jade' : c.startsWith('cur') ? 'gold' : 'lapis')}
+        <span class="wl-t"><b>${L('ص', 'p.')} ${L.num(w.from)}–${L.num(w.to)}</b><small>${L.count(n, 'page')} • ${L(`حوالي ${G.timeText(G.minutesFor(n))}`, `about ${G.timeText(G.minutesFor(n))}`, `نحو ${G.timeText(G.minutesFor(n))}`)}</small></span>
+        <span class="wl-e"><small>${esc(when(w, c))}</small>${faces(w)}</span></button>`;
+    };
+    let h = '';
+    if (done.length) {
+      h += `<button class="wl-fold" data-act="plan-done" aria-expanded="${planDoneOpen}">${icon('check')}<span>${L(`خلّصت ${L.count(done.length, 'wird')}`, `${L.count(done.length, 'wird')} done`, `أنهيت ${L.count(done.length, 'wird')}`)}</span><small>${planDoneOpen ? L('اخفيهم', 'Hide', 'أخفِها') : L('اعرضهم', 'Show', 'اعرضها')}</small></button>`;
+      if (planDoneOpen) h += `<div class="wl-done">${done.map(row).join('')}</div>`;
+    }
+    const rest = ws.filter((w) => cls(w) !== 'done');
+    const ws0 = U.weekStart();
+    const limit = U.addDays(ws0, 20); // this week and the next two, then «اعرض كل الأوراد»
+    let label = '', shown = 0, prevDue = null;
+    for (const w of rest) {
+      if (!planAll && w.start > limit && shown >= 3) break;
+      const wk = U.weekStart(w.start);
+      const lbl = wk < ws0 ? L('فات ميعاده', 'Past due', 'فات موعده') : wk === ws0 ? L('الأسبوع ده', 'This week', 'هذا الأسبوع') : wk === U.addDays(ws0, 7) ? L('الأسبوع الجاي', 'Next week', 'الأسبوع القادم') : `${L.dayShort(wk)} – ${L.dayShort(U.addDays(wk, 6))}`;
+      if (lbl !== label) {
+        label = lbl;
+        h += `<h4 class="wl-wk">${lbl}</h4>`;
+      }
+      // the days off between the one before and this one
+      if (prevDue) for (let d = U.addDays(prevDue, 1); d < w.start; d = U.addDays(d, 1)) if (G.isOff(d, offc) && d >= today)
+        h += `<${canOff ? 'button' : 'div'} class="wl-off" ${canOff ? `data-act="day-off" data-d="${d}"` : ''}><span>🌴</span><span>${esc(L.day(d))} — ${L('إجازة', 'Day off', 'إجازة')}</span></${canOff ? 'button' : 'div'}>`;
+      prevDue = w.due;
+      h += row(w);
+      shown++;
+    }
+    const left = rest.length - shown;
+    if (left > 0 || planAll) h += `<button class="btn ghost sm wl-more" data-act="plan-all">${planAll ? L('اعرض أقل', 'Show fewer', 'اعرض أقل') : L(`اعرض كل الأوراد (${L.num(left)} كمان)`, `Show all portions (${left} more)`, `اعرض كل الأوراد (${L.num(left)} أخرى)`)}</button>`;
+    return `<div class="wlist">${h}</div>`;
   }
 
   /* One portion: progress, who finished, read / discuss / mark done. */

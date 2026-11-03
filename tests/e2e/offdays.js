@@ -197,6 +197,52 @@ const wirds = (p, id) => p.evaluate((id) => window.A.S.books.get(id).wirds.map((
       return `${r}: streak ${s.streak}`;
     });
 
+    await step('A day gone by (up to a week) made a day off: its portion and the ones after move a day; older days are refused', async () => {
+      // a plan that began four days ago (yesterday is already off): portions on −4, −3, −2, today, tomorrow …
+      const plan = await a.evaluate(async (id) => {
+        const { D, S, U, G } = window.A;
+        const b = S.books.get(id);
+        let d = U.addDays(U.today(), -4);
+        const wirds = G.wirds(b).map((w) => {
+          while (G.isOff(d)) d = U.addDays(d, 1);
+          const x = Object.assign({}, w, { start: d, due: d });
+          d = U.addDays(d, 1);
+          return x;
+        });
+        await D.update(`books/${id}`, { wirds });
+        return wirds.map((w) => w.start);
+      }, bookId);
+      const d2 = await a.evaluate(() => window.A.U.addDays(window.A.U.today(), -2));
+      assert(plan[2] === d2, 'portion 3 is not two days ago: ' + plan.slice(0, 4));
+      // from the calendar: the portion's sheet offers «اعمل … إجازة ورحّل الأوراد»
+      await closeAll(a);
+      await a.evaluate((id) => window.A.V.go('book-' + id, { tab: 'plan' }), bookId);
+      await a.click(`.wcal .wc-c[data-d="${d2}"]`);
+      await a.waitForSelector('.off-row [data-act="day-off-set"]');
+      assert((await a.textContent('.off-row')).includes('ورحّل الأوراد'), 'label: ' + (await a.textContent('.off-row')));
+      await a.click('.off-row [data-act="day-off-set"]');
+      await until(a, 'moved', (arg) => window.A.S.books.get(arg.id).wirds[2].start !== arg.d2, { id: bookId, d2 });
+      const after = await wirds(a, bookId);
+      assert(after[0][1] === plan[0] && after[1][1] === plan[1], 'the ones before moved: ' + JSON.stringify(after.slice(0, 3)));
+      for (let i = 2; i < after.length; i++) {
+        const want = await a.evaluate((d) => window.A.G.nextOn(window.A.U.addDays(d, 1)), i === 2 ? d2 : plan[i]);
+        assert(after[i][1] === want || after[i][1] > plan[i], `portion ${i + 1}: ${plan[i]} → ${after[i][1]}`);
+      }
+      assert(after[2][1] === (await a.evaluate(() => window.A.U.today())), 'portion 3 is not today now: ' + after[2][1]);
+      await until(b, 'news says it moved', () => [...document.querySelectorAll('.feed .ev')].some((e) => /اترحّلت/.test(e.textContent)) || window.A.V.inboxItems().some((x) => x.kind === 'off' && /اترحّلت/.test(JSON.stringify(x))), null, 8000).catch(() => {});
+      // more than a week back: refused
+      const d9 = await a.evaluate(() => window.A.U.addDays(window.A.U.today(), -9));
+      await a.evaluate((d) => window.A.Off.addDate(d), d9);
+      await T(600);
+      assert(!(await a.evaluate((d) => window.A.G.isOff(d), d9)), 'a day nine days back became a day off');
+      // taken back: the portions come back
+      await a.evaluate((d) => window.A.Off.removeDate(d), d2);
+      await until(a, 'back', (arg) => window.A.S.books.get(arg.id).wirds[2].start === arg.d2, { id: bookId, d2 });
+      const back = await wirds(a, bookId);
+      assert(JSON.stringify(back.map((w) => w[1])) === JSON.stringify(plan), 'not back: ' + JSON.stringify(back.map((w) => w[1])) + ' vs ' + JSON.stringify(plan));
+      return `${plan[2]} → ${after[2][1]}, then back`;
+    });
+
     await step('No console errors', async () => {
       const errs = [...(a.__errors || []), ...(b.__errors || [])].filter((e) => !/favicon|fonts|404/.test(e));
       assert(!errs.length, errs.slice(0, 4).join('\n'));

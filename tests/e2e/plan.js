@@ -102,6 +102,27 @@ const ranges = (p) => p.evaluate(() => [...window.A.S.books.values()][0].wirds.m
       await closeAll(b);
     });
 
+    await step('The plan as a list: a row per portion with its pages and how many; the calendar shows the page counts; the choice stays', async () => {
+      await closeAll(a);
+      await a.evaluate((id) => window.A.V.go('book-' + id, { tab: 'plan' }), bookId);
+      await a.waitForSelector('.wcal');
+      const small = await a.$$eval('.wcal .wc-c:not(.cont) small', (x) => x.map((e) => e.textContent.trim()));
+      assert(small.length === 5 && small.every((t) => /ص$/.test(t)), 'page counts in the calendar: ' + small.join('|'));
+      await a.click('.plan-views [data-v="list"]');
+      await a.waitForSelector('.wlist .wl-r');
+      const rows = await a.$$eval('.wlist .wl-r', (x) => x.map((e) => e.querySelector('.wl-t').textContent.replace(/\s+/g, ' ').trim()));
+      assert(rows.length === 5 && rows.every((r) => /ص .+–.+صفح/.test(r)), 'rows: ' + rows.join(' | '));
+      await a.click('.wlist .wl-r[data-w="w2"]');
+      await a.waitForSelector('.wsheet');
+      await closeAll(a);
+      await a.evaluate(() => window.A.V.go('home'));
+      await a.evaluate((id) => window.A.V.go('book-' + id, { tab: 'plan' }), bookId);
+      await a.waitForSelector('.wlist');
+      await a.click('.plan-views [data-v="cal"]');
+      await a.waitForSelector('.wcal');
+      return rows[0];
+    });
+
     await step('Owner moves the end of portion 2 one page later: portion 3 starts a page later', async () => {
       await a.click('.wc-c:not(.cont)[data-w="w2"]');
       await a.click('.wsheet [data-act="wird-pages"]');
