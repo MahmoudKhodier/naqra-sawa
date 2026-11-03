@@ -200,7 +200,10 @@
     let start = U.clamp((opts.page || front) | 0, 1, N0);
     // Opening a portion (or right next to where you are) is reading; any other page is a look around.
     const myW = G.myCurrent(book);
-    if (opts.page && (opts.read || (myW && start >= myW.from && start <= myW.to) || Math.abs(start - front) <= 2)) front = start;
+    // A note opened from the news or the book («الصفحة») is a visit: where reading goes on, «وقفت هنا» and the pages
+    // read stay as they were (any other page is looked around at; «كمّل من هنا» makes it reading)
+    const noteVisit = !!opts.flash;
+    if (opts.page && !noteVisit && (opts.read || (myW && start >= myW.from && start <= myW.to) || Math.abs(start - front) <= 2)) front = start;
     st = {
       bookId, book, N: book.pages || 1, zoom: 1, theme: prefs.theme || 'day', mode: 'none',
       parts: (book.parts || []).map((p) => Object.assign({}, p, { pdf: null, loading: null })),
@@ -208,7 +211,7 @@
       pending: new Set(), dwell: new Map(), sessionPages: 0, flash: opts.flash || null, uiHidden: false,
       notesVer: -1, panel: null, filter: 'wird', lastTop: 0,
       pagedPref: !!prefs.paged, paged: !!prefs.paged, startedAt: Date.now(), activeSecs: 0, secsPending: 0, userAt: 0, activeAt: Date.now(),
-      front, browsing: false, counted: new Set(),
+      front, front0: front, noteVisit, browsing: false, counted: new Set(),
       priv: D.isPrivate(bookId), // only mine: no portions, no presence, every note private
     };
     root.hidden = false;
@@ -251,7 +254,7 @@
       else st.sc.scrollTop = Math.max(0, st.tops[start] + place.y * st.hs[start] - st.sc.clientHeight * 0.3);
       update();
     } else goTo(start, false);
-    st.browsing = start > st.front + 2 || start < st.front - 1;
+    st.browsing = noteVisit ? start !== st.front : start > st.front + 2 || start < st.front - 1;
     browseUi();
     chrome();
     D.presence({ b: bookId, p: start });
@@ -830,7 +833,9 @@
     const bookId = st.bookId;
     const pages = [...st.pending];
     st.pending.clear();
-    const cur = st.front; // resume where reading goes on, not where you looked around
+    // resume where reading goes on, not where you looked around (a visit to a note changes nothing)
+    const keepLast = st.noteVisit && st.front === st.front0 && prog0(bookId);
+    const cur = keepLast ? prog0(bookId) : st.front;
     const prog = D.prog(bookId);
     const fresh = pages.filter((p) => !(prog && U.rangesHas(prog.seen, p)));
     const secs = st.secsPending >= 30 ? st.secsPending : 0;
@@ -1510,8 +1515,10 @@
   }
   /* On leaving (close, app to the background): remember the line you were reading — unless you were only
      looking around, or you put the line yourself on this page. */
+  const prog0 = (id) => (D.prog(id) || {}).last || 0;
   function savePlace() {
     if (!st || st.browsing || !D.canWrite()) return;
+    if (st.noteVisit && st.front === st.front0) return; // only visited a note: «وقفت هنا» stays where it was
     const old = placeOf(st.bookId);
     let p = st.front, y = 0, x = null;
     if (!st.paged && Math.abs(st.cur - st.front) <= 1) {

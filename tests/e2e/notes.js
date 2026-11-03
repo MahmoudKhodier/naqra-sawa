@@ -367,6 +367,53 @@ const closeAll = async (p) => {
       return warn ? 'offline note: ' + warn : 'no warning';
     });
 
+    await step('A visit to a note changes nothing of my reading: where I go on, «وقفت هنا», pages read, zoom', async () => {
+      // I'm reading at p. 10 (a line placed there), zoom 1.4
+      const setup = await a.evaluate(async (bk) => {
+        const { D, S, U } = window.A;
+        await D.saveProg(bk, (c) => ({ last: 10, seen: U.rangesAdd([], Array.from({ length: 10 }, (_, i) => i + 1)) }));
+        U.store.set('last:' + bk, 10);
+        await D.privUpdate((c) => Object.assign(c, { place: Object.assign({}, c.place, { [bk]: { p: 10, y: 0.42, at: U.nowIso(), manual: false } }) }));
+        U.store.set('zoom:' + bk, 1.4);
+        const mk = async (page, y) => {
+          const n = D.newId();
+          await D.set(`notes/${n}`, { b: bk, page, kind: 'note', text: 'زيارة ص ' + page, rect: { x: 0.5, y, w: 0, h: 0 }, by: S.me, at: U.nowIso(), wid: '', likes: {}, replies: {} });
+          return n;
+        };
+        return { near: await mk(12, 0.7), same: await mk(10, 0.9), far: await mk(30, 0.2) };
+      }, bookId);
+      await until(a, 'notes', (x) => Object.values(x).every((n) => window.A.S.notes.has(n)), setup);
+      const before = await a.evaluate((bk) => ({ last: window.A.D.prog(bk).last, place: JSON.stringify(window.A.S.priv.place[bk]), seen: JSON.stringify(window.A.D.prog(bk).seen) }), bookId);
+      const out = [];
+      for (const [k, nid] of Object.entries(setup)) {
+        await closeAll(a);
+        await a.evaluate(() => window.A.V.go('circle'));
+        await a.click(`.feed .ncard:has([data-nid="${nid}"]) [data-act="note-page"]`);
+        await until(a, 'open', () => window.A.R.isOpen() && [...document.querySelectorAll('.pg canvas')].some((x) => x.width > 100), null, 20000);
+        await T(6500); // long enough on the page for it to count, if it were reading
+        const st = await a.evaluate(() => ({ front: window.A.R._state().front, browsing: window.A.R._state().browsing, zoom: Math.round(window.A.R._zoomNow() * 10) / 10 }));
+        // look around a bit, as one does, then leave
+        await a.evaluate(() => { const sc = document.querySelector('#rd-scroll'); sc.scrollTop += 300; });
+        await T(2500);
+        await a.evaluate(() => window.A.R.close(true));
+        await T(1200);
+        const now = await a.evaluate((bk) => ({ last: window.A.D.prog(bk).last, place: JSON.stringify(window.A.S.priv.place[bk]), seen: JSON.stringify(window.A.D.prog(bk).seen) }), bookId);
+        out.push(`${k}: front ${st.front} ${st.browsing ? 'looking' : 'same page'} zoom ${st.zoom}`);
+        assert(st.front === 10, `${k}: reading point moved to ${st.front}`);
+        assert(st.zoom === 1.4, `${k}: zoom ${st.zoom}`);
+        assert(now.last === before.last && now.place === before.place && now.seen === before.seen, `${k}: changed ${JSON.stringify(before)} → ${JSON.stringify(now)}`);
+      }
+      // «كمّل» goes back to p. 10, at the line
+      await a.evaluate((bk) => window.A.R.open(bk, { page: window.A.D.prog(bk).last }), bookId);
+      await until(a, 'open', () => window.A.R.isOpen(), null, 20000);
+      await T(800);
+      const back = await a.evaluate(() => window.A.R._anchor());
+      await a.evaluate(() => window.A.R.close(true));
+      await a.evaluate((bk) => window.A.U.store.set('zoom:' + bk, 1), bookId);
+      assert(back.p === 10 && Math.abs(back.fy - 0.42) < 0.05, 'continue: ' + JSON.stringify(back));
+      return out.join(' | ');
+    });
+
     await step('«الصفحة» lands on each note: top, middle, bottom, sides; at fit, zoomed in, and page by page', async () => {
       const ids = await a.evaluate(async (bk) => {
         const { D, S, U } = window.A;
