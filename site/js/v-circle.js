@@ -102,7 +102,11 @@
       .join('')}</div>`;
   }
 
-  V.actions.board = (a) => V.go('circle', { seg: 'board', board: a.dataset.m });
+  // the ranking's «الأسبوع ده / كل الوقت» switches in place: same screen (the boss doesn't replay), same scroll
+  V.actions.board = (a) => {
+    V.state.opts = Object.assign({}, V.state.opts, { seg: 'board', board: a.dataset.m });
+    V.render();
+  };
   V.actions['member-menu'] = (a) => (V.memberMenu ? V.memberMenu(a.dataset.uid) : V.go('me', { uid: a.dataset.uid }));
   V.actions['xp-help'] = () => {
     const X = G.XP;

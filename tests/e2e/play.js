@@ -226,6 +226,19 @@ const closeAll = async (p) => {
       await until(a, 'arrived', (u) => window.A.G.weekPagesOf(u).pages === 21, bUid);
       await T(600);
       assert(!(await a.$('.ar-replay')), 'replayed on a re-draw');
+      // the ranking's «كل الوقت» / «الأسبوع ده»: switched in place — no replay, the page stays where it was
+      await a.$eval('.board', (e) => e.scrollIntoView({ block: 'center' }));
+      await T(300);
+      const y0 = await a.evaluate(() => (document.getElementById('screen') || document.scrollingElement).scrollTop || window.scrollY);
+      await a.click('.board [data-act="board"][data-m="all"]');
+      await a.waitForSelector('.board [data-m="all"].on');
+      await T(500);
+      const y1 = await a.evaluate(() => (document.getElementById('screen') || document.scrollingElement).scrollTop || window.scrollY);
+      assert(!(await a.$('.ar-replay')) && !(await a.evaluate(() => window.A.Play._replaying())), 'the boss replayed on switching the ranking');
+      assert(Math.abs(y1 - y0) < 5 && y0 > 50, `the page moved: ${y0} → ${y1}`);
+      await a.click('.board [data-act="board"][data-m="week"]');
+      await a.waitForSelector('.board [data-m="week"].on');
+      assert(!(await a.$('.ar-replay')), 'replayed on switching back');
       return r.dmg.join(' → ');
     });
 
