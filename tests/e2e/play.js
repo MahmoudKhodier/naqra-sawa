@@ -207,6 +207,20 @@ const closeAll = async (p) => {
       assert(r.dmg.length === 2 && /٢٠/.test(r.dmg[0]) && /٣٥/.test(r.dmg[1]), 'order: ' + JSON.stringify(r.dmg));
       const t = await a.textContent('.cweek.boss .ar-hp b');
       assert(/٢٤٥/.test(t), 'health after: ' + t);
+      // leaving for another tab mid-replay stops it: nothing of the arena on «الأعضاء», nothing flying
+      await a.evaluate(() => window.A.V.go('home'));
+      await a.evaluate(() => window.A.V.go('circle', { seg: 'board' }));
+      await a.waitForSelector('.ar-replay', { timeout: 8000 });
+      await T(500);
+      await a.evaluate(() => window.A.V.go('circle', { seg: 'members' }));
+      await T(400);
+      const left = await a.evaluate(() => ({ arena: !!document.querySelector('#screen .arena'), fx: document.querySelectorAll('.boss-fx').length, replaying: window.A.Play._replaying() }));
+      await T(1200);
+      const later = await a.evaluate(() => document.querySelectorAll('.boss-fx, .pl-fly').length);
+      assert(!left.arena && !left.replaying && !later, 'the replay went on on another tab: ' + JSON.stringify(left) + ' flying ' + later);
+      await a.evaluate(() => window.A.V.go('circle', { seg: 'board' }));
+      await a.waitForSelector('.ar-replay', { timeout: 8000 });
+      await until(a, 'replay done', () => !window.A.Play._replaying() && !document.querySelector('.ar-replay'), null, 10000);
       // data coming in re-draws the screen: no second replay
       await b.evaluate(() => window.A.D.addPagesToday(1));
       await until(a, 'arrived', (u) => window.A.G.weekPagesOf(u).pages === 21, bUid);

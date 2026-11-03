@@ -184,10 +184,10 @@
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   };
   /* Something flying along an arc from one element to another (fixed, above everything). */
-  function fly(emoji, fromEl, toEl, ms) {
+  function fly(emoji, fromEl, toEl, ms, cls) {
     const a = center(fromEl), b = center(toEl);
     const f = document.createElement('div');
-    f.className = 'pl-fly';
+    f.className = 'pl-fly' + (cls ? ' ' + cls : '');
     f.style.left = a.x + 'px';
     f.style.top = a.y + 'px';
     document.body.appendChild(f);
@@ -445,7 +445,8 @@
     const daysLeft = Math.max(1, U.diffDays(today, U.addDays(b.ws, 6)) + 1);
     const max = Math.max(1, b.hits[0] ? b.hits[0].n : 1);
     const party = b.hits.slice(0, 8);
-    return `<section class="card cweek boss${b.dead ? ' dead full' : ''}" data-ws="${b.ws}">
+    // keyed: on another tab the page's re-draw replaces this card instead of reusing it (with a replay still in it)
+    return `<section class="card cweek boss${b.dead ? ' dead full' : ''}" data-ws="${b.ws}" data-key="boss-card">
       <div class="arena" data-total="${b.total}" data-goal="${b.goal}">
         <div class="ar-stars"></div>
         <div class="ar-plate">
@@ -466,10 +467,11 @@
   /* Opening the boss card (coming to the screen, not a re-draw of it): the week so far, replayed — the monster
      starts at full health and everyone hits it once with their pages, from the smallest hit to the biggest. A tap
      on the arena skips to the end. */
-  let replaying = false, shownFor = null;
+  let replaying = false, shownFor = null, replayStop = null;
   V.after = V.after || [];
   V.after.push((scr) => {
     const card = scr.querySelector('.cweek.boss');
+    if (replaying && replayStop && (!card || shownFor !== V.state)) replayStop(); // another tab or screen: stop it now
     if (!card || replaying) return;
     if (shownFor === V.state) return; // the same visit: data came in and the screen drew itself again
     shownFor = V.state;
@@ -515,6 +517,7 @@
       stop = true;
       replaying = false;
       tag.remove();
+      if (!arena.isConnected) document.querySelectorAll('.boss-fx').forEach((x) => x.remove()); // left the screen: nothing keeps flying
       for (const [m, t] of small) m.querySelector('small').textContent = t;
       hp = b.hp;
       setHp(true);
@@ -530,6 +533,10 @@
       } else done();
     };
     arena.addEventListener('click', finish, { once: true });
+    replayStop = () => {
+      finish();
+      document.querySelectorAll('.boss-fx').forEach((x) => x.remove());
+    };
     const step = () => {
       if (stop) return;
       if (!arena.isConnected) return finish();
@@ -553,10 +560,11 @@
     mate.classList.remove('jump');
     void mate.offsetWidth;
     mate.classList.add('jump');
-    fly(w, mate.querySelector('.pl-st') || mate, mon.querySelector('.lot') || mon, 460).then((at) => {
+    fly(w, mate.querySelector('.pl-st') || mate, mon.querySelector('.lot') || mon, 460, 'boss-fx').then((at) => {
+      if (!arena.isConnected) return; // the screen moved on meanwhile
       done && done();
       const boom = document.createElement('div');
-      boom.className = 'pl-boom';
+      boom.className = 'pl-boom boss-fx';
       boom.style.left = at.x + 'px';
       boom.style.top = at.y + 'px';
       document.body.appendChild(boom);

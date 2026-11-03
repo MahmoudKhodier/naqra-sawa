@@ -425,7 +425,8 @@
       <footer class="nc-acts">
         ${V.rxPill ? V.rxPill('note', n.id) : ''}
         <button class="pill icon-n" data-act="open-note" data-nid="${esc(n.id)}" aria-label="${L('رد', 'Reply')}${rc ? ' • ' + L.num(rc) : ''}">${icon('chat')}${rc ? `<span>${L.num(rc)}</span>` : ''}</button>
-        ${n.page && book && !isTake ? `<button class="pill ghost" data-act="note-page" data-nid="${esc(n.id)}">${icon('books')}<span>${L('الصفحة', 'Page')}</span></button>` : ''}
+        <span class="nc-gap"></span>
+        ${n.page && book && !isTake ? `<button class="pill ghost icon" data-act="note-page" data-nid="${esc(n.id)}" aria-label="${L(`روح لمكانها في ص ${L.num(n.page)}`, `Go to it on p. ${n.page}`, `اذهب إلى مكانها في ص ${L.num(n.page)}`)}" title="${L(`مكانها في الكتاب • ص ${L.num(n.page)}`, `Where it is in the book • p. ${n.page}`, `مكانها في الكتاب • ص ${L.num(n.page)}`)}">${icon('pin')}</button>` : ''}
         ${(n.text || n.crop) && n.kind !== 'q' && V.storySheet ? `<button class="pill ghost icon" data-act="note-share" data-nid="${esc(n.id)}" aria-label="${L('شارك كصورة', 'Share as picture', 'شارك كصورة')}" title="${L('شارك كصورة', 'Share as picture', 'شارك كصورة')}">${icon('share')}</button>` : ''}
         ${n.by === S.me && D.canWrite() ? `<button class="pill ghost icon" data-act="note-edit" data-nid="${esc(n.id)}" aria-label="${L('عدّل', 'Edit')}" title="${L('عدّل', 'Edit')}">${icon('edit')}</button>` : ''}
       </footer>

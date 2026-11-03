@@ -98,7 +98,7 @@ const closeAll = async (p) => {
       const card = `.feed .ncard:has([data-nid="${nid}"])`;
       await a.waitForSelector(card);
       const row = await a.$eval(`${card} .nc-acts`, (f) => {
-        const bs = [...f.children];
+        const bs = [...f.children].filter((c) => !c.classList.contains('nc-gap'));
         return { acts: bs.map((b) => b.dataset.act), tops: new Set(bs.map((b) => Math.round(b.getBoundingClientRect().top))).size };
       });
       const has = await a.$eval(`${card} .nc-acts`, (f) => !!f.querySelector('[data-rx="note"]'));
@@ -327,7 +327,7 @@ const closeAll = async (p) => {
       const w1 = await a.$eval(`${ev} p`, (e) => Math.round(e.getBoundingClientRect().width));
       assert(Math.abs(w1 - w0) <= 2, `the line moved: ${w0} → ${w1}px`);
       // the card's buttons fit in one row, inside the card
-      const fit = await a.$$eval('.feed .ncard .nc-acts', (fs) => fs.every((f) => { const r = f.getBoundingClientRect(); return [...f.children].every((c) => { const cr = c.getBoundingClientRect(); return cr.left >= r.left - 1 && cr.right <= r.right + 1 && Math.abs(cr.top - f.children[0].getBoundingClientRect().top) < 3; }); }));
+      const fit = await a.$$eval('.feed .ncard .nc-acts', (fs) => fs.every((f) => { const r = f.getBoundingClientRect(); const bs = [...f.children].filter((c) => !c.classList.contains('nc-gap')); return bs.every((c) => { const cr = c.getBoundingClientRect(); return cr.left >= r.left - 1 && cr.right <= r.right + 1 && Math.abs(cr.top - bs[0].getBoundingClientRect().top) < 3; }); }));
       assert(fit, 'a card\'s buttons spill out of the row');
       await H.shot(a, 'notes-react-feed');
     });
