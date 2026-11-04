@@ -37,6 +37,39 @@
   .hmN.l3 { width: 8px; height: 8px; background: var(--card); border: 2px solid var(--lapis); }
   .hmN.l4 { width: 7px; height: 7px; background: var(--card); border: 1.5px solid #9a8f7a; }
   .hmC { height: 0; border-top: 1px dotted #a99f8b; transform: translateY(-50%); }
+  /* small marks in the right margin (round 2): أ shapes, ب ruler ticks, ج the contents icon */
+  .hs { position: absolute; z-index: 3; transform: translate(-50%, -50%); pointer-events: auto; }
+  .hsA.l1 { width: 12px; height: 12px; background: #9a4a1c; transform: translate(-50%, -50%) rotate(45deg); border-radius: 2px; box-shadow: 0 0 0 2px var(--rd-page, #fff); }
+  .hsA.l2 { width: 10px; height: 10px; border-radius: 50%; background: var(--lapis); box-shadow: 0 0 0 2px var(--rd-page, #fff); }
+  .hsA.l3 { width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--lapis); background: var(--rd-page, #fff); }
+  .hsA.l4 { width: 6px; height: 6px; border-radius: 50%; background: #9a8f7a; }
+  .hsB { transform: translateY(-50%); height: 3px; border-radius: 2px; }
+  .hsB.l1 { width: 20px; height: 4px; background: #9a4a1c; }
+  .hsB.l2 { width: 14px; background: var(--lapis); }
+  .hsB.l3 { width: 9px; height: 2.5px; background: color-mix(in srgb, var(--lapis) 65%, transparent); }
+  .hsB.l4 { width: 5px; height: 2px; background: #9a8f7a; }
+  .hsC { display: grid; place-items: center; border-radius: 50%; }
+  .hsC .ic { width: 62%; height: 62%; }
+  .hsC.l1 { width: 19px; height: 19px; background: #9a4a1c; color: #fff; }
+  .hsC.l2 { width: 17px; height: 17px; background: var(--lapis); color: #fff; }
+  .hsC.l3 { width: 15px; height: 15px; background: var(--lapis-s); color: var(--lapis); box-shadow: inset 0 0 0 1.3px var(--lapis); }
+  .hsC.l4 { width: 13px; height: 13px; background: var(--rd-page, #fff); color: #8a806c; box-shadow: inset 0 0 0 1.2px #a99f8b; }
+  .hs.ghost { opacity: .9; outline: 2px dashed var(--gold); outline-offset: 4px; }
+  .hs-pop { position: absolute; z-index: 70; width: 238px; background: var(--card); color: var(--ink); border-radius: 16px; box-shadow: 0 10px 30px rgb(0 0 0 / .22); padding: 12px; display: grid; gap: 6px; font: 400 .86rem var(--f-ui); }
+  .hs-pop::after { content: ""; position: absolute; right: -6px; top: var(--ay, 24px); width: 12px; height: 12px; background: var(--card); transform: rotate(45deg); border-radius: 2px; }
+  .hs-pop .lv { display: inline-flex; gap: 6px; align-items: center; font-size: .74rem; font-weight: 700; color: var(--ink3); }
+  .hs-pop .lv .hs { position: static; transform: none; }
+  .hs-pop .lv .hsA.l1 { transform: rotate(45deg); }
+  .hs-pop b { font-size: .98rem; line-height: 1.5; }
+  .hs-pop small { color: var(--ink3); }
+  .hs-pop .row { display: flex; gap: 6px; margin-top: 4px; }
+  .hs-pop .row .btn { flex: 1; min-height: 36px; font-size: .82rem; padding: 0 8px; justify-content: center; }
+  .hm-lv button .hs { position: static; transform: none; margin-bottom: 4px; }
+  .hm-lv button .hsA.l1 { transform: rotate(45deg); }
+  .hm-line { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #fff; position: relative; }
+  .hm-line img { display: block; width: 100%; }
+  .hm-line .hs { right: 9%; left: auto; transform: translate(50%, -50%); top: 50%; }
+  .hm-line .hsA.l3 { transform: translate(50%, -50%); }
   /* the strip under the top bar */
   .hm-strip { position: absolute; inset-inline: 0; z-index: 60; display: flex; align-items: center; gap: 6px; padding: 6px 14px; border: 0; border-bottom: 1px solid var(--rd-line); background: var(--rd-bar); backdrop-filter: blur(8px); color: var(--rd-ink); font: 600 .8rem var(--f-ui); }
   .hm-strip .ic { color: var(--lapis); }
@@ -118,31 +151,65 @@
   function clear() {
     document.querySelectorAll('.hm').forEach((e) => e.remove());
   }
+  const X = 0.935; // the marks' place: the right margin, between the words and the «وقفت هنا» dots
+  const mark = (style, l, extra = '') => (style === 'b' ? `<span class="hs hsB l${l}${extra}"></span>` : style === 'c' ? `<span class="hs hsC l${l}${extra}">${icon('list')}</span>` : `<span class="hs hsA l${l}${extra}"></span>`);
   function draw(style) {
     clear();
-    for (const h of spans()) {
+    T.style = style;
+    for (const h of T.heads) {
       const ov = document.querySelector(`.pg-ov[data-p="${h.p}"]`);
-      if (style === 'a' && ov) {
-        ov.insertAdjacentHTML('beforeend', `<span class="hm hmA l${h.l}" style="right:calc(${pct(1 - h.x)} + 8px);top:${pct(h.y + h.h / 2)}">${NAMES[h.l]}</span>`);
-      } else if (style === 'b' && ov) {
-        const x1 = 0.885, x0 = h.l <= 2 ? 0.115 : h.l === 3 ? 0.42 : 0.62;
-        ov.insertAdjacentHTML('beforeend', `<span class="hm hmB l${h.l}" style="left:${pct(x0)};width:${pct(x1 - x0)};top:calc(${pct(h.y)} - ${h.l === 1 ? 9 : 4}px)"><i>${NAMES[h.l]}</i></span>`);
-      } else if (style === 'c') {
-        const rx = { 1: 0.955, 2: 0.938, 3: 0.921, 4: 0.904 }[h.l];
-        const yc = h.y + h.h / 2;
-        for (let p = h.p; p <= h.end.p; p++) {
-          const o = document.querySelector(`.pg-ov[data-p="${p}"]`);
-          if (!o) continue;
-          const y0 = p === h.p ? yc : 0.06;
-          const y1 = p === h.end.p ? h.end.y : 0.95;
-          if (y1 > y0) o.insertAdjacentHTML('beforeend', `<span class="hm hmR l${h.l}" style="left:${pct(rx)};top:${pct(y0)};height:${pct(y1 - y0)}"></span>`);
-        }
-        if (ov) {
-          ov.insertAdjacentHTML('beforeend', `<span class="hm hmC" style="left:calc(${pct(h.x + h.w)} + 4px);width:calc(${pct(rx - h.x - h.w)} - 4px);top:${pct(yc)}"></span>`);
-          ov.insertAdjacentHTML('beforeend', `<span class="hm hmN l${h.l}" style="left:${pct(rx)};top:${pct(yc)}"></span>`);
-        }
-      }
+      if (!ov) continue;
+      const yc = h.y + h.h / 2;
+      const pos = style === 'b' ? `right:${pct(1 - 0.962)};top:${pct(yc)}` : `left:${pct(X)};top:${pct(yc)}`;
+      ov.insertAdjacentHTML('beforeend', mark(style, h.l).replace('class="hs ', `data-hid="${T.heads.indexOf(h)}" style="${pos}" class="hm hs `));
     }
+  }
+  /* a tap on a mark: a small card beside it */
+  function pop(i) {
+    document.querySelectorAll('.hs-pop').forEach((e) => e.remove());
+    const h = T.heads[i];
+    const m = document.querySelector(`[data-hid="${i}"]`).getBoundingClientRect();
+    const rd = document.querySelector('.rd');
+    const R0 = rd.getBoundingClientRect();
+    const subs = T.heads.filter((x, k) => k > i && x.l > h.l && T.heads.slice(i + 1, k).every((y) => y.l > h.l)).length;
+    const top = Math.max(70, m.top - R0.top - 24);
+    rd.insertAdjacentHTML('beforeend', `<div class="hs-pop" style="right:${R0.right - m.left + 12}px;top:${top}px;--ay:${m.top - R0.top - top + m.height / 2 - 6}px">
+      <span class="lv">${mark(T.style, h.l)}${NAMES[h.l]}</span><b dir="auto">${esc(h.t)}</b><small>ص ${L.num(h.p)} • من محمود${subs ? ` • جوّاه ${L.num(subs)}` : ''}</small>
+      <div class="row"><button class="btn ghost">${icon('edit')}عدّل</button><button class="btn ghost">${icon('list')}الفهرس</button></div></div>`);
+  }
+  /* placing one: the tool «عنوان», the hint, a ghost mark where the finger went down */
+  function placing(i) {
+    const tools = document.querySelector('.rd-tools');
+    tools.querySelectorAll('.tool').forEach((b) => b.classList.remove('on'));
+    tools.querySelector('.tool-eye').insertAdjacentHTML('beforebegin', `<button class="tool on hm-tool">${icon('list')}<span>عنوان</span></button>`);
+    document.querySelectorAll('.hm-strip').forEach((e) => e.remove());
+    const hint = document.querySelector('#rd-hint');
+    hint.hidden = false;
+    hint.innerHTML = `${icon('list')}<span>دوس جنب العنوان عشان تحط علامته</span><button class="lnk">إلغاء</button>`;
+    if (i != null) {
+      const h = T.heads[i];
+      const ov = document.querySelector(`.pg-ov[data-p="${h.p}"]`);
+      ov.insertAdjacentHTML('beforeend', mark(T.style, h.l, ' ghost').replace('class="hs ', `style="left:${pct(X)};top:${pct(h.y + h.h / 2)}" class="hm hs `));
+    }
+  }
+  function unplacing() {
+    document.querySelectorAll('.hm-tool').forEach((e) => e.remove());
+    const hint = document.querySelector('#rd-hint');
+    hint.hidden = true;
+  }
+  async function placeHtml(i) {
+    const h = T.heads[i];
+    const x0 = Math.max(0.03, h.x - 0.1);
+    const img = await crop({ p: h.p, x: x0, y: h.y - 0.015, w: 0.97 - x0, h: h.h + 0.03 }, 0);
+    const path = pathAt(h.p, h.y - 0.001);
+    return `<div class="hm-line"><img src="${img}" alt="">${mark(T.style, h.l)}</div>
+      <p class="hm-lbl">ده إيه في الكتاب؟</p>
+      <div class="hm-lv">${[1, 2, 3, 4].map((l) => `<button class="${l === h.l ? 'on' : ''}">${mark(T.style, l)}${NAMES[l]}</button>`).join('')}</div>
+      <p class="hm-path">${icon('list')}<span>هيبقى جوّه:</span>${path.map((x) => `<b>${esc(shortName(x.t))}</b>`).join(' › ')}</p>
+      <p class="hm-lbl">اسمه</p>
+      <input class="hm-in" dir="auto" value="${esc(h.t)}">
+      <p class="hm-hint">${icon('info')}<span>الاسم اتكتب لوحده من السطر ده. تقدر تسيبه فاضي وتكتبه بعدين لما تدوس على العلامة.</span></p>
+      <div class="row-btns end" style="margin-top:12px"><button class="btn ghost">إلغاء</button><button class="btn">${icon('check')}حطّها <small class="xp-hint">+${L.num(3)} XP</small></button></div>`;
   }
   /* where I am: the headings in effect at (page, y) */
   function pathAt(p, y) {
@@ -179,7 +246,7 @@
     cv.width = vp.width;
     cv.height = vp.height;
     await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
-    const bx = { x: Math.max(0, h.x - 0.03), y: Math.max(0, h.y - pad), w: Math.min(1, h.w + 0.06), h: h.h + pad * 2 };
+    const bx = pad === 0 ? { x: h.x, y: Math.max(0, h.y), w: h.w, h: h.h } : { x: Math.max(0, h.x - 0.03), y: Math.max(0, h.y - pad), w: Math.min(1, h.w + 0.06), h: h.h + pad * 2 };
     const c2 = document.createElement('canvas');
     c2.width = Math.round(bx.w * cv.width);
     c2.height = Math.round(bx.h * cv.height);
@@ -223,6 +290,12 @@
     },
     draw,
     clear,
+    pop,
+    placing,
+    unplacing,
+    async place(i) {
+      return V.sheet({ title: `عنوان في صفحة ${L.num(T.heads[i].p)}`, html: await placeHtml(i) });
+    },
     strip,
     async add() {
       return V.sheet({ title: `صفحة ${L.num(1)}`, html: await addHtml() });

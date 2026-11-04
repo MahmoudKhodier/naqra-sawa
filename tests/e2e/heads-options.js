@@ -78,8 +78,26 @@ const closeAll = async (p) => {
         window.HeadMock.strip(1, 0.9);
       }, s);
       await T(400);
-      await H.shot(a, 'hd-1' + s);
+      await H.shot(a, 'hs-1' + s);
+      // a tap on the مطلب's mark
+      await a.evaluate(() => window.HeadMock.pop(2));
+      await T(300);
+      await H.shot(a, 'hs-2' + s);
+      await a.evaluate(() => document.querySelectorAll('.hs-pop').forEach((e) => e.remove()));
     }
+    // placing one (look أ): the tool, the hint and where the finger went down, then the sheet
+    await a.evaluate(() => {
+      window.HeadMock.draw('a');
+      document.querySelectorAll('[data-hid="3"]').forEach((e) => e.remove());
+      window.HeadMock.placing(3);
+    });
+    await T(300);
+    await H.shot(a, 'hs-3-placing');
+    await a.evaluate(() => window.HeadMock.place(3));
+    await T(800);
+    await H.shot(a, 'hs-4-sheet');
+    await closeAll(a);
+    await a.evaluate(() => window.HeadMock.unplacing());
     // night pages, look أ
     const themeOf = () => a.evaluate(() => (document.querySelector('.rd') || {}).dataset.theme);
     await a.evaluate(() => window.HeadMock.clear());
@@ -93,13 +111,15 @@ const closeAll = async (p) => {
       window.HeadMock.strip(1, 0.9);
     });
     await T(300);
-    await H.shot(a, 'hd-1a-night');
+    await H.shot(a, 'hs-1a-night');
     for (let i = 0; i < 3 && (await themeOf()) !== 'day'; i++) {
       await a.click('[data-act="theme"]');
       await T(300);
     }
     await T(800);
     await a.evaluate(() => window.HeadMock.clear());
+    console.log('done');
+    return;
     // adding a heading, the contents, «خلاصة الورد»
     await a.evaluate(() => window.HeadMock.add());
     await T(800);
