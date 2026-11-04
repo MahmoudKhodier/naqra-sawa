@@ -776,7 +776,7 @@
     const someoneFirst = G.firstFinisher(bookId, wid);
     const t = U.nowIso();
     try {
-      await D.saveProg(bookId, (c) => ({ done: Object.assign({}, c.done, { [wid]: t }) }));
+      await D.saveProg(bookId, (c) => ({ done: Object.assign({}, c.done, { [wid]: t }), doneR: Object.assign({}, c.doneR, { [wid]: [w.from, w.to] }), doneP: U.rangesAdd((c.doneP || []).concat([[w.from, w.to]]), []) }));
     } finally {
       marking.set(bookId, Date.now());
     }
@@ -819,8 +819,14 @@
     const t = U.nowIso();
     await D.saveProg(bookId, (c) => {
       const done = Object.assign({}, c.done);
-      for (const w of ws) done[w.id] = t;
-      return { done };
+      const doneR = Object.assign({}, c.doneR);
+      let doneP = c.doneP || [];
+      for (const w of ws) {
+        done[w.id] = t;
+        doneR[w.id] = [w.from, w.to];
+        doneP = U.rangesAdd(doneP.concat([[w.from, w.to]]), []);
+      }
+      return { done, doneR, doneP };
     });
     U.confetti(1.3);
     U.chime('big');
@@ -838,10 +844,71 @@
     if (!(await V.confirm(L('هتشيل علامة «خلّصته» من الورد ده.', 'This removes the done mark from this portion.', 'ستزيل علامة «أنهيته» من هذا الورد.'), L('شيل العلامة', 'Remove mark', 'أزل العلامة'), true))) return;
     await D.saveProg(bookId, (c) => {
       const done = Object.assign({}, c.done);
+      const doneR = Object.assign({}, c.doneR);
+      const r = doneR[wid];
       delete done[wid];
-      return { done };
+      delete doneR[wid];
+      return { done, doneR, doneP: r ? U.rangesRemove(c.doneP || [], r[0], r[1]) : c.doneP || [] };
     });
   };
+
+  /* My «خلّصته» marks follow the pages, not the portion's number: each mark keeps the pages its portion had when
+     I marked it (prog.doneR[wid] = [from, to]) and every page I finished stays in prog.doneP (ranges), also the
+     ones a changed portion no longer holds whole. When a planner changes the pages (a portion shorter, the rest
+     moved, the rest re-split), my marks are laid again on the new portions: one counts as done when all its pages
+     are inside the pages I had finished (its time: the latest of the marks it came from). Only my own progress,
+     on my own phone (nobody else may write it); a day off moves dates only and changes nothing here. Marks from
+     before doneR get their pages recorded from the plan as it is the first time this runs. */
+  V.reconcileDone = (book, p) => {
+    const ws = G.wirds(book);
+    const ids = Object.keys((p && p.done) || {}).filter((k) => p.done[k]);
+    if (!ws.length || !ids.length) return null;
+    const R = p.doneR || {};
+    const byId = new Map(ws.map((w) => [w.id, w]));
+    const moved = ids.some((id) => R[id] && (!byId.has(id) || byId.get(id).from !== R[id][0] || byId.get(id).to !== R[id][1]));
+    const missing = ids.filter((id) => !R[id] && byId.has(id));
+    if (!moved) {
+      if (!missing.length) return null;
+      const doneR = Object.assign({}, R, Object.fromEntries(missing.map((id) => [id, [byId.get(id).from, byId.get(id).to]])));
+      return { doneR, doneP: U.rangesAdd((p.doneP || []).concat(Object.values(doneR).map((r) => [r[0], r[1]])), []) };
+    }
+    let pages = p.doneP || [];
+    const marks = [];
+    for (const id of ids) {
+      const r = R[id] || (byId.has(id) ? [byId.get(id).from, byId.get(id).to] : null);
+      if (!r) continue;
+      pages = U.rangesAdd(pages.concat([[r[0], r[1]]]), []);
+      marks.push({ a: r[0], z: r[1], t: p.done[id] });
+    }
+    const done = {}, doneR = {};
+    for (const w of ws) {
+      if (U.rangesCountIn(pages, w.from, w.to) < w.to - w.from + 1) continue;
+      const ts = marks.filter((m) => m.z >= w.from && m.a <= w.to).map((m) => m.t).sort();
+      done[w.id] = ts[ts.length - 1] || Object.values(p.done).sort().pop();
+      doneR[w.id] = [w.from, w.to];
+    }
+    return { done, doneR, doneP: pages };
+  };
+  let reconciling = false;
+  const reconcileMine = async () => {
+    if (reconciling || !D.canWrite() || !D.joined() || !S.loaded.books || !S.loaded.prog) return;
+    reconciling = true;
+    try {
+      for (const b of S.books.values()) {
+        const p = D.prog(b.id);
+        const patch = p && V.reconcileDone(b, p);
+        if (patch) await D.saveProg(b.id, () => patch);
+      }
+    } catch (e) {
+      console.warn('reconcile', e);
+    }
+    reconciling = false;
+  };
+  let reconT = 0;
+  D.onChange(() => {
+    clearTimeout(reconT);
+    reconT = setTimeout(reconcileMine, 1200);
+  });
 
   V.writeTake = (bookId, wid, existing) => {
     const book = S.books.get(bookId);

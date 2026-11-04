@@ -264,6 +264,61 @@ const views = (p, id) =>
       await a.click('.plan-views [data-v="cal"]');
     });
 
+    await step('«خلّصته» follows the pages: a planner moves pages, my marks and hers are laid again on the new portions; a day off changes nothing', async () => {
+      await closeAll(a);
+      await closeAll(b);
+      // a fresh plan: ten portions of 4 pages, begun three days ago; I finished 1–16 (portions 1–4, old marks
+      // without pages first), she marked portions 1–4 done in the app
+      await a.evaluate(async (id) => {
+        const { D, S, U } = window.A;
+        const wirds = Array.from({ length: 10 }, (_, i) => ({ id: 'w' + (i + 1), n: i + 1, from: i * 4 + 1, to: i * 4 + 4, start: U.addDays(U.today(), i - 3), due: U.addDays(U.today(), i - 3) }));
+        await D.update(`books/${id}`, { wirds });
+        const t = new Date().toISOString();
+        await D.saveProg(id, () => ({ done: { w1: t, w2: t, w3: t, w4: t }, doneR: null, last: 17, seen: [[1, 16]] }));
+      }, bookId);
+      await until(a, 'pages recorded for the old marks', (id) => { const p = window.A.D.prog(id); return p.doneR && p.doneR.w4 && p.doneR.w4[1] === 16; }, bookId, 10000);
+      await until(b, 'her phone has the plan', (id) => window.A.S.books.get(id).wirds[9].to === 40, bookId);
+      await b.evaluate(async (id) => {
+        for (const w of ['w1', 'w2', 'w3', 'w4']) await window.A.V.markWird(id, w).then(() => new Promise((r) => setTimeout(r, 1600)));
+        window.A.V.sheets.slice().forEach((s) => s.close());
+      }, bookId);
+      await until(b, 'her marks', (id) => Object.keys(window.A.D.prog(id).done || {}).length === 4 && window.A.D.prog(id).doneR.w4[1] === 16, bookId, 15000);
+      // the planner makes portion 4 end at 18 (portion 5 takes the difference): 4 is now 13–18, unread past 16
+      await a.evaluate(async (id) => {
+        const { S, V, G } = window.A;
+        const b = S.books.get(id);
+        await V.savePlan(b, V.reflow(G.wirds(b), 3, 18, 'next'), { k: 'pages', n: 4, mode: 'next' });
+      }, bookId);
+      await until(a, 'my marks follow the pages', (id) => { const p = window.A.D.prog(id); return !p.done.w4 && p.done.w3; }, bookId, 10000);
+      let v = await views(a, bookId);
+      assert(v.mine === 4 && v.minePages === '13-18', 'my place: ' + JSON.stringify(v));
+      await until(b, 'hers too, on her phone', (id) => { const p = window.A.D.prog(id); return !p.done.w4 && p.done.w3 && p.doneR.w3[1] === 12; }, bookId, 10000);
+      // shorter portion 2 with the rest rolled along: 1–4, 5–6, 7–10, 11–16, 17–18 …: pages 1–16 are portions 1–4 now
+      await a.evaluate(async (id) => {
+        const { S, V, G } = window.A;
+        const b = S.books.get(id);
+        await V.savePlan(b, V.reflow(G.wirds(b), 1, 6, 'roll'), { k: 'pages', n: 2, mode: 'roll' });
+      }, bookId);
+      await until(a, 'laid again', (id) => { const p = window.A.D.prog(id); return p.doneR.w3 && p.doneR.w3[1] === 10; }, bookId, 10000);
+      const mine = await a.evaluate((id) => Object.keys(window.A.D.prog(id).done).sort().join(), bookId);
+      assert(mine === 'w1,w2,w3,w4', 'done after the roll: ' + mine);
+      v = await views(a, bookId);
+      assert(v.mine === 5 && v.minePages === '17-18', 'my place after the roll: ' + JSON.stringify(v));
+      // a day off yesterday moves dates only: my marks stay as they are
+      const before = await a.evaluate((id) => JSON.stringify(window.A.D.prog(id).done), bookId);
+      await a.evaluate(() => window.A.Off.addDate(window.A.U.addDays(window.A.U.today(), -1)));
+      await until(a, 'day off', () => window.A.G.isOff(window.A.U.addDays(window.A.U.today(), -1)));
+      await T(2500);
+      assert((await a.evaluate((id) => JSON.stringify(window.A.D.prog(id).done), bookId)) === before, 'a day off changed my marks');
+      v = await views(a, bookId);
+      assert(v.mine === 5 && v.minePages === '17-18', 'my place after the day off: ' + JSON.stringify(v));
+      // Today opens where I am: page 17, the first page of portion 5
+      await a.evaluate(() => window.A.V.go('home'));
+      const cta = await a.$eval('.hero [data-act="read"]', (e) => +e.dataset.p);
+      assert(cta === 17, 'Today opens at p. ' + cta);
+      return `${mine}; place ${v.minePages}`;
+    });
+
     await step('No console errors', async () => {
       const errs = [...(a.__errors || []), ...(b.__errors || [])].filter((e) => !/favicon|fonts|404/.test(e));
       assert(!errs.length, errs.slice(0, 4).join('\n'));
