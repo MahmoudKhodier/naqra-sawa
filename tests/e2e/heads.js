@@ -347,6 +347,10 @@ async function addHead(p, page, y) {
         await D.set('notes/n2', { b: id, page: 2, kind: 'note', text: 'حجة المهاجرين', rect: { x: 0.5, y: 0.2, w: 0, h: 0 }, color: '#f5c542', by: S.me, at: U.nowIso(), likes: {}, replies: {}, crop: null });
       }, bookId);
       await until(a, 'notes', () => window.A.S.notes.size >= 2);
+      // her ❤️ on my quote (shows under it in the text)
+      await until(b, 'the note on her phone', () => window.A.S.notes.has('n1'));
+      await b.evaluate(() => window.A.D.update('notes/n1', { likes: { [window.A.S.me]: new Date().toISOString() }, rx: { [window.A.S.me]: '❤️' } }));
+      await until(a, 'her reaction', () => Object.keys((window.A.S.notes.get('n1') || {}).rx || {}).length === 1);
       await a.evaluate((id) => window.A.V.go('quotes', { v: 'books', bk: id }), bookId);
       await a.waitForSelector('.qn-hd');
       const lines = await a.$$eval('.qn-hd', (x) => x.map((e) => e.textContent.trim()));
@@ -386,6 +390,7 @@ async function addHead(p, page, y) {
       } catch (e) {}
       assert(/◆ الفصل الثالث/.test(out.text) && /● المبحث الأول/.test(out.text) && /○ المطلب الأول/.test(out.text) && /• الفرع الثاني/.test(out.text), 'text: ' + out.text.slice(0, 400));
       assert(!/الفرع الأول/.test(out.text), 'a heading with no notes under it: ' + out.text);
+      assert(/❤️ ١/.test(out.text), 'the reaction: ' + out.text);
       assert(out.heads === 6, 'backup heads ' + out.heads);
       assert(out.n === out.want && out.n === 6, `bookmarks ${out.n} of ${out.want}`);
       return `${out.n} bookmarks`;

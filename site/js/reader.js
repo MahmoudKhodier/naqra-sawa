@@ -2478,7 +2478,7 @@
       S.sample ? { ic: 'claude', t: L('اسأل Claude عن الصفحة دي', 'Ask Claude about this page', 'اسأل Claude عن هذه الصفحة'), fn: () => A.V.askPage(st.bookId, st.cur) } : null,
       ...boundItems(),
       st.priv ? null : { ic: 'chat', t: L('نقاش الكتاب', 'Book discussion'), fn: () => { R.close(); A.V.go('book-' + b.id, { tab: 'talk' }); } },
-      (b.parts || []).length ? { ic: 'download', t: L('حمّل الكتاب على جهازك', 'Download the book'), fn: () => A.V.download(b.id) } : null,
+      A.V.exportSheet ? { ic: 'share', t: L('ابعت نسخة', 'Send a copy', 'أرسل نسخة'), fn: () => A.V.exportSheet({ b: b.id, send: true }) } : null,
       ...(() => {
         const v = R.marksPref();
         const o = {

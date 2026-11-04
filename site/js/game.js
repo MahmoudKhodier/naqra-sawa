@@ -998,6 +998,7 @@
   }
 
   /* Weeks the circle beat its boss (since QUEST_V2): [week start, the day the pages reached the goal]. */
+  G.bossWinList = () => bossWins(); // [[week start, the day it went down], …] («ذكرى الكتاب» in export.js)
   function bossWins() {
     const today = U.today();
     const out = [];

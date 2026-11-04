@@ -201,7 +201,8 @@
       </header>
           <div class="row-btns bp-actions">
             <button class="btn big" data-act="read" data-b="${esc(b.id)}">${icon('play', 'flip-rtl')}${last > 1 ? L(`كمّل من ص ${L.num(last)}`, `Continue from p. ${last}`, `تابِع من ص ${L.num(last)}`) : L('ابدأ القراية', 'Start reading', 'ابدأ القراءة')}</button>
-            ${(b.parts || []).length ? `<button class="btn ghost" data-act="download" data-b="${esc(b.id)}">${icon('download')}<span class="hide-xs">${L('حمّل', 'Download')}</span></button>` : ''}
+            ${b.status === 'done' && V.memoryBook ? `<button class="btn ghost" data-act="memory-book" data-b="${esc(b.id)}" aria-label="${L('ذكرى الكتاب', 'A keepsake', 'ذكرى الكتاب')}">${icon('trophy')}<span class="hide-xs">${L('ذكرى الكتاب', 'Keepsake', 'ذكرى الكتاب')}</span></button>` : ''}
+            <button class="btn ghost" data-act="send-copy" data-b="${esc(b.id)}" aria-label="${L('ابعت نسخة', 'Send a copy', 'أرسل نسخة')}">${icon('share')}<span class="hide-xs">${L('ابعت نسخة', 'Send a copy', 'أرسل نسخة')}</span></button>
             <button class="btn ghost icon-only" data-act="book-menu" data-b="${esc(b.id)}" aria-label="${L('اختيارات', 'Options', 'خيارات')}">${icon('more')}</button>
           </div>
       <nav class="tabs" role="tablist">${tabs
@@ -613,17 +614,16 @@
     const items = [];
     if (V.canPlan(b)) items.push({ ic: 'calendar', t: L('خطة القراءة', 'Reading plan'), fn: () => V.planWizard(b.id) });
     if (A.Hd) items.push({ ic: 'list', t: L('الفهرس', 'Contents'), fn: () => A.Hd.sheet(b.id) });
+    if (V.memoryBook && b.status !== 'done' && (D.prog(b.id) || {}).finished) items.push({ ic: 'trophy', t: L('ذكرى الكتاب', 'A keepsake of the book', 'ذكرى الكتاب'), fn: () => V.memoryBook(b.id) });
     if (D.canWrite()) {
       items.push({ ic: 'edit', t: L('عدّل بيانات الكتاب', 'Edit book details'), fn: () => V.editBook(b.id) });
     }
     if (S.sample) items.push({ ic: 'claude', t: L('خلّي Claude يقترح أسئلة نقاش', 'Ask Claude for discussion questions', 'اطلب من Claude أسئلة للنقاش'), fn: () => V.askBook(b.id) });
-    if ((b.parts || []).length) items.push({ ic: 'download', t: L('حمّل الكتاب', 'Download the book'), fn: () => V.download(b.id) });
-    if (V.exportSheet) items.push({ ic: 'file', t: L('صدّر الملاحظات', 'Export the notes', 'صدّر الملاحظات'), fn: () => V.exportSheet({ b: b.id }) });
-    if (V.importPick && D.canWrite()) items.push({ ic: 'upload', t: L('استورد ملاحظات', 'Import notes', 'استورد ملاحظات'), fn: () => V.importPick({ b: b.id }) });
     if (b.addedBy === S.me || S.isOwner || S.canEdit) items.push({ ic: 'trash', danger: true, t: L('امسح الكتاب من الحلقة', 'Remove book from circle', 'احذف الكتاب من الحلقة'), fn: () => V.deleteBook(b.id) });
     V.menu(items);
   };
   V.actions.download = (a) => V.download(a.dataset.b);
+  V.actions['send-copy'] = (a) => V.exportSheet && V.exportSheet({ b: a.dataset.b, send: true });
   /* Who may change a book's plan: the circle's owner and admins («مشرف»), and whoever added the book. */
   V.canPlan = (b) => !!b && D.canWrite() && !D.isPrivate(b.id) && (S.isOwner || S.canEdit || b.addedBy === S.me);
 
@@ -1693,9 +1693,7 @@
       items.push({ ic: 'edit', t: L('غيّر الاسم', 'Rename', 'غيّر الاسم'), fn: () => V.renamePrivate(b.id) });
       if (p && p.finished) items.push({ ic: 'books', t: L('حطه على رفّي كـ«قرأته»', 'Put it on my shelf as read', 'ضعه على رفّي كـ«قرأته»'), fn: () => V.shelvePrivate(b.id) });
     }
-    if ((b.parts || []).length) items.push({ ic: 'download', t: L('حمّل الكتاب', 'Download the book'), fn: () => V.download(b.id) });
-    if (V.exportSheet) items.push({ ic: 'file', t: L('صدّر الملاحظات', 'Export the notes', 'صدّر الملاحظات'), fn: () => V.exportSheet({ b: b.id }) });
-    if (V.importPick && D.canWrite()) items.push({ ic: 'upload', t: L('استورد ملاحظات', 'Import notes', 'استورد ملاحظات'), fn: () => V.importPick({ b: b.id }) });
+    if (V.exportSheet) items.push({ ic: 'share', t: L('ابعت نسخة', 'Send a copy', 'أرسل نسخة'), fn: () => V.exportSheet({ b: b.id, send: true }) });
     if (D.canWrite()) items.push({ ic: 'trash', danger: true, t: L('امسح الكتاب', 'Delete the book', 'احذف الكتاب'), fn: () => V.deletePrivate(b.id) });
     V.menu(items);
   };

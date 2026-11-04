@@ -20,7 +20,7 @@
   const icon = U.icon;
 
   const KINDS = ['quote', 'hl', 'note', 'q', 'take'];
-  const KIND_COL = { quote: '#c8901c', hl: '#d9a22b', note: '#5a6b8c', q: '#2440a0', take: '#1f8a68' };
+  const KIND_COL = { quote: '#d2691e', hl: '#c9900f', note: '#2f6fd6', q: '#8a4fd0', take: '#1f9a68' }; // the app's --k-* (light)
   const keyOf = (n) => (n.b ? n.b : 'x:' + n.xb);
   const bookOf = (id) => (id && (D.book(id) || (S.gone && S.gone.get(id)))) || null;
   const safeName = (t) => String(t || 'notes').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || 'notes';
@@ -81,6 +81,22 @@
       by: n.from ? '' : n.by, name: D.authorName(n), mine: !n.from && n.by === S.me, priv: n.src !== 'c', wid: n.wid || '', crop: n.crop || '', replies: reps,
     };
     for (const k of ['loc', 'kpage', 'via', 'xt', 'xa']) if (n[k]) x[k] = n[k];
+    // who: their colour and character (a friend's from another circle: a letter)
+    const m = !n.from && S.members.get(n.by);
+    x.col = n.from ? '#8a806c' : D.color(n.by);
+    if (m && m.emoji) x.emo = m.emoji;
+    // reactions: emoji → how many (a like without an emoji is 👍), the author's own left out
+    const rx = {};
+    if (n.src === 'c') {
+      const r = n.rx || {}, likes = n.likes || {};
+      for (const u of new Set([...Object.keys(r), ...Object.keys(likes)])) {
+        if (!likes[u] || u === n.by) continue;
+        const e = r[u] || '👍';
+        rx[e] = (rx[e] || 0) + 1;
+      }
+    }
+    const rl = Object.entries(rx).sort((a, b) => b[1] - a[1]);
+    if (rl.length) x.rx = rl;
     return x;
   }
   /* Books (newest note first), each with its notes in reading order, cut into its portions. */
@@ -115,6 +131,7 @@
     }
     return gs;
   }
+  const rxLine = (rx) => rx.map(([e, c]) => `${e} ${L.num(c)}`).join('   ');
   const whoLine = (o) =>
     o.who === 'me'
       ? L('ملاحظاتي', 'My notes', 'ملاحظاتي')
@@ -143,6 +160,7 @@
           out.push(`• ${[whereOf(n), V.kindLabel(n.kind), n.name].filter(Boolean).join(' — ')}`);
           if (n.text) out.push(n.kind === 'quote' || n.kind === 'hl' ? `«${n.text}»` : n.text);
           else out.push(L('(تظليل من غير كلام)', '(a highlight without words)', '(تظليل دون نص)'));
+          if (n.rx) out.push(`    ${rxLine(n.rx)}`);
           for (const r of n.replies) out.push(`    ↩ ${r.name}: ${r.text}`);
           out.push('');
         }
@@ -172,7 +190,7 @@
       }),
       notes: gs.flatMap((g) => g.notes.map((n) => {
         const x = Object.assign({}, n);
-        delete x.hd;
+        for (const k of ['hd', 'col', 'emo', 'rx']) delete x[k];
         return x;
       })),
       stars: gs.flatMap((g) => g.notes.filter((n) => V.isStar(n.id)).map((n) => n.id)),
@@ -188,6 +206,35 @@
   const firstStrong = (t) => {
     const m = String(t || '').match(/[A-Za-zÀ-ɏ֐-ࣿיִ-ﻼ]/);
     return m ? (/[֐-ࣿיִ-ﻼ]/.test(m[0]) ? 'rtl' : 'ltr') : L.isAr() ? 'rtl' : 'ltr';
+  };
+  const EMOJI = '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+  /* A member's mark on a canvas: a disc in their colour with their character (or the first letter). */
+  function drawAv(ctx, cx, cy, r, n) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = n.col || '#8a806c';
+    ctx.fill();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.direction = 'ltr';
+    if (n.emo) {
+      ctx.font = `${Math.round(r * 1.25)}px ${EMOJI}`;
+      ctx.fillText(n.emo, cx, cy + r * 0.08);
+    } else {
+      ctx.fillStyle = '#fff';
+      ctx.font = `700 ${Math.round(r * 1.05)}px ${UI}`;
+      ctx.fillText(Array.from(String(n.name || '؟').trim())[0] || '؟', cx, cy + r * 0.05);
+    }
+    ctx.restore();
+  }
+  /* A member's colour, darker, for their name on paper. */
+  const darker = (hex) => {
+    const m = String(hex || '').match(/^#?([0-9a-f]{6})$/i);
+    if (!m) return '#3a3428';
+    const v = parseInt(m[1], 16);
+    const f = (c) => Math.round(c * 0.72).toString(16).padStart(2, '0');
+    return '#' + f((v >> 16) & 255) + f((v >> 8) & 255) + f(v & 255);
   };
   async function loadFonts() {
     if (!document.fonts) return;
@@ -395,8 +442,18 @@
           V.cardKit.roundRect(ctx, rtl ? S0 - kw : S0, y, kw, 38, 19);
           ctx.fill();
           text(kl, rtl ? S0 - 15 : S0 + 15, y + 27, `600 22px ${UI}`, col, rtl ? 'rtl' : 'ltr');
-          const meta = [whereOf(n), n.name, L.dayShort(String(n.at || '').slice(0, 10))].filter(Boolean).join(' • ');
-          text(meta, rtl ? S0 - kw - 16 : S0 + kw + 16, y + 27, `400 22px ${UI}`, '#8b8372', rtl ? 'rtl' : 'ltr');
+          // who: their mark in their colour and their name, then where and when
+          let mx = rtl ? S0 - kw - 16 : S0 + kw + 16;
+          if (n.name) {
+            drawAv(ctx, rtl ? mx - 17 : mx + 17, y + 19, 17, n);
+            mx += rtl ? -42 : 42;
+            ctx.font = `700 22px ${UI}`;
+            const nw = ctx.measureText(n.name).width;
+            text(n.name, mx, y + 27, `700 22px ${UI}`, darker(n.col), rtl ? 'rtl' : 'ltr');
+            mx += rtl ? -(nw + 12) : nw + 12;
+          }
+          const meta = [whereOf(n), L.dayShort(String(n.at || '').slice(0, 10))].filter(Boolean).join(' • ');
+          text((n.name ? '• ' : '') + meta, mx, y + 27, `400 22px ${UI}`, '#8b8372', rtl ? 'rtl' : 'ltr');
           y += 58;
           if (n.crop) {
             const im = await safeImg(n.crop);
@@ -413,6 +470,11 @@
           }
           if (n.text) await para(n.text, `${isBook ? 400 : 400} ${size}px ${isBook ? BOOK : UI}`, size, lh, '#1d1a14', M + 30, PW - M - 30, col);
           else if (!n.crop) await para(L('تظليل من غير كلام', 'A highlight without words', 'تظليل دون نص'), `400 24px ${UI}`, 24, 38, '#9a917e', M + 30, PW - M - 30);
+          if (n.rx) {
+            await ensure(40);
+            text(rxLine(n.rx), rtl ? S0 - 30 : S0 + 30, y + 30, `500 24px ${UI}, ${EMOJI}`, '#6b6352', rtl ? 'rtl' : 'ltr');
+            y += 42;
+          }
           for (const r of n.replies) {
             y += 6;
             await para(`↩ ${r.name}: ${r.text}`, `400 23px ${UI}`, 23, 36, '#5f584a', rtl ? M + 30 : M + 80, rtl ? PW - M - 80 : PW - M - 30);
@@ -465,11 +527,13 @@
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
     return { x1: Math.min(...xs), y1: Math.min(...ys), x2: Math.max(...xs), y2: Math.max(...ys) };
   }
-  function annotate(doc, page, n) {
+  /* A note's colour in the book: its person's, its kind's, or the one it was marked with. */
+  const colOf = (n, by) => (by === 'person' ? n.col || '#8a806c' : by === 'kind' ? KIND_COL[n.kind] || KIND_COL.hl : U.col(n.color, '#f2c94c'));
+  function annotate(doc, page, n, col) {
     const { PDFHexString, PDFString } = window.PDFLib;
     const ctx = doc.context;
-    const [cr, cg, cb] = hexRgb(U.col(n.color, '#f2c94c'));
-    const body = [n.text || '', ...n.replies.map((r) => `↩ ${r.name}: ${r.text}`)].filter(Boolean).join('\n\n') || V.kindLabel(n.kind);
+    const [cr, cg, cb] = hexRgb(col || U.col(n.color, '#f2c94c'));
+    const body = [n.text || '', n.rx ? rxLine(n.rx) : '', ...n.replies.map((r) => `↩ ${r.name}: ${r.text}`)].filter(Boolean).join('\n\n') || V.kindLabel(n.kind);
     const common = { Type: 'Annot', F: 4, C: [cr, cg, cb], T: PDFHexString.fromText(n.name || ''), Contents: PDFHexString.fromText(`${V.kindLabel(n.kind)} — ${body}`), M: PDFString.of(pdfDate(n.edited || n.at)), NM: PDFString.of('naqra-' + n.id), P: page.ref };
     const r = n.rect;
     let dict;
@@ -493,6 +557,230 @@
       dict = Object.assign(common, { Subtype: 'Text', Name: 'Comment', Open: false, Rect: [x, y, x + s, y + s], AP: { N: ap } });
     }
     page.node.addAnnot(ctx.register(ctx.obj(dict)));
+  }
+  const canvasBytes = async (c, type = 'image/jpeg', q = 0.88) => new Uint8Array(await (await new Promise((r) => c.toBlob(r, type, q))).arrayBuffer());
+  /* A note's number on the page: a small disc in its colour (cached per number and colour). */
+  async function badgeImg(doc, cache, num, col) {
+    const k = num + '|' + col;
+    if (cache.has(k)) return cache.get(k);
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const x = c.getContext('2d');
+    x.beginPath();
+    x.arc(32, 32, 28, 0, Math.PI * 2);
+    x.fillStyle = col;
+    x.fill();
+    x.lineWidth = 5;
+    x.strokeStyle = '#ffffff';
+    x.stroke();
+    x.fillStyle = '#ffffff';
+    x.font = `700 ${num > 9 ? 28 : 34}px ${UI}`;
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    x.direction = 'ltr';
+    x.fillText(L.num(num), 32, 35);
+    const img = await doc.embedPng(await canvasBytes(c, 'image/png'));
+    cache.set(k, img);
+    return img;
+  }
+  /* Where a note's number goes: by its highlight's start, by its pin, or (a takeaway) the page's top corner. */
+  function badgeAt(page, n, rtl) {
+    const r = n.rect;
+    if (r && r.w > 0.012) {
+      const b = boxOf(page, r);
+      return rtl ? { x: b.x2 + 7, y: b.y2 } : { x: b.x1 - 7, y: b.y2 };
+    }
+    const b = r ? boxOf(page, { x: r.x, y: r.y, w: 0, h: 0 }) : boxOf(page, { x: rtl ? 0.92 : 0.08, y: 0.05, w: 0, h: 0 });
+    return { x: b.x1 + (rtl ? -14 : 14), y: b.y1 + 14 };
+  }
+  /* The words of a page's notes, numbered, as a picture for the strip added below the page (any PDF app shows
+     it, and it prints). The page's own words stay as they are. */
+  async function footerCanvas(list, widthPt, maxPt, rtl, by) {
+    const W = 1100, k = W / widthPt, pad = 34;
+    const mc = document.createElement('canvas').getContext('2d');
+    const x0 = pad, x1 = W - pad;
+    const rows = [];
+    let h = pad * 0.7;
+    const cap = (t, n) => (t.length > n ? t.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : t);
+    let shown = 0;
+    for (const it of list) {
+      const n = it.n;
+      const block = [];
+      block.push({ kind: 'head', n, num: it.num, h: 40 });
+      mc.font = `400 25px ${n.kind === 'quote' || n.kind === 'hl' ? BOOK : UI}`;
+      const words = n.text ? (n.kind === 'quote' || n.kind === 'hl' ? `«${cap(n.text, 420)}»` : cap(n.text, 420)) : L('(تظليل من غير كلام)', '(a highlight without words)', '(تظليل دون نص)');
+      for (const ln of lines(mc, words, x1 - x0 - 46).slice(0, 5)) block.push({ kind: 'text', t: ln, book: n.kind === 'quote' || n.kind === 'hl', h: 36 });
+      mc.font = `400 22px ${UI}`;
+      for (const r of n.replies.slice(0, 2)) for (const ln of lines(mc, `↩ ${r.name}: ${cap(r.text, 160)}`, x1 - x0 - 80).slice(0, 2)) block.push({ kind: 'rep', t: ln, h: 32 });
+      if (n.replies.length > 2) block.push({ kind: 'rep', t: L(`و${L.num(n.replies.length - 2)} ردود كمان`, `and ${n.replies.length - 2} more replies`, `و${L.num(n.replies.length - 2)} ردود أخرى`), h: 32 });
+      const bh = block.reduce((t, b) => t + b.h, 0) + 14;
+      if (shown && (h + bh) / k > maxPt) break;
+      rows.push(...block, { kind: 'gap', h: 14 });
+      h += bh;
+      shown++;
+    }
+    const more = list.length - shown;
+    if (more) rows.push({ kind: 'more', t: L(`و${L.count(more, 'note')} كمان — في ملاحظات الصفحة`, `and ${more} more — in the page’s notes`, `و${L.count(more, 'note')} أخرى — في ملاحظات الصفحة`), h: 34 });
+    h += more ? 34 : 0;
+    h += pad * 0.5;
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = Math.ceil(h);
+    const x = c.getContext('2d');
+    x.fillStyle = '#fffdf8';
+    x.fillRect(0, 0, W, c.height);
+    x.fillStyle = '#d9a22b';
+    x.fillRect(pad, 6, W - 2 * pad, 3);
+    let y = pad * 0.7;
+    const S0 = rtl ? x1 : x0, dir = rtl ? -1 : 1;
+    const put = (t, xx, yy, font, color) => {
+      x.font = font;
+      x.fillStyle = color;
+      x.direction = firstStrong(t);
+      x.textAlign = x.direction === 'rtl' ? 'right' : 'left';
+      x.fillText(t, xx, yy);
+    };
+    for (const r of rows) {
+      if (r.kind === 'head') {
+        const n = r.n;
+        const col = colOf(n, by);
+        // the number in the note's colour, the person's mark and name, the kind, the reactions
+        x.beginPath();
+        x.arc(S0 + dir * 16, y + 18, 16, 0, Math.PI * 2);
+        x.fillStyle = col;
+        x.fill();
+        x.save();
+        x.fillStyle = '#fff';
+        x.font = `700 19px ${UI}`;
+        x.textAlign = 'center';
+        x.textBaseline = 'middle';
+        x.direction = 'ltr';
+        x.fillText(L.num(r.num), S0 + dir * 16, y + 19);
+        x.restore();
+        let mx = S0 + dir * 44;
+        if (n.name) {
+          drawAv(x, mx + dir * 14, y + 18, 14, n);
+          mx += dir * 36;
+          x.font = `700 22px ${UI}`;
+          put(n.name, mx, y + 26, `700 22px ${UI}`, darker(n.col));
+          mx += dir * (x.measureText(n.name).width + 12);
+        }
+        const tail = [V.kindLabel(n.kind), n.rx ? rxLine(n.rx) : ''].filter(Boolean).join('  •  ');
+        put(tail, mx, y + 26, `500 21px ${UI}, ${EMOJI}`, KIND_COL[n.kind] || '#6b6352');
+      } else if (r.kind === 'text') put(r.t, rtl ? x1 - 46 : x0 + 46, y + 27, `400 25px ${r.book ? BOOK : UI}`, '#1d1a14');
+      else if (r.kind === 'rep') put(r.t, rtl ? x1 - 76 : x0 + 76, y + 24, `400 21px ${UI}`, '#5f584a');
+      else if (r.kind === 'more') put(r.t, rtl ? x1 - 46 : x0 + 46, y + 24, `600 21px ${UI}`, '#8b8372');
+      y += r.h;
+    }
+    return { c, hPt: c.height / k };
+  }
+  /* The first page: who is which colour (or what each colour means), the headings' marks, the numbers. */
+  async function legendCanvas(g, by, onPage, wPt, hPt, nHeads) {
+    await loadFonts();
+    const W = 1240, H = Math.round((W * hPt) / wPt);
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    const x = c.getContext('2d');
+    x.fillStyle = '#fffdf8';
+    x.fillRect(0, 0, W, H);
+    const rtl = L.isAr();
+    const S0 = rtl ? W - 100 : 100, dir = rtl ? -1 : 1;
+    const put = (t, xx, yy, font, color, d) => {
+      x.font = font;
+      x.fillStyle = color;
+      x.direction = d || firstStrong(t);
+      x.textAlign = x.direction === 'rtl' ? 'right' : 'left';
+      x.fillText(t, xx, yy);
+    };
+    let y = 130;
+    x.font = `700 54px ${BOOK}`;
+    for (const ln of lines(x, g.info.title, W - 200).slice(0, 2)) {
+      x.fillStyle = '#1d1a14';
+      x.direction = firstStrong(ln);
+      x.textAlign = 'center';
+      x.fillText(ln, W / 2, y);
+      y += 70;
+    }
+    y += 10;
+    put(L('الكتاب بملاحظات الحلقة', 'The book with the circle’s notes', 'الكتاب بملاحظات الحلقة'), S0, y, `600 30px ${UI}`, '#2440a0', rtl ? 'rtl' : 'ltr');
+    y += 46;
+    put(`${L('اتعمل من «نقرأ سوا»', 'Made with Read Together', 'صُنع من «نقرأ سوا»')} • ${L.day(U.today())}`, S0, y, `400 24px ${UI}`, '#9a917e', rtl ? 'rtl' : 'ltr');
+    y += 50;
+    x.fillStyle = '#d9a22b';
+    x.fillRect(100, y, W - 200, 3);
+    y += 70;
+    const head = (t) => {
+      put(t, S0, y, `700 34px ${UI}`, '#1d1a14', rtl ? 'rtl' : 'ltr');
+      y += 58;
+    };
+    if (by === 'person') {
+      head(L('مين بلون إيه', 'Who is which colour', 'من بأي لون'));
+      const ppl = new Map();
+      for (const n of g.notes) {
+        if (!n.name) continue;
+        if (!ppl.has(n.name)) ppl.set(n.name, { n, c: 0 });
+        ppl.get(n.name).c++;
+      }
+      for (const { n, c } of [...ppl.values()].sort((a, b) => b.c - a.c)) {
+        x.fillStyle = n.col;
+        x.globalAlpha = 0.45;
+        x.fillRect(rtl ? S0 - 120 : S0, y - 28, 120, 36);
+        x.globalAlpha = 1;
+        drawAv(x, rtl ? S0 - 160 : S0 + 160, y - 10, 22, n);
+        put(`${n.name}  •  ${L.count(c, 'note')}`, rtl ? S0 - 200 : S0 + 200, y, `600 28px ${UI}`, darker(n.col), rtl ? 'rtl' : 'ltr');
+        y += 62;
+      }
+    } else {
+      head(by === 'kind' ? L('كل لون معناه إيه', 'What each colour means', 'ما معنى كل لون') : L('أنواع الملاحظات', 'Kinds of notes', 'أنواع الملاحظات'));
+      const cnt = {};
+      for (const n of g.notes) cnt[n.kind] = (cnt[n.kind] || 0) + 1;
+      for (const k of KINDS.filter((k) => cnt[k])) {
+        x.fillStyle = KIND_COL[k];
+        x.globalAlpha = by === 'kind' ? 0.45 : 1;
+        if (by === 'kind') x.fillRect(rtl ? S0 - 120 : S0, y - 28, 120, 36);
+        else {
+          x.beginPath();
+          x.arc(rtl ? S0 - 14 : S0 + 14, y - 10, 12, 0, Math.PI * 2);
+          x.fill();
+        }
+        x.globalAlpha = 1;
+        put(`${V.kindLabel(k)}  •  ${L.num(cnt[k])}`, rtl ? S0 - (by === 'kind' ? 150 : 44) : S0 + (by === 'kind' ? 150 : 44), y, `600 28px ${UI}`, '#2b2a33', rtl ? 'rtl' : 'ltr');
+        y += 58;
+      }
+      if (by === 'mark') {
+        put(L('التظليل بالألوان اللي اتعلّم بيها في البرنامج.', 'Highlights keep the colours they were marked with.', 'التظليل بالألوان التي عُلّم بها في البرنامج.'), S0, y, `400 24px ${UI}`, '#6b6352', rtl ? 'rtl' : 'ltr');
+        y += 50;
+      }
+    }
+    y += 30;
+    if (onPage) {
+      head(L('الأرقام', 'The numbers', 'الأرقام'));
+      x.beginPath();
+      x.arc(rtl ? S0 - 18 : S0 + 18, y - 10, 18, 0, Math.PI * 2);
+      x.fillStyle = '#2440a0';
+      x.fill();
+      x.save();
+      x.fillStyle = '#fff';
+      x.font = `700 22px ${UI}`;
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      x.fillText(L.num(1), rtl ? S0 - 18 : S0 + 18, y - 9);
+      x.restore();
+      put(L('رقم الملاحظة جنب مكانها، وكلامها تحت الصفحة', 'A note’s number by its place; its words below the page', 'رقم الملاحظة بجانب مكانها، وكلامها أسفل الصفحة'), rtl ? S0 - 56 : S0 + 56, y, `400 26px ${UI}`, '#2b2a33', rtl ? 'rtl' : 'ltr');
+      y += 58;
+      put(L('ودوس على أي تظليل في برنامج الـPDF تشوف الملاحظة كاملة.', 'Tap a highlight in your PDF app to see the whole note.', 'واضغط على أي تظليل في برنامج PDF لترى الملاحظة كاملة.'), S0, y, `400 24px ${UI}`, '#6b6352', rtl ? 'rtl' : 'ltr');
+      y += 70;
+    }
+    if (nHeads) {
+      head(L('الفهرس', 'Contents'));
+      put(L(`فيه ${L.num(nHeads)} عنوان في فهرس الملف — افتح قايمة الفهرس في برنامج الـPDF.`, `${nHeads} headings in the file’s contents — open the bookmarks in your PDF app.`, `فيه ${L.num(nHeads)} عنوانًا في فهرس الملف — افتح قائمة الفهرس في برنامج PDF.`), S0, y, `400 25px ${UI}`, '#2b2a33', rtl ? 'rtl' : 'ltr');
+    }
+    x.font = `400 22px ${UI}`;
+    x.fillStyle = '#9a917e';
+    x.textAlign = 'center';
+    x.fillText(L('نقرأ سوا', 'Read Together'), W / 2, H - 70);
+    return c;
   }
   /* «الفهرس» as the PDF's own contents (bookmarks), at each heading's line: the file's outline is replaced by
      the book's contents in the app (which holds it). from = the book page of the file's first page. */
@@ -540,7 +828,9 @@
     doc.catalog.set(PDFName.of('Outlines'), root);
     return items.length;
   }
-  async function asAnnotated(g, onProg) {
+  async function asAnnotated(g, onProg, o = {}) {
+    const by = ['person', 'kind', 'mark'].includes(o.colorBy) ? o.colorBy : 'person';
+    const onPage = o.onPage !== false;
     const b = g.info.book;
     await U.loadScript(U.CDN.pdflib);
     const { PDFDocument } = window.PDFLib;
@@ -558,20 +848,53 @@
     }
     const name = safeName(b.title);
     const out = [];
-    const one = async (doc, from) => {
+    const rtl = (b.lang || 'ar') !== 'en';
+    if (onPage) await loadFonts();
+    const one = async (doc, from, first) => {
       const pages = doc.getPages();
+      const cache = new Map();
+      const foot = [];
       for (const [p, ns] of byPage) {
         const pg = pages[p - from];
         if (!pg) continue;
-        for (const n of ns) annotate(doc, pg, n);
+        const list = ns.map((n, i) => ({ n, num: i + 1 }));
+        for (const it of list) annotate(doc, pg, it.n, colOf(it.n, by));
+        if (!onPage || ((pg.getRotation().angle || 0) % 360) !== 0) continue;
+        for (const it of list) {
+          const at = badgeAt(pg, it.n, rtl);
+          pg.drawImage(await badgeImg(doc, cache, it.num, colOf(it.n, by)), { x: at.x - 6.5, y: at.y - 6.5, width: 13, height: 13 });
+        }
+        foot.push({ pg, list });
       }
-      if (A.Hd) addOutline(doc, A.Hd.list(b.id).filter((h) => !A.Hd.hidden(h)), from);
+      const nh = A.Hd ? addOutline(doc, A.Hd.list(b.id).filter((h) => !A.Hd.hidden(h)), from) : 0;
+      // the words below each page: the page grows downwards by a strip (after everything placed by the page's box)
+      for (const f of foot) {
+        const cb = f.pg.getCropBox();
+        const mb = f.pg.getMediaBox();
+        const { c, hPt } = await footerCanvas(f.list, cb.width, cb.height * 0.6, rtl, by);
+        const img = await doc.embedJpg(await canvasBytes(c));
+        const y0 = cb.y - hPt;
+        f.pg.setMediaBox(mb.x, Math.min(mb.y, y0), mb.width, Math.max(mb.y + mb.height, cb.y + cb.height) - Math.min(mb.y, y0));
+        f.pg.setCropBox(cb.x, y0, cb.width, cb.height + hPt);
+        f.pg.drawImage(img, { x: cb.x, y: y0, width: cb.width, height: hPt });
+      }
+      // who is which colour, first
+      if (first) {
+        const p0 = pages[0];
+        const cb = p0.getCropBox();
+        const rot = ((p0.getRotation().angle || 0) % 180) !== 0;
+        const w = rot ? cb.height : cb.width, h = rot ? cb.width : cb.height;
+        const c = await legendCanvas(g, by, onPage, w, h, nh);
+        const img = await doc.embedJpg(await canvasBytes(c));
+        const lp = doc.insertPage(0, [w, h]);
+        lp.drawImage(img, { x: 0, y: 0, width: w, height: h });
+      }
       return doc.save();
     };
     if (files.length === 1) {
       const doc = await PDFDocument.load(files[0].buf, { ignoreEncryption: true, updateMetadata: false });
       if (onProg) onProg(0.7);
-      out.push({ name: `${name} — ${L('بالملاحظات', 'with notes', 'بالملاحظات')}.pdf`, data: await one(doc, files[0].from) });
+      out.push({ name: `${name} — ${L('بالملاحظات', 'with notes', 'بالملاحظات')}.pdf`, data: await one(doc, files[0].from, true) });
     } else {
       try {
         const doc = await PDFDocument.create();
@@ -580,19 +903,343 @@
           (await doc.copyPages(src, src.getPageIndices())).forEach((p) => doc.addPage(p));
           if (onProg) onProg(0.5 + (0.3 * (i + 1)) / files.length);
         }
-        out.push({ name: `${name} — ${L('بالملاحظات', 'with notes', 'بالملاحظات')}.pdf`, data: await one(doc, 1) });
+        out.push({ name: `${name} — ${L('بالملاحظات', 'with notes', 'بالملاحظات')}.pdf`, data: await one(doc, 1, true) });
       } catch (e) {
         // too heavy to put together on this phone: one file per part
         console.warn('merge', e);
         for (let i = 0; i < files.length; i++) {
           const doc = await PDFDocument.load(files[i].buf, { ignoreEncryption: true, updateMetadata: false });
-          out.push({ name: `${name} (${i + 1}) — ${L('بالملاحظات', 'with notes', 'بالملاحظات')}.pdf`, data: await one(doc, files[i].from) });
+          out.push({ name: `${name} (${i + 1}) — ${L('بالملاحظات', 'with notes', 'بالملاحظات')}.pdf`, data: await one(doc, files[i].from, i === 0) });
         }
       }
     }
     if (onProg) onProg(1);
     return { files: out.map((f) => ({ name: f.name, blob: new Blob([f.data], { type: 'application/pdf' }) })), skipped };
   }
+
+  /* ================= «ذكرى الكتاب» ================= */
+  /* When the circle finishes a book: a keepsake PDF — the cover, who read it and when, the numbers, the best
+     quotes, the most reacted, questions and their answers, everyone's takeaways, the bosses beaten meanwhile, the
+     chapters. Pages are drawn like the report (canvas → JPEG → pdf-lib). */
+  async function asMemory(bookId, onProg) {
+    const b = D.book(bookId);
+    if (!b) return null;
+    await U.loadScript(U.CDN.pdflib);
+    await loadFonts();
+    const { PDFDocument } = window.PDFLib;
+    const pdf = await PDFDocument.create();
+    pdf.setTitle(`${b.title} — ${L('ذكرى الكتاب', 'A keepsake', 'ذكرى الكتاب')}`);
+    pdf.setCreator('نقرأ سوا');
+    pdf.setProducer('naqra-sawa');
+    pdf.setCreationDate(new Date());
+    const rtl = L.isAr();
+    const S0 = rtl ? PW - M : M, dir = rtl ? -1 : 1, D0 = rtl ? 'rtl' : 'ltr';
+    const BOTTOM = PH - M - FOOT;
+    let cv = null, ctx = null, y = 0, pageNo = 0;
+    const flush = async () => {
+      if (!cv) return;
+      ctx.direction = D0;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#9a917e';
+      ctx.font = `400 20px ${UI}`;
+      ctx.fillText(`${L('نقرأ سوا', 'Read Together')} • ${L('ذكرى', 'Keepsake', 'ذكرى')} «${b.title}» • ${L.num(pageNo)}`, PW / 2, PH - M + 20);
+      const img = await pdf.embedJpg(await canvasBytes(cv, 'image/jpeg', 0.88));
+      pdf.addPage([595.28, 841.89]).drawImage(img, { x: 0, y: 0, width: 595.28, height: 841.89 });
+      cv.width = cv.height = 0;
+      cv = null;
+    };
+    const newPage = async () => {
+      await flush();
+      cv = document.createElement('canvas');
+      cv.width = PW;
+      cv.height = PH;
+      ctx = cv.getContext('2d');
+      ctx.fillStyle = '#fffdf8';
+      ctx.fillRect(0, 0, PW, PH);
+      y = M;
+      pageNo++;
+    };
+    const ensure = async (h) => {
+      if (!cv || (y + h > BOTTOM && y > M + 4)) await newPage();
+    };
+    const text = (t, x, yy, font, color, d) => {
+      ctx.font = font;
+      ctx.fillStyle = color;
+      ctx.direction = d || firstStrong(t);
+      ctx.textAlign = ctx.direction === 'rtl' ? 'right' : 'left';
+      ctx.fillText(t, x, yy);
+    };
+    const centre = (t, yy, font, color) => {
+      ctx.font = font;
+      ctx.fillStyle = color;
+      ctx.direction = firstStrong(t);
+      ctx.textAlign = 'center';
+      ctx.fillText(t, PW / 2, yy);
+    };
+    const para = async (t, font, size, lh, color, x0, x1, bar) => {
+      ctx.font = font;
+      const d = firstStrong(t);
+      for (const ln of lines(ctx, t, x1 - x0)) {
+        await ensure(lh);
+        if (bar) {
+          ctx.fillStyle = bar;
+          ctx.fillRect(rtl ? x1 + 18 : x0 - 24, y - 4, 6, lh);
+        }
+        text(ln, d === 'rtl' ? x1 : x0, y + size, font, color, d);
+        y += lh;
+      }
+    };
+    const section = async (title) => {
+      await ensure(200);
+      y += 24;
+      text(title, S0, y + 46, `700 46px ${BOOK}`, '#7a3a16', D0);
+      y += 70;
+      ctx.fillStyle = '#d9a22b';
+      ctx.fillRect(M, y, PW - 2 * M, 3);
+      y += 40;
+    };
+    const who = async (n, size = 22) => {
+      // a member's mark and name on one line
+      drawAv(ctx, rtl ? S0 - 17 : S0 + 17, y + 19, 17, n);
+      text(n.name || '', rtl ? S0 - 44 : S0 + 44, y + 27, `700 ${size}px ${UI}`, darker(n.col), D0);
+    };
+
+    // what there is to tell
+    const ms = D.memberIds().filter((u) => S.members.has(u));
+    const person = (u) => {
+      const m = S.members.get(u) || {};
+      return { name: D.name(u), col: D.color(u), emo: m.emoji || '' };
+    };
+    const recs = [...S.notes.values()].filter((n) => n.b === bookId && !V.isSpoiler(n)).map((n) => record(Object.assign({}, n, { src: 'c' }), { replies: true }));
+    const rxN = (n) => (n.rx || []).reduce((t, x) => t + x[1], 0);
+    const ws = portions(b);
+    const starts = ws.map((w) => w.start).filter(Boolean).sort();
+    const start = starts[0] || U.isoKey(b.addedAt || '') || U.today();
+    const fins = ms.map((u) => (D.prog(bookId, u) || {}).finished).filter(Boolean).map((t) => U.isoKey(t)).sort();
+    const end = U.isoKey(b.doneAt || '') || fins[fins.length - 1] || U.today();
+    const days = Math.max(1, U.diffDays(start, end) + 1);
+    const quotes = recs.filter((n) => (n.kind === 'quote' || n.kind === 'hl') && n.text && n.text.length >= 12).sort((a, c) => rxN(c) - rxN(a) || Math.abs(a.text.length - 140) - Math.abs(c.text.length - 140)).slice(0, 6);
+    const qIds = new Set(quotes.map((n) => n.id));
+    const loved = recs.filter((n) => rxN(n) > 0 && !qIds.has(n.id) && n.kind !== 'take').sort((a, c) => rxN(c) - rxN(a)).slice(0, 3);
+    const asks = recs.filter((n) => n.kind === 'q' && n.replies.length).sort((a, c) => c.replies.length - a.replies.length).slice(0, 5);
+    const takes = recs.filter((n) => n.kind === 'take');
+    const bosses = G.bossWinList ? G.bossWinList().filter(([w0, d]) => d >= start && w0 <= end) : [];
+    const chapters = A.Hd ? A.Hd.list(bookId).filter((h) => h.l === 1 && !A.Hd.hidden(h)) : [];
+    const prog = (f) => onProg && onProg(f);
+
+    // 1. the cover
+    await newPage();
+    const cover = b.cover ? await safeImg(b.cover) : null;
+    y = 170;
+    centre(L('ذكرى الكتاب', 'A keepsake', 'ذكرى الكتاب'), y, `700 34px ${UI}`, '#c8901c');
+    y += 50;
+    if (cover) {
+      const cw = 420, ch = Math.round((cover.height / cover.width) * cw) || 630;
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,.2)';
+      ctx.shadowBlur = 30;
+      ctx.shadowOffsetY = 12;
+      ctx.drawImage(cover, (PW - cw) / 2, y, cw, Math.min(ch, 680));
+      ctx.restore();
+      y += Math.min(ch, 680) + 80;
+    } else y += 120;
+    ctx.font = `700 64px ${BOOK}`;
+    for (const ln of lines(ctx, b.title, PW - 2 * M).slice(0, 3)) {
+      centre(ln, y + 60, `700 64px ${BOOK}`, '#1d1a14');
+      y += 84;
+    }
+    if (b.author) {
+      centre(b.author, y + 40, `400 36px ${BOOK}`, '#6b6352');
+      y += 64;
+    }
+    y += 20;
+    const cname = (S.circle && S.circle.name) || '';
+    const span = start === end ? L.day(start) : L(`من ${L.day(start)} لـ${L.day(end)}`, `${L.day(start)} to ${L.day(end)}`, `من ${L.day(start)} إلى ${L.day(end)}`);
+    if (cname) {
+      centre(`${L('حلقة', 'Circle', 'حلقة')} «${cname}»`, y + 30, `600 30px ${UI}`, '#2440a0');
+      y += 48;
+    }
+    centre(span, y + 30, `500 26px ${UI}`, '#6b6352');
+    y += 70;
+    // everyone's mark in a row
+    const row = ms.slice(0, 12);
+    const gap = 96, x0 = PW / 2 - ((row.length - 1) * gap) / 2;
+    row.forEach((u, i) => {
+      const n = person(u);
+      drawAv(ctx, x0 + i * gap, y + 30, 32, n);
+      ctx.font = `600 20px ${UI}`;
+      ctx.fillStyle = darker(n.col);
+      ctx.textAlign = 'center';
+      ctx.direction = firstStrong(n.name);
+      ctx.fillText(n.name.length > 9 ? n.name.slice(0, 8) + '…' : n.name, x0 + i * gap, y + 92);
+    });
+    prog(0.15);
+
+    // 2. the numbers
+    await newPage();
+    await section(L('إحنا بالأرقام', 'By the numbers', 'نحن بالأرقام'));
+    const stats = [
+      [L.count(b.pages || 0, 'page'), L('في الكتاب', 'in the book', 'في الكتاب')],
+      [L.count(days, 'day'), L('قراية سوا', 'of reading together', 'من القراءة معًا')],
+      [L.count(ws.length, 'wird'), L('قريناها سوا', 'read together', 'قرأناها معًا')],
+      [L.count(recs.filter((n) => n.kind !== 'take').length, 'note'), L('على الصفحات', 'on the pages', 'على الصفحات')],
+      [L.num(recs.filter((n) => n.kind === 'quote').length), L('اقتباس', 'quotes', 'اقتباسًا')],
+      [L.num(recs.filter((n) => n.kind === 'q').length), L('سؤال', 'questions', 'سؤالًا')],
+      [L.num(takes.length), L('خلاصة', 'takeaways', 'خلاصة')],
+      [L.num(recs.reduce((t, n) => t + rxN(n), 0)), L('تفاعل', 'reactions', 'تفاعلًا')],
+      ...(chapters.length ? [[L.num(A.Hd.hand(bookId).length), L('عنوان في الفهرس', 'headings in the contents', 'عنوانًا في الفهرس')]] : []),
+      ...(bosses.length ? [[L.num(bosses.length), L('زعيم غلبناه', 'bosses beaten', 'زعيمًا هزمناه')]] : []),
+    ];
+    const colW = (PW - 2 * M) / 2;
+    stats.forEach(([big, small], i) => {
+      const cx = rtl ? PW - M - (i % 2) * colW : M + (i % 2) * colW;
+      const yy = y + Math.floor(i / 2) * 130;
+      text(big, cx, yy + 56, `700 54px ${UI}`, '#2440a0', D0);
+      text(small, cx, yy + 98, `400 26px ${UI}`, '#6b6352', D0);
+    });
+    y += Math.ceil(stats.length / 2) * 130 + 20;
+
+    // 3. who read it
+    await section(L('مين قرا', 'Who read it', 'من قرأ'));
+    for (const u of ms) {
+      await ensure(90);
+      const n = person(u);
+      const p = D.prog(bookId, u) || {};
+      await who(n, 26);
+      const mine = recs.filter((x) => x.by === u);
+      const bits = [p.finished ? L(`خلّص ${L.day(U.isoKey(p.finished))}`, `finished ${L.day(U.isoKey(p.finished))}`, `أنهاه ${L.day(U.isoKey(p.finished))}`) : L('لسه ماخلّصش', 'not finished yet', 'لم ينهه بعد'), mine.filter((x) => x.kind !== 'take').length ? L.count(mine.filter((x) => x.kind !== 'take').length, 'note') : '', mine.filter((x) => x.kind === 'take').length ? `${L.num(mine.filter((x) => x.kind === 'take').length)} ${L('خلاصة', 'takeaways', 'خلاصة')}` : ''].filter(Boolean);
+      text(bits.join('  •  '), rtl ? S0 - 44 : S0 + 44, y + 64, `400 22px ${UI}`, '#6b6352', D0);
+      y += 92;
+    }
+    prog(0.35);
+
+    // 4. the best quotes, 5. the most loved
+    const noteBlock = async (n, big) => {
+      const size = big ? 32 : 27;
+      const lh = Math.round(size * 1.7);
+      await ensure(70 + lh * 2);
+      await who(n);
+      const meta = [n.page ? `${L('ص', 'p.')} ${L.num(n.page)}` : '', n.rx ? rxLine(n.rx) : ''].filter(Boolean).join('   ');
+      ctx.font = `700 22px ${UI}`;
+      const nw = ctx.measureText(n.name || '').width;
+      text(meta, rtl ? S0 - 60 - nw : S0 + 60 + nw, y + 27, `400 22px ${UI}, ${EMOJI}`, '#8b8372', D0);
+      y += 56;
+      const words = n.kind === 'quote' || n.kind === 'hl' ? `«${n.text}»` : n.text;
+      await para(words, `400 ${size}px ${n.kind === 'quote' || n.kind === 'hl' ? BOOK : UI}`, size, lh, '#1d1a14', M + 30, PW - M - 30, KIND_COL[n.kind]);
+      y += 34;
+    };
+    if (quotes.length) {
+      await section(L('أحلى الاقتباسات', 'The best quotes', 'أجمل الاقتباسات'));
+      for (const n of quotes) await noteBlock(n, true);
+    }
+    if (loved.length) {
+      await section(L('الأكتر تفاعل', 'Most loved', 'الأكثر تفاعلًا'));
+      for (const n of loved) await noteBlock(n, false);
+    }
+    prog(0.55);
+
+    // 6. questions and their answers
+    if (asks.length) {
+      await section(L('أسئلة وإجاباتها', 'Questions and answers', 'أسئلة وإجاباتها'));
+      for (const n of asks) {
+        await noteBlock(n, false);
+        y -= 20;
+        for (const r of n.replies.slice(0, 3)) await para(`↩ ${r.name}: ${r.text}`, `400 24px ${UI}`, 24, 38, '#5f584a', rtl ? M + 30 : M + 80, rtl ? PW - M - 80 : PW - M - 30);
+        y += 30;
+      }
+    }
+
+    // 7. everyone's takeaways
+    if (takes.length) {
+      await section(L('خلاصاتكم', 'Your takeaways', 'خلاصاتكم'));
+      for (const u of ms) {
+        const mine = takes.filter((n) => n.by === u).sort((a, c) => (a.page || 0) - (c.page || 0)).slice(0, 8);
+        if (!mine.length) continue;
+        await ensure(120);
+        await who(person(u), 26);
+        y += 54;
+        for (const n of mine) {
+          const w = n.wid && ws.find((x) => x.id === n.wid);
+          await para(`${w ? `${L('الورد', 'Portion', 'الورد')} ${L.num(w.n)}: ` : ''}${n.text}`, `400 26px ${UI}`, 26, 42, '#1d1a14', M + 30, PW - M - 30, KIND_COL.take);
+          y += 16;
+        }
+        y += 24;
+      }
+    }
+    prog(0.75);
+
+    // 8. the bosses beaten meanwhile
+    if (bosses.length && A.P && A.P.monster) {
+      await section(L('الوحوش اللي غلبناها', 'The bosses we beat', 'الوحوش التي هزمناها'));
+      for (const [w0, d] of bosses) {
+        await ensure(70);
+        const [code, name] = A.P.monster(w0);
+        let emo = '';
+        try {
+          emo = String.fromCodePoint(...String(code).split('_').map((h) => parseInt(h, 16)));
+        } catch (e) {}
+        text(emo, S0, y + 42, `44px ${EMOJI}`, '#000', D0);
+        text(`${name} — ${L(`اتهزم ${L.day(d)}`, `beaten ${L.day(d)}`, `هُزم ${L.day(d)}`)}`, rtl ? S0 - 70 : S0 + 70, y + 38, `600 28px ${UI}`, '#2b2a33', D0);
+        y += 70;
+      }
+    }
+
+    // 9. the chapters
+    if (chapters.length) {
+      await section(L('الفصول', 'The chapters', 'الفصول'));
+      for (const h of chapters) {
+        await ensure(50);
+        text(`◆  ${h.t}`, S0, y + 32, `600 28px ${UI}`, '#2b2a33', D0);
+        text(L.num(h.p), PW - S0, y + 32, `400 24px ${UI}`, '#8b8372', rtl ? 'ltr' : 'rtl');
+        y += 50;
+      }
+    }
+
+    // the end
+    await ensure(160);
+    y += 50;
+    centre(L('شكرًا إنكم قريتوه سوا 💛', 'Thank you for reading it together 💛', 'شكرًا لأنكم قرأتموه معًا 💛'), y + 40, `600 34px ${UI}, ${EMOJI}`, '#c8901c');
+    await flush();
+    prog(1);
+    return new Blob([await pdf.save()], { type: 'application/pdf' });
+  }
+  /* The sheet offering it: what's inside, then the file. */
+  V.memoryBook = (bookId) => {
+    const b = D.book(bookId);
+    if (!b) return;
+    let busy = false;
+    V.sheet({
+      title: `${icon('trophy')} ${L('ذكرى الكتاب', 'A keepsake of the book', 'ذكرى الكتاب')}`,
+      html: `<div class="ex mem">
+        <p class="lead" dir="auto">«${esc(b.title)}»</p>
+        <p class="muted">${L('ملف PDF تحتفظوا بيه: مين قرا وإمتى، الأرقام، أحلى الاقتباسات، الأكتر تفاعل، الأسئلة وإجاباتها، خلاصات كل واحد، والوحوش اللي غلبتوها.', 'A PDF to keep: who read it and when, the numbers, the best quotes, the most loved, questions and answers, everyone’s takeaways, and the bosses you beat.', 'ملف PDF تحتفظون به: من قرأ ومتى، الأرقام، أجمل الاقتباسات، الأكثر تفاعلًا، الأسئلة وإجاباتها، خلاصات كل واحد، والوحوش التي هزمتموها.')}</p>
+        <div class="ex-prog" id="ex-prog"></div>
+        <div class="row-btns ex-go"><button type="button" class="btn gold" data-run>${icon(A.P && A.P.native ? 'share' : 'download')}${A.P && A.P.native ? L('اعمله وابعته', 'Make and send it', 'اصنعه وأرسله') : L('اعمله', 'Make it', 'اصنعه')}</button></div>
+      </div>`,
+      onMount: (el) =>
+        el.addEventListener('click', async (e) => {
+          if (busy || !e.target.closest('[data-run]')) return;
+          busy = true;
+          el.querySelector('.ex').classList.add('busy');
+          const pr = (f) => {
+            const x = el.querySelector('#ex-prog');
+            if (x) x.innerHTML = V.bar(f, 'gold');
+          };
+          try {
+            pr(0.03);
+            const blob = await asMemory(bookId, pr);
+            if (blob) await saveFile(blob, `${safeName(b.title)} — ${L('ذكرى الكتاب', 'keepsake', 'ذكرى الكتاب')}.pdf`);
+          } catch (er) {
+            console.warn('memory', er);
+            U.toast(L('الملف ماكملش. جرّب تاني.', 'The file did not finish. Try again.', 'لم يكتمل الملف. حاول مجددًا.'), 'warn');
+          }
+          pr(1);
+          busy = false;
+          el.querySelector('.ex').classList.remove('busy');
+        }),
+    });
+  };
+  V.actions['memory-book'] = (a) => V.memoryBook(a.dataset.b);
 
   /* ================= files ================= */
   function pickFile(accept) {
@@ -628,8 +1275,9 @@
 
   /* ================= the export sheet ================= */
   const FORMATS = [
-    { k: 'pdf', ic: 'file', t: () => L('PDF مرتّب', 'Tidy PDF', 'PDF مرتّب'), d: () => L('للقراية والطباعة', 'To read and print', 'للقراءة والطباعة') },
-    { k: 'book', ic: 'books', t: () => L('الكتاب بملاحظاته', 'The book with notes', 'الكتاب بملاحظاته'), d: () => L('التظليلات جوه الكتاب نفسه', 'Highlights inside the book itself', 'التظليلات داخل الكتاب نفسه') },
+    { k: 'file', ic: 'book', t: () => L('الكتاب لوحده', 'The book alone', 'الكتاب وحده'), d: () => L('الملف زي ما هو', 'The file as it is', 'الملف كما هو') },
+    { k: 'pdf', ic: 'file', t: () => L('الملاحظات PDF', 'Notes as a PDF', 'الملاحظات PDF'), d: () => L('مرتّبة للقراية والطباعة', 'Tidy, to read and print', 'مرتّبة للقراءة والطباعة') },
+    { k: 'book', ic: 'books', t: () => L('الكتاب بملاحظاتنا', 'The book with our notes', 'الكتاب بملاحظاتنا'), d: () => L('الملاحظات جوه الكتاب نفسه', 'The notes inside the book itself', 'الملاحظات داخل الكتاب نفسه') },
     { k: 'text', ic: 'note', t: () => L('نص', 'Text', 'نص'), d: () => L('لواتساب أو Notion', 'For WhatsApp or Notion', 'لواتساب أو Notion') },
     { k: 'backup', ic: 'download', t: () => L('نسخة احتياطية', 'Backup', 'نسخة احتياطية'), d: () => L('ترجّع بيها كل حاجة بعدين', 'Brings everything back later', 'تستعيد بها كل شيء لاحقًا') },
   ];
@@ -645,11 +1293,19 @@
       kinds: new Set(Array.isArray(pref.kinds) && pref.kinds.length ? pref.kinds.filter((k) => KINDS.includes(k)) : KINDS),
       replies: pref.replies !== false,
       stars: false,
-      fmt: FORMATS.some((f) => f.k === pref.fmt) ? pref.fmt : 'pdf',
+      fmt: opts.fmt || (FORMATS.some((f) => f.k === pref.fmt) ? pref.fmt : 'pdf'),
+      colorBy: ['person', 'kind', 'mark'].includes(pref.colorBy) ? pref.colorBy : 'person',
+      onPage: pref.onPage !== false,
     };
     if (privOnly) o.who = 'me';
     const canBook = () => !!(info0 && info0.book && !info0.ext && D.book(key));
-    if (o.fmt === 'book' && !canBook()) o.fmt = 'pdf';
+    const canFile = () => !!(canBook() && (info0.book.parts || []).length);
+    // from the book («ابعت نسخة»): the book alone, with our notes, the notes as a PDF, text; elsewhere a backup too
+    const fmtsOf = () =>
+      (opts.send ? ['file', 'book', 'pdf', 'text'] : ['pdf', 'book', 'text', 'backup'])
+        .map((k) => FORMATS.find((f) => f.k === k))
+        .filter((f) => (f.k === 'file' ? canFile() : f.k === 'book' ? canBook() : true));
+    if (!fmtsOf().some((f) => f.k === o.fmt)) o.fmt = opts.send && canBook() ? 'book' : 'pdf';
     let busy = false;
     const people = () => {
       const m = new Map();
@@ -663,10 +1319,24 @@
     const html = () => {
       const { notes, hidden } = gather(o);
       const books = new Set(notes.map(keyOf)).size;
-      const fmts = FORMATS.filter((f) => f.k !== 'book' || canBook());
+      const fmts = fmtsOf();
       const chip = (attr, v, on, t) => `<button type="button" class="chip${on ? ' on' : ''}" ${attr}="${esc(v)}" aria-pressed="${on}">${t}</button>`;
+      const native = !!(A.P && A.P.native);
+      const go = opts.send ? (native ? [icon('share'), L('ابعت', 'Send', 'أرسل')] : [icon('download'), L('نزّل', 'Download', 'نزّل')]) : [icon('download'), L('صدّر', 'Export', 'صدّر')];
+      if (o.fmt === 'file') {
+        const parts = (info0.book.parts || []).length;
+        return `<div class="ex">
+          <div class="ex-fmts" role="radiogroup">${fmts.map((f) => `<button type="button" class="ex-fmt${o.fmt === f.k ? ' on' : ''}" data-fmt="${f.k}" role="radio" aria-checked="${o.fmt === f.k}">${icon(f.ic)}<b>${f.t()}</b><small>${f.d()}</small></button>`).join('')}</div>
+          <p class="muted sm ex-hint">${icon('info')}<span>${parts > 1 ? L(`الكتاب مترفع ${L.num(parts)} أجزاء: تقدر تجمّعهم في ملف واحد.`, `The book is stored in ${parts} parts: you can put them together in one file.`, `الكتاب مرفوع في ${L.num(parts)} أجزاء: يمكنك جمعها في ملف واحد.`) : L('من غير ملاحظات. البرنامج نفسه محتفظ بالكتاب وبيفتحه من غير نت.', 'Without notes. The app keeps the book itself and opens it offline.', 'دون ملاحظات. البرنامج يحتفظ بالكتاب ويفتحه دون إنترنت.')}</span></p>
+          <div class="row-btns ex-go"><button type="button" class="btn gold" data-run>${go[0]}${go[1]}</button></div>
+        </div>`;
+      }
       return `<div class="ex">
         <div class="ex-fmts" role="radiogroup">${fmts.map((f) => `<button type="button" class="ex-fmt${o.fmt === f.k ? ' on' : ''}" data-fmt="${f.k}" role="radio" aria-checked="${o.fmt === f.k}">${icon(f.ic)}<b>${f.t()}</b><small>${f.d()}</small></button>`).join('')}</div>
+        ${o.fmt === 'book' ? `<div class="ex-book">
+          <div class="ex-row"><span>${L('لون التظليل', 'Highlight colour', 'لون التظليل')}</span><div class="chips">${chip('data-colorby', 'person', o.colorBy === 'person', L('لون الشخص', 'Each person’s', 'لون الشخص'))}${chip('data-colorby', 'kind', o.colorBy === 'kind', L('لون النوع', 'By kind', 'لون النوع'))}${chip('data-colorby', 'mark', o.colorBy === 'mark', L('زي ما اتعلّم', 'As marked', 'كما عُلّم'))}</div></div>
+          <label class="ex-sw"><span>${L('الكلام يبان تحت كل صفحة', 'The words show below each page', 'الكلام يظهر أسفل كل صفحة')}<small>${L('رقم جنب كل ملاحظة وكلامها تحت الصفحة — يتقري في أي برنامج وفي الطباعة', 'A number by each note and its words below the page — readable in any app and in print', 'رقم بجانب كل ملاحظة وكلامها أسفل الصفحة — يُقرأ في أي برنامج وفي الطباعة')}</small></span><span class="switch"><input type="checkbox" data-onpage ${o.onPage ? 'checked' : ''}><i></i></span></label>
+        </div>` : ''}
         <details class="ex-more"${opts.open ? ' open' : ''}><summary><span>${L('مين وإيه؟', 'Whose and what?', 'لمن وماذا؟')}</span><small>${esc(summary())}</small></summary>
           ${privOnly ? '' : `<div class="ex-row"><span>${L('مين', 'Whose', 'لمن')}</span><div class="chips">${chip('data-who', 'me', o.who === 'me', L('أنا بس', 'Only me', 'أنا فقط'))}${chip('data-who', 'all', o.who === 'all', L('الحلقة كلها', 'Whole circle', 'الحلقة كلها'))}${chip('data-who', 'some', o.who === 'some', L('ناس معيّنين', 'Some people', 'أشخاص معيّنون'))}</div></div>
           ${o.who === 'some' ? `<div class="chips ex-people">${people().map(([u, c]) => `<button type="button" class="chip person${o.people.has(u) ? ' on' : ''}" data-person="${esc(u)}" aria-pressed="${o.people.has(u)}">${D.avatar(u, 'xs')}<span>${esc(D.name(u))}</span><small>${L.num(c)}</small></button>`).join('')}</div>` : ''}`}
@@ -678,12 +1348,12 @@
         ${o.fmt === 'book' ? `<p class="muted sm ex-hint">${icon('info')}<span>${L('بيتفتح في أي برنامج PDF. الكتب الكبيرة بتاخد شوية وقت على الموبايل.', 'Opens in any PDF app. Big books take a little while on a phone.', 'يُفتح في أي برنامج PDF. الكتب الكبيرة تستغرق وقتًا على الهاتف.')}</span></p>` : ''}
         ${o.fmt === 'backup' ? `<p class="muted sm ex-hint">${icon('info')}<span>${L('احتفظ بالملف ده. من «استورد» في الدفتر بترجّع كل حاجة، في الحلقة دي أو في حلقة تانية.', 'Keep this file. «Import» in the notebook brings everything back, in this circle or another.', 'احتفظ بهذا الملف. من «استورد» في الدفتر تستعيد كل شيء، في هذه الحلقة أو في حلقة أخرى.')}</span></p>` : ''}
         <div class="ex-prog" id="ex-prog"></div>
-        <div class="row-btns ex-go">${o.fmt === 'text' ? `<button type="button" class="btn ghost" data-copytext ${notes.length ? '' : 'disabled'}>${icon('copy')}${L('انسخ', 'Copy', 'انسخ')}</button>` : ''}<button type="button" class="btn gold" data-run ${notes.length ? '' : 'disabled'}>${icon('download')}${L('صدّر', 'Export', 'صدّر')}</button></div>
+        <div class="row-btns ex-go">${o.fmt === 'text' ? `<button type="button" class="btn ghost" data-copytext ${notes.length ? '' : 'disabled'}>${icon('copy')}${L('انسخ', 'Copy', 'انسخ')}</button>` : ''}<button type="button" class="btn gold" data-run ${notes.length ? '' : 'disabled'}>${go[0]}${go[1]}</button></div>
       </div>`;
     };
-    const remember = () => U.store.set('exportOpts', { who: o.who === 'some' ? 'me' : o.who, kinds: [...o.kinds], replies: o.replies, fmt: o.fmt });
+    const remember = () => U.store.set('exportOpts', { who: o.who === 'some' ? 'me' : o.who, kinds: [...o.kinds], replies: o.replies, fmt: o.fmt === 'file' ? pref.fmt : o.fmt, colorBy: o.colorBy, onPage: o.onPage });
     const api = V.sheet({
-      title: `${icon('download')} ${key ? esc(info0.title) : L('صدّر ملاحظاتي', 'Export my notes', 'صدّر ملاحظاتي')}`,
+      title: opts.send ? `${icon('share')} ${L('ابعت نسخة', 'Send a copy', 'أرسل نسخة')}` : `${icon('download')} ${key ? esc(info0.title) : L('صدّر ملاحظاتي', 'Export my notes', 'صدّر ملاحظاتي')}`,
       html: html(),
       onMount: (el) => {
         const redraw = () => {
@@ -695,6 +1365,7 @@
         el.addEventListener('change', (e) => {
           if (e.target.matches('[data-replies]')) o.replies = e.target.checked;
           else if (e.target.matches('[data-stars]')) o.stars = e.target.checked;
+          else if (e.target.matches('[data-onpage]')) o.onPage = e.target.checked;
           else return;
           remember();
           redraw();
@@ -704,6 +1375,7 @@
           if (busy) return;
           let t;
           if ((t = q('[data-fmt]'))) o.fmt = t.dataset.fmt;
+          else if ((t = q('[data-colorby]'))) o.colorBy = t.dataset.colorby;
           else if ((t = q('[data-who]'))) o.who = t.dataset.who;
           else if ((t = q('[data-person]'))) {
             const u = t.dataset.person;
@@ -726,6 +1398,10 @@
           if (p) p.innerHTML = f == null ? '' : `${V.bar(f, 'gold')}${msg ? `<small>${msg}</small>` : ''}`;
         };
         const run = async () => {
+          if (o.fmt === 'file') {
+            api.close();
+            return V.download(key);
+          }
           const list = gather(o).notes;
           if (!list.length) return;
           busy = true;
@@ -742,7 +1418,7 @@
               await saveFile(blob, `${base} — ${L('ملاحظات', 'notes', 'ملاحظات')} ${day}.pdf`);
             } else if (o.fmt === 'book') {
               prog(0.02, L('بجيب الكتاب…', 'Fetching the book…', 'أجلب الكتاب…'));
-              const r = await asAnnotated(gs[0], (f) => prog(f, f < 0.5 ? L('بجيب الكتاب…', 'Fetching the book…', 'أجلب الكتاب…') : L('بحط الملاحظات في أماكنها…', 'Putting the notes in place…', 'أضع الملاحظات في أماكنها…')));
+              const r = await asAnnotated(gs[0], (f) => prog(f, f < 0.5 ? L('بجيب الكتاب…', 'Fetching the book…', 'أجلب الكتاب…') : L('بحط الملاحظات في أماكنها…', 'Putting the notes in place…', 'أضع الملاحظات في أماكنها…')), o);
               if (r) {
                 for (const f of r.files) await saveFile(f.blob, f.name);
                 if (r.skipped) U.toast(L(`${L.count(r.skipped, 'note')} من غير صفحة (زي Kindle) مادخلتش في الكتاب`, `${L.count(r.skipped, 'note')} without a page (like Kindle ones) were left out of the book`, `${L.count(r.skipped, 'note')} دون صفحة (مثل Kindle) لم تدخل في الكتاب`));
@@ -761,6 +1437,8 @@
     });
     return api;
   };
+
+  V.actions['set-backup'] = () => V.exportSheet({ fmt: 'backup' });
 
   /* ================= import ================= */
   /* Pick a file and see what it is: a backup of ours, or Kindle's clippings. */
@@ -1121,5 +1799,5 @@
   }
 
   // for the tests
-  A.Export = { gather, groups, asText, asBackup, asReport, asAnnotated, sig };
+  A.Export = { gather, groups, asText, asBackup, asReport, asAnnotated, asMemory, sig };
 })();

@@ -342,13 +342,17 @@ const pickFile = async (p, clickSel, file) => {
       return `${r.n} pages, «${r.title}»`;
     });
 
-    await step('The book with its notes: highlights and pins as PDF annotations in their places', async () => {
+    await step('The book with its notes: highlights and pins as PDF annotations in their places (words below the pages off; the colour page first)', async () => {
       await a.click('.ex-fmt[data-fmt="book"]');
+      await a.$eval('.ex-book [data-onpage]', (e) => e.checked && e.click());
+      await a.click('.ex-book [data-colorby="mark"]');
       await a.click('[data-who="me"]');
       await a.click('.ex [data-run]');
       await until(a, 'annotated', () => window.A.V.lastExport && /بالملاحظات/.test(window.A.V.lastExport.filename) && !document.querySelector('.ex.busy'), null, 40000);
-      const r = await drawPdf(a, [2, 3, 4, 6], 'nb-book-pdf', 1.2);
-      assert(r.n === 40, 'pages: ' + r.n);
+      // book page p is the file's page p + 1 (the colour page comes first)
+      const r = await drawPdf(a, [1, 3, 4, 5, 7], 'nb-book-pdf', 1.2);
+      assert(r.n === 41, 'pages: ' + r.n);
+      r.pages.forEach((x) => (x.i -= 1));
       const p3 = r.pages.find((x) => x.i === 3);
       const hl = p3.anns.find((x) => x.sub === 'Highlight');
       assert(hl && hl.contents.includes('القراءة سفر') && hl.contents.includes('سارة') && hl.title === 'محمود', 'p3 highlight: ' + JSON.stringify(p3.anns));
@@ -367,6 +371,33 @@ const pickFile = async (p, clickSel, file) => {
       fs.writeFileSync(path.join(tmp, 'book-with-notes.pdf'), await lastBytes(a));
       await closeAll(a);
       return JSON.stringify(off.map((v) => +v.toFixed(2)));
+    });
+
+    await step('…and with the words below the pages: a number by each note, the page longer by a strip at its foot, the highlight colours by person', async () => {
+      await a.evaluate((id) => window.A.V.exportSheet({ b: id, send: true }), bookId);
+      await a.waitForSelector('.ex .ex-fmts');
+      const fmts = await a.$$eval('.ex-fmt', (x) => x.map((e) => e.dataset.fmt));
+      assert(fmts.join() === 'file,book,pdf,text', 'formats from the book: ' + fmts);
+      await a.click('.ex-fmt[data-fmt="book"]');
+      await a.$eval('.ex-book [data-onpage]', (e) => !e.checked && e.click());
+      await a.click('.ex-book [data-colorby="person"]');
+      await a.$eval('.ex-more', (d) => (d.open = true));
+      await a.click('[data-who="all"]');
+      await a.evaluate(() => (window.A.V.lastExport = null));
+      await a.click('.ex [data-run]');
+      await until(a, 'annotated', () => window.A.V.lastExport && /بالملاحظات/.test(window.A.V.lastExport.filename) && !document.querySelector('.ex.busy'), null, 40000);
+      const r = await drawPdf(a, [1, 4, 5, 11], 'nb-book-onpage', 1.4);
+      assert(r.n === 41, 'pages: ' + r.n);
+      const p3 = r.pages.find((x) => x.i === 4), p10 = r.pages.find((x) => x.i === 11);
+      const h = (v) => v[3] - v[1];
+      assert(h(p3.view) > h(p10.view) * 1.05, `page 3 not longer: ${h(p3.view)} vs ${h(p10.view)}`);
+      assert(p3.view[3] === p10.view[3], 'the top moved');
+      const hl = p3.anns.find((x) => x.sub === 'Highlight');
+      const col = await a.evaluate(() => window.A.D.color(window.A.S.me));
+      const want = [1, 3, 5].map((i) => parseInt(col.slice(i, i + 2), 16));
+      assert(hl && hl.color && hl.color.every((v, i) => Math.abs(v - want[i]) <= 2), 'colour: ' + JSON.stringify({ got: hl && hl.color, want }));
+      await closeAll(a);
+      return `page 3: ${Math.round(h(p3.view))} pt (others ${Math.round(h(p10.view))})`;
     });
 
     await step('A line highlighted by hand in the reader lands on that same line in the exported book', async () => {
@@ -421,7 +452,7 @@ const pickFile = async (p, clickSel, file) => {
       await a.evaluate(() => (window.A.V.lastExport = null));
       await a.click('.ex [data-run]');
       await until(a, 'annotated', () => window.A.V.lastExport && /بالملاحظات/.test(window.A.V.lastExport.filename) && !document.querySelector('.ex.busy'), null, 40000);
-      const r = await drawPdf(a, [3], 'nb-real-hl', 2);
+      const r = await drawPdf(a, [4], 'nb-real-hl', 2);
       const hl = r.pages[0].anns.find((x) => x.sub === 'Highlight' && x.contents.includes('سطر حقيقي'));
       assert(hl, 'no such highlight: ' + JSON.stringify(r.pages[0].anns));
       // how much of the line's box the highlight covers
@@ -510,6 +541,57 @@ const pickFile = async (p, clickSel, file) => {
       await a.waitForSelector('.imp .ex-count.none');
       await closeAll(a);
       return books.join(' / ');
+    });
+
+    await step('«ابعت نسخة» on the book page (the ⋯ keeps plan, contents, edit, delete); backup and import in Settings', async () => {
+      await closeAll(a);
+      await a.evaluate((id) => window.A.V.go('book-' + id, { tab: 'plan' }), bookId);
+      await a.waitForSelector('.bp-actions [data-act="send-copy"]');
+      assert(!(await a.$('.bp-actions [data-act="download"]')), 'the old download button');
+      await a.click('.bp-actions [data-act="book-menu"]');
+      await a.waitForSelector('.mi');
+      const items = await a.$$eval('.mi', (x) => x.map((e) => e.textContent.trim()));
+      assert(!items.some((t) => /حمّل الكتاب|صدّر الملاحظات|استورد/.test(t)), 'menu: ' + items.join(' | '));
+      assert(items.some((t) => /الفهرس/.test(t)), 'no contents in the menu: ' + items.join(' | '));
+      await closeAll(a);
+      await a.click('.bp-actions [data-act="send-copy"]');
+      await a.waitForSelector('.ex .ex-fmts');
+      const title = await a.textContent('.sheet .sh-head');
+      assert(/ابعت نسخة/.test(title), 'title: ' + title);
+      await a.click('.ex-fmt[data-fmt="file"]');
+      assert(!(await a.$('.ex .ex-more')), 'whose/what for the book alone');
+      await shot(a, 'nb-send-copy');
+      await closeAll(a);
+      await a.evaluate(() => window.A.V.go('settings'));
+      await a.waitForSelector('[data-act="set-backup"]');
+      assert(await a.$('[data-act="qn-import"]'), 'no import in Settings');
+      await a.click('[data-act="set-backup"]');
+      await a.waitForSelector('.ex-fmt[data-fmt="backup"].on');
+      await closeAll(a);
+    });
+
+    await step('«ذكرى الكتاب»: once the book is done, a keepsake PDF — cover, numbers, who read it, quotes, takeaways', async () => {
+      await a.evaluate(async (id) => {
+        const { D, U } = window.A;
+        await D.saveProg(id, () => ({ finished: U.nowIso() }));
+        await D.update(`books/${id}`, { status: 'done', doneAt: U.nowIso() });
+      }, bookId);
+      await a.evaluate((id) => window.A.V.go('book-' + id, { tab: 'plan' }), bookId);
+      await a.waitForSelector('.bp-actions [data-act="memory-book"]');
+      await T(1200);
+      await closeAll(a); // the «خلّصت الكتاب» celebration
+      await a.click('.bp-actions [data-act="memory-book"]');
+      await a.waitForSelector('.sheet .mem [data-run]');
+      await shot(a, 'nb-memory-sheet');
+      await a.evaluate(() => (window.A.V.lastExport = null));
+      await a.click('.sheet .mem [data-run]');
+      await until(a, 'keepsake made', () => window.A.V.lastExport && /ذكرى/.test(window.A.V.lastExport.filename), null, 40000);
+      const r = await drawPdf(a, [1, 2, 3], 'nb-memory', 1);
+      assert(r.n >= 3, 'pages: ' + r.n);
+      assert(/ذكرى/.test(r.title), 'title: ' + r.title);
+      await closeAll(a);
+      await a.evaluate((id) => window.A.D.update(`books/${id}`, { status: 'reading' }), bookId);
+      return `${r.n} pages`;
     });
 
     await step('Restore in another circle: my notes go to its circle, hers stay mine only with her name — on the page too', async () => {

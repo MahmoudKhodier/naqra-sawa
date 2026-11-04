@@ -38,7 +38,7 @@
             <small class="eyebrow">${icon('trophy')}${L('الحلقة كلها خلّصته!', 'The whole circle finished it!', 'أنهته الحلقة كلها!')}</small>
             <h3 dir="auto">«${esc(b.title)}»</h3>
             <p class="muted">${L(`${L.count(ms.length, 'member')} وصلوا للآخر. برافو عليكم! 🎉`, `All ${ms.length} members reached the end. Well done! 🎉`, `وصل ${L.count(ms.length, 'member', 'nom')} إلى النهاية. أحسنتم! 🎉`)}</p>
-            <div class="row-btns">${D.canWrite() ? `<button class="btn gold sm" data-act="to-done" data-b="${esc(b.id)}">${icon('check')}${L('انقلوه لـ«خلّصناها»', 'Move it to “Finished together”', 'انقلوه إلى «أنهيناها»')}</button>` : ''}<button class="btn ghost sm" data-act="to-done-later" data-b="${esc(b.id)}">${L('بعدين', 'Later', 'لاحقًا')}</button></div>
+            <div class="row-btns">${D.canWrite() ? `<button class="btn gold sm" data-act="to-done" data-b="${esc(b.id)}">${icon('check')}${L('انقلوه لـ«خلّصناها»', 'Move it to “Finished together”', 'انقلوه إلى «أنهيناها»')}</button>` : ''}${V.memoryBook ? `<button class="btn ghost sm" data-act="memory-book" data-b="${esc(b.id)}">${icon('trophy')}${L('ذكرى الكتاب', 'A keepsake', 'ذكرى الكتاب')}</button>` : ''}<button class="btn ghost sm" data-act="to-done-later" data-b="${esc(b.id)}">${L('بعدين', 'Later', 'لاحقًا')}</button></div>
           </div></section>`;
         }
       } else if (fin.length && ms.length - fin.length <= 2 && fin.includes(S.me)) {
@@ -54,7 +54,7 @@
     await D.update(`books/${b.id}`, { status: 'done', doneAt: U.nowIso() });
     U.confetti(1);
     U.chime('ok');
-    U.toast(L(`«${esc(b.title)}» بقى في «خلّصناها» 🏆`, `“${esc(b.title)}” is now in “Finished together” 🏆`, `«${esc(b.title)}» صار في «أنهيناها» 🏆`));
+    U.toast(L(`«${esc(b.title)}» بقى في «خلّصناها» 🏆 — ذكرى الكتاب في صفحته`, `“${esc(b.title)}” is now in “Finished together” 🏆 — its keepsake is on its page`, `«${esc(b.title)}» صار في «أنهيناها» 🏆 — ذكرى الكتاب في صفحته`));
   };
   V.actions['to-done-later'] = (a) => {
     U.store.set('allDoneSeen:' + a.dataset.b, 'hide');
