@@ -868,6 +868,7 @@
     st.counted.add(p);
     st.sessionPages++;
     goldCheck(p);
+    chapterCheck(p);
     const chip = st.root.querySelector('#rd-today');
     if (chip) {
       chip.innerHTML = `${U.icon('scroll')}<b>+${L.num(st.sessionPages)}</b>`;
@@ -1090,7 +1091,7 @@
     if (s0 !== st) return;
     const yy = line && line.y != null ? line.y : y;
     const crop = cropOf(p, { x: 0.03, y: Math.max(0, yy - 0.028), w: 0.94, h: 0.056 });
-    A.Hd.edit({ bookId: st.bookId, page: p, y: r4(yy), crop, text: (line && line.t) || '' });
+    A.Hd.edit({ bookId: st.bookId, page: p, y: r4(yy), crop, lh: line && line.h, text: (line && line.t) || '' });
   }
   /* The words of the line nearest y on page p (from the file's text, if it has any): {t, y} or null. */
   R.lineText = async (p, y) => {
@@ -1128,7 +1129,7 @@
         t += ln[i].s;
       }
       t = t.replace(/\s+/g, ' ').trim();
-      return t ? { t: t.slice(0, (A.Hd && A.Hd.MAX) || 140), y: r4(U.clamp(best.cy, 0, 1)) } : null;
+      return t ? { t: t.slice(0, (A.Hd && A.Hd.MAX) || 140), y: r4(U.clamp(best.cy, 0, 1)), h: best.h } : null;
     } catch (e) {
       return null;
     }
@@ -1623,10 +1624,40 @@
     }
     if (msg) R.isQuiet() ? holdMsg(U.esc(msg)) : cheer(msg); // a focus session keeps it for afterwards
   }
+  /* «الفهرس»: the last page of a chapter read, with all its pages: «خلّصت الفصل …» once (this phone). */
+  function chapterCheck(p) {
+    if (!A.Hd) return;
+    const chs = A.Hd.list(st.bookId).filter((h) => h.l === 1);
+    const i = chs.findIndex((c, k) => p >= c.p && p < (chs[k + 1] ? chs[k + 1].p : st.N + 1));
+    if (i < 0) return;
+    const c = chs[i];
+    const end = (chs[i + 1] ? chs[i + 1].p : st.N + 1) - 1;
+    if (p !== end || end - c.p < 1) return;
+    const key = `chDone:${st.bookId}:${c.id}`;
+    if (U.store.get(key, '')) return;
+    const prog = D.prog(st.bookId);
+    for (let q = c.p; q <= end; q++) if (!(st.pending.has(q) || D.outboxHas(st.bookId, q) || (prog && U.rangesHas(prog.seen, q)))) return;
+    U.store.set(key, U.today());
+    const name = A.Hd.short(A.Hd.title(c)) || A.Hd.name(1);
+    const msg = L(`خلّصت «${name}» 🎉`, `You finished «${name}» 🎉`, `أنهيت «${name}» 🎉`);
+    if (R.isQuiet()) return holdMsg(U.esc(msg));
+    // after the portion's own cheer when the chapter ends with it (that one comes right after this page counts)
+    const s0 = st;
+    const show = () => {
+      if (st !== s0) return;
+      const ago = Date.now() - (st.cheerAt || 0);
+      if (ago < 2600) return setTimeout(show, 3100 - ago);
+      cheer(msg);
+      U.confetti && U.confetti(0.6);
+      U.chime && U.chime('ok');
+    };
+    setTimeout(show, 0);
+  }
   function cheer(msg) {
     const el = st.root.querySelector('#rd-cheer');
     if (!el) return;
     el.textContent = msg;
+    st.cheerAt = Date.now();
     el.hidden = false;
     el.classList.remove('in');
     void el.offsetWidth;

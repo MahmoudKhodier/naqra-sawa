@@ -448,9 +448,10 @@
     }
   });
 
-  V.sheet = ({ title = '', html = '', cls = '', onMount, onData, wide = false, top = false }) => {
+  V.sheet = ({ title = '', html = '', cls = '', onMount, onData, wide = false, top = false, side = '' }) => {
     const wrap = document.createElement('div');
-    wrap.className = 'sheet-wrap' + (top ? ' top' : ''); // top: drops down from the top (notifications)
+    // top: drops down from the top (notifications); side 'l' | 'r': a panel down that side, the rest of the screen in view
+    wrap.className = 'sheet-wrap' + (top ? ' top' : '') + (side ? ` side side-${side}` : '');
     wrap.innerHTML = `<div class="sheet-bg" data-close></div><section class="sheet ${wide ? 'wide' : ''} ${cls}" role="dialog" aria-modal="true" aria-label="${esc(title.replace(/<[^>]+>/g, ''))}">
       <header class="sh-head"><b>${title}</b><button class="ib" data-close aria-label="${L('قفل', 'Close', 'إغلاق')}">${icon('close')}</button></header>
       <div class="sh-body">${html}</div></section>`;
@@ -481,7 +482,7 @@
       }
     });
     V.sheets.push(api);
-    swipeToClose(api, top);
+    if (!side) swipeToClose(api, top);
     requestAnimationFrame(() => wrap.classList.add('in'));
     onMount && onMount(api.body, api);
     A.Lot && A.Lot.mount(api.body);

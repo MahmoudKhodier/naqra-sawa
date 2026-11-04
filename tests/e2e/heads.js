@@ -344,12 +344,149 @@ async function addHead(p, page, y) {
       await a.click('.tabs [data-tab="notes"]');
       await a.waitForSelector('.tab.on[data-tab="notes"]');
       await T(300);
-      const after = await a.evaluate(() => ({ top: document.scrollingElement.scrollTop, kept: (document.querySelector('.bp-hero') || {})._kept }));
+      const after = await a.evaluate(() => ({ top: document.scrollingElement.scrollTop, max: document.scrollingElement.scrollHeight - innerHeight, kept: (document.querySelector('.bp-hero') || {})._kept }));
       assert(after.kept === 'kept', 'the page was drawn again');
-      assert(Math.abs(after.top - before) < 40, `scrolled: ${before} → ${after.top}`);
+      assert(Math.abs(after.top - Math.min(before, after.max)) < 40, `scrolled: ${before} → ${after.top} (max ${after.max})`);
       await a.click('.tabs [data-tab="plan"]');
       await a.waitForSelector('.tab.on[data-tab="plan"]');
       await a.evaluate(() => window.A.U.store.set('planView', 'cal'));
+    });
+
+    await step('Chapters: «يخلص مع آخر الفصل», «قسّم الأوراد على الفصول», the notes by chapter, «خلّصت …» while reading', async () => {
+      const wirds0 = await a.evaluate((id) => JSON.parse(JSON.stringify(window.A.S.books.get(id).wirds)), bookId);
+      // a second chapter from page 3: chapters 1–2 and 3–4
+      await a.evaluate((id) => window.A.D.set('heads/hch4', { b: id, page: 3, y: 0.5, l: 1, t: 'الفصل الرابع: خلافة عمر', by: window.A.S.me, at: new Date().toISOString() }), bookId);
+      await until(a, 'two chapters', (id) => window.A.V.chaptersOf(window.A.S.books.get(id)).length === 2, bookId);
+      const chs = await a.evaluate((id) => JSON.stringify(window.A.V.chaptersOf(window.A.S.books.get(id)).map((x) => [x.from, x.to])), bookId);
+      assert(chs === '[[1,2],[3,4]]', 'chapters ' + chs);
+      // portion 1 (pages 1–3): «يخلص مع آخر الفصل (ص ٢)» in its sheet
+      await a.evaluate((id) => window.A.V.go('book-' + id, { tab: 'plan' }), bookId);
+      await a.evaluate((id) => window.A.V.actions.wird({ dataset: { b: id, w: 'w1' } }), bookId);
+      await a.waitForSelector('.sheet [data-act="wird-chend"]');
+      const lbl = await a.textContent('.sheet [data-act="wird-chend"]');
+      assert(/آخر الفصل/.test(lbl) && /ص ٢/.test(lbl), 'button: ' + lbl);
+      await a.$eval('.sheet [data-act="wird-chend"]', (e) => e.scrollIntoView({ block: 'center' }));
+      await shot(a, 'hd2-13-chend');
+      await a.click('.sheet [data-act="wird-chend"]');
+      await a.waitForSelector('#wp-form');
+      await a.click('#wp-form [data-mode="next"]');
+      await a.click('#wp-form button.btn.gold');
+      await until(a, 'portion 1 ends with the chapter', (id) => {
+        const ws = window.A.S.books.get(id).wirds;
+        return ws[0].to === 2 && ws[1].from === 3 && ws[1].to === 4;
+      }, bookId);
+      await closeAll(a);
+      // back as it was, then «قسّم الأوراد على الفصول» from the «فصول» look
+      await a.evaluate(([id, ws]) => window.A.D.update(`books/${id}`, { wirds: ws }), [bookId, wirds0]);
+      await until(a, 'plan back', (id) => window.A.S.books.get(id).wirds[0].to === 3, bookId);
+      await a.evaluate(() => window.A.U.store.set('planView', 'ch'));
+      await a.evaluate((id) => window.A.V.go('book-' + id, { tab: 'plan' }), bookId);
+      await a.waitForSelector('.wch-split');
+      await a.click('.wch-split');
+      await a.waitForSelector('#rp-form .rp-by [data-by="ch"].on');
+      assert(/فصل/.test(await a.textContent('#rp-form .rp-ch')), 'no chapter line');
+      await shot(a, 'hd2-11-bych');
+      await a.click('#rp-form button.btn.gold');
+      await until(a, 'split by chapter', (id) => JSON.stringify(window.A.S.books.get(id).wirds.map((w) => [w.from, w.to])) === '[[1,2],[3,4]]', bookId);
+      await until(a, 'the news line', () => window.A.Off.items().some((o) => o.kind === 'plan' && o.what && o.what.ch));
+      const news = await a.evaluate(() => window.A.Off.text(window.A.Off.items().find((o) => o.kind === 'plan' && o.what && o.what.ch)));
+      assert(/على الفصول/.test(news), 'news: ' + news);
+      await a.evaluate(() => window.A.U.store.set('planView', 'cal'));
+      // the notes tab, one chapter's notes; the filter changes in place
+      await a.evaluate(async (id) => {
+        const { D, S, U } = window.A;
+        await D.set('notes/nc1', { b: id, page: 1, kind: 'note', text: 'في الفصل الأول', rect: { x: 0.5, y: 0.6, w: 0, h: 0 }, color: '#f5c542', by: S.me, at: U.nowIso(), likes: {}, replies: {}, crop: null });
+        await D.set('notes/nc2', { b: id, page: 4, kind: 'note', text: 'في الفصل الرابع', rect: { x: 0.5, y: 0.6, w: 0, h: 0 }, color: '#f5c542', by: S.me, at: U.nowIso(), likes: {}, replies: {}, crop: null });
+      }, bookId);
+      await until(a, 'notes', () => window.A.S.notes.has('nc1') && window.A.S.notes.has('nc2'));
+      await a.click('.tabs [data-tab="notes"]');
+      await a.waitForSelector('.notes-ch');
+      await a.evaluate(() => (document.querySelector('.bp-hero')._kept = 'kept'));
+      await a.click('.notes-ch');
+      await a.click('.menu .mi:has-text("الفصل الرابع")');
+      await until(a, 'one chapter', () => document.querySelectorAll('.ngrid .nc').length === 1 || document.querySelectorAll('.ngrid > *').length === 1);
+      const shown = await a.evaluate(() => ({ t: document.querySelector('.ngrid').textContent, pill: document.querySelector('.notes-ch').textContent, kept: (document.querySelector('.bp-hero') || {})._kept }));
+      assert(/في الفصل الرابع/.test(shown.t) && !/في الفصل الأول/.test(shown.t), 'notes: ' + shown.t.slice(0, 120));
+      assert(/الفصل الرابع/.test(shown.pill), 'pill: ' + shown.pill);
+      assert(shown.kept === 'kept', 'the page was drawn again');
+      await shot(a, 'hd2-12-notes-ch');
+      await a.click('.notes-ch');
+      await a.click('.menu .mi:has-text("كل الفصول")');
+      await until(a, 'all again', () => /في الفصل الأول/.test(document.querySelector('.ngrid').textContent));
+      // reading: the last page of the first chapter, with all its pages → «خلّصت «الفصل الثالث…» 🎉» (after the portion's)
+      await a.evaluate((id) => window.A.R.open(id, { page: 1 }), bookId);
+      await a.waitForSelector('.pg[data-p="1"] canvas', { timeout: 20000 });
+      await T(800);
+      const before = await a.evaluate(() => [1, 2].filter((p) => window.A.R._counted(p)));
+      await a.evaluate(() => {
+        window.A.R._markSeen(1);
+        window.A.R._markSeen(2);
+      });
+      await until(a, 'the chapter cheer', () => /خلّصت «الفصل الثالث/.test(document.querySelector('#rd-cheer').textContent), null, 9000);
+      await T(400);
+      await shot(a, 'hd2-14-cheer');
+      const again = await a.evaluate(() => window.A.U.store.get(`chDone:${window.A.R.bookId()}:` + window.A.Hd.list(window.A.R.bookId()).find((h) => h.l === 1).id, ''));
+      assert(again, 'not remembered');
+      await a.evaluate(() => window.A.R.close());
+      // as it was for the steps after
+      await a.evaluate(async ([id, ws]) => {
+        const { D } = window.A;
+        await D.update(`books/${id}`, { wirds: ws });
+        await D.del('heads/hch4');
+        await D.del('notes/nc1');
+        await D.del('notes/nc2');
+      }, [bookId, wirds0]);
+      await until(a, 'cleaned', () => !window.A.S.heads.has('hch4') && !window.A.S.notes.has('nc1'));
+      return `counted before: [${before}]; ${news}`;
+    });
+
+    await step('Held sideways: the heading sheet is a panel down the side, the page in view with its line marked (no picture, no scrolling)', async () => {
+      await a.evaluate((id) => window.A.R.open(id, { page: 3 }), bookId);
+      await a.waitForSelector('.pg[data-p="3"] canvas', { timeout: 20000 });
+      await a.setViewportSize({ width: 844, height: 390 });
+      await until(a, 'sideways', () => !!document.querySelector('#reader .rd.land'));
+      await T(1200);
+      const ln = marks.lines.find((x) => x.p === 3).first;
+      const y = ln.y + ln.h / 2;
+      await a.evaluate(([y]) => window.A.R.goToY(3, Math.max(0, y - 0.12)), [y]);
+      await T(600);
+      await a.evaluate(() => document.querySelector('.rd-tools [data-tool="head"]').click());
+      await a.waitForSelector('#rd-hint:not([hidden])');
+      const ov = await a.$eval('.pg-ov[data-p="3"]', (e) => {
+        const r = e.getBoundingClientRect();
+        return { x: r.left, y: r.top, w: r.width, h: r.height };
+      });
+      await a.mouse.click(ov.x + ov.w * 0.93, ov.y + ov.h * y);
+      await a.waitForSelector('.sheet-wrap.side .hd-lv', { timeout: 10000 });
+      await T(500);
+      const r = await a.evaluate(() => {
+        const sh = document.querySelector('.sheet-wrap.side .sheet').getBoundingClientRect();
+        const el = document.querySelector('.sheet-wrap.side .sheet');
+        const box = document.querySelector('.hd-side-line').getBoundingClientRect();
+        return { side: document.querySelector('.sheet-wrap.side').className, img: !!document.querySelector('.sheet .hd-line'), right: sh.right, w: innerWidth, h: innerHeight, scroll: el.scrollHeight - el.clientHeight, box: { top: box.top, bottom: box.bottom, left: box.left, right: box.right }, name: document.querySelector('#hd-name').value };
+      });
+      const lineY = ov.y + ov.h * y;
+      assert(/side-l/.test(r.side), 'side: ' + r.side);
+      assert(!r.img, 'the picture of the line is there');
+      assert(r.right < r.w * 0.5, 'the panel is wide: ' + r.right);
+      assert(r.scroll <= 1, 'the panel scrolls by ' + r.scroll);
+      assert(r.box.top < lineY && r.box.bottom > lineY && r.box.right > r.right + 100, 'the line box: ' + JSON.stringify(r.box) + ' line at ' + lineY);
+      assert(r.name.length > 3, 'no name read');
+      await shot(a, 'hd2-10-side');
+      await a.click('.sheet-wrap.side .hd-lv [data-l="3"]');
+      assert(await a.$('.hd-side-line .hd-i.l3'), 'the mark on the page did not change');
+      await a.click('.sheet-wrap.side [data-save]');
+      await until(a, 'saved', () => [...window.A.S.heads.values()].some((h) => h.page === 3 && h.l === 3));
+      await T(400);
+      assert(!(await a.$('.hd-side-line')), 'the line box stayed');
+      await a.evaluate(() => {
+        const h = [...window.A.S.heads.values()].find((x) => x.page === 3 && x.l === 3);
+        return window.A.D.del('heads/' + h.id);
+      });
+      await a.setViewportSize({ width: 390, height: 844 });
+      await T(600);
+      await a.evaluate(() => window.A.R.close());
+      await T(300);
     });
 
     await step('The file\'s own outline joins in (its single top entry, the book itself, left out)', async () => {

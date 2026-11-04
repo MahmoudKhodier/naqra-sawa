@@ -77,6 +77,11 @@
       ar: { one: 'ورد واحد', two: 'وردين', two_nom: 'وردان', few: '{n} أوراد', many: '{n} وردًا', other: '{n} ورد' },
       en: { one: '1 portion', other: '{n} portions' },
     },
+    chapter: {
+      eg: { one: 'فصل واحد', two: 'فصلين', few: '{n} فصول', other: '{n} فصل' },
+      ar: { one: 'فصل واحد', two: 'فصلين', two_nom: 'فصلان', few: '{n} فصول', many: '{n} فصلًا', other: '{n} فصل' },
+      en: { one: '1 chapter', other: '{n} chapters' },
+    },
     note: {
       eg: { one: 'ملاحظة واحدة', two: 'ملاحظتين', few: '{n} ملاحظات', other: '{n} ملاحظة' },
       ar: { one: 'ملاحظة واحدة', two: 'ملاحظتين', two_nom: 'ملاحظتان', few: '{n} ملاحظات', other: '{n} ملاحظة' },

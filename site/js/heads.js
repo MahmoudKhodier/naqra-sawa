@@ -149,10 +149,15 @@
       return p.length ? `${icon('list')}<span>${L('هيبقى جوّه:', 'Goes under:', 'سيكون داخل:')}</span>${p.map((x) => `<b dir="auto">${esc(short(Hd.title(x)))}</b>`).join(' › ')}` : `${icon('list')}<span>${L('في أول الفهرس', 'At the top of the contents', 'في أعلى الفهرس')}</span>`;
     };
     const fixOther = h0 && h0.by !== S.me;
+    // The reader held sideways: a panel down the side away from the marks, the page stays in view with the line
+    // marked on it (so no picture of the line).
+    const ovOf = () => document.querySelector(`#reader .pg-ov[data-p="${page}"]`);
+    const side = A.R && A.R.isOpen() && document.querySelector('#reader .rd.land') && ovOf() ? (((D.book(b) || {}).lang || 'ar') === 'en' ? 'r' : 'l') : '';
     const api = V.sheet({
+      side,
       title: h0 ? `${Hd.icon(h0.l)} ${L(`${Hd.name(h0.l)} • ص ${L.num(page)}`, `${Hd.name(h0.l)} • p. ${page}`)}` : L(`عنوان في صفحة ${L.num(page)}`, `A heading on page ${page}`, `عنوان في صفحة ${L.num(page)}`),
-      cls: 'hd-sheet',
-      html: `${o.crop ? `<div class="hd-line"><img src="${esc(o.crop)}" alt="">${Hd.icon(l, 'hd-line-i')}</div>` : ''}
+      cls: 'hd-sheet' + (side ? ' hd-side' : ''),
+      html: `${o.crop && !side ? `<div class="hd-line"><img src="${esc(o.crop)}" alt="">${Hd.icon(l, 'hd-line-i')}</div>` : ''}
         <p class="hd-lbl">${L('ده إيه في الكتاب؟', 'What is it in the book?', 'ما هو في الكتاب؟')}</p>
         <div class="hd-lv" role="radiogroup">${[1, 2, 3, 4].map((k) => `<button type="button" role="radio" aria-checked="${k === l}" class="${k === l ? 'on' : ''}" data-l="${k}">${Hd.icon(k)}<b>${Hd.name(k)}</b><small>${Hd.under(k)}</small></button>`).join('')}</div>
         <p class="hd-path" id="hd-path">${pathHtml()}</p>
@@ -160,9 +165,31 @@
         <input id="hd-name" class="hd-in" dir="auto" maxlength="${Hd.MAX}" autocomplete="off" value="${esc(h0 ? h0.t : o.text || '')}" placeholder="${L('مثلًا: الفصل الأول: …', 'e.g. Chapter 1: …', 'مثلًا: الفصل الأول: …')}">
         <p class="hd-hint">${icon('info')}<span>${h0 ? (fixOther ? L(`حطّه ${D.name(h0.by)}. إنت مشرف فتقدر تصلّحه.`, `Added by ${D.name(h0.by)}. You're an admin, so you can fix it.`, `أضافه ${D.name(h0.by)}. أنت مشرف فيمكنك تصحيحه.`) : L('الاسم ده بيظهر في الفهرس وفي خلاصة الورد.', 'This name shows in the contents and in portion takeaways.', 'يظهر هذا الاسم في الفهرس وفي خلاصة الورد.')) : o.text ? L('الاسم اتكتب لوحده من السطر ده. تقدر تعدّله، أو تسيبه فاضي وتكتبه بعدين لما تدوس على العلامة.', 'The name was read from this line. Change it, or leave it empty and write it later by tapping the mark.', 'كُتب الاسم من هذا السطر. يمكنك تعديله، أو تركه فارغًا وكتابته لاحقًا بالضغط على العلامة.') : L('تقدر تسيب الاسم فاضي وتكتبه بعدين لما تدوس على العلامة.', 'You can leave the name empty and write it later by tapping the mark.', 'يمكنك ترك الاسم فارغًا وكتابته لاحقًا بالضغط على العلامة.')}</span></p>
         <div class="row-btns end hd-btns">${h0 && Hd.canFix(h0) ? `<button type="button" class="btn ghost danger" data-del>${icon('trash')}${L('امسحه', 'Delete', 'احذفه')}</button>` : `<button type="button" class="btn ghost" data-close>${L('إلغاء', 'Cancel')}</button>`}<button type="button" class="btn" data-save>${icon('check')}${h0 ? L('احفظ', 'Save') : L('حطّه', 'Add it', 'أضفه')}${h0 || D.isPrivate(b) ? '' : ` <small class="xp-hint">+${L.num(Hd.XP)} XP</small>`}</button></div>`,
-      onMount: (body) => {
+      onMount: (body, sh) => {
         const inp = body.querySelector('#hd-name');
         if (!h0 && !o.text) setTimeout(() => inp.focus(), 80);
+        if (side) {
+          const box = document.createElement('div');
+          box.className = 'hd-side-line';
+          box.innerHTML = `<span class="hd-side-m" style="left:${side === 'l' ? 95.6 : 4.4}%">${Hd.icon(l, 'hd-side-i')}</span>`;
+          sh.el.parentElement.appendChild(box);
+          const place = () => {
+            const ov = ovOf();
+            const r = ov && ov.getBoundingClientRect();
+            box.hidden = !r || !r.height;
+            if (box.hidden) return;
+            const lh = Math.max(0.022, Math.min(0.06, (+o.lh || 0.026) * 1.5));
+            box.style.cssText = `left:${r.left + r.width * 0.02}px;top:${r.top + r.height * (y - lh / 2)}px;width:${r.width * 0.96}px;height:${r.height * lh}px`;
+          };
+          place();
+          const sc = document.getElementById('rd-scroll');
+          window.addEventListener('resize', place);
+          sc && sc.addEventListener('scroll', place, { passive: true });
+          sh.onClose = () => {
+            window.removeEventListener('resize', place);
+            sc && sc.removeEventListener('scroll', place);
+          };
+        }
         body.addEventListener('click', async (e) => {
           const k = e.target.closest('[data-l]');
           if (k) {
@@ -171,8 +198,8 @@
               x.classList.toggle('on', x === k);
               x.setAttribute('aria-checked', String(x === k));
             });
-            const li = body.querySelector('.hd-line-i');
-            if (li) li.className = `hd-i l${l} hd-line-i`;
+            const li = api.el.parentElement.querySelector('.hd-line-i, .hd-side-i');
+            if (li) li.className = `hd-i l${l} ${li.classList.contains('hd-side-i') ? 'hd-side-i' : 'hd-line-i'}`;
             body.querySelector('#hd-path').innerHTML = pathHtml();
             return;
           }

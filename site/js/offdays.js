@@ -33,6 +33,7 @@
         : w.k === 'extend' ? L(`الورد ${n} بقى ياخد يوم زيادة`, `portion ${w.n} has a day more`, `صار للورد ${n} يوم زيادة`)
         : w.k === 'gap' ? L(`يوم تعويض بعد الورد ${n} 🔄`, `a catch-up day after portion ${w.n} 🔄`, `يوم تعويض بعد الورد ${n} 🔄`)
         : w.k === 'ungap' ? L('يوم التعويض اتشال', 'the catch-up day is gone', 'أُزيل يوم التعويض')
+        : w.k === 'replan' && w.ch ? L(`الأوراد من ${n} اتقسّمت على الفصول`, `portions from ${w.n} split by chapter`, `قُسّمت الأوراد من ${n} على الفصول`)
         : w.k === 'replan' ? L(`الأوراد من ${n} اتقسّمت من جديد${w.per ? ` (${L.count(w.per, 'page')} في اليوم)` : ''}`, `portions from ${w.n} re-split${w.per ? ` (${w.per} pages a day)` : ''}`, `أُعيد تقسيم الأوراد من ${n}${w.per ? ` (${L.count(w.per, 'page')} في اليوم)` : ''}`)
         : L('الخطة اتعدّلت', 'the plan changed', 'عُدّلت الخطة');
       const end = o.end0 && o.end1 && o.end0 !== o.end1 ? L(` — آخر يوم بقى ${dayName(o.end1)} بدل ${dayName(o.end0)}`, ` — the last day is now ${dayName(o.end1)} instead of ${dayName(o.end0)}`, ` — صار آخر يوم ${dayName(o.end1)} بدل ${dayName(o.end0)}`) : '';

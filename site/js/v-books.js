@@ -301,8 +301,14 @@
         <div class="wch-f"><small>${doneAll ? L('خلّصته ✓', 'Done ✓', 'أنهيته ✓') : [here && read < total ? L(`فاضل ${L.count(total - read, 'page')}`, `${total - read} pages left`, `بقي ${L.count(total - read, 'page')}`) : L.count(total, 'page'), last ? L(`يخلص ${L.dayShort(last.due)}`, `ends ${L.dayShort(last.due)}`, `ينتهي ${L.dayShort(last.due)}`) : '', subs ? L(subs === 1 ? 'مبحث واحد' : subs === 2 ? 'مبحثين' : `${L.num(subs)} ${subs <= 10 ? 'مباحث' : 'مبحث'}`, `${subs} section${subs > 1 ? 's' : ''}`, subs === 1 ? 'مبحث واحد' : subs === 2 ? 'مبحثان' : `${L.num(subs)} ${subs <= 10 ? 'مباحث' : 'مبحثًا'}`) : ''].filter(Boolean).join(' • ')}</small>${inside.length ? `<span class="wl-avs">${inside.slice(0, 4).map((u) => D.avatar(u, 'xs')).join('')}${inside.length > 4 ? `<i>+${L.num(inside.length - 4)}</i>` : ''}</span>` : ''}</div>
       </section>`;
     });
-    return `<div class="wchs">${cards.join('')}</div>`;
+    const k0 = Math.max(0, ws.indexOf(G.myCurrent(b) || ws[0]));
+    const tool = V.canPlan(b) && ws.length ? `<button class="btn ghost sm wch-split" data-act="plan-bych" data-b="${esc(b.id)}" data-k="${k0}">${icon('layers')}${L(`قسّم الأوراد على الفصول من الورد ${L.num(ws[k0].n)}`, `Split the portions by chapter from portion ${ws[k0].n}`, `قسّم الأوراد على الفصول من الورد ${L.num(ws[k0].n)}`)}</button>` : '';
+    return `${tool}<div class="wchs">${cards.join('')}</div>`;
   }
+  V.actions['plan-bych'] = (a) => {
+    const b = S.books.get(a.dataset.b);
+    if (b && V.canPlan(b)) V.replan(b, +a.dataset.k || 0, { by: 'ch' });
+  };
   /* My portion now (or the last one): its pages, how far I got, when it's due, who finished it. */
   function nowCard(b, ws, members) {
     const { myCur, prog, fins } = planCtx(b, members);
@@ -618,15 +624,36 @@
     const f = opts.nf || 'all';
     let list = [...S.notes.values()].filter((n) => n.b === b.id && n.kind !== 'take');
     if (f !== 'all') list = list.filter((n) => n.kind === f);
+    const chs = chaptersOf(b);
+    const ch = opts.nc ? chs.find((x) => x.c.id === opts.nc) : null;
+    if (ch) list = list.filter((n) => n.page >= ch.from && n.page <= ch.to);
     const sort = opts.ns || 'page';
     list.sort((x, y) => (sort === 'page' ? x.page - y.page || String(x.at).localeCompare(String(y.at)) : String(y.at).localeCompare(String(x.at))));
     const chip = (k, t) => `<button class="chip${f === k ? ' on' : ''}" data-act="notes-f" data-b="${esc(b.id)}" data-f="${k}">${t}</button>`;
     return `<div class="notes-bar"><div class="chips">${chip('all', L('الكل', 'All'))}${chip('quote', L('اقتباسات', 'Quotes'))}${chip('q', L('أسئلة', 'Questions'))}${chip('note', L('ملاحظات', 'Notes'))}${chip('hl', L('تظليلات', 'Highlights'))}</div>
-      <button class="pill ghost" data-act="notes-s" data-b="${esc(b.id)}">${icon(sort === 'page' ? 'list' : 'clock')}<span>${sort === 'page' ? L('بالصفحة', 'By page') : L('الأحدث', 'Newest')}</span></button></div>
+      <div class="notes-sub"><button class="pill ghost" data-act="notes-s" data-b="${esc(b.id)}">${icon(sort === 'page' ? 'list' : 'clock')}<span>${sort === 'page' ? L('بالصفحة', 'By page') : L('الأحدث', 'Newest')}</span></button>${chs.length ? `<button class="pill ghost notes-ch${ch ? ' on' : ''}" data-act="notes-ch" data-b="${esc(b.id)}">${A.Hd.icon(1)}<span dir="auto">${ch ? esc(A.Hd.short(A.Hd.title(ch.c))) : L('كل الفصول', 'All chapters', 'كل الفصول')}</span></button>` : ''}</div></div>
       ${list.length ? `<div class="ngrid">${list.map((n) => V.noteCard(n)).join('')}</div>` : V.empty(L('مفيش ملاحظات هنا لسه', 'No notes here yet', 'لا توجد ملاحظات هنا بعد'), L('افتح الكتاب واستخدم «ظلّل» أو «ملاحظة» من تحت.', 'Open the book and use Highlight or Note at the bottom.', 'افتح الكتاب واستخدم «ظلّل» أو «ملاحظة» في الأسفل.'), `<button class="btn" data-act="read" data-b="${esc(b.id)}">${L('افتح الكتاب', 'Open the book')}</button>`)}`;
   }
-  V.actions['notes-f'] = (a) => V.go('book-' + a.dataset.b, Object.assign({}, V.state.opts, { tab: 'notes', nf: a.dataset.f }));
-  V.actions['notes-s'] = (a) => V.go('book-' + a.dataset.b, Object.assign({}, V.state.opts, { tab: 'notes', ns: (V.state.opts.ns || 'page') === 'page' ? 'new' : 'page' }));
+  // the notes' filters change in place, like the tabs
+  const notesOpts = (b, patch) => {
+    V.state.opts = Object.assign({}, V.state.opts, { tab: 'notes' }, patch);
+    if (V.state.route === 'book-' + b) V.render();
+    else V.go('book-' + b, V.state.opts);
+  };
+  V.actions['notes-f'] = (a) => notesOpts(a.dataset.b, { nf: a.dataset.f });
+  V.actions['notes-s'] = (a) => notesOpts(a.dataset.b, { ns: (V.state.opts.ns || 'page') === 'page' ? 'new' : 'page' });
+  V.actions['notes-ch'] = (a) => {
+    const b = S.books.get(a.dataset.b);
+    if (!b) return;
+    const chs = chaptersOf(b);
+    const cur = V.state.opts.nc || '';
+    V.menu(
+      [{ ic: cur ? 'blank' : 'check', cls: cur ? '' : 'on', t: L('كل الفصول', 'All chapters', 'كل الفصول'), fn: () => notesOpts(b.id, { nc: '' }) }].concat(
+        chs.map((x) => ({ ic: cur === x.c.id ? 'check' : 'blank', cls: cur === x.c.id ? 'on' : '', t: `${esc(A.Hd.title(x.c))} <small>${L('ص', 'p.')} ${L.num(x.from)}–${L.num(x.to)}</small>`, fn: () => notesOpts(b.id, { nc: x.c.id }) })),
+      ),
+      L('ملاحظات فصل', 'Notes of a chapter', 'ملاحظات فصل'),
+    );
+  };
 
   function peopleTab(b) {
     const ws = G.wirds(b);
@@ -767,15 +794,33 @@
   const MODES = ['roll', 'next', 'spread'];
 
   /* ---------- the planner's tools on a portion ---------- */
+  /* The book's chapters (level 1 of «الفهرس»), each with its last page. */
+  const chaptersOf = (b) => {
+    const chs = A.Hd ? A.Hd.list(b.id).filter((h) => h.l === 1) : [];
+    const N = b.pages || 1;
+    return chs.map((c, i) => ({ c, from: c.p, to: (chs[i + 1] ? chs[i + 1].p : N + 1) - 1 }));
+  };
+  V.chaptersOf = chaptersOf;
+  /* Where portion w's chapter ends, when that's not already its end (and not past the plan). */
+  const chapterEndFor = (b, ws, k) => {
+    const w = ws[k];
+    const ch = chaptersOf(b).find((x) => w.from >= x.from && w.from <= x.to);
+    if (!ch || ch.to === w.to || ch.to < w.from) return null;
+    const last = ws.length - 1;
+    if (k < last && ch.to >= ws[last].to) return null;
+    return ch;
+  };
   function planTools(b, w) {
     const ws = G.wirds(b);
     const k = ws.findIndex((x) => x.id === w.id);
+    const che = chapterEndFor(b, ws, k);
     const btn = (act, ic, t) => `<button type="button" class="pill ghost" data-act="${act}" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-close>${ic}<span>${t}</span></button>`;
     return `<div class="ws-plan"><b>${L('عدّل في الخطة', 'Change the plan', 'عدّل الخطة')}</b><div>
       ${btn('wird-pages', icon('edit'), L('صفحاته', 'Its pages', 'صفحاته'))}
       ${btn('wird-extend', icon('calendar'), L('يوم زيادة ليه', 'A day more for it', 'يوم زيادة له'))}
       ${k < ws.length - 1 ? btn('wird-gap', '🔄', L('يوم تعويض بعده', 'A catch-up day after it', 'يوم تعويض بعده')) : ''}
       ${btn('wird-replan', icon('layers'), L('قسّم الباقي من هنا', 'Re-split from here', 'أعد تقسيم الباقي من هنا'))}
+      ${che ? btn('wird-chend', A.Hd.icon(1), L(`يخلص مع آخر الفصل (ص ${L.num(che.to)})`, `End with the chapter (p. ${che.to})`, `ينتهي مع آخر الفصل (ص ${L.num(che.to)})`)) : ''}
     </div></div>`;
   }
   /* Portion k now ends on `due`; the ones after follow, keeping the reading days left empty between them
@@ -871,7 +916,27 @@
     const cal = U.diffDays(ws0[k].start, ws0[k].due) + 1;
     const step = (s) => G.wirdEnd(s, len, cal >= 7 ? cal : len);
     let sizes;
-    if (o.by === 'end') {
+    if (o.by === 'ch' && o.chs && o.chs.length) {
+      // each chapter (its part from F to E) in portions of about o.per pages, none crossing a chapter's end;
+      // a chapter shorter than half a portion joins the one before it
+      sizes = [];
+      const cuts = [...new Set([...o.chs.map((x) => x.to).filter((t) => t >= F && t < E), E])].sort((a, c) => a - c);
+      let from = F;
+      const parts = [];
+      for (const t of cuts) {
+        if (t >= from) parts.push(t - from + 1);
+        from = t + 1;
+      }
+      const per = Math.max(1, o.per || 10);
+      for (const n of parts) {
+        if (sizes.length && n < Math.ceil(per / 2)) {
+          sizes[sizes.length - 1] += n;
+          continue;
+        }
+        const m = Math.max(1, Math.round(n / per));
+        for (let i = 0; i < m; i++) sizes.push(Math.floor(n / m) + (i < n % m ? 1 : 0));
+      }
+    } else if (o.by === 'end') {
       // how many portions fit from its start to the day chosen
       let n = 0;
       for (let s = ws0[k].start, i = 0; i < 2000; i++) {
@@ -908,23 +973,33 @@
     });
     return out;
   };
+  // «يخلص مع آخر الفصل»: its pages sheet with the chapter's last page as its end (the planner picks where the
+  // difference goes, as with any change of pages)
+  V.actions['wird-chend'] = (a) => {
+    const p = portionAt(a);
+    const ch = p && chapterEndFor(p.b, p.ws, p.k);
+    if (ch) V.wirdPages(p.b, p.k, { to: ch.to });
+  };
   V.actions['wird-replan'] = (a) => {
     const p = portionAt(a);
     if (p) V.replan(p.b, p.k);
   };
-  V.replan = (b, k) => {
+  V.replan = (b, k, preset = {}) => {
     const ws0 = G.wirds(b);
     const last = ws0.length - 1;
     const R = ws0[last].to - ws0[k].from + 1;
-    const o = { by: U.store.get('replanBy', 'per') === 'end' ? 'end' : 'per', per: G.typSize(ws0.slice(k)) || 10, end: ws0[last].due };
+    const chs = chaptersOf(b).filter((x) => x.to >= ws0[k].from && x.from <= ws0[last].to);
+    const by0 = preset.by || U.store.get('replanBy', 'per');
+    const o = { by: by0 === 'end' ? 'end' : by0 === 'ch' && chs.length ? 'ch' : 'per', per: G.typSize(ws0.slice(k)) || 10, end: ws0[last].due, chs };
     const html = () => {
       const ws = V.replanFrom(ws0, k, o);
       const mine = ws.slice(k);
       const sz = mine.map((w) => w.to - w.from + 1);
       const lo = Math.min(...sz), hi = Math.max(...sz);
       return `<p class="muted">${L(`من الورد ${L.num(ws0[k].n)} (ص ${L.num(ws0[k].from)}) لآخر الخطة (ص ${L.num(ws0[last].to)}): ${L.count(R, 'page')}، من ${esc(L.day(ws0[k].start))}.`, `From portion ${ws0[k].n} (p. ${ws0[k].from}) to the plan's end (p. ${ws0[last].to}): ${R} pages, from ${esc(L.day(ws0[k].start))}.`, `من الورد ${L.num(ws0[k].n)} (ص ${L.num(ws0[k].from)}) إلى آخر الخطة (ص ${L.num(ws0[last].to)}): ${L.count(R, 'page')}، من ${esc(L.day(ws0[k].start))}.`)}</p>
-        <div class="segs rp-by" role="tablist"><button type="button" class="${o.by === 'per' ? 'on' : ''}" data-by="per">${L('صفحات في اليوم', 'Pages a day', 'صفحات في اليوم')}</button><button type="button" class="${o.by === 'end' ? 'on' : ''}" data-by="end">${L('نخلّص يوم', 'Finish on', 'ننهي يوم')}</button></div>
-        ${o.by === 'per'
+        <div class="segs rp-by" role="tablist"><button type="button" class="${o.by === 'per' ? 'on' : ''}" data-by="per">${L('صفحات في اليوم', 'Pages a day', 'صفحات في اليوم')}</button><button type="button" class="${o.by === 'end' ? 'on' : ''}" data-by="end">${L('نخلّص يوم', 'Finish on', 'ننهي يوم')}</button>${chs.length ? `<button type="button" class="${o.by === 'ch' ? 'on' : ''}" data-by="ch">${L('على الفصول', 'By chapter', 'على الفصول')}</button>` : ''}</div>
+        ${o.by === 'ch' ? `<p class="muted sm rp-ch">${A.Hd.icon(1)}<span>${L(`ولا ورد يعدّي آخر فصل: ${L.count(chs.length, 'chapter')}، والفصل الطويل بيتقسم أوراد بالحجم ده.`, `No portion runs past a chapter's end: ${chs.length} chapters, a long one split into portions of this size.`, `لا ورد يتخطى آخر فصل: ${L.count(chs.length, 'chapter')}، والفصل الطويل يُقسم أورادًا بهذا الحجم.`)}</span></p>` : ''}
+        ${o.by === 'per' || o.by === 'ch'
           ? `<div class="wp-step"><span>${L('كل ورد', 'Each portion', 'كل ورد')}</span><div><button type="button" class="ib round" data-per="-1" ${o.per > 1 ? '' : 'disabled'}>−</button><b>${L.count(o.per, 'page')}</b><button type="button" class="ib round" data-per="1" ${o.per < R ? '' : 'disabled'}>+</button></div></div>`
           : `<label class="wp-step"><span>${L('آخر يوم', 'Last day', 'آخر يوم')}</span><input type="date" id="rp-end" min="${ws0[k].start}" value="${o.end}"></label>`}
         <p class="rp-sum"><b>${L(`${L.count(mine.length, 'wird')}، ${lo === hi ? `كل ورد ${L.count(lo, 'page')}` : `من ${L.num(lo)} لـ ${L.count(hi, 'page')}`}`, `${mine.length} portions, ${lo === hi ? `${lo} pages each` : `${lo}–${hi} pages`}`, `${L.count(mine.length, 'wird')}، ${lo === hi ? `كل ورد ${L.count(lo, 'page')}` : `من ${L.num(lo)} إلى ${L.count(hi, 'page')}`}`)}</b><small>${L(`آخر يوم ${esc(L.day(ws[ws.length - 1].due))}`, `Last day ${esc(L.day(ws[ws.length - 1].due))}`, `آخر يوم ${esc(L.day(ws[ws.length - 1].due))}`)}${ws[ws.length - 1].due !== ws0[last].due ? ` • ${L(`كان ${esc(L.day(ws0[last].due))}`, `was ${esc(L.day(ws0[last].due))}`, `كان ${esc(L.day(ws0[last].due))}`)}` : ''}</small></p>
@@ -958,7 +1033,7 @@
           const ws = V.replanFrom(ws0, k, o);
           api.close();
           const mine = ws.slice(k);
-          await V.savePlan(b, ws, { k: 'replan', n: ws0[k].n, per: o.by === 'per' ? o.per : 0 }, L(`الأوراد من ${L.num(ws0[k].n)} اتقسّمت: ${L.count(mine.length, 'wird')}`, `Re-split from portion ${ws0[k].n}: ${mine.length} portions`, `أُعيد تقسيم الأوراد من ${L.num(ws0[k].n)}: ${L.count(mine.length, 'wird')}`));
+          await V.savePlan(b, ws, { k: 'replan', n: ws0[k].n, per: o.by !== 'end' ? o.per : 0, ch: o.by === 'ch' ? 1 : 0 }, o.by === 'ch' ? L(`الأوراد من ${L.num(ws0[k].n)} اتقسّمت على الفصول: ${L.count(mine.length, 'wird')}`, `Re-split by chapter from portion ${ws0[k].n}: ${mine.length} portions`, `أُعيد تقسيم الأوراد على الفصول من ${L.num(ws0[k].n)}: ${L.count(mine.length, 'wird')}`) : L(`الأوراد من ${L.num(ws0[k].n)} اتقسّمت: ${L.count(mine.length, 'wird')}`, `Re-split from portion ${ws0[k].n}: ${mine.length} portions`, `أُعيد تقسيم الأوراد من ${L.num(ws0[k].n)}: ${L.count(mine.length, 'wird')}`));
         });
       },
     });
