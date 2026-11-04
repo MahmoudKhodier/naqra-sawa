@@ -448,6 +448,7 @@
         <div class="ws-prog">${V.bar(seen / total, done ? 'jade' : 'lapis')}<small>${L(`قريت ${L.num(seen)} من ${L.count(total, 'page')}`, `${seen} of ${total} pages read`, `قرأت ${L.num(seen)} من ${L.count(total, 'page')}`)}</small></div>
         ${done ? '' : `<p class="ws-time">${icon('clock')}${seen && seen < total ? L(`فاضل حوالي ${G.timeText(G.minutesFor(total - seen))}`, `About ${G.timeText(G.minutesFor(total - seen))} left`, `بقي نحو ${G.timeText(G.minutesFor(total - seen))}`) : L(`الورد ده حوالي ${G.timeText(G.minutesFor(total))}`, `This portion takes about ${G.timeText(G.minutesFor(total))}`, `هذا الورد نحو ${G.timeText(G.minutesFor(total))}`)}</p>`}
         ${!done && seen && D.canWrite() ? `<button class="lnk sm ws-edit" data-act="wird-uncount" data-b="${esc(b.id)}" data-w="${esc(w.id)}" data-close>${icon('close')}${L(`مقرتش فيه؟ شيل الصفحات اللي اتحسبت (${L.num(seen)})`, `Didn't read it? Remove the counted pages (${seen})`, `لم تقرأ فيه؟ أزل الصفحات المحسوبة (${L.num(seen)})`)}</button>` : ''}
+        ${A.Hd ? A.Hd.coverHtml(b.id, w, { ahead: !done && !seen }) : ''}
         ${V.canPlan(b) ? planTools(b, w) : ''}
         <div class="ws-fins"><b>${L('خلّصوه', 'Finished', 'أنهوه')}</b>${fins.length ? `<span class="mavs">${fins.map((x, i) => `<span class="fin${i === 0 ? ' first' : ''}" title="${esc(D.name(x.u))}">${D.avatar(x.u, 'sm')}</span>`).join('')}</span><small>${L.num(fins.length)}/${L.num(members.length)}</small>` : `<small>${L('لسه محدش', 'Nobody yet', 'لا أحد بعد')}</small>`}</div>
         <div class="row-btns">
@@ -611,6 +612,7 @@
     if (!b) return;
     const items = [];
     if (V.canPlan(b)) items.push({ ic: 'calendar', t: L('خطة القراءة', 'Reading plan'), fn: () => V.planWizard(b.id) });
+    if (A.Hd) items.push({ ic: 'list', t: L('الفهرس', 'Contents'), fn: () => A.Hd.sheet(b.id) });
     if (D.canWrite()) {
       items.push({ ic: 'edit', t: L('عدّل بيانات الكتاب', 'Edit book details'), fn: () => V.editBook(b.id) });
     }
@@ -1686,6 +1688,7 @@
     if (!b) return;
     const p = D.prog(b.id);
     const items = fileAway(b) ? [] : [{ ic: 'play', t: L('افتح الكتاب', 'Open the book'), fn: () => A.R.open(b.id) }];
+    if (A.Hd && A.Hd.list(b.id).length) items.push({ ic: 'list', t: L('الفهرس', 'Contents'), fn: () => A.Hd.sheet(b.id) });
     if (D.canWrite()) {
       items.push({ ic: 'edit', t: L('غيّر الاسم', 'Rename', 'غيّر الاسم'), fn: () => V.renamePrivate(b.id) });
       if (p && p.finished) items.push({ ic: 'books', t: L('حطه على رفّي كـ«قرأته»', 'Put it on my shelf as read', 'ضعه على رفّي كـ«قرأته»'), fn: () => V.shelvePrivate(b.id) });

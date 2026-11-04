@@ -93,6 +93,8 @@
     const mp = mainPortion();
     const where = mp ? { b: mp.b.id, w: mp.w.id } : {};
     out.push(Object.assign({ k: 'hlW' }, where), Object.assign({ k: 'askW' }, where));
+    // «الفهرس»: today's portion has no heading of its own yet (from the day this shipped: older apps can't show it)
+    if (mp && A.Hd && today() >= G.HEAD_Q && !A.Hd.cover(mp.b.id, mp.w).inside.length) out.push(Object.assign({ k: 'headW' }, where));
     return out;
   }
   function bonusQuest(r) {
@@ -118,7 +120,7 @@
   }
 
   /* ---------- the day's set: picked once, kept in my private doc ---------- */
-  const ready = () => ['members', 'books', 'prog', 'notes', 'shelf', 'pokes', 'priv'].every((k) => S.loaded[k]);
+  const ready = () => ['members', 'books', 'prog', 'notes', 'shelf', 'pokes', 'priv', 'heads'].every((k) => S.loaded[k]);
   let local = null; // until the private doc has it
   Q.state = () => {
     const day = U.today();
@@ -261,6 +263,14 @@
         const mp = mainPortion();
         const bb = b || (mp && mp.b);
         o.act = bb ? { read: bb.id, p: resumeIn(bb, w || (mp && mp.w)) } : { go: 'books' };
+        break;
+      }
+      case 'headW': {
+        const { b, w } = portionOf(x);
+        o.ic = 'list';
+        o.have = [...S.heads.values()].some((h) => h.by === S.me && U.isoKey(h.at) === today() && (!b || h.b === b.id) && (!w || (h.page >= w.from && h.page <= w.to))) ? 1 : 0;
+        o.text = w ? L(`حط عنوان للفهرس في الورد ${wn(w)}`, `Add a heading to the contents in portion ${w.n}`, `أضف عنوانًا للفهرس في الورد ${wn(w)}`) : L('حط عنوان للفهرس في الكتاب اللي بتقراه', 'Add a heading to the contents of your book', 'أضف عنوانًا لفهرس الكتاب الذي تقرؤه');
+        o.act = b ? { read: b.id, p: resumeIn(b, w) } : { go: 'books' };
         break;
       }
       case 'focus': {

@@ -141,6 +141,7 @@
       : '';
     return `<section class="card wcard hero${behind ? ' behind' : ''}">
       ${head(`${behind ? `<span class="tag late">${L(`متأخر ${L.count(bh.late.length, 'wird')}`, `${bh.late.length} portion${bh.late.length > 1 ? 's' : ''} behind`, `متأخر بـ${L.count(bh.late.length, 'wird')}`)}</span>` : ''}<p class="hi-w">${L(`الورد ${L.num(w.n)} • ص ${L.num(w.from)}–${L.num(w.to)}`, `Portion ${w.n} • p. ${w.from}–${w.to}`)}</p>
+        ${A.Hd && A.Hd.portionLine(b.id, w) ? `<p class="hi-hd">${icon('list')}<span dir="auto">${esc(A.Hd.portionLine(b.id, w))}</span></p>` : ''}
         <p class="hi-sub">${sub}</p>
         <p class="due ${st}">${L.due(w.due)}</p>${G.gapDay(b) ? `<p class="hi-gap">🔄 ${behind ? L('النهارده يوم تعويض: الحق اللي فاتك', 'Today is a catch-up day: catch up', 'اليوم يوم تعويض: الحق ما فاتك') : L('النهارده يوم تعويض: مفيش ورد جديد', 'Today is a catch-up day: no new portion', 'اليوم يوم تعويض: لا ورد جديد')}</p>` : ''}`)}
       ${V.forecastLine(b, 'hero-fc')}
@@ -660,6 +661,8 @@
     if (x.kind === 'wird') {
       const first = G.firstFinisher(x.b.id, x.w.id) === x.u;
       txt = L(`• الورد ${L.num(x.w.n)} من «${esc(x.b.title)}» خلص ✓${first ? ' — أول من خلّصه!' : ''}`, `finished portion ${x.w.n} of “${esc(x.b.title)}”${first ? ' — first!' : ''}`, `• انتهى الورد ${L.num(x.w.n)} من «${esc(x.b.title)}» ✓${first ? ' — أول من أنهاه!' : ''}`);
+      const hd = A.Hd && A.Hd.portionLine(x.b.id, x.w);
+      if (hd) txt += ` <small class="feed-hd">(${esc(hd)})</small>`;
       ic = 'check';
       cls = first ? 'gold' : 'jade';
     } else if (x.kind === 'book') {

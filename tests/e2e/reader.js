@@ -416,8 +416,10 @@ async function pickOpt(p, act, v) {
       await p.click('.rd [data-act="panel"]');
       await p.click('.rd-panel [data-act="pfilter"][data-f="all"]');
       const items = await p.$$eval('.rp-item', (x) => x.length);
-      const marks = await p.$$eval('.rp-bm-go b', (x) => x.map((e) => e.textContent));
       await H.shot(p, 'r07-panel');
+      await p.click('.rd-panel [data-act="ptab"][data-tab="bm"]');
+      const marks = await p.$$eval('.rp-bm-go b', (x) => x.map((e) => e.textContent));
+      await p.click('.rd-panel [data-act="ptab"][data-tab="notes"]');
       assert(items >= 2, 'notes in panel: ' + items);
       assert(marks.length >= 1, 'no bookmark chip');
       await p.click('.rd [data-act="panel"]');
@@ -657,6 +659,7 @@ async function pickOpt(p, act, v) {
       assert(await p.$('#rd-bm.on'), 'bookmark button not lit');
       assert(await p.$('#rd-scrub .bm-tick'), 'no bookmark mark on the slider');
       await p.click('.rd [data-act="panel"]');
+      await p.click('.rd-panel [data-act="ptab"][data-tab="bm"]');
       await p.click(`.rp-bm [data-act="bm-name"][data-p="${c}"]`);
       await p.waitForSelector('#et-text');
       await p.fill('#et-text', 'تعريف مهم');
@@ -780,10 +783,10 @@ async function pickOpt(p, act, v) {
     await step('Table of contents: lists chapters and jumps to one', async () => {
       await showBars(p);
       await menu(p, 'الفهرس');
-      await p.waitForSelector('.toc-list button', { timeout: 8000 });
-      const rows = await p.$$eval('.toc-list button', (x) => x.map((e) => e.textContent.trim()));
+      await p.waitForSelector('.rd-panel .hd-row', { timeout: 8000 });
+      const rows = await p.$$eval('.rd-panel .hd-row', (x) => x.map((e) => e.textContent.trim()));
       await H.shot(p, 'r08-toc');
-      await p.click('.toc-list button:has-text("Hijra")');
+      await p.click('.rd-panel .hd-row:has-text("Hijra")');
       const trail = [];
       for (let i = 0; i < 8; i++) {
         trail.push(await cur(p));
@@ -799,8 +802,8 @@ async function pickOpt(p, act, v) {
       await menu(p, 'صفحة صفحة');
       await T(700);
       await menu(p, 'الفهرس');
-      await p.waitForSelector('.toc-list button', { timeout: 8000 });
-      await p.click('.toc-list button:has-text("Medina")');
+      await p.waitForSelector('.rd-panel .hd-row', { timeout: 8000 });
+      await p.click('.rd-panel .hd-row:has-text("Medina")');
       const trail = [];
       for (let i = 0; i < 8; i++) {
         trail.push(await cur(p));

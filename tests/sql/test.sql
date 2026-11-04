@@ -572,6 +572,40 @@ select t.throws(format($$insert into docs (circle_id, col, id, data) values (t.i
 select t.lives(format($$insert into docs (circle_id, col, id, data) values (t.id('c1'), 'offs', 'go2',
                  '{"by": "%s", "add": true, "date": "2026-12-01"}')$$, t.v('B')), 'guard: day-off news in your own name');
 commit;
+-- «الفهرس»: anyone adds a heading in their own name; its author, the owner and admins fix or delete it
+begin;
+select t.login('B');
+select t.lives(format($$insert into docs (circle_id, col, id, data) values (t.id('c1'), 'heads', 'gh1',
+                 '{"by": "%s", "b": "bk", "page": 3, "y": 0.2, "l": 2, "t": "المبحث الأول"}')$$, t.v('B')), 'heads: B adds a heading');
+select t.throws(format($$insert into docs (circle_id, col, id, data) values (t.id('c1'), 'heads', 'gh2',
+                 '{"by": "%s", "b": "bk", "page": 4, "y": 0.2, "l": 1, "t": "x"}')$$, t.v('D')), '42501', 'heads: not in someone else''s name');
+select t.lives($$select doc_merge(t.id('c1'), 'heads', 'gh1', '{"t": "المبحث الأول: البيعة"}')$$, 'heads: B renames own heading');
+commit;
+begin;
+select t.login('D');  -- admin
+select t.lives($$select doc_merge(t.id('c1'), 'heads', 'gh1', '{"l": 3, "t": "المطلب الأول"}')$$, 'heads: an admin fixes B''s heading');
+select t.throws(format($$select doc_merge(t.id('c1'), 'heads', 'gh1', '{"by": "%s"}')$$, t.v('D')), '42501', 'heads: an admin cannot take over the author');
+select t.lives(format($$insert into docs (circle_id, col, id, data) values (t.id('c1'), 'heads', 'gh3',
+                 '{"by": "%s", "b": "bk", "page": 5, "y": 0.5, "l": 4, "t": "الفرع"}')$$, t.v('D')), 'heads: D adds one');
+commit;
+begin;
+select t.login('B');  -- member
+select t.throws($$select doc_merge(t.id('c1'), 'heads', 'gh3', '{"t": "x"}')$$, '42501', 'heads: a member cannot rename someone else''s');
+select t.throws($$update docs set deleted = true where circle_id = t.id('c1') and col = 'heads' and id = 'gh3'$$, '42501',
+                'heads: a member cannot delete someone else''s');
+select t.is((select data ->> 't' from docs where circle_id = t.id('c1') and col = 'heads' and id = 'gh1'), 'المطلب الأول',
+            'heads: the admin''s fix is kept');
+commit;
+begin;
+select t.login('A');  -- owner
+select t.is(t.affected($$update docs set deleted = true where circle_id = t.id('c1') and col = 'heads' and id = 'gh3'$$), 1::bigint,
+            'heads: the owner deletes one');
+commit;
+begin;
+select t.login('B');
+select t.throws(format($$update docs set deleted = false, data = '{"by": "%s", "b": "bk", "page": 5, "y": 0.5, "l": 4, "t": "y"}'
+                  where circle_id = t.id('c1') and col = 'heads' and id = 'gh3'$$, t.v('D')), '42501', 'heads: a deleted id comes back only in your own name');
+commit;
 
 begin;
 select t.login('A');  -- A owns circle c1: may delete (moderate), not rewrite

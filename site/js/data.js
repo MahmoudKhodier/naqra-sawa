@@ -33,6 +33,8 @@
     throws: new Map(), // things thrown at friends (play.js): id → {by, to, it, at}
     offs: new Map(), // days off set or taken back (offdays.js): id → {by, add, date | wd, at}
     evrx: new Map(), // reactions to «خلّص الورد/الكتاب» in the news (rx.js): id → {k, e, by, at}
+    heads: new Map(), // «الفهرس»: headings put in books while reading (heads.js): id → {b, page, y, l, t, by, at}
+    myHeads: new Map(), // the same in my private books: data/users/<me>/my/heads
     gone: new Map(), // removed books: just their portions, so the XP earned on them stays
     myBooks: new Map(), // «مكتبتي الخاصة»: books only I can see (data/users/<me>/my/books)
     myProg: new Map(), // my progress in them (data/users/<me>/my/prog), never in the circle's prog
@@ -137,10 +139,12 @@
     listen(db.collection('throws').orderBy('at', 'desc').limit(5000), 'throws', (s) => (S.throws = toMap(s)));
     listen(db.collection('offs'), 'offs', (s) => (S.offs = toMap(s))); // days off set or taken back (offdays.js)
     listen(db.collection('evrx'), 'evrx', (s) => (S.evrx = toMap(s))); // reactions to news events (rx.js)
+    listen(db.collection('heads'), 'heads', (s) => (S.heads = toMap(s))); // «الفهرس» (heads.js)
     listen(db.doc(`data/users/${S.me}/priv`), 'priv', (s) => (S.priv = s.exists ? s.data() : null));
     listen(db.collection(`data/users/${S.me}/my/books`), 'myBooks', (s) => (S.myBooks = toMap(s)));
     listen(db.collection(`data/users/${S.me}/my/prog`), 'myProg', (s) => (S.myProg = toMap(s)));
     listen(db.collection(`data/users/${S.me}/my/notes`), 'myNotes', (s) => (S.myNotes = toMap(s)));
+    listen(db.collection(`data/users/${S.me}/my/heads`), 'myHeads', (s) => (S.myHeads = toMap(s)));
   }
 
   /* ---------- writes (one at a time per document) ---------- */

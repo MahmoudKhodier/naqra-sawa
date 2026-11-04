@@ -96,6 +96,12 @@
     const gs = [...by.values()].sort((a, b) => b.at.localeCompare(a.at));
     for (const g of gs) {
       g.notes.sort((a, b) => pos(a) - pos(b) || String(a.at).localeCompare(String(b.at)));
+      // «الفهرس»: the heading each note is under (its deepest one)
+      if (A.Hd && g.info.book)
+        for (const n of g.notes) {
+          const path = n.page ? A.Hd.pathAt(g.info.key, n.page, n.rect ? n.rect.y || 0 : 1) : [];
+          if (path.length) n.hd = path.map((h) => ({ id: h.id, l: h.l, t: A.Hd.title(h) }));
+        }
       const ws = portions(g.info.book);
       g.ws = ws;
       const parts = new Map();
@@ -125,9 +131,15 @@
       out.push(`📖 ${g.info.title}${g.info.author ? ' — ' + g.info.author : ''}`);
       out.push(`${whoLine(o)} • ${L.count(g.notes.length, 'note')} • ${L.day(U.today())}`);
       out.push('');
+      const printed = new Set();
       for (const part of g.parts) {
         if (g.ws.length) out.push(`━━ ${portionTitle(part.w)} ━━`, '');
         for (const n of part.notes) {
+          for (const h of n.hd || []) {
+            if (printed.has(h.id)) continue;
+            printed.add(h.id);
+            out.push(`${'  '.repeat(h.l - 1)}${['', '◆', '●', '○', '•'][h.l] || '•'} ${h.t}`, '');
+          }
           out.push(`• ${[whereOf(n), V.kindLabel(n.kind), n.name].filter(Boolean).join(' — ')}`);
           if (n.text) out.push(n.kind === 'quote' || n.kind === 'hl' ? `«${n.text}»` : n.text);
           else out.push(L('(تظليل من غير كلام)', '(a highlight without words)', '(تظليل دون نص)'));
@@ -158,8 +170,14 @@
           ? { key: i.key, title: i.title, author: i.author, ext: true }
           : { key: i.key, id: i.id, title: i.title, author: i.author, pages: i.pages || 0, fp: i.fp || '', priv: !!i.priv, wirds: g.ws.map((w) => ({ id: w.id, n: w.n, from: w.from, to: w.to })) };
       }),
-      notes: gs.flatMap((g) => g.notes),
+      notes: gs.flatMap((g) => g.notes.map((n) => {
+        const x = Object.assign({}, n);
+        delete x.hd;
+        return x;
+      })),
       stars: gs.flatMap((g) => g.notes.filter((n) => V.isStar(n.id)).map((n) => n.id)),
+      // «الفهرس»: the headings in these books (everyone's; mine come back on restore)
+      heads: A.Hd ? gs.filter((g) => g.info.book).flatMap((g) => A.Hd.hand(g.info.key).map((h) => ({ key: g.info.key, page: h.page, y: h.y, l: h.l, t: h.t || '', by: h.by, name: D.name(h.by), at: h.at || '', mine: h.by === S.me }))) : [],
     };
   }
 
@@ -305,6 +323,7 @@
         ctx.restore();
       }
       const y0 = y;
+      const printed = new Set();
       ctx.font = `700 52px ${BOOK}`;
       for (const ln of lines(ctx, g.info.title, tx1 - tx0).slice(0, 3)) {
         text(ln, firstStrong(ln) === 'rtl' ? tx1 : tx0, y + 56, `700 52px ${BOOK}`, '#1d1a14');
@@ -335,6 +354,34 @@
           y += 92;
         }
         for (const n of part.notes) {
+          for (const hd of n.hd || []) {
+            // the headings the next notes are under, where each starts: its mark and name
+            if (printed.has(hd.id)) continue;
+            printed.add(hd.id);
+            const hs = [0, 30, 27, 25, 24][hd.l] || 24;
+            await ensure(hs * 2.4 + 60);
+            const ind = (hd.l - 1) * 26;
+            const hc = ['', '#9a4a1c', '#2440a0', '#2440a0', '#8a806c'][hd.l];
+            const mx = rtl ? S0 - 8 - ind : S0 + 8 + ind, my = y + hs * 0.75;
+            ctx.save();
+            ctx.translate(mx, my);
+            if (hd.l === 1) ctx.rotate(Math.PI / 4);
+            ctx.fillStyle = hc;
+            ctx.strokeStyle = hc;
+            ctx.lineWidth = 4;
+            if (hd.l === 1) ctx.fillRect(-8, -8, 16, 16);
+            else {
+              ctx.beginPath();
+              ctx.arc(0, 0, hd.l === 4 ? 5 : 9, 0, Math.PI * 2);
+              if (hd.l === 3) ctx.stroke();
+              else ctx.fill();
+            }
+            ctx.restore();
+            ctx.font = `700 ${hs}px ${UI}`;
+            const tl = lines(ctx, hd.t, PW - 2 * M - 60 - ind)[0] || '';
+            text(tl, rtl ? S0 - 34 - ind : S0 + 34 + ind, y + hs, `700 ${hs}px ${UI}`, hd.l === 1 ? '#7a3a16' : '#2b2a33', rtl ? 'rtl' : 'ltr');
+            y += hs * 1.7 + 10;
+          }
           const col = KIND_COL[n.kind] || '#5a6b8c';
           const isBook = n.kind === 'quote' || n.kind === 'hl' || n.kind === 'take';
           const size = isBook ? 32 : 27;
@@ -447,6 +494,52 @@
     }
     page.node.addAnnot(ctx.register(ctx.obj(dict)));
   }
+  /* «الفهرس» as the PDF's own contents (bookmarks), at each heading's line: the file's outline is replaced by
+     the book's contents in the app (which holds it). from = the book page of the file's first page. */
+  function addOutline(doc, list, from) {
+    const { PDFName, PDFHexString } = window.PDFLib;
+    const ctx = doc.context;
+    const pages = doc.getPages();
+    const items = list.filter((h) => h.p - from >= 0 && h.p - from < pages.length);
+    if (!items.length) return 0;
+    const root = ctx.nextRef();
+    const refs = items.map(() => ctx.nextRef());
+    const kids = new Map();
+    const top = [];
+    const stack = [];
+    items.forEach((h, i) => {
+      while (stack.length && items[stack[stack.length - 1]].l >= h.l) stack.pop();
+      const par = stack.length ? stack[stack.length - 1] : -1;
+      if (par < 0) top.push(i);
+      else {
+        if (!kids.has(par)) kids.set(par, []);
+        kids.get(par).push(i);
+      }
+      stack.push(i);
+    });
+    const countOf = (i) => (kids.get(i) || []).reduce((n, k) => n + 1 + countOf(k), 0);
+    const link = (arr, parRef) =>
+      arr.forEach((i, k) => {
+        const h = items[i];
+        const pg = pages[h.p - from];
+        const bx = boxOf(pg, { x: 0, y: Math.max(0, h.y - 0.02), w: 0, h: 0 });
+        const dict = { Title: PDFHexString.fromText(h.t || A.Hd.name(h.l)), Parent: parRef, Dest: [pg.ref, PDFName.of('XYZ'), null, Math.max(bx.y1, bx.y2), null] };
+        if (k > 0) dict.Prev = refs[arr[k - 1]];
+        if (k < arr.length - 1) dict.Next = refs[arr[k + 1]];
+        const ch = kids.get(i);
+        if (ch) {
+          dict.First = refs[ch[0]];
+          dict.Last = refs[ch[ch.length - 1]];
+          dict.Count = h.l === 1 ? countOf(i) : -countOf(i); // chapters open, the rest folded
+        }
+        ctx.assign(refs[i], ctx.obj(dict));
+        if (ch) link(ch, refs[i]);
+      });
+    link(top, root);
+    ctx.assign(root, ctx.obj({ Type: 'Outlines', First: refs[top[0]], Last: refs[top[top.length - 1]], Count: top.length }));
+    doc.catalog.set(PDFName.of('Outlines'), root);
+    return items.length;
+  }
   async function asAnnotated(g, onProg) {
     const b = g.info.book;
     await U.loadScript(U.CDN.pdflib);
@@ -472,6 +565,7 @@
         if (!pg) continue;
         for (const n of ns) annotate(doc, pg, n);
       }
+      if (A.Hd) addOutline(doc, A.Hd.list(b.id).filter((h) => !A.Hd.hidden(h)), from);
       return doc.save();
     };
     if (files.length === 1) {
@@ -753,6 +847,15 @@
         } else if (o.others) out.others.push(item);
         else out.skipOthers++;
       }
+      // my headings in these books that aren't here (a line with one already keeps it)
+      out.heads = [];
+      if (A.Hd && Array.isArray(data.heads) && data.me === S.me)
+        for (const h of data.heads) {
+          const to = h && h.mine && h.by === data.me ? target.get(h.key) : '';
+          if (!to || !D.book(to) || !h.page) continue;
+          if (A.Hd.hand(to).some((x) => x.page === h.page && Math.abs((+x.y || 0) - (+h.y || 0)) < 0.02)) continue;
+          out.heads.push(Object.assign({ to }, h));
+        }
       return out;
     };
     // the switches show only when they change something
@@ -764,6 +867,7 @@
     const html = () => {
       const p = plan();
       const count = p.circle.length + p.mine.length + p.others.length;
+      const nh = p.heads.length;
       return `<div class="imp">
         <p class="imp-from">${icon('download')}<span>${L('نسخة احتياطية', 'A backup', 'نسخة احتياطية')}${data.circle && data.circle.name ? ` ${L('من حلقة', 'from the circle', 'من حلقة')} «${esc(data.circle.name)}»` : ''} • ${esc(L.day(String(data.at || '').slice(0, 10)))}</span></p>
         <ul class="imp-books">${books
@@ -777,9 +881,9 @@
           .join('')}</ul>
         ${anyCircle() ? `<label class="ex-sw"><span>${L('ملاحظاتي اللي كانت للحلقة ترجع للحلقة', 'My notes that were the circle’s go back to the circle', 'ملاحظاتي التي كانت للحلقة تعود إلى الحلقة')}<small>${L('لو قفلتها، هتتحفظ ليك بس', 'If off, they are kept just for you', 'إن أغلقته، تُحفظ لك وحدك')}</small></span><span class="switch"><input type="checkbox" data-tocircle ${o.toCircle ? 'checked' : ''}><i></i></span></label>` : ''}
         ${anyOthers() ? `<label class="ex-sw"><span>${L('ملاحظات الناس التانيين كمان', 'Other people’s notes too', 'ملاحظات الآخرين أيضًا')}<small>${L('بأساميهم، ليك بس — محدش في الحلقة هيشوفها', 'With their names, just for you — nobody in the circle sees them', 'بأسمائهم، لك وحدك — لن يراها أحد في الحلقة')}</small></span><span class="switch"><input type="checkbox" data-others ${o.others ? 'checked' : ''}><i></i></span></label>` : ''}
-        <p class="ex-count${count ? '' : ' none'}">${count ? L(`هيتضاف ${L.count(count, 'note')}`, `${L.count(count, 'note')} to add`, `ستُضاف ${L.count(count, 'note')}`) : L('مفيش حاجة جديدة', 'Nothing new', 'لا جديد')}${p.dup ? `<small>${L(`${L.count(p.dup, 'note')} موجودين أصلًا ومش هيتكرروا`, `${L.count(p.dup, 'note')} already here, not added twice`, `${L.count(p.dup, 'note')} موجودة أصلًا ولن تتكرر`)}</small>` : ''}</p>
+        <p class="ex-count${count || nh ? '' : ' none'}">${count ? L(`هيتضاف ${L.count(count, 'note')}`, `${L.count(count, 'note')} to add`, `ستُضاف ${L.count(count, 'note')}`) : nh ? '' : L('مفيش حاجة جديدة', 'Nothing new', 'لا جديد')}${nh ? `${count ? ' • ' : ''}${L(`${L.num(nh)} ${nh === 1 ? 'عنوان' : 'عناوين'} للفهرس ترجع`, `${nh} heading${nh > 1 ? 's' : ''} back in the contents`, `${L.num(nh)} ${nh === 1 ? 'عنوان' : 'عناوين'} تعود إلى الفهرس`)}` : ''}${p.dup ? `<small>${L(`${L.count(p.dup, 'note')} موجودين أصلًا ومش هيتكرروا`, `${L.count(p.dup, 'note')} already here, not added twice`, `${L.count(p.dup, 'note')} موجودة أصلًا ولن تتكرر`)}</small>` : ''}</p>
         <div class="ex-prog" id="ex-prog"></div>
-        <div class="row-btns end"><button type="button" class="btn ghost" data-close>${L('إلغاء', 'Cancel')}</button><button type="button" class="btn gold" data-run ${count ? '' : 'disabled'}>${icon('upload')}${L('استورد', 'Import', 'استورد')}</button></div>
+        <div class="row-btns end"><button type="button" class="btn ghost" data-close>${L('إلغاء', 'Cancel')}</button><button type="button" class="btn gold" data-run ${count || nh ? '' : 'disabled'}>${icon('upload')}${L('استورد', 'Import', 'استورد')}</button></div>
       </div>`;
     };
     V.sheet({
@@ -862,6 +966,8 @@
       if (arch.length) doc.arch = arch;
       entries.push([D.myNotePath(id), V.clean(doc)]);
     }
+    // my headings in these books, where there isn't one on that line already
+    for (const h of p.heads || []) entries.push([`${A.Hd.col(h.to)}/${D.newId()}`, { b: h.to, page: h.page, y: +h.y || 0, l: U.clamp(+h.l || 1, 1, 4), t: String(h.t || '').slice(0, A.Hd.MAX), by: S.me, at: h.at || U.nowIso() }]);
     await D.setMany(entries, (f) => prog && prog(0.05 + f * 0.9));
     // the stars come back on the notes they were on
     const st = (Array.isArray(data.stars) ? data.stars : []).map((x) => ids.get(x) || (sameCircle && S.notes.has(x) ? x : null)).filter(Boolean);

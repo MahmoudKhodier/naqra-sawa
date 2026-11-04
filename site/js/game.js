@@ -8,7 +8,8 @@
   const S = A.S;
   const G = (A.G = {});
 
-  G.XP = { page: 1, wird: 20, onTime: 10, first: 10, note: 5, take: 8, reply: 2, liked: 2, shelf: 10, review: 5, book: 100, cheer: 1, quests: 30, bonus: 20, chestXp: 15, bigChest: 100, gold: 15, boss: 50 };
+  G.XP = { page: 1, wird: 20, onTime: 10, first: 10, note: 5, take: 8, reply: 2, liked: 2, shelf: 10, review: 5, book: 100, cheer: 1, quests: 30, bonus: 20, chestXp: 15, bigChest: 100, gold: 15, boss: 50, head: 3 };
+  G.HEAD_Q = '2026-11-06'; // the daily quest «حط عنوان للورد ده» from this day (older apps can't show it)
   /* The golden page of a portion: a page of it (never the first), different for each member and portion. Found
      when read; recorded on the member doc (gold["book|portion"] = day). Portions of 4 pages or more. */
   G.goldenPage = (bookId, w, uid = S.me) => {
@@ -225,6 +226,8 @@
     { g: 'reacts', ic: 'heart', tip: ['دوس مطوّل على سطر في الكتاب واختار إيموجي.', 'Long-press a line in the book and pick an emoji.', 'اضغط مطولًا على سطر في الكتاب واختر رمزًا.'] },
     { g: 'chars', ic: 'user', tip: ['الشخصيات بتتفتح بالصفحات اللي بتقراها جوه التطبيق.', 'Characters open with the pages you read in the app.', 'تُفتح الشخصيات بالصفحات التي تقرؤها داخل التطبيق.'] },
     { g: 'offread', ic: 'calendar', tip: ['اقرا في يوم إجازة الحلقة — مش مطلوب، بس بيتحسب.', "Read on one of the circle's days off — not expected, but it counts.", 'اقرأ في يوم إجازة الحلقة — غير مطلوب، لكنه يُحسب.'] },
+    { g: 'heads', ic: 'list', tip: ['وإنت بتقرا، استخدم «عنوان» ودوس جنب أي عنوان في الكتاب: الحلقة كلها بتلاقيه في الفهرس.', 'While reading, use «Heading» and tap beside any heading in the book: the whole circle finds it in the contents.', 'أثناء القراءة، استخدم «عنوان» واضغط بجانب أي عنوان في الكتاب: تجده الحلقة كلها في الفهرس.'] },
+    { g: 'fullindex', ic: 'list', tip: ['كتاب متفهرس لآخره: مفيش ٣٠ صفحة ورا بعض من غير عنوان. وسام لكل اللي حطّوا عناوين فيه.', 'A book indexed to the end: no 30 pages in a row without a heading. A badge for everyone who added headings to it.', 'كتاب مفهرس حتى آخره: لا ٣٠ صفحة متتالية بلا عنوان. وسام لكل من أضاف فيه عناوين.'] },
     { g: 'together', ic: 'users', tip: ['أيام كل اللي في الحلقة قرأوا فيها ولو صفحة. وسام للحلقة كلها.', 'Days when everyone in the circle read at least a page. A badge for the whole circle.', 'أيام قرأ فيها كل أعضاء الحلقة ولو صفحة. وسام للحلقة كلها.'] },
   ];
   const B = (g, tier, id, n, v, t, d) => ({ g, tier, id, n, v, t, d, ic: (G.BADGE_GROUPS.find((x) => x.g === g) || {}).ic || 'sparkle' });
@@ -322,9 +325,24 @@
     B('offread', 2, 'offread5', 5, (s) => s.offReads, ['الكتاب صاحبه', 'Book never off', 'الكتاب رفيقه'], ['اقرا في ٥ أيام إجازة', 'Read on 5 days off', 'اقرأ في ٥ أيام إجازة']),
     B('offread', 3, 'offread20', 20, (s) => s.offReads, ['الإجازة قراية', 'Days off are for reading', 'الإجازة للقراءة'], ['اقرا في ٢٠ يوم إجازة', 'Read on 20 days off', 'اقرأ في ٢٠ يوم إجازة']),
     B('together', 1, 'together1', 1, (s) => s.circleFull, ['الحلقة كاملة', 'The whole circle'], ['يوم كل اللي في الحلقة قرأوا فيه', 'A day when everyone in the circle read', 'يوم قرأ فيه كل أعضاء الحلقة']),
+    B('heads', 1, 'heads5', 5, (s) => s.heads, ['المفهرس', 'The indexer', 'المفهرس'], ['حط ٥ عناوين في الفهرس', 'Add 5 headings to the contents', 'أضف ٥ عناوين إلى الفهرس']),
+    B('heads', 2, 'heads20', 20, (s) => s.heads, ['أمين الفهرس', 'Keeper of the contents', 'أمين الفهرس'], ['حط ٢٠ عنوان', 'Add 20 headings', 'أضف ٢٠ عنوانًا']),
+    B('heads', 3, 'heads50', 50, (s) => s.heads, ['صانع الفهارس', 'Contents maker', 'صانع الفهارس'], ['حط ٥٠ عنوان', 'Add 50 headings', 'أضف ٥٠ عنوانًا']),
+    B('fullindex', 1, 'fullindex', 1, (s) => s.fullIndex, ['فهرس كامل', 'Fully indexed', 'فهرس كامل'], ['شارك في فهرسة كتاب لحد آخره', 'Help index a book to the end', 'شارك في فهرسة كتاب حتى آخره']),
     B('together', 2, 'together7', 7, (s) => s.circleFull, ['أسبوع الحلقة كاملة', 'Whole-circle week', 'أسبوع الحلقة الكاملة'], ['٧ أيام الحلقة كلها قرأت فيها', '7 days when the whole circle read', '٧ أيام قرأت فيها الحلقة كلها']),
     B('together', 3, 'together30', 30, (s) => s.circleFull, ['شهر الحلقة كاملة', 'Whole-circle month', 'شهر الحلقة الكاملة'], ['٣٠ يوم الحلقة كلها قرأت فيها', '30 days when the whole circle read', '٣٠ يومًا قرأت فيها الحلقة كلها']),
   ];
+  /* A book indexed to the end: headings (with the file's own outline) leave no 30 pages in a row without one. */
+  G.indexedToEnd = (book, hs) => {
+    const ps = [...new Set([...(hs || []).map((h) => h.page), ...((book.toc || []).map((x) => x.p))])].filter((p) => p >= 1).sort((a, b) => a - b);
+    if (!ps.length || !book.pages) return false;
+    let prev = 1;
+    for (const p of ps) {
+      if (p - prev > 30) return false;
+      prev = p;
+    }
+    return book.pages - prev <= 30;
+  };
   /* One entry per group: its levels (with progress), the highest level earned and the next one to aim for. */
   G.badgeGroups = (s) =>
     G.BADGE_GROUPS.map((grp) => {
@@ -339,7 +357,7 @@
       wirdsDone: 0, onTime: 0, firsts: 0, notes: 0, quotes: 0, questions: 0, takes: 0,
       replies: 0, msgs: 0, likesRecv: 0, likesGiven: 0, shelfRead: 0, reviews: 0,
       booksDone: 0, cheers: 0, votes: 0, questDays: 0, daysRead: 0, maxDay: 0,
-      golds: 0, bossWins: 0, bigChests: 0, gifts: 0, pranks: 0, reacts: 0, chars: 0, offReads: 0,
+      golds: 0, bossWins: 0, bigChests: 0, gifts: 0, pranks: 0, reacts: 0, chars: 0, offReads: 0, heads: 0, fullIndex: 0,
       weekStreak: 0, bestWeekStreak: 0, weekDays: 0, weekNeed: 3, weekLeft: 3, weekAtRisk: false, circleFull: 0,
       days: {}, byDay: {}, active: new Set(), events: [], questWeek: 0, freezeGifts: new Set(),
     };
@@ -797,6 +815,30 @@
         bump(g, rd, 'talk');
         g.active.add(rd);
         ev(g, rd, G.XP.reply, 'reply');
+      }
+    }
+    // «الفهرس»: +3 a heading, the first ten of a day; a book indexed to the end counts for everyone in it
+    const hdDay = new Map();
+    const byBook = new Map();
+    for (const h of [...S.heads.values()].sort((a, b) => String(a.at).localeCompare(String(b.at)))) {
+      if (!h || !h.b || !h.page) continue;
+      if (!byBook.has(h.b)) byBook.set(h.b, []);
+      byBook.get(h.b).push(h);
+      const s = get(h.by);
+      if (!s) continue;
+      s.heads++;
+      const day = U.isoKey(h.at);
+      const k = h.by + '|' + day;
+      const n = (hdDay.get(k) || 0) + 1;
+      hdDay.set(k, n);
+      if (n <= 10) ev(s, day, G.XP.head, 'head');
+    }
+    for (const [bid, hs] of byBook) {
+      const book = S.books.get(bid);
+      if (!book || !book.pages || !G.indexedToEnd(book, hs)) continue;
+      for (const u of new Set(hs.map((h) => h.by))) {
+        const s = get(u);
+        if (s) s.fullIndex++;
       }
     }
     for (const m of S.msgs) {

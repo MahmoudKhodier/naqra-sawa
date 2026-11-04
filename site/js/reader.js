@@ -20,7 +20,7 @@
      rdMarks: whose highlights and notes show on the pages — everyone's, only mine, none (a clean page), or custom:
      rdMarksF = {hk: kinds hidden, hp: people hidden} (others' marks only; mine always show unless the page is clean). */
   const MARKS = ['all', 'mine', 'none', 'custom'];
-  const MK_KINDS = ['hl', 'note', 'q', 'quote', 'react'];
+  const MK_KINDS = ['hl', 'note', 'q', 'quote', 'react', 'head'];
   /* Emoji reactions on a line (long-press the page): one per member and line, in their own doc (col 'reacts'). */
   const RX = A.V.RX; // the same emoji everywhere (rx.js)
   const RX_NAME = A.V.rxName;
@@ -55,6 +55,18 @@
     if (v === 'custom') {
       const f = R.marksF();
       return !f.hk.includes('react') && !f.hp.includes(r.by);
+    }
+    return true;
+  };
+  /* «الفهرس»: a heading's mark in the margin (heads.js). Mine always show unless the page is clean. */
+  R.showsHead = (h) => {
+    const v = R.marksPref();
+    if (v === 'none') return false;
+    if (h.by === S.me) return true;
+    if (v === 'mine') return false;
+    if (v === 'custom') {
+      const f = R.marksF();
+      return !f.hk.includes('head') && !f.hp.includes(h.by);
     }
     return true;
   };
@@ -248,6 +260,7 @@
     // «كمّل» (from Today, the book or here) opens on the page of «وقفت هنا»: back to that very line (and, zoomed
     // in, that part of it), not the top of the page
     if (opts.flash && opts.page) goToNote(start, opts.flash); // «افتح الصفحة» of a note: at the note itself
+    else if (opts.page && opts.y != null && !st.paged) goToY(start, +opts.y || 0); // a heading from the contents
     else if ((!opts.page || (place && opts.page === place.p)) && place && place.p === start && !st.paged && (place.y > 0.02 || place.x != null)) {
       // put the «وقفت هنا» line a third of the way down the screen
       if (place.x != null && st.zoom > 1.01) restoreAnchor({ p: start, fy: place.y || 0, fx: place.x, ax: st.sc.clientWidth / 2, ay: st.sc.clientHeight * 0.3 });
@@ -257,6 +270,8 @@
     st.browsing = noteVisit ? start !== st.front : start > st.front + 2 || start < st.front - 1;
     browseUi();
     chrome();
+    // the file's own contents (its outline), once, for «الفهرس»
+    if (!book.toc) setTimeout(() => st && st.bookId === bookId && !st.book.toc && tocList(), 2500);
     D.presence({ b: bookId, p: start });
     st.tick = setInterval(tick, 1000 / speed);
     st.flushT = setInterval(() => flush(), 12000);
@@ -296,6 +311,7 @@
 
   R.close = (silent) => {
     if (!st) return;
+    if (A.Hd) A.Hd.closeCard();
     A.V.histDrop(R.hist);
     R.hist = null;
     const summary = !silent && (st.sessionPages >= 3 || st.activeSecs >= 60) ? { bookId: st.bookId, pages: st.sessionPages, secs: st.activeSecs } : null;
@@ -583,8 +599,31 @@
     el.remove();
   }
 
+  /* «إنت فين»: the headings in effect at the line a third down the screen (heads.js). */
+  function hdStrip() {
+    const el = st.root.querySelector('#rd-hstrip');
+    if (!el || !A.Hd) return;
+    let p = st.cur, y = 1;
+    if (!st.paged && st.tops && st.hs) {
+      const a = anchorAt(st.sc.clientWidth / 2, st.sc.clientHeight * 0.3);
+      if (a && a.p) (p = a.p), (y = U.clamp(a.fy, 0, 1));
+    }
+    const path = A.Hd.pathAt(st.bookId, p, y);
+    const cur = path.pop();
+    const key = cur ? [...path, cur].map((h) => h.id + ':' + h.t).join('|') : '';
+    if (el.dataset.k === key) return;
+    el.dataset.k = key;
+    el.hidden = !cur;
+    st.root.querySelector('.rd').classList.toggle('has-hstrip', !!cur);
+    if (cur) el.innerHTML = `${U.icon('list')}${path.length ? `<span class="par" dir="auto">${path.map((h) => U.esc(A.Hd.short(A.Hd.title(h)))).join(' › ')} ›</span>` : ''}<b dir="auto">${U.esc(A.Hd.title(cur))}</b>`;
+  }
   function update() {
     if (!st) return;
+    // a heading's card goes once the page is scrolled away from it
+    if (st.cardTop != null && Math.abs(st.sc.scrollTop - st.cardTop) > 40) {
+      st.cardTop = null;
+      if (A.Hd) A.Hd.closeCard();
+    }
     const sc = st.sc;
     const top = sc.scrollTop;
     const h = sc.clientHeight || window.innerHeight;
@@ -608,6 +647,7 @@
     order.sort((a, b) => Math.abs(a - cur) - Math.abs(b - cur));
     st.want = order;
     if (cur !== st.cur) pageChanged(cur);
+    hdStrip();
     pump();
   }
 
@@ -707,6 +747,15 @@
     requestAnimationFrame(() => (sc.style.scrollSnapType = ''));
   }
   R.goTo = (p, nid) => (nid ? goToNote(p, nid) : goTo(p, true));
+  /* To a line of a page (a heading): that line a little below the top of the screen. */
+  function goToY(p, y) {
+    if (!st) return;
+    p = U.clamp(p | 0, 1, st.N);
+    if (st.paged || !(st.tops[p] >= 0)) return goTo(p, false);
+    restoreAnchor({ p, fy: U.clamp(y, 0, 1), fx: 0.5, ax: st.sc.clientWidth / 2, ay: st.sc.clientHeight * 0.22 });
+    update();
+  }
+  R.goToY = (p, y) => goToY(p, y);
   /* To a note: the page, with the note itself a little above the middle of the screen (zoomed in: across too),
      and a flash on it. */
   function goToNote(p, nid) {
@@ -891,6 +940,15 @@
         html += `<button class="hlb k-${U.esc(n.kind || 'hl')}${n.priv ? ' priv' : ''}" data-nid="${U.esc(n.id)}" data-priv="${pv}" style="left:${r.x * 100}%;top:${r.y * 100}%;width:${r.w * 100}%;height:${r.h * 100}%;--c:${U.esc(col)};--a:${U.esc(D.color(n.by))}" aria-label="${label}"><span class="hl-tag">${D.authorAvatar(n, 'xs')}${n.kind === 'q' ? '<b>؟</b>' : ''}${rc + likes ? `<i>${L.num(rc + likes)}</i>` : ''}</span></button>`;
       }
     }
+    // «الفهرس»: a small mark in the margin by each heading's line (◆ فصل ● مبحث ○ مطلب • فرع)
+    if (A.Hd) {
+      const ltr = (st.book.lang || 'ar') === 'en';
+      for (const h of A.Hd.hand(st.bookId)) {
+        if (h.page !== p || !R.showsHead(h)) continue;
+        const l = U.clamp(+h.l || 1, 1, 4);
+        html += `<button class="hdm l${l}${h.by === S.me ? ' mine' : ''}${h.t ? '' : ' noname'}" data-act="hd-mark" data-hid="${U.esc(h.id)}" style="left:${ltr ? 6.2 : 93.8}%;top:${U.clamp(+h.y || 0, 0, 1) * 100}%" aria-label="${U.esc(A.Hd.name(l) + (h.t ? ': ' + A.Hd.title(Object.assign({ src: 'hand', p: h.page, b: h.b }, h)) : ''))}">${A.Hd.icon(l)}</button>`;
+      }
+    }
     // reactions: one small bubble per line on the inner margin, the two most used emoji and how many
     const lines = new Map();
     for (const r of S.reacts.values()) {
@@ -942,7 +1000,9 @@
         ? `${U.icon('hl')}<span>${L('اسحب على الجزء اللي عايز تظلّله', 'Drag over the passage you want to highlight', 'اسحب على الجزء الذي تريد تظليله')}</span><button class="lnk" data-act="mode-off">${L('إلغاء', 'Cancel')}</button>`
         : st.mode === 'pin'
           ? `${U.icon('pin')}<span>${L('دوس على المكان اللي عايز تحط فيه ملاحظة', 'Tap where you want to pin a note', 'اضغط على المكان الذي تريد وضع ملاحظة فيه')}</span><button class="lnk" data-act="mode-off">${L('إلغاء', 'Cancel')}</button>`
-          : '';
+          : st.mode === 'head'
+            ? `${A.Hd.icon(1)}<span>${L('دوس جنب العنوان عشان تحط علامته', 'Tap beside the heading to put its mark', 'اضغط بجانب العنوان لتضع علامته')}</span><button class="lnk" data-act="mode-off">${L('إلغاء', 'Cancel')}</button>`
+            : '';
     for (const b of st.root.querySelectorAll('[data-tool]')) b.classList.toggle('on', b.dataset.tool === st.mode);
   }
 
@@ -952,6 +1012,14 @@
       if (st.mode === 'none') return;
       const ov = e.target.closest('.pg-ov');
       if (!ov) return;
+      if (st.mode === 'head') {
+        // a tap beside a heading: the page still scrolls under the finger
+        const r = ov.getBoundingClientRect();
+        drag = { ov, r, x0: (e.clientX - r.left) / r.width, y0: (e.clientY - r.top) / r.height, cx: e.clientX, cy: e.clientY, t: Date.now(), p: +ov.dataset.p, id: e.pointerId, tap: true };
+        drag.x = drag.x0;
+        drag.y = drag.y0;
+        return;
+      }
       e.preventDefault();
       const r = ov.getBoundingClientRect();
       const x = (e.clientX - r.left) / r.width;
@@ -966,6 +1034,10 @@
     });
     st.pagesEl.addEventListener('pointermove', (e) => {
       if (!drag || e.pointerId !== drag.id) return;
+      if (drag.tap) {
+        if (Math.hypot(e.clientX - drag.cx, e.clientY - drag.cy) > 12) drag = null; // a scroll, not a tap
+        return;
+      }
       drag.x = U.clamp((e.clientX - drag.r.left) / drag.r.width, 0, 1);
       drag.y = U.clamp((e.clientY - drag.r.top) / drag.r.height, 0, 1);
       if (drag.el) {
@@ -977,6 +1049,13 @@
       if (!drag || e.pointerId !== drag.id) return;
       const d = drag;
       drag = null;
+      if (st.mode === 'head') {
+        if (!d.tap || Date.now() - d.t > 900 || Math.hypot(e.clientX - d.cx, e.clientY - d.cy) > 12) return;
+        swallowGhostClick(e.clientX, e.clientY); // the click that follows would hide the bars
+        setMode('head'); // one at a time: the tool goes off
+        placeHead(d.p, d.y);
+        return;
+      }
       let rect;
       if (st.mode === 'pin') rect = { x: r4(d.x), y: r4(d.y), w: 0, h: 0 };
       else {
@@ -1001,6 +1080,59 @@
     });
   }
   const r4 = (v) => Math.round(v * 10000) / 10000;
+  /* A heading where the finger went down: on the line there (its words as the name, when the file has words);
+     a mark already on that line opens instead. */
+  async function placeHead(p, y) {
+    const near = A.Hd.hand(st.bookId).find((h) => h.page === p && Math.abs((+h.y || 0) - y) < 0.018);
+    if (near) return A.Hd.edit({ head: A.Hd.get(st.bookId, near.id) });
+    const s0 = st;
+    const line = await R.lineText(p, y);
+    if (s0 !== st) return;
+    const yy = line && line.y != null ? line.y : y;
+    const crop = cropOf(p, { x: 0.03, y: Math.max(0, yy - 0.028), w: 0.94, h: 0.056 });
+    A.Hd.edit({ bookId: st.bookId, page: p, y: r4(yy), crop, text: (line && line.t) || '' });
+  }
+  /* The words of the line nearest y on page p (from the file's text, if it has any): {t, y} or null. */
+  R.lineText = async (p, y) => {
+    if (!st) return null;
+    try {
+      const part = partOf(p);
+      const pdf = await loadPart(part);
+      const page = await pdf.getPage(p - part.from + 1);
+      const vp = page.getViewport({ scale: 1 });
+      const tc = await page.getTextContent();
+      const items = [];
+      for (const it of tc.items) {
+        if (!it.str || !it.str.trim()) continue;
+        const pt = vp.convertToViewportPoint(it.transform[4], it.transform[5]);
+        const h = Math.hypot(it.transform[2], it.transform[3]) || it.height || 10;
+        items.push({ x: Math.min(pt[0], pt[0] + (it.width || 0)), w: Math.abs(it.width || 0), cy: (pt[1] - h * 0.35) / vp.height, h: h / vp.height, s: it.str, rtl: it.dir === 'rtl' || /[\u0590-\u08ff]/.test(it.str) });
+      }
+      page.cleanup();
+      let best = null;
+      for (const it of items) {
+        const dd = Math.abs(it.cy - y);
+        if (dd < 0.03 && (!best || dd < best.d)) best = { d: dd, cy: it.cy, h: it.h };
+      }
+      if (!best) return null;
+      const ln = items.filter((it) => Math.abs(it.cy - best.cy) < Math.max(0.006, best.h * 0.5));
+      const rtl = ln.filter((it) => it.rtl).length >= ln.length / 2;
+      ln.sort((a, b) => (rtl ? b.x - a.x : a.x - b.x));
+      let t = '';
+      for (let i = 0; i < ln.length; i++) {
+        if (i) {
+          const a = ln[i - 1], b = ln[i];
+          const gap = rtl ? a.x - (b.x + b.w) : b.x - (a.x + a.w);
+          if (gap > a.h * vp.height * 0.18 && !/\s$/.test(t) && !/^\s/.test(b.s)) t += ' ';
+        }
+        t += ln[i].s;
+      }
+      t = t.replace(/\s+/g, ' ').trim();
+      return t ? { t: t.slice(0, (A.Hd && A.Hd.MAX) || 140), y: r4(U.clamp(best.cy, 0, 1)) } : null;
+    } catch (e) {
+      return null;
+    }
+  };
   /* After a tap opens the note sheet, the browser still sends a click to the same spot: drop that one click. */
   /* Long-press a pin, then drag it. My note moves for everyone; someone else's moves only on my screen
      (saved in my private document), so nobody can move or change another person's note for others. */
@@ -1347,6 +1479,7 @@
           <button class="ib" data-act="panel" aria-label="${L('الملاحظات', 'Notes')}">${U.icon('list')}<i class="dot" id="rd-ncount" hidden></i></button>
           <button class="ib" data-act="more" aria-label="${L('المزيد', 'More')}">${U.icon('more')}</button>
         </div>
+        <button class="rd-hstrip" id="rd-hstrip" data-act="hd-toc" hidden></button>
       </header>
       <div class="rd-scroll" id="rd-scroll" tabindex="-1"><div class="rd-pages" id="rd-pages"></div></div>
       <div class="rd-hint" id="rd-hint" hidden></div>
@@ -1363,6 +1496,7 @@
           <div class="rd-tools">
             <button class="tool" data-tool="hl" data-act="tool">${U.icon('hl')}<span>${L('ظلّل', 'Highlight')}</span></button>
             <button class="tool" data-tool="pin" data-act="tool">${U.icon('pin')}<span>${L('ملاحظة', 'Note')}</span></button>
+            ${A.Hd && A.Hd.canAdd(st.bookId) ? `<button class="tool tool-hd" data-tool="head" data-act="tool" aria-label="${L('عنوان للفهرس', 'A heading for the contents', 'عنوان للفهرس')}">${A.Hd.icon(1)}<span>${L('عنوان', 'Heading', 'عنوان')}</span></button>` : ''}
             <button class="tool tool-eye" data-act="marks" id="rd-eye"></button>
           </div>
           <div class="rd-scrub" id="rd-scrub" dir="${dirBook}" role="slider" tabindex="0" aria-label="${L('مكانك في الكتاب', 'Position in book')}" aria-valuemin="1" aria-valuemax="${st.N}"></div>
@@ -1711,6 +1845,7 @@
   function chrome() {
     if (!st) return;
     marksUi();
+    hdStrip();
     const bm = st.root.querySelector('#rd-bm');
     if (bm) {
       const on = !!((S.priv && S.priv.marks && S.priv.marks[st.bookId]) || {})[st.cur];
@@ -1794,6 +1929,7 @@
     let ticks = '';
     for (const k of Object.keys(mk)) if (mk[k]) ticks += `<i class="bm-tick" style="${side}:${pos(+k)}%"></i>`;
     if (st.front !== st.cur) ticks += `<i class="front-tick" style="${side}:${pos(st.front)}%"></i>`;
+    if (A.Hd) for (const h of A.Hd.list(st.bookId)) if (h.l === 1) ticks += `<i class="hd-tick" style="${side}:${pos(h.p)}%"></i>`;
     el.setAttribute('aria-valuenow', st.cur);
     el.innerHTML = `<div class="trk">${segs}${seenBar}${ticks}</div>${others}<span class="thumb" style="${side}:${pos(st.cur)}%"><b>${L.num(st.cur)}</b></span>`;
   }
@@ -1984,6 +2120,22 @@
         savePrefs();
         sysRefresh();
       } else if (act === 'tool') setMode(t.dataset.tool);
+      else if (act === 'hd-mark') {
+        st.cardTop = st.sc.scrollTop;
+        A.Hd.card(t, st.bookId, t.dataset.hid);
+      }
+      else if (act === 'hd-toc') R.showContents();
+      else if (act === 'hd-go') {
+        if (st.panel && window.innerWidth < 900) togglePanel(false);
+        goToY(+t.dataset.p, +t.dataset.y || 0);
+      } else if (act === 'hd-add') {
+        togglePanel(false);
+        if (st.mode !== 'head') setMode('head');
+      } else if (act === 'ptab') {
+        st.ptab = t.dataset.tab;
+        U.store.set('rdPtab', st.ptab);
+        renderPanel();
+      }
       else if (act === 'mode-off') setMode(st.mode);
       else if (act === 'panel') togglePanel();
       else if (act === 'more') moreMenu();
@@ -2198,13 +2350,14 @@
     people.sort((a, b2) => cnt((n) => n.by === b2) - cnt((n) => n.by === a) || D.name(a).localeCompare(D.name(b2)));
     const kOn = (k) => v === 'all' || (v === 'custom' && !f.hk.includes(k));
     const pOn = (u) => v === 'all' || (v === 'custom' && !f.hp.includes(u));
-    const KN = { hl: L('تظليلات', 'Highlights', 'تظليلات'), note: L('ملاحظات', 'Notes', 'ملاحظات'), q: L('أسئلة', 'Questions', 'أسئلة'), quote: L('اقتباسات', 'Quotes', 'اقتباسات'), react: L('ردود فعل', 'Reactions', 'ردود فعل') };
+    const KN = { hl: L('تظليلات', 'Highlights', 'تظليلات'), note: L('ملاحظات', 'Notes', 'ملاحظات'), q: L('أسئلة', 'Questions', 'أسئلة'), quote: L('اقتباسات', 'Quotes', 'اقتباسات'), react: L('ردود فعل', 'Reactions', 'ردود فعل'), head: L('عناوين', 'Headings', 'عناوين') };
     const rxN = [...S.reacts.values()].filter((r) => r.b === st.bookId && r.by !== S.me && r.e).length;
+    const hdN = A.Hd ? A.Hd.hand(st.bookId).filter((h) => h.by !== S.me).length : 0;
     const pre = [['all', L('الكل', 'All')], ['mine', L('بتاعي بس', 'Only mine', 'إضافاتي فقط')], ['none', L('صفحة نضيفة', 'Clean page', 'صفحة نظيفة')]];
     el.innerHTML = `<header class="mk-h"><b>${L('اللي يظهر على الصفحات', 'What shows on the pages', 'ما يظهر على الصفحات')}</b><button class="ib sm" data-act="mk-close" aria-label="${L('قفل', 'Close', 'إغلاق')}">${U.icon('close')}</button></header>
       <div class="seg mk-pre">${pre.map(([k, t]) => `<button class="${v === k ? 'on' : ''}" aria-pressed="${v === k}" data-act="mk-pre" data-v="${k}">${t}</button>`).join('')}</div>
       <div class="mk-cols">
-        <section><span class="mk-l">${L('النوع', 'Kind', 'النوع')}</span><div class="mk-kinds">${MK_KINDS.map((k) => `<button class="chip${kOn(k) ? ' on' : ''}" aria-pressed="${kOn(k)}" data-act="mk-kind" data-k="${k}"><i class="mk-sw k-${k}"></i>${KN[k]}${(k === 'react' ? rxN : cnt((n) => (n.kind || 'hl') === k)) ? `<small>${L.num(k === 'react' ? rxN : cnt((n) => (n.kind || 'hl') === k))}</small>` : ''}</button>`).join('')}</div></section>
+        <section><span class="mk-l">${L('النوع', 'Kind', 'النوع')}</span><div class="mk-kinds">${MK_KINDS.map((k) => `<button class="chip${kOn(k) ? ' on' : ''}" aria-pressed="${kOn(k)}" data-act="mk-kind" data-k="${k}"><i class="mk-sw k-${k}"></i>${KN[k]}${(k === 'react' ? rxN : k === 'head' ? hdN : cnt((n) => (n.kind || 'hl') === k)) ? `<small>${L.num(k === 'react' ? rxN : k === 'head' ? hdN : cnt((n) => (n.kind || 'hl') === k))}</small>` : ''}</button>`).join('')}</div></section>
         ${people.length ? `<section><span class="mk-l">${L('الناس', 'People', 'الأشخاص')}<span class="mk-pl"><button class="lnk sm" data-act="mk-people" data-v="all">${L('الكل', 'All')}</button>•<button class="lnk sm" data-act="mk-people" data-v="none">${L('محدش', 'Nobody', 'لا أحد')}</button></span></span>
           <div class="mk-people">${people.map((u) => `<button class="mk-p${pOn(u) ? '' : ' off'}" aria-pressed="${pOn(u)}" data-act="mk-person" data-u="${U.esc(u)}">${D.avatar(u, 'sm')}<span dir="auto">${U.esc(D.name(u))}</span>${cnt((n) => n.by === u) ? `<i>${L.num(cnt((n) => n.by === u))}</i>` : ''}</button>`).join('')}</div></section>` : ''}
       </div>
@@ -2239,10 +2392,50 @@
     st.root.querySelector('.rd').classList.toggle('has-panel', st.panel);
     if (st.panel) renderPanel();
   }
+  /* The book's panel: «الفهرس» (heads.js), «علاماتي» and «الملاحظات». */
+  R.showContents = async () => {
+    if (!st) return;
+    st.ptab = 'toc';
+    U.store.set('rdPtab', 'toc');
+    if (!st.panel) togglePanel(true);
+    else renderPanel();
+    if (!st.book.toc && !st.toc) {
+      // the file's own contents, once
+      const s0 = st;
+      await tocList();
+      if (st === s0 && st.panel && st.ptab === 'toc') renderPanel();
+    }
+  };
   function renderPanel() {
     const el = st.root.querySelector('#rd-panel');
     if (!el || el.hidden) return;
     const b = st.book;
+    const tabs = A.Hd ? ['toc', 'bm', 'notes'] : ['bm', 'notes'];
+    if (!tabs.includes(st.ptab)) st.ptab = tabs.includes(U.store.get('rdPtab', '')) ? U.store.get('rdPtab', '') : 'notes';
+    const mk = (S.priv && S.priv.marks && S.priv.marks[st.bookId]) || {};
+    const marks = Object.keys(mk).filter((k) => mk[k]).map(Number).sort((a, b2) => a - b2);
+    const TT = { toc: [U.icon('list'), L('الفهرس', 'Contents')], bm: [U.icon('bookmark'), L('علاماتي', 'Bookmarks', 'علاماتي')], notes: [U.icon('note'), L('الملاحظات', 'Notes', 'الملاحظات')] };
+    const head = `<div class="rp-head"><div class="rp-tabs" role="tablist">${tabs.map((k) => `<button role="tab" class="${st.ptab === k ? 'on' : ''}" aria-selected="${st.ptab === k}" data-act="ptab" data-tab="${k}">${TT[k][0]}<span>${TT[k][1]}</span>${k === 'bm' && marks.length ? `<small>${L.num(marks.length)}</small>` : ''}</button>`).join('')}</div><button class="ib" data-act="panel" aria-label="${L('قفل', 'Close', 'إغلاق')}">${U.icon('close')}</button></div>`;
+    if (st.ptab === 'toc') {
+      const list = A.Hd.list(st.bookId);
+      let cur = { p: st.cur, y: 1 };
+      if (!st.paged && st.tops) {
+        const a = anchorAt(st.sc.clientWidth / 2, st.sc.clientHeight * 0.3);
+        if (a && a.p) cur = { p: a.p, y: U.clamp(a.fy, 0, 1) };
+      }
+      el.innerHTML = `${head}<div class="rp-list hd-rows">${list.length ? A.Hd.rowsHtml(st.bookId, cur) : `<div class="empty sm"><span class="star8 faint"></span><p>${L('لسه مفيش عناوين في الكتاب ده. استخدم «عنوان» تحت ودوس جنب أول عنوان تقابله، وهيظهر هنا للحلقة كلها.', 'No headings in this book yet. Use «Heading» below and tap beside the first one you meet; it shows here for the whole circle.', 'لا عناوين في هذا الكتاب بعد. استخدم «عنوان» في الأسفل واضغط بجانب أول عنوان تقابله، وسيظهر هنا للحلقة كلها.')}</p></div>`}</div>
+        ${A.Hd.canAdd(st.bookId) ? `<div class="rp-foot"><button class="btn ghost" data-act="hd-add">${U.icon('plus')}${L('حط عنوان', 'Add a heading', 'أضف عنوانًا')}</button></div>` : ''}`;
+      const on = el.querySelector('.hd-row.on');
+      if (on) setTimeout(() => on.scrollIntoView({ block: 'center' }), 40);
+      return;
+    }
+    if (st.ptab === 'bm') {
+      el.innerHTML = `${head}<div class="rp-list">${marks.length ? `<div class="rp-bms">${marks
+        .map((p) => `<div class="rp-bm"><button class="rp-bm-go" data-act="pgo" data-p="${p}"><b>${L('ص', 'p.')} ${L.num(p)}</b>${mk[p] && mk[p].t ? `<span dir="auto">${U.esc(mk[p].t)}</span>` : `<small>${L('من غير اسم', 'no name', 'بلا اسم')}</small>`}</button>
+          <button class="ib sm" data-act="bm-name" data-p="${p}" aria-label="${L('سمّيها', 'Name it', 'سمّها')}">${U.icon('edit')}</button><button class="ib sm" data-act="bm-del" data-p="${p}" aria-label="${L('شيلها', 'Remove', 'أزلها')}">${U.icon('trash')}</button></div>`)
+        .join('')}</div>` : `<div class="empty sm"><span class="star8 faint"></span><p>${L('مفيش علامات لسه. دوس على 🔖 فوق عشان تعلّم الصفحة اللي إنت فيها، ليك إنت بس.', 'No bookmarks yet. Tap 🔖 at the top to mark the page you are on, just for you.', 'لا علامات بعد. اضغط 🔖 في الأعلى لتعلّم الصفحة التي أنت فيها، لك وحدك.')}</p></div>`}</div>`;
+      return;
+    }
     const w = G.wirds(b).find((x) => st.cur >= x.from && st.cur <= x.to) || G.myCurrent(b);
     let list = [...S.notes.values()].filter((n) => n.b === st.bookId && n.kind !== 'take');
     const priv = S.priv && S.priv.notes ? Object.entries(S.priv.notes).filter(([, n]) => n && n.b === st.bookId).map(([id, n]) => Object.assign({ id, priv: true, by: S.me }, n)) : [];
@@ -2254,16 +2447,10 @@
     if (f === 'mine') list = list.filter((n) => n.by === S.me);
     if (f === 'q') list = list.filter((n) => n.kind === 'q');
     list.sort((a, b2) => a.page - b2.page || String(a.at).localeCompare(String(b2.at)));
-    const mk = (S.priv && S.priv.marks && S.priv.marks[st.bookId]) || {};
-    const marks = Object.keys(mk).filter((k) => mk[k]).map(Number).sort((a, b2) => a - b2);
     const chip = (id, label) => `<button class="chip${f === id ? ' on' : ''}" data-act="pfilter" data-f="${id}">${label}</button>`;
-    el.innerHTML = `<div class="rp-head"><b>${L('ملاحظات الكتاب', 'Notes in this book')}</b><button class="ib" data-act="panel" aria-label="${L('قفل', 'Close', 'إغلاق')}">${U.icon('close')}</button></div>
+    el.innerHTML = `${head}
       <div class="chips">${w ? chip('wird', L(`الورد ${L.num(w.n)}`, `Portion ${w.n}`)) : ''}${chip('all', L('الكل', 'All'))}${chip('mine', L('بتوعي', 'Mine', 'ملاحظاتي'))}${chip('q', L('أسئلة', 'Questions'))}</div>
       ${locked ? `<p class="rp-locked">👀 ${L(`${L.count(locked, 'note')} مستخبية لحد ما توصل صفحاتها`, `${locked} note${locked > 1 ? 's' : ''} wait until you reach their pages`, `${L.count(locked, 'note')} مخفية حتى تصل إلى صفحاتها`)}</p>` : ''}
-      ${marks.length ? `<div class="rp-bms"><h4>${U.icon('bookmark')}${L('العلامات', 'Bookmarks')}</h4>${marks
-        .map((p) => `<div class="rp-bm"><button class="rp-bm-go" data-act="pgo" data-p="${p}"><b>${L('ص', 'p.')} ${L.num(p)}</b>${mk[p] && mk[p].t ? `<span dir="auto">${U.esc(mk[p].t)}</span>` : `<small>${L('من غير اسم', 'no name', 'بلا اسم')}</small>`}</button>
-          <button class="ib sm" data-act="bm-name" data-p="${p}" aria-label="${L('سمّيها', 'Name it', 'سمّها')}">${U.icon('edit')}</button><button class="ib sm" data-act="bm-del" data-p="${p}" aria-label="${L('شيلها', 'Remove', 'أزلها')}">${U.icon('trash')}</button></div>`)
-        .join('')}</div>` : ''}
       <div class="rp-list">${list.length ? list.map(noteRow).join('') : `<div class="empty sm"><span class="star8 faint"></span><p>${L('مفيش ملاحظات هنا لسه. استخدم «ظلّل» أو «ملاحظة» تحت وابدأ أول واحدة.', 'No notes here yet. Use Highlight or Note below to add the first one.', 'لا توجد ملاحظات هنا بعد. استخدم «ظلّل» أو «ملاحظة» في الأسفل وأضف أول ملاحظة.')}</p></div>`}</div>`;
   }
   function noteRow(n) {
@@ -2282,7 +2469,7 @@
     const marks = (S.priv && S.priv.marks && S.priv.marks[st.bookId]) || {};
     const marked = !!marks[st.cur];
     A.V.menu([
-      (b.toc && b.toc.length) || st.parts.length === 1 ? { ic: 'list', t: L('الفهرس', 'Contents'), fn: showToc } : null,
+      { ic: 'list', t: L('الفهرس', 'Contents'), fn: () => R.showContents() },
       { ic: 'bookmark', t: marked ? L('شيل العلامة من الصفحة دي', 'Remove bookmark here', 'أزل العلامة من هذه الصفحة') : L('علّم الصفحة دي', 'Bookmark this page', 'علّم هذه الصفحة'), fn: () => A.V.toggleMark(st.bookId, st.cur) },
       st.focus ? { ic: 'clock', t: L('خلّص قعدة التركيز', 'End the focus session', 'أنهِ جلسة التركيز'), fn: () => focusEnd(false) } : { ic: 'clock', t: L('قعدة تركيز', 'Focus session', 'جلسة تركيز'), fn: focusSheet },
       st.pagedPref
@@ -2368,10 +2555,11 @@
     } catch (e) {}
     if (s0 !== st) return [];
     st.toc = list;
+    if (A.Hd) A.Hd.setLocalToc(st.bookId, list);
     if (list.length && st.parts[0].id !== 'local' && D.canWrite()) D.update(st.priv ? D.myBookPath(st.bookId) : `books/${st.bookId}`, { toc: list }).catch(() => {});
     return list;
   }
-  async function showToc() {
+  async function showToc() { // (kept for the file's outline alone; the panel's «الفهرس» tab replaces it)
     const list = await tocList();
     if (!st) return;
     if (!list.length) return U.toast(L('الملف ده مالوش فهرس جواه. علّم الأماكن المهمة بـ«علّم الصفحة دي» من نفس القايمة.', 'This PDF has no table of contents. Bookmark important pages from this menu instead.', 'لا يوجد فهرس داخل هذا الملف. علّم الأماكن المهمة بـ«علّم هذه الصفحة» من القائمة نفسها.'));
@@ -2755,7 +2943,14 @@
     const nb = D.book(st.bookId);
     if (!nb) return R.close();
     st.book = nb;
-    if (st.notesRef !== S.notes || st.privRef !== S.priv || st.profVer !== S.profiles || st.rxRef !== S.reacts || st.myRef !== S.myNotes) {
+    if (st.tocRef !== nb.toc) {
+      st.tocRef = nb.toc;
+      if (st.panel && st.ptab === 'toc') renderPanel();
+      chrome();
+    }
+    if (st.notesRef !== S.notes || st.privRef !== S.priv || st.profVer !== S.profiles || st.rxRef !== S.reacts || st.myRef !== S.myNotes || st.hdRef !== S.heads || st.myHdRef !== S.myHeads) {
+      st.hdRef = S.heads;
+      st.myHdRef = S.myHeads;
       st.rxRef = S.reacts;
       st.myRef = S.myNotes;
       st.notesRef = S.notes;

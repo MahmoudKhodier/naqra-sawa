@@ -207,7 +207,21 @@
     const loc = (n) => (n.loc ? parseInt(String(n.loc), 10) || 0 : 0);
     const sorted = list.slice().sort((a, b) => pos(a) - pos(b) || loc(a) - loc(b) || String(a.at || '').localeCompare(String(b.at || '')));
     const ws = info.book && info.book.wirds && info.book.wirds.length ? G.wirds(info.book) : [];
-    if (!ws.length) return `<p class="muted sm qn-count">${L.count(list.length, 'note')}</p><div class="qn-list">${sorted.map((n) => card(n)).join('')}</div>`;
+    // «الفهرس»: a line with the heading wherever the notes go under a new one
+    let lastHd = '';
+    const cards = (ns) =>
+      ns
+        .map((n) => {
+          let pre = '';
+          const h = A.Hd && n.page && D.book(bk) ? A.Hd.pathAt(bk, n.page, n.rect ? n.rect.y || 0 : 1).pop() : null;
+          if (h && h.id !== lastHd) {
+            lastHd = h.id;
+            pre = `<p class="qn-hd l${h.l}">${A.Hd.icon(h.l)}<span dir="auto">${esc(A.Hd.title(h))}</span></p>`;
+          }
+          return pre + card(n);
+        })
+        .join('');
+    if (!ws.length) return `<p class="muted sm qn-count">${L.count(list.length, 'note')}</p><div class="qn-list">${cards(sorted)}</div>`;
     const groups = new Map();
     for (const n of sorted) {
       const w = (n.wid && ws.find((x) => x.id === n.wid)) || (n.page ? ws.find((x) => n.page >= x.from && n.page <= x.to) : null);
@@ -220,7 +234,7 @@
       .map(
         (g) => `<section class="qn-wird">
         <h3>${g.w ? `<span class="qw-n">${L('الورد', 'Portion', 'الورد')} ${L.num(g.w.n)}</span><small>${L('ص', 'p.')} ${L.num(g.w.from)}–${L.num(g.w.to)}</small>` : `<span class="qw-n">${L('برّه الأوراد', 'Outside the portions', 'خارج الأوراد')}</span>`}<i>${L.num(g.list.length)}</i></h3>
-        <div class="qn-list">${g.list.map((n) => card(n)).join('')}</div>
+        <div class="qn-list">${cards(g.list)}</div>
       </section>`,
       )
       .join('');
