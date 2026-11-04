@@ -423,7 +423,12 @@ async function addHead(p, page, y) {
         window.A.R._markSeen(2);
       });
       await until(a, 'the chapter cheer', () => /خلّصت «الفصل الثالث/.test(document.querySelector('#rd-cheer').textContent), null, 9000);
-      await T(400);
+      await T(600);
+      const vis = await a.evaluate(() => {
+        const e = document.querySelector('#rd-cheer');
+        return !e.hidden && e.classList.contains('in') && e.getBoundingClientRect().height > 0;
+      });
+      assert(vis, 'the chapter cheer is not on screen');
       await shot(a, 'hd2-14-cheer');
       const again = await a.evaluate(() => window.A.U.store.get(`chDone:${window.A.R.bookId()}:` + window.A.Hd.list(window.A.R.bookId()).find((h) => h.l === 1).id, ''));
       assert(again, 'not remembered');

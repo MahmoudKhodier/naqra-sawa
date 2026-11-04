@@ -1646,7 +1646,7 @@
     const show = () => {
       if (st !== s0) return;
       const ago = Date.now() - (st.cheerAt || 0);
-      if (ago < 2600) return setTimeout(show, 3100 - ago);
+      if (ago < 2600) return setTimeout(show, 3200 - ago);
       cheer(msg);
       U.confetti && U.confetti(0.6);
       U.chime && U.chime('ok');
@@ -1665,7 +1665,7 @@
     clearTimeout(st.cheerT);
     st.cheerT = setTimeout(() => {
       el.classList.remove('in');
-      setTimeout(() => st && (el.hidden = true), 300);
+      setTimeout(() => st && !el.classList.contains('in') && (el.hidden = true), 300); // unless a newer one is showing
     }, 2800);
   }
   R._wird = () => {
