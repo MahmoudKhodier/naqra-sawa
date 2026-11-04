@@ -2115,6 +2115,20 @@ html.rx-hold, html.rx-hold * { -webkit-user-select: none !important; user-select
 .feed-hd { color: var(--ink3); font-weight: 500; }
 .ex-book { display: grid; gap: 6px; margin: 4px 0 10px; padding: 10px 12px; border-radius: 14px; background: var(--card2); }
 .ex-book .ex-row { margin: 0; }
+.wchs { display: grid; gap: 10px; margin-top: 10px; }
+.wch { border: 1.5px solid var(--line); border-radius: 16px; padding: 10px 12px; background: var(--card); display: grid; gap: 8px; }
+.wch.on { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-s); }
+.wch.done { opacity: .8; }
+.wch-h { display: flex; gap: 8px; align-items: center; font-weight: 800; font-size: .96rem; text-align: start; width: 100%; color: var(--ink); }
+.wch-h span { flex: 1; min-width: 0; line-height: 1.5; }
+.wch-h small { color: var(--ink3); font-weight: 700; font-size: .78rem; white-space: nowrap; }
+.wch-ws { display: flex; gap: 6px; flex-wrap: wrap; }
+.wch-w { padding: 3px 10px; border-radius: 10px; font-size: .78rem; font-weight: 700; background: var(--bg2); color: var(--ink2); }
+.wch-w.done { background: var(--jade-s); color: var(--jade); }
+.wch-w.now { background: var(--gold-s); color: var(--gold-t); box-shadow: inset 0 0 0 1.5px var(--gold); }
+.wch-w.late { background: var(--rubric-s); color: var(--rubric); }
+.wch-f { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--ink3); font-size: .78rem; font-weight: 600; }
+.wch-empty { margin-top: 12px; }
 .mk-sw.k-head { background: var(--hd-1); transform: rotate(45deg); border-radius: 2px; width: 8px; height: 8px; margin: 1px; }
 .hi-hd { display: flex; gap: 6px; align-items: flex-start; color: var(--lapis); font-weight: 600; font-size: .84rem; margin: 4px 0 0; line-height: 1.5; }
 .hi-hd .ic { width: 15px; height: 15px; flex: none; margin-top: 3px; }

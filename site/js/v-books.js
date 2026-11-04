@@ -225,7 +225,15 @@
     const c = row.getBoundingClientRect();
     row.scrollLeft += r.left + r.width / 2 - (c.left + c.width / 2);
   });
-  V.actions['book-tab'] = (a) => V.go('book-' + a.dataset.b, a.dataset.ch ? { tab: a.dataset.tab, ch: a.dataset.ch } : { tab: a.dataset.tab });
+  V.actions['book-tab'] = (a) => {
+    const opts = a.dataset.ch ? { tab: a.dataset.tab, ch: a.dataset.ch } : { tab: a.dataset.tab };
+    // on the book's own page a tab changes in place: only its part is drawn again, the page doesn't jump
+    if (V.state.route === 'book-' + a.dataset.b && !a.closest('.sheet')) {
+      V.state.opts = Object.assign({}, V.state.opts, { ch: undefined }, opts);
+      return V.render();
+    }
+    V.go('book-' + a.dataset.b, opts);
+  };
 
   /* The book page's title: smaller as it gets longer; a very long one shows three lines, a tap shows it all. */
   const titleSize = (t) => {
@@ -254,12 +262,47 @@
       ${planTime(b, ws)}
       ${nowCard(b, ws, members)}
       ${planViews()}
-      ${U.store.get('planView', 'cal') === 'list' ? wirdList(b, ws, members) : wirdCal(b, ws, members)}`;
+      ${planView() === 'list' ? wirdList(b, ws, members) : planView() === 'ch' ? wirdChapters(b, ws, members) : wirdCal(b, ws, members)}`;
   }
+  const planView = () => ({ list: 'list', ch: 'ch' })[U.store.get('planView', 'cal')] || 'cal';
   const planViews = () => {
-    const v = U.store.get('planView', 'cal') === 'list' ? 'list' : 'cal';
-    return `<div class="segs plan-views" role="tablist">${[['cal', 'calendar', L('تقويم', 'Calendar', 'تقويم')], ['list', 'list', L('قايمة', 'List', 'قائمة')]].map(([k, ic, t]) => `<button role="tab" class="${v === k ? 'on' : ''}" aria-selected="${v === k}" data-act="plan-view" data-v="${k}">${icon(ic)}<span>${t}</span></button>`).join('')}</div>`;
+    const v = planView();
+    return `<div class="segs plan-views" role="tablist">${[['cal', 'calendar', L('تقويم', 'Calendar', 'تقويم')], ['list', 'list', L('قايمة', 'List', 'قائمة')], ['ch', 'book', L('فصول', 'Chapters', 'فصول')]].map(([k, ic, t]) => `<button role="tab" class="${v === k ? 'on' : ''}" aria-selected="${v === k}" data-act="plan-view" data-v="${k}">${icon(ic)}<span>${t}</span></button>`).join('')}</div>`;
   };
+  /* The plan by chapter («الفهرس»'s chapters): each chapter, its pages, its portions under it (done, now, to
+     come), the day it ends, how far I got in it and who is in it now; a tap opens the book there. */
+  function wirdChapters(b, ws, members) {
+    const all = A.Hd ? A.Hd.list(b.id) : [];
+    const chs = all.filter((h) => h.l === 1);
+    if (!chs.length)
+      return `<div class="empty sm wch-empty"><span class="star8 faint"></span><p>${L('لسه مفيش فصول في فهرس الكتاب ده. وإنت بتقرا دوس «عنوان» جنب أول فصل واختار «فصل»، وهيظهر هنا بأوراده.', 'No chapters in this book’s contents yet. While reading, tap «Heading» beside a chapter and pick «Chapter»; it shows here with its portions.', 'لا فصول في فهرس هذا الكتاب بعد. أثناء القراءة اضغط «عنوان» بجانب أول فصل واختر «فصل»، وسيظهر هنا بأوراده.')}</p></div>`;
+    const { prog, cls } = planCtx(b, members);
+    const N = b.pages || (ws.length ? ws[ws.length - 1].to : 1);
+    const at = new Map(D.bookProgs(b.id).filter((p) => p.u !== S.me && members.includes(p.u)).map((p) => [p.u, p.last || 0]));
+    const myAt = (prog && prog.last) || 0;
+    const cards = chs.map((c, i) => {
+      const end = (chs[i + 1] ? chs[i + 1].p : N + 1) - 1;
+      const mine = ws.filter((w) => w.to >= c.p && w.from <= end);
+      const read = U.rangesCountIn(prog && prog.seen, c.p, end);
+      const total = Math.max(1, end - c.p + 1);
+      const doneAll = mine.length ? mine.every((w) => cls(w) === 'done') : read >= total;
+      const here = myAt >= c.p && myAt <= end;
+      const last = mine[mine.length - 1];
+      const subs = all.filter((h) => h.l === 2 && h.p >= c.p && h.p <= end).length;
+      const inside = [...at.entries()].filter(([, p]) => p >= c.p && p <= end).map(([u]) => u);
+      const chip = (w) => {
+        const k = cls(w);
+        return `<button class="wch-w ${k === 'done' ? 'done' : k.startsWith('cur') ? 'now' : k.includes('late') ? 'late' : ''}" data-act="wird" data-b="${esc(b.id)}" data-w="${esc(w.id)}">${k === 'done' ? '✓ ' : ''}${L('الورد', 'Portion', 'الورد')} ${L.num(w.n)}</button>`;
+      };
+      return `<section class="wch${here ? ' on' : ''}${doneAll ? ' done' : ''}" data-key="wch-${esc(c.id)}">
+        <button class="wch-h" data-act="hd-go" data-b="${esc(b.id)}" data-p="${c.p}" data-y="${c.y}">${A.Hd.icon(1)}<span dir="auto">${esc(A.Hd.title(c))}</span><small>${L('ص', 'p.')} ${L.num(c.p)}–${L.num(end)}</small></button>
+        ${V.bar(read / total, doneAll ? 'jade' : 'lapis')}
+        ${mine.length ? `<div class="wch-ws">${mine.map(chip).join('')}</div>` : ''}
+        <div class="wch-f"><small>${doneAll ? L('خلّصته ✓', 'Done ✓', 'أنهيته ✓') : [here && read < total ? L(`فاضل ${L.count(total - read, 'page')}`, `${total - read} pages left`, `بقي ${L.count(total - read, 'page')}`) : L.count(total, 'page'), last ? L(`يخلص ${L.dayShort(last.due)}`, `ends ${L.dayShort(last.due)}`, `ينتهي ${L.dayShort(last.due)}`) : '', subs ? L(subs === 1 ? 'مبحث واحد' : subs === 2 ? 'مبحثين' : `${L.num(subs)} ${subs <= 10 ? 'مباحث' : 'مبحث'}`, `${subs} section${subs > 1 ? 's' : ''}`, subs === 1 ? 'مبحث واحد' : subs === 2 ? 'مبحثان' : `${L.num(subs)} ${subs <= 10 ? 'مباحث' : 'مبحثًا'}`) : ''].filter(Boolean).join(' • ')}</small>${inside.length ? `<span class="wl-avs">${inside.slice(0, 4).map((u) => D.avatar(u, 'xs')).join('')}${inside.length > 4 ? `<i>+${L.num(inside.length - 4)}</i>` : ''}</span>` : ''}</div>
+      </section>`;
+    });
+    return `<div class="wchs">${cards.join('')}</div>`;
+  }
   /* My portion now (or the last one): its pages, how far I got, when it's due, who finished it. */
   function nowCard(b, ws, members) {
     const { myCur, prog, fins } = planCtx(b, members);

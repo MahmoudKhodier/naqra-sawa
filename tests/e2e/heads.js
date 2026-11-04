@@ -326,6 +326,32 @@ async function addHead(p, page, y) {
       return t3.trim();
     });
 
+    await step('The plan by chapter («فصول»); the book\'s tabs change in place (the page doesn\'t jump or draw again)', async () => {
+      await a.evaluate((id) => window.A.V.go('book-' + id, { tab: 'plan' }), bookId);
+      await a.waitForSelector('.plan-views [data-v="ch"]');
+      await a.click('.plan-views [data-v="ch"]');
+      await a.waitForSelector('.wchs .wch');
+      const ch = await a.evaluate(() => [...document.querySelectorAll('.wch')].map((c) => ({ t: c.querySelector('.wch-h span').textContent, ws: [...c.querySelectorAll('.wch-w')].map((x) => x.textContent.trim()) })));
+      assert(ch.length === 1 && /الفصل الثالث/.test(ch[0].t) && ch[0].ws.length === 2, 'chapters: ' + JSON.stringify(ch));
+      await shot(a, 'hd2-9-chapters');
+      // a tab: the same page (the hero is the same element), the same scroll
+      const before = await a.evaluate(() => {
+        const sc = document.scrollingElement;
+        sc.scrollTop = 260;
+        document.querySelector('.bp-hero')._kept = 'kept';
+        return sc.scrollTop;
+      });
+      await a.click('.tabs [data-tab="notes"]');
+      await a.waitForSelector('.tab.on[data-tab="notes"]');
+      await T(300);
+      const after = await a.evaluate(() => ({ top: document.scrollingElement.scrollTop, kept: (document.querySelector('.bp-hero') || {})._kept }));
+      assert(after.kept === 'kept', 'the page was drawn again');
+      assert(Math.abs(after.top - before) < 40, `scrolled: ${before} → ${after.top}`);
+      await a.click('.tabs [data-tab="plan"]');
+      await a.waitForSelector('.tab.on[data-tab="plan"]');
+      await a.evaluate(() => window.A.U.store.set('planView', 'cal'));
+    });
+
     await step('The file\'s own outline joins in (its single top entry, the book itself, left out)', async () => {
       const r = await a.evaluate(async (id) => {
         const { D, Hd } = window.A;
