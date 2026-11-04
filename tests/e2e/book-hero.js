@@ -53,6 +53,16 @@ const T = (ms) => new Promise((r) => setTimeout(r, ms));
     await a.waitForSelector('.bp-hero');
     await T(500);
     await H.shot(a, 'bh-0-now');
+    // a very long title: smaller, three lines, a tap shows it all
+    await a.evaluate(async (id) => window.A.D.update(`books/${id}`, { title: 'الموسوعة الميسّرة في تاريخ الدول والممالك الإسلامية من بداية الدعوة إلى نهاية الخلافة العثمانية وما بعدها' }), bookId);
+    await a.waitForSelector('.bp-title.t-xl');
+    await T(400);
+    await H.shot(a, 'bh-long');
+    await a.click('.bp-title');
+    await T(300);
+    await H.shot(a, 'bh-long-open');
+    await a.evaluate(async (id) => window.A.D.update(`books/${id}`, { title: 'التاريخ الإسلامي الوجيز' }), bookId);
+    await T(500);
     await a.addScriptTag({ path: path.join(__dirname, 'mocks', 'book-hero.js') });
     for (const s of ['a', 'b', 'c']) {
       await a.evaluate(() => {

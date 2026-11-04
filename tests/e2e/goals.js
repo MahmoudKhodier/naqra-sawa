@@ -212,12 +212,12 @@ async function pickOpt(p, act, v) {
       await H.shot(p, 'goals-book');
       await lang(p, 'en');
       const en = await text(p, '.bp-fc');
-      assert(en.includes("At this pace you'll finish the book on") && en.includes('2 days ahead of the plan'), 'English: ' + en);
+      assert(en.includes("You'll finish the book on") && en.includes('2 days ahead of the plan'), 'English: ' + en);
       const ent = await text(p, '.bp-time');
-      assert(ent.includes('The whole book takes about 50 minutes'), 'English time: ' + ent);
+      assert(/left of 50 minutes|The whole book takes about 50 minutes/.test(ent), 'English time: ' + ent);
       await lang(p, 'ar');
       const ar = await text(p, '.bp-fc');
-      assert(ar.includes('بهذه السرعة ستنهي الكتاب يوم') && ar.includes('قبل الخطة بيومين'), 'فصحى: ' + ar);
+      assert(ar.includes('ستنهي الكتاب يوم') && ar.includes('قبل الخطة بيومين'), 'فصحى: ' + ar);
       await lang(p, 'eg');
       return fc;
     });

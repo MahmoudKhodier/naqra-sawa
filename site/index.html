@@ -826,10 +826,32 @@ textarea { resize: vertical; line-height: 1.55; }
 .vote b { font: 700 .95rem var(--f-disp); }
 .vote.on { border-color: var(--lapis); color: var(--lapis); background: var(--lapis-s); }
 
-.bp-hero { display: flex; gap: 22px; align-items: flex-start; margin-bottom: 18px; }
-.bp-hero .cover.lg { width: 140px; }
-.bp-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.bp-info h1 { font: 700 clamp(1.7rem, 6.4vw, 2.4rem)/1.3 var(--f-book); }
+/* a book's page (owner's pick «أ», 2026-11-04): a small cover beside the title, my reading in one card */
+.bp-hero { display: grid; gap: 14px; margin-bottom: 14px; max-width: 720px; }
+.bp-top { display: flex; gap: 14px; align-items: flex-start; }
+.bp-top .cover.bp { width: 84px; flex: none; }
+@media (min-width: 700px) { .bp-top .cover.bp { width: 120px; } }
+.bp-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
+.bp-tagrow { display: flex; align-items: center; gap: 6px; width: 100%; }
+.bp-tag { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 99px; background: var(--jade-s); color: var(--jade); font-size: .74rem; font-weight: 800; }
+.bp-tag.st-planned { background: var(--lapis-s); color: var(--lapis); }
+.bp-tag.st-done { background: var(--gold-s); color: var(--gold-t); }
+.bp-tagrow .bp-edit { margin-inline-start: auto; width: 32px; height: 32px; }
+.bp-tagrow .bp-edit .ic { width: 15px; height: 15px; }
+.bp-title { font: 700 1.6rem/1.3 var(--f-book); margin: 0; overflow-wrap: anywhere; cursor: default; }
+.bp-title.t-m { font-size: 1.4rem; }
+.bp-title.t-l { font-size: 1.22rem; }
+.bp-title.t-xl { font-size: 1.1rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+.bp-title.t-xl.open { -webkit-line-clamp: unset; display: block; }
+.bp-au { margin: 0; color: var(--ink3); font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.bp-info .meta-chips { margin-top: 2px; }
+.bp-card { display: grid; gap: 8px; padding: 14px 16px; }
+.bp-card .bp-prog { margin: 0; max-width: none; }
+.bp-card .bp-prog b { white-space: nowrap; font-size: .9rem; }
+.bp-card .bp-time { margin: 0; color: var(--ink2); }
+.bp-fc { display: flex; gap: 6px; align-items: flex-start; margin: 0; font-size: .84rem; font-weight: 700; color: var(--jade); line-height: 1.5; }
+.bp-fc .ic { width: 15px; height: 15px; flex: none; margin-top: .2em; }
+.bp-fc.late { color: var(--gold-t); }
 .ib.bp-edit { display: inline-grid; vertical-align: middle; width: 34px; height: 34px; margin-inline-start: 4px; color: var(--ink3); background: var(--bg2); border-radius: 50%; }
 .ib.bp-edit svg { width: 17px; height: 17px; }
 .meta-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
@@ -840,7 +862,7 @@ textarea { resize: vertical; line-height: 1.55; }
 .bp-actions .btn.big { flex: 1; max-width: 340px; }
 .bp-prog { display: flex; gap: 10px; align-items: center; max-width: 420px; margin-top: 4px; }
 .bp-prog small { color: var(--ink3); white-space: nowrap; }
-@media (max-width: 560px) { .bp-hero { gap: 14px; } .bp-hero .cover.lg { width: 96px; } }
+
 .tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); margin-bottom: 16px; overflow-x: auto; scrollbar-width: none; }
 .tab { display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px; font-weight: 600; color: var(--ink3); border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; }
 .tab small { font-size: .74rem; background: var(--bg2); padding: 0 7px; border-radius: 99px; }
@@ -2518,8 +2540,7 @@ button.wm-c:hover { border-color: var(--line); }
   .hud.is-home .hchip { height: 32px; padding: 0 10px; font-size: .84rem; }
   .hud.is-home .hchip.lvl { flex: 0 1 220px; }
   .thread.tall .msgs { min-height: 120px; max-height: calc(100vh - 230px); }
-  .bp-hero { gap: 16px; margin-bottom: 12px; }
-  .bp-hero .cover.lg { width: 96px; }
+
   /* «أنا»: wider tiles so the numbers stay on one line */
   .stile small { line-height: 1.4; }
   /* sheets: centred, wider, as tall as the screen allows; the body scrolls under a fixed head */

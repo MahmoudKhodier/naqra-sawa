@@ -624,6 +624,12 @@
     const when = f.date === today ? L('النهارده', 'today', 'اليوم') : f.date === U.addDays(today, 1) ? L('بكرة', 'tomorrow', 'غدًا') : L(`يوم ${L.dayShort(f.date)}`, `on ${L.dayShort(f.date)}`, `يوم ${L.dayShort(f.date)}`);
     return L(`على السرعة دي هتخلّص الكتاب ${when}`, `At this pace you'll finish the book ${when}`, `بهذه السرعة ستنهي الكتاب ${when}`);
   };
+  G.forecastShort = (f) => {
+    if (!f) return '';
+    const today = U.today();
+    const when = f.date === today ? L('النهارده', 'today', 'اليوم') : f.date === U.addDays(today, 1) ? L('بكرة', 'tomorrow', 'غدًا') : L(`يوم ${L.dayShort(f.date)}`, `on ${L.dayShort(f.date)}`, `يوم ${L.dayShort(f.date)}`);
+    return L(`هتخلّص الكتاب ${when}`, `You'll finish the book ${when}`, `ستنهي الكتاب ${when}`);
+  };
   G.forecastCompare = (f) => {
     if (!f || f.diff == null) return '';
     if (f.diff > 0) return L(`قبل الخطة ${G.byDays(f.diff)}`, `${G.byDays(f.diff)} ahead of the plan`, `قبل الخطة ${G.byDays(f.diff)}`);

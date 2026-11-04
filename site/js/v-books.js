@@ -184,15 +184,19 @@
     return `<div class="bookpage">
       <button class="back" data-go="books">${icon('back', 'flip')}<span>${L('كتبنا', 'Our books')}</span></button>
       <header class="bp-hero">
-        ${V.cover(b, 'lg')}
-        <div class="bp-info">
-          <small class="eyebrow">${{ reading: L('بنقرأه دلوقتي', 'Reading now', 'نقرؤه الآن'), planned: L('الجاي', 'Up next', 'التالي'), done: L('خلّصناه', 'Finished', 'أنهيناه') }[b.status || 'reading']}</small>
-          <h1 dir="auto">${esc(b.title)}${D.canWrite() ? ` <button class="ib sm bp-edit" data-act="edit-book" data-b="${esc(b.id)}" aria-label="${L('عدّل اسم الكتاب', 'Edit the title')}">${icon('edit')}</button>` : ''}</h1>
-          ${b.author ? `<p class="muted" dir="auto">${esc(b.author)}</p>` : ''}
-          <div class="meta-chips"><span>${icon('scroll')}${L.count(b.pages || 0, 'page')}</span>${ws.length ? `<span>${icon('calendar')}${L.count(ws.length, 'wird')}</span>` : ''}<span>${icon('user')}${L('إضافة', 'Added by')} ${esc(D.name(b.addedBy))}</span>${(b.parts || []).length ? '' : `<span class="warn">${icon('info')}${L('كل واحد بيفتح نسخته', 'Everyone opens their own copy', 'كل عضو يفتح نسخته')}</span>`}</div>
-          <div class="bp-prog">${V.bar(pct, pct >= 1 ? 'jade' : 'lapis')}<small>${L(`قريت ${L.num(Math.round(pct * 100))}٪`, `${Math.round(pct * 100)}% read`, `قرأت ${L.num(Math.round(pct * 100))}٪`)}</small></div>
-          ${b.pages ? `<p class="bp-time">${icon('clock')}<span>${L(`الكتاب كله حوالي ${G.timeText(G.minutesFor(b.pages))}`, `The whole book takes about ${G.timeText(G.minutesFor(b.pages))}`, `الكتاب كله نحو ${G.timeText(G.minutesFor(b.pages))}`)}${pct > 0 && pct < 1 ? `<br>${L(`فاضل حوالي ${G.timeText(G.minutesFor(Math.round(b.pages * (1 - pct))))}`, `about ${G.timeText(G.minutesFor(Math.round(b.pages * (1 - pct))))} left`, `بقي نحو ${G.timeText(G.minutesFor(Math.round(b.pages * (1 - pct))))}`)}` : ''}</span></p>` : ''}
-          ${V.forecastLine ? V.forecastLine(b, 'bp-fc') : ''}
+        <div class="bp-top">
+          ${V.cover(b, 'bp')}
+          <div class="bp-info">
+            <div class="bp-tagrow"><span class="bp-tag st-${esc(b.status || 'reading')}">${{ reading: L('بنقرأه دلوقتي', 'Reading now', 'نقرؤه الآن'), planned: L('الجاي', 'Up next', 'التالي'), done: L('خلّصناه', 'Finished', 'أنهيناه') }[b.status || 'reading']}</span>${D.canWrite() ? `<button class="ib sm bp-edit" data-act="edit-book" data-b="${esc(b.id)}" aria-label="${L('عدّل اسم الكتاب', 'Edit the title')}">${icon('edit')}</button>` : ''}</div>
+            <h1 dir="auto" class="bp-title ${titleSize(b.title)}" data-act="bp-title" title="${esc(b.title)}">${esc(b.title)}</h1>
+            ${b.author ? `<p class="bp-au" dir="auto">${esc(b.author)}</p>` : ''}
+            <div class="meta-chips"><span>${icon('scroll')}${L.count(b.pages || 0, 'page')}</span>${ws.length ? `<span>${icon('calendar')}${L.count(ws.length, 'wird')}</span>` : ''}<span>${icon('user')}${L('إضافة', 'Added by')} ${esc(D.name(b.addedBy))}</span>${(b.parts || []).length ? '' : `<span class="warn">${icon('info')}${L('كل واحد بيفتح نسخته', 'Everyone opens their own copy', 'كل عضو يفتح نسخته')}</span>`}</div>
+          </div>
+        </div>
+        <div class="card bp-card">
+          <div class="bp-prog">${V.bar(pct, pct >= 1 ? 'jade' : 'lapis')}<b>${L(`قريت ${L.num(Math.round(pct * 100))}٪`, `${Math.round(pct * 100)}% read`, `قرأت ${L.num(Math.round(pct * 100))}٪`)}</b></div>
+          ${b.pages ? `<p class="bp-time">${icon('clock')}<span>${pct > 0 && pct < 1 ? L(`فاضل حوالي ${G.timeText(G.minutesFor(Math.round(b.pages * (1 - pct))))} من ${G.timeText(G.minutesFor(b.pages))}`, `About ${G.timeText(G.minutesFor(Math.round(b.pages * (1 - pct))))} left of ${G.timeText(G.minutesFor(b.pages))}`, `بقي نحو ${G.timeText(G.minutesFor(Math.round(b.pages * (1 - pct))))} من ${G.timeText(G.minutesFor(b.pages))}`) : L(`الكتاب كله حوالي ${G.timeText(G.minutesFor(b.pages))}`, `The whole book takes about ${G.timeText(G.minutesFor(b.pages))}`, `الكتاب كله نحو ${G.timeText(G.minutesFor(b.pages))}`)}</span></p>` : ''}
+          ${bpForecast(b)}
         </div>
       </header>
           <div class="row-btns bp-actions">
@@ -221,6 +225,21 @@
     row.scrollLeft += r.left + r.width / 2 - (c.left + c.width / 2);
   });
   V.actions['book-tab'] = (a) => V.go('book-' + a.dataset.b, a.dataset.ch ? { tab: a.dataset.tab, ch: a.dataset.ch } : { tab: a.dataset.tab });
+
+  /* The book page's title: smaller as it gets longer; a very long one shows three lines, a tap shows it all. */
+  const titleSize = (t) => {
+    const n = Array.from(String(t || '')).length;
+    return n > 60 ? 't-xl' : n > 34 ? 't-l' : n > 20 ? 't-m' : '';
+  };
+  V.actions['bp-title'] = (a) => a.classList.toggle('open');
+  /* «هتخلّص الكتاب …» and how that sits with the plan, in one short line. */
+  function bpForecast(b) {
+    const f = G.forecast(b);
+    if (!f) return '';
+    const cmp = G.forecastCompare(f);
+    const late = f.diff != null && f.diff < 0;
+    return `<p class="bp-fc${late ? ' late' : ''}">${icon('flag')}<span>${G.forecastShort(f)}${cmp ? ` • ${cmp}` : ''}</span></p>`;
+  }
 
   function planTab(b) {
     const ws = G.wirds(b);
