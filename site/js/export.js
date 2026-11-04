@@ -1056,7 +1056,7 @@
     const cname = (S.circle && S.circle.name) || '';
     const span = start === end ? L.day(start) : L(`من ${L.day(start)} لـ${L.day(end)}`, `${L.day(start)} to ${L.day(end)}`, `من ${L.day(start)} إلى ${L.day(end)}`);
     if (cname) {
-      centre(`${L('حلقة', 'Circle', 'حلقة')} «${cname}»`, y + 30, `600 30px ${UI}`, '#2440a0');
+      centre(/^(حلقة|circle)/i.test(cname.trim()) ? cname : `${L('حلقة', 'Circle', 'حلقة')} «${cname}»`, y + 30, `600 30px ${UI}`, '#2440a0');
       y += 48;
     }
     centre(span, y + 30, `500 26px ${UI}`, '#6b6352');
