@@ -1,12 +1,9 @@
 #!/usr/bin/env node
 /*
- * Goodreads sync on a phone (390×844) against the fake Supabase. The database's goodreads_feed RPC answers from
- * the http stand-in in tests/sql/supabase_stubs.sql (extensions.http_stub), filled here from
- * tests/e2e/fixtures/goodreads_rss.xml:
- *   a member imports the Goodreads CSV, adds a book by hand, edits a rating, then links Goodreads →
- *   no duplicates; CSV books change only where Goodreads changed and the member didn't; the hand-edited rating
- *   survives; new books arrive; to-read → read moves; a re-read is kept; a second sync changes nothing;
- *   later Goodreads changes flow in, a book removed in the app stays removed; the auto sync after 12 h runs once.
+ * Goodreads on a phone (390×844) against the fake Supabase: the export file (CSV) brings a member's shelf;
+ * importing it again doubles nothing and keeps what was changed here. The sync through the shelf's RSS feed is
+ * gone (Goodreads turned the feeds off, late October 2026): a member who had linked it gets a word about it,
+ * and the app never calls the old goodreads_feed RPC.
  *
  *   node tests/e2e/goodreads.js        # PASS/FAIL per step, exit 1 on any FAIL
  */
@@ -63,47 +60,29 @@ async function openSheet(p) {
   await T(400);
   await p.click('[data-act="shelf-more"]');
   await p.click('.mi:has-text("Goodreads")');
-  await p.waitForSelector('#gr-wrap');
+  await p.waitForSelector('#imp-file', { state: 'attached' });
 }
 const items = (p) => p.evaluate(() => Object.entries((window.A.S.shelf.get(window.A.S.me) || {}).items || {}).map(([id, x]) => Object.assign({ id }, x)));
-const shelfGr = (p) => p.evaluate(() => (window.A.S.shelf.get(window.A.S.me) || {}).gr || null);
 const byTitle = (list, re) => list.filter((x) => re.test(x.title));
 const one = (list, re) => {
   const f = byTitle(list, re);
   assert(f.length === 1, `${re}: ${f.length} copies`);
   return f[0];
 };
-
-const FEED = fs.readFileSync(path.join(H.FIXTURES, 'goodreads_rss.xml'), 'utf8');
-const URL1 = 'https://www.goodreads.com/review/list_rss/777?shelf=%23ALL%23&page=1';
-const EMPTY = '<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Mahmoud\'s bookshelf: all</title></channel></rss>';
-/* Change a fixture: every `from` must be there (so a typo can't make a test pass by accident). */
-function edit(xml, pairs) {
-  for (const [from, to] of pairs) {
-    assert(xml.includes(from), 'fixture edit not found: ' + from.slice(0, 80));
-    xml = xml.split(from).join(to);
-  }
-  return xml;
-}
-const item = (id, rest) => `<item><title>${rest.title}</title><book_id>${id}</book_id><book id="${id}"><num_pages>${rest.pages || 0}</num_pages></book><author_name>${rest.author}</author_name><user_rating>${rest.rating || 0}</user_rating><user_read_at><![CDATA[${rest.readAt || ''}]]></user_read_at><user_shelves>${rest.shelves || ''}</user_shelves><user_review><![CDATA[]]></user_review></item>`;
+const CSV = path.join(H.FIXTURES, 'goodreads_library_export.csv');
 
 (async () => {
   const env = await H.start();
   const browser = await chromium.launch();
-  const sql = (q, params) => env.fake.sql(q, params);
-  const feedCalls = async () => +(await sql(`select count(*)::int as n from extensions.http_stub_log where url like 'https://www.goodreads.com/review/list_rss/777?%'`))[0].n;
-  const setFeed = (xml) => sql(`insert into extensions.http_stub (url, status, body) values ($1, 200, $2) on conflict (url) do update set status = 200, body = excluded.body`, [URL1, xml]);
   let p;
+  const rpcCalls = [];
   try {
-    await setFeed(FEED);
-    await sql(`insert into extensions.http_stub (url, status, body) values ($1, 200, $2)`, ['^https://www\\.goodreads\\.com/review/list_rss/777\\?shelf=%23ALL%23&page=([2-9]|[1-6][0-9])$', EMPTY]);
-    await sql(`insert into extensions.http_stub (url, status, body) values ($1, 404, 'Not found')`, ['^https://www\\.goodreads\\.com/review/list_rss/404\\?']);
-
     await step('A member imports the Goodreads CSV, adds Dune by hand and changes a rating', async () => {
       const a = await H.newUser(browser, env, 'mahmoud@test.local', { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
       p = a.page;
+      p.on('request', (r) => /\/rpc\/goodreads_feed/.test(r.url()) && rpcCalls.push(r.url()));
       const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8AARwMB/1t+5gUAAAAASUVORK5CYII=', 'base64');
-      await p.context().route(/^https:\/\/(covers\.openlibrary\.org|i\.gr-assets\.com)\//, (r) => r.fulfill({ status: 200, contentType: 'image/png', body: png }));
+      await p.context().route(/^https:\/\/(covers\.openlibrary\.org|i\.gr-assets\.com)\//,(r) => r.fulfill({ status: 200, contentType: 'image/png', body: png }));
       await p.fill('#cn-name', 'حلقة جودريدز');
       await p.click('#circle-new button');
       await p.waitForSelector('#join-name');
@@ -117,20 +96,19 @@ const item = (id, rest) => `<item><title>${rest.title}</title><book_id>${id}</bo
         const t = U.nowIso();
         await D.mutate(`shelf/${S.me}`, () => ({ items: { dune1: { title: 'Dune', author: 'Frank Herbert', status: 'read', rating: 4, finished: '', tags: [], pages: 0, review: '', at: t, updatedAt: t } } }));
       });
-      await p.click('[data-go="shelf"]');
-      await T(400);
-      await p.click('[data-act="shelf-more"]');
-      await p.click('.mi:has-text("Goodreads")');
-      await p.waitForSelector('#gr-url');
+      await openSheet(p);
+      assert(!(await p.$('#gr-url, [data-gr-link], [data-gr-sync]')), 'the old Goodreads link box is still there');
+      assert(!(await p.$('.gr-gone')), 'the "sync stopped" note shows for a member who never linked');
+      await T(600); // the sheet slides up
       await H.shot(p, 'g01-import-sheet');
-      await p.setInputFiles('#imp-file', path.join(H.FIXTURES, 'goodreads_library_export.csv'));
+      await p.setInputFiles('#imp-file', CSV);
       await p.waitForSelector('.imp-sum');
-      assert(await p.$eval('#gr-wrap', (e) => e.hidden), 'the Goodreads link box should step aside during the CSV preview');
       await p.click('[data-imp-go]');
       await until(p, 'CSV imported', () => Object.values((window.A.S.shelf.get(window.A.S.me) || {}).items || {}).length === 7);
       const it = await items(p);
       const fel = one(it, /Fellowship/);
       assert(fel.rating === 5 && fel.grId === '34' && JSON.stringify(fel.lists) === '["fantasy"]', 'CSV row: ' + JSON.stringify(fel));
+      one(it, /^Dune/);
       await T(300);
       await p.evaluate((id) => window.A.V.saveShelfItem(id, { rating: 3 }), fel.id);
       await until(p, 'rating changed by hand', () => Object.values(window.A.S.shelf.get(window.A.S.me).items).some((x) => /Fellowship/.test(x.title) && x.rating === 3));
@@ -138,236 +116,41 @@ const item = (id, rest) => `<item><title>${rest.title}</title><book_id>${id}</bo
       return `${it.length} books`;
     });
 
-    await step('Links: profile links and RSS links are read, other links refused', async () => {
-      const r = await p.evaluate(() => {
-        const f = window.A.Imp.parseGrLink;
-        return [
-          f('https://www.goodreads.com/user/show/12345-mahmoud-k'),
-          f('https://m.goodreads.com/user/show/12345'),
-          f('goodreads.com/user/show/12345-name?ref=nav'),
-          f('https://www.goodreads.com/review/list_rss/12345?key=AbC-9_x&shelf=%23ALL%23'),
-          f('https://www.goodreads.com/review/list/12345-name?shelf=read'),
-          f(' 12345 '),
-          f('https://www.goodreads.com/author/show/12345.Someone'),
-          f('https://evil.example/goodreads.com/user/show/1x'),
-          f('https://www.goodreads.com/user/show/1234567890123'),
-        ];
-      });
-      const want = [{ id: '12345', key: '' }, { id: '12345', key: '' }, { id: '12345', key: '' }, { id: '12345', key: 'AbC-9_x' }, { id: '12345', key: '' }, { id: '12345', key: '' }, null, null, null];
-      assert(JSON.stringify(r) === JSON.stringify(want), JSON.stringify(r));
-    }, ['csv']);
-
-    await step('Feed parsing is tolerant: CDATA or not, stray HTML entities, missing fields; a web page is not a feed', async () => {
-      const r = await p.evaluate(() => {
-        const f = window.A.Imp.readFeed;
-        const loose = `<rss><channel><item><title>Caf&eacute; &amp; Co&nbsp;(Series, #2)</title><author_name>A. Writer</author_name>
-          <user_review>Line one<br/>line &quot;two&quot;</user_review><user_rating>4</user_rating><user_shelves>to-read, owned</user_shelves>
-          <book id="55"><num_pages>120</num_pages></book></item><item><title><![CDATA[Bare]]></title></item></channel></rss>`;
-        return {
-          loose: f(loose),
-          html: f('<!DOCTYPE html><html><head><title>Sign in</title></head><body><form></form></body></html>'),
-          empty: f('<rss version="2.0"><channel><title>x</title></channel></rss>'),
-          junk: f('goodreads_error:http_500'),
-        };
-      });
-      const [a, b] = r.loose || [];
-      assert(a && a.title === 'Café & Co' && a.author === 'A. Writer' && a.status === 'want' && a.rating === 4 && a.pages === 120 && a.grId === '55', 'loose item: ' + JSON.stringify(a));
-      assert(a.review === 'Line one\nline "two"' && JSON.stringify(a.lists) === '["owned"]' && a.finished === '', 'loose item fields: ' + JSON.stringify(a));
-      assert(b && b.title === 'Bare' && b.status === 'read' && b.rating === 0 && !b.grId && !b.cover, 'bare item: ' + JSON.stringify(b));
-      assert(r.html === null && r.junk === null && Array.isArray(r.empty) && !r.empty.length, 'not feeds: ' + JSON.stringify([r.html, r.empty, r.junk]));
-    }, ['csv']);
-
-    await step('Re-reads: back to reading on Goodreads, then finished again, keeps the first finish; a date fix does not', async () => {
-      const r = await p.evaluate(() => {
-        const M = window.A.Imp.mergeGoodreads;
-        let n = 0;
-        const o = { id: '1', newId: () => 'n' + n++ };
-        const g = (x) => Object.assign({ title: 'Book', author: 'A B', status: 'read', rating: 0, review: '', finished: '', pages: 0, cover: '', isbn: '', grId: '9', lists: [], tags: [], src: 'goodreads' }, x);
-        let cur = { items: {} };
-        cur = M(cur, [g({ finished: '2024-01' })], o);
-        cur = M(cur, [g({ status: 'reading' })], o);
-        const mid = Object.assign({}, cur.items.n0);
-        cur = M(cur, [g({ finished: '2024-03' })], o);
-        const again = cur.items.n0;
-        let fix = M({ items: {} }, [g({ finished: '2024-01' })], o);
-        fix = M(fix, [g({ finished: '2024-02' })], o);
-        return { mid, again, fix: fix.items.n1 };
-      });
-      assert(r.mid.status === 'reading' && r.mid.finished === '2024-01', 'while re-reading: ' + JSON.stringify(r.mid));
-      assert(r.again.status === 'read' && r.again.finished === '2024-03' && JSON.stringify(r.again.reads) === '[{"finished":"2024-01"}]', 'finished again: ' + JSON.stringify(r.again));
-      assert(r.fix.finished === '2024-02' && !r.fix.reads, 'a date fixed on Goodreads is not a re-read: ' + JSON.stringify(r.fix));
-    }, ['csv']);
-
-    await step('A wrong account number gives a clear message and links nothing', async () => {
-      await closeSheets(p);
-      await p.click('[data-act="shelf-more"]');
-      await p.click('.mi:has-text("Goodreads")');
-      await p.waitForSelector('#gr-url');
-      await p.fill('#gr-url', 'https://www.goodreads.com/user/show/404-nobody');
-      await p.click('[data-gr-link]');
-      await until(p, 'error shown', () => !document.querySelector('#gr-err').hidden);
-      const msg = await p.$eval('#gr-err', (e) => e.textContent);
-      assert(/ملقيناش حساب/.test(msg), msg);
-      assert(!(await shelfGr(p)), 'linked anyway');
-      await p.fill('#gr-url', 'https://www.goodreads.com/author/show/12.X');
-      await p.click('[data-gr-link]');
-      assert(/مش لينك بروفايل/.test(await p.$eval('#gr-err', (e) => e.textContent)), 'bad link not refused');
-    }, ['csv']);
-
-    await step('Linking syncs: no duplicates, only what changed on Goodreads (and not here) changes', async () => {
-      await p.fill('#gr-url', 'https://m.goodreads.com/user/show/777-mahmoud');
-      await p.click('[data-gr-link]');
-      await until(p, 'linked', () => !!document.querySelector('.gr-box.on .gr-res'), null, 15000);
-      const sum = await p.$$eval('.gr-res b', (x) => x.map((e) => e.textContent).join(','));
-      await H.shot(p, 'g02-linked');
-      assert(sum === '٢,٤,٣', 'new/updated/unchanged: ' + sum);
-      const it = await items(p);
-      assert(it.length === 9, 'books: ' + it.length + ' ' + it.map((x) => x.title).join(' | '));
-      const keys = await p.evaluate(() => Object.values(window.A.S.shelf.get(window.A.S.me).items).map((x) => window.A.Imp.key(x.title, x.author)));
-      assert(new Set(keys).size === keys.length, 'duplicates: ' + keys.join(' | '));
-      const fel = one(it, /Fellowship/);
-      assert(fel.rating === 3, 'hand-edited rating overwritten: ' + fel.rating);
-      assert(fel.gr && fel.gr.rating === 4, 'Goodreads rating not remembered: ' + JSON.stringify(fel.gr));
-      assert(/openlibrary/.test(fel.cover), 'cover replaced: ' + fel.cover);
-      const gra = one(it, /غرناطة/);
-      assert(gra.rating === 5 && gra.review === 'رواية جميلة،\nفيها حزن كتير.', 'Granada: ' + JSON.stringify(gra));
-      const sap = one(it, /Sapiens/);
-      assert(sap.status === 'read' && sap.finished === '2024-05' && sap.rating === 4, 'Sapiens to-read → read: ' + JSON.stringify(sap));
-      const man = one(it, /Man's Search/);
-      assert(man.finished === '2025-01' && JSON.stringify(man.reads) === '[{"finished":"2020-08"}]', 're-read: ' + JSON.stringify(man));
-      const ah = one(it, /Atomic Habits/);
-      assert(ah.status === 'reading' && /openlibrary/.test(ah.cover), 'Atomic Habits: ' + JSON.stringify(ah));
-      const ayam = one(it, /الأيام/);
-      assert(ayam.rating === 5 && ayam.finished === '2019-05' && !ayam.cover, 'الأيام: ' + JSON.stringify(ayam));
-      const phm = one(it, /Project Hail Mary/);
-      assert(phm.status === 'read' && phm.rating === 5 && phm.finished === '2025-06' && phm.pages === 476 && phm.grId === '999' && phm.src === 'goodreads', 'new book: ' + JSON.stringify(phm));
-      assert(/\/999\.jpg$/.test(phm.cover), 'full-size cover: ' + phm.cover);
-      assert(JSON.stringify(phm.lists) === '["sci-fi","favorites"]', 'lists: ' + JSON.stringify(phm.lists));
-      assert(phm.review === 'Funny & clever.\n\nRocky!', 'review: ' + JSON.stringify(phm.review));
-      const dnf = one(it, /Gave Up/);
-      assert(dnf.status === 'dnf' && !dnf.cover && dnf.rating === 2, "didn't finish: " + JSON.stringify(dnf));
-      const dune = one(it, /^Dune$/);
-      assert(dune.id === 'dune1' && dune.grId === '234' && dune.rating === 4 && dune.pages === 412 && dune.finished === '2016-10' && /234\.jpg$/.test(dune.cover) && !dune.src, 'hand-added Dune linked and filled: ' + JSON.stringify(dune));
-      const gr = await shelfGr(p);
-      assert(gr && gr.id === '777' && gr.at && gr.ids.length === 9 && gr.reviews === true, 'shelf link: ' + JSON.stringify(gr));
-      assert(!JSON.stringify(gr).includes('key'), 'the RSS key went into shared data');
-      const row = (await sql(`select data from public.shelves where data ? 'gr'`))[0];
-      assert(row && row.data.gr.id === '777', 'gr not stored in shelves.data: ' + JSON.stringify(row && row.data && row.data.gr));
-      ctx.linked = true;
-      return `${it.length} books, summary ${sum}`;
-    }, ['csv']);
-
-    await step('A second sync changes nothing', async () => {
-      const before = JSON.stringify((await items(p)).sort((a, b) => a.id.localeCompare(b.id)));
-      const n0 = await feedCalls();
-      await p.click('[data-gr-sync]');
-      await until(p, 'synced again', () => !!document.querySelector('[data-gr-sync]') && !document.querySelector('[data-gr-sync]').disabled && /٠/.test(document.querySelector('.gr-res b').textContent), null, 15000);
-      const sum = await p.$$eval('.gr-res b', (x) => x.map((e) => e.textContent).join(','));
-      assert(sum === '٠,٠,٩', 'summary: ' + sum);
-      const after = JSON.stringify((await items(p)).sort((a, b) => a.id.localeCompare(b.id)));
-      assert(before === after, 'items changed on a sync with nothing new');
-      const n = (await feedCalls()) - n0;
-      assert(n === 2, 'pages fetched: ' + n + ' (want page 1 and an empty page 2)');
-      const last = await p.$eval('.gr-at', (e) => e.textContent);
-      assert(/آخر مزامنة: دلوقتي/.test(last), 'last sync line: ' + last);
-    }, ['linked']);
-
-    await step('Later Goodreads changes flow in; edits made here and books removed here stay', async () => {
-      const it0 = await items(p);
-      // in the app: change Granada's rating, remove Project Hail Mary
-      await p.evaluate((id) => window.A.V.saveShelfItem(id, { rating: 3 }), one(it0, /غرناطة/).id);
-      const phm = one(it0, /Project Hail Mary/).id;
-      await p.evaluate(async (id) => {
-        const { D, S } = window.A;
-        await D.mutate(`shelf/${S.me}`, () => {
-          const cur = S.shelf.get(S.me);
-          const items = Object.assign({}, cur.items);
-          delete items[id];
-          return { items }; // the way the shelf screen removes a book
-        });
-      }, phm);
-      await until(p, 'removed', (id) => !window.A.S.shelf.get(window.A.S.me).items[id], phm);
-      // on Goodreads: Fellowship 4 → 2, Granada 5 → 2, Atomic Habits finished in Sep 2025 with ★4
-      ctx.feed2 = edit(FEED, [
-          ['<user_rating>4</user_rating>\n      <user_read_at><![CDATA[Sun, 14 Mar 2021', '<user_rating>2</user_rating>\n      <user_read_at><![CDATA[Sun, 14 Mar 2021'],
-          ['<user_rating>5</user_rating>\n      <user_read_at><![CDATA[Sat, 02 Jul 2022', '<user_rating>2</user_rating>\n      <user_read_at><![CDATA[Sat, 02 Jul 2022'],
-          ['<user_rating>0</user_rating>\n      <user_read_at><![CDATA[]]></user_read_at>', '<user_rating>4</user_rating>\n      <user_read_at><![CDATA[Tue, 30 Sep 2025 00:00:00 +0000]]></user_read_at>'],
-          ['<user_shelves>currently-reading</user_shelves>', '<user_shelves>read</user_shelves>'],
-      ]);
-      await setFeed(ctx.feed2);
-      await closeSheets(p);
+    await step('The same export again: nothing doubled, the rating changed here stays', async () => {
       await openSheet(p);
-      await p.waitForSelector('[data-gr-sync]');
-      const gr0 = await shelfGr(p);
-      ctx.grAfterRemove = gr0;
-      await p.click('[data-gr-sync]');
-      await until(p, 'synced', () => !!document.querySelector('.gr-res'), null, 15000);
-      const sum = await p.$$eval('.gr-res b', (x) => x.map((e) => e.textContent).join(','));
-      const note = await p.$eval('.gr-box', (e) => e.textContent);
-      await H.shot(p, 'g03-later-sync');
-      const it = await items(p);
-      assert(one(it, /Fellowship/).rating === 3, 'Fellowship rating: ' + one(it, /Fellowship/).rating);
-      assert(one(it, /غرناطة/).rating === 3, 'Granada rating edited here: ' + one(it, /غرناطة/).rating);
-      const ah = one(it, /Atomic Habits/);
-      assert(ah.status === 'read' && ah.finished === '2025-09' && ah.rating === 4, 'Atomic Habits: ' + JSON.stringify(ah));
-      assert(!byTitle(it, /Project Hail Mary/).length, 'a book removed here came back');
-      assert(sum === '٠,١,٧', 'summary: ' + sum);
-      assert(/مش هنرجّعه/.test(note), 'no note about the removed book: ' + note);
-      ctx.later = true;
-    }, ['linked']);
-
-    await step("The shelf screen's own writes keep the shared link (shelf.gr)", async () => {
-      // v-shelf.js writes D.mutate('shelf/<me>', () => ({ items })): the storage layer must keep the other keys
-      // of the shelf document (gr), or other devices lose the link and books removed here come back there.
-      const gr = ctx.grAfterRemove;
-      assert(gr && gr.id === '777' && Array.isArray(gr.ids) && gr.ids.length === 9, 'shelf.gr after removing a book from the shelf screen: ' + JSON.stringify(gr));
-    }, ['grAfterRemove']);
-
-    await step('Auto sync: quietly once the last sync is over 12 hours old, and only once', async () => {
+      await p.setInputFiles('#imp-file', CSV);
+      await p.waitForSelector('.imp-sum');
+      const go = await p.$eval('[data-imp-go]', (b) => ({ off: b.disabled, t: b.textContent.trim() }));
+      assert(go.off, 'the second import offers to add something: ' + go.t);
       await closeSheets(p);
-      await setFeed(edit(ctx.feed2, [['  </channel>', item(5907, { title: 'The Hobbit', author: 'J.R.R. Tolkien', rating: 5, readAt: 'Mon, 01 Sep 2025 00:00:00 +0000', pages: 310 }) + '\n  </channel>']]));
-      // shortly after a sync: nothing happens on reload
-      const n0 = await feedCalls();
-      await p.reload({ waitUntil: 'load' });
-      await p.waitForSelector('.home, .shell', { timeout: 20000 });
-      await T(5000);
-      assert((await feedCalls()) === n0, 'synced again although the last sync was minutes ago');
-      // 13 hours later
-      const old = new Date(Date.now() - 13 * 3600 * 1000).toISOString();
-      await sql(`update public.shelves set data = jsonb_set(data, '{gr,at}', to_jsonb($1::text)) where data ? 'gr'`, [old]);
-      await p.reload({ waitUntil: 'load' });
-      await p.waitForSelector('.home, .shell', { timeout: 20000 });
-      await until(p, 'auto sync brought The Hobbit', () => Object.values((window.A.S.shelf.get(window.A.S.me) || {}).items || {}).some((x) => x.title === 'The Hobbit'), null, 20000);
-      const toast = await p.waitForSelector('.toast', { timeout: 5000 }).then((e) => e.textContent()).catch(() => '');
-      assert(/Goodreads/.test(toast) && /Goodreads — جديد: كتاب واحد\s*$/.test(toast), 'toast: ' + toast);
-      const n1 = await feedCalls();
-      assert(n1 - n0 === 2, 'pages fetched by the auto sync: ' + (n1 - n0));
-      const gr = await shelfGr(p);
-      assert(Date.now() - Date.parse(gr.at) < 60000, 'last sync not updated: ' + gr.at);
-      for (let i = 0; i < 4; i++) {
-        await p.evaluate(() => window.A.D.bump());
-        await T(1200);
-      }
+      const it = await items(p);
+      assert(it.length === 7, 'books after the second import: ' + it.length);
+      assert(one(it, /Fellowship/).rating === 3, 'the hand-made rating changed');
+      return go.t;
+    }, ['csv']);
+
+    await step('A member who had linked Goodreads is told the sync stopped; the app never calls the old sync', async () => {
+      await p.evaluate(async () => {
+        const { D, S, U } = window.A;
+        await D.mutate(`shelf/${S.me}`, () => Object.assign({}, S.shelf.get(S.me), { id: undefined, gr: { id: '777', at: U.addDays(U.today(), -3) + 'T10:00:00.000Z', ids: ['34'], reviews: true } }));
+        U.store.set('grLink:' + S.me, { id: '777', key: '', at: '', reviews: true, ids: [] });
+      });
+      // a reload and coming back to the app used to start the sync after 12 hours
+      await p.reload();
+      // it opens again where it was (the shelf), once the circle has loaded
+      await until(p, 'loaded again', () => window.A && window.A.S.phase === 'ready' && window.A.S.loaded.shelf, null, 20000);
       await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-      await T(4000);
-      assert((await feedCalls()) === n1, 'auto sync ran more than once');
-      const it = await items(p);
-      const keys = it.map((x) => x.title);
-      assert(new Set(keys).size === keys.length && it.length === 9, 'books after auto sync: ' + keys.join(' | '));
-      return toast.trim();
-    }, ['later']);
-
-    await step('Unlink: the link goes, the books stay', async () => {
-      const n0 = (await items(p)).length;
+      await T(4500);
       await openSheet(p);
-      await p.click('[data-gr-unlink]');
-      await p.click('[data-yes]');
-      await until(p, 'unlinked', () => !!document.querySelector('#gr-url') && !document.querySelector('.gr-box.on'));
-      const gr = await shelfGr(p);
-      assert(gr && !gr.id && gr.off && gr.ids.length >= 9, 'shelf gr after unlink: ' + JSON.stringify(gr));
-      assert((await items(p)).length === n0, 'books removed on unlink');
-      assert(!(await p.evaluate(() => localStorage.getItem('qs:grLink:' + window.A.S.me))), 'device link kept');
-    }, ['linked']);
+      const note = await p.$eval('.gr-gone', (e) => e.textContent).catch(() => '');
+      assert(/Goodreads/.test(note) && /صدّر/.test(note), 'note: ' + note);
+      await T(600); // the sheet slides up
+      await H.shot(p, 'g02-sync-gone');
+      await closeSheets(p);
+      assert(!rpcCalls.length, 'goodreads_feed called: ' + rpcCalls.length);
+      assert((await items(p)).length === 7, 'the books changed');
+      return note.slice(0, 60) + '…';
+    }, ['csv']);
 
     const errs = (p && p.__errors) || [];
     await step('No page errors', async () => {

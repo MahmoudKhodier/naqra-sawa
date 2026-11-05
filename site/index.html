@@ -2527,22 +2527,8 @@ button.wm-c:hover { border-color: var(--line); }
 .rd-title b .rd-lock .ic { width: 14px; height: 14px; }
 .rd-onlyme { display: flex; gap: 8px; align-items: flex-start; font-size: .86rem; color: var(--ink2); background: var(--bg2); border-radius: 12px; padding: 8px 12px; margin: 8px 0; }
 .rd-onlyme .ic { width: 16px; height: 16px; flex: none; margin-top: 3px; }
-/* Goodreads sync (site/js/import.js: the link box in the import sheet) */
-.gr-box { display: flex; flex-direction: column; gap: 8px; background: var(--card2); border-radius: 16px; padding: 14px; }
-.gr-box h4 { display: flex; align-items: center; gap: 8px; margin: 0; font: 700 1.05rem var(--f-disp); color: var(--ink); }
-.gr-box h4 .ic { width: 20px; height: 20px; flex: none; color: var(--lapis); }
-.gr-box p { margin: 0; line-height: 1.6; }
-.gr-box input[type=url] { width: 100%; box-sizing: border-box; }
-.gr-box small { line-height: 1.55; }
-.gr-box .row-btns { margin-top: 2px; }
-.gr-box .err-t { margin-top: 0; }
-.gr-box .gr-res { margin-top: 4px; }
-.gr-box .gr-res div { background: var(--card); }
-.gr-change { color: var(--ink2); font-size: .9rem; }
-.gr-change summary { cursor: pointer; padding: 4px 0; }
-.gr-change[open] { display: flex; flex-direction: column; gap: 8px; }
-.gr-or { display: flex; align-items: center; gap: 10px; color: var(--ink3); font-size: .86rem; margin: 14px 0 12px; }
-.gr-or::before, .gr-or::after { content: ''; flex: 1; border-top: 1px solid var(--line); }
+/* the import sheet (import.js): a word for members who had the old Goodreads sync */
+.my-note.gr-gone { margin: 0 0 14px; }
 /* ---------- the circle together (v-together.js) ---------- */
 .together-done { display: flex; gap: 14px; align-items: center; border: 2px solid var(--gold); background: linear-gradient(135deg, var(--gold-s), var(--card)); margin-bottom: 14px; }
 .together-done h3 { margin: 2px 0; }

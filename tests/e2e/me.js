@@ -160,25 +160,39 @@ const cards = (p) => p.$$eval('.qn-list .qn', (x) => x.length);
       });
       const want = await p.evaluate(() => {
         const { L, G, S, U } = window.A;
-        // busiest weekday from the seeded days, computed independently
+        // busiest weekday from the seeded days in the last 30 days (not the one 40 days ago), computed independently
         const sums = {};
-        [[1, 10], [2, 20], [3, 30], [10, 40], [40, 50]].forEach(([i, n]) => {
+        [[1, 10], [2, 20], [3, 30], [10, 40]].forEach(([i, n]) => {
           const d = new Date();
           d.setDate(d.getDate() - i);
           sums[d.getDay()] = (sums[d.getDay()] || 0) + n;
         });
         const top = Object.entries(sums).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
         return {
-          avg: L.num(30), speed: L.num(60), best: L.num(50), streak: L.num(G.of(S.me).best),
+          avg: L.num(25), speed: L.num(60), best: L.num(40), streak: L.num(G.of(S.me).best),
           wday: new Intl.DateTimeFormat('ar-EG', { weekday: 'long' }).format(new Date(2026, 0, 4 + +top)),
-          bestLabel: L.dayShort(U.addDays(U.today(), -40)),
+          bestLabel: L.dayShort(U.addDays(U.today(), -10)),
         };
       });
       const got = { avg: await num(p, 'avg'), speed: await num(p, 'speed'), best: await num(p, 'best'), streak: await num(p, 'streak'), wday: await num(p, 'wday') };
       for (const k of Object.keys(got)) assert(got[k] === want[k], `${k}: ${got[k]} ≠ ${want[k]}`);
       const bestTxt = await p.$eval('#me-stats .mst-n[data-k="best"] small', (e) => e.textContent);
       assert(bestTxt.includes(want.bestLabel), 'best day label: ' + bestTxt);
-      return JSON.stringify(got);
+      // the tiles follow the period: «السنة دي» counts the days of this year only
+      await p.evaluate(() => document.querySelector('#me-stats [data-act="mst-period"][data-v="yr"]').click());
+      await p.waitForSelector('#me-stats [data-act="mst-period"][data-v="yr"].on');
+      const wantY = await p.evaluate(() => {
+        const { L, U } = window.A;
+        const Y = U.today().slice(0, 4);
+        const ds = [[1, 10], [2, 20], [3, 30], [10, 40], [40, 50]].map(([i, n]) => [U.addDays(U.today(), -i), n]).filter(([k]) => k.startsWith(Y));
+        const best = ds.reduce((a, d) => (!a || d[1] > a[1] ? d : a), null);
+        return { avg: L.num(Math.round(ds.reduce((t, d) => t + d[1], 0) / ds.length)), best: L.num(best[1]), label: L.dayShort(best[0]) };
+      });
+      const gotY = { avg: await num(p, 'avg'), best: await num(p, 'best'), label: await p.$eval('#me-stats .mst-n[data-k="best"] small', (e) => e.textContent) };
+      assert(gotY.avg === wantY.avg && gotY.best === wantY.best && gotY.label.includes(wantY.label), 'this year: ' + JSON.stringify(gotY) + ' want ' + JSON.stringify(wantY));
+      await p.evaluate(() => document.querySelector('#me-stats [data-act="mst-period"][data-v="d30"]').click());
+      await p.waitForSelector('#me-stats [data-act="mst-period"][data-v="d30"].on');
+      return JSON.stringify(got) + ' • this year ' + JSON.stringify(gotY);
     });
 
     await step('30 days: 30 bars, right to left, tallest is the 40-page day; tap shows its value', async () => {
@@ -318,7 +332,7 @@ const cards = (p) => p.$$eval('.qn-list .qn', (x) => x.length);
       await p.waitForSelector('#me-stats');
       const h = await p.textContent('#me-stats h2');
       assert(h.includes('Reading stats'), 'title: ' + h);
-      assert((await num(p, 'avg')) === '30' && (await num(p, 'speed')) === '60' && (await num(p, 'best')) === '50', 'numbers in English');
+      assert((await num(p, 'avg')) === '25' && (await num(p, 'speed')) === '60' && (await num(p, 'best')) === '40', 'numbers in English');
       const xs = await p.$$eval('#me-stats .mst-bar', (x) => x.map((b) => b.getBoundingClientRect().x));
       assert(xs[0] < xs[29], 'in English the oldest day should be on the left');
       const total = await p.textContent('#mst-read');
@@ -352,7 +366,7 @@ const cards = (p) => p.$$eval('.qn-list .qn', (x) => x.length);
       await until(b, 'friend sees the pages and the shelf', (uid) => window.A.G.of(uid).pages === 150 && window.A.V.shelfItems(uid).length === 8, me, 15000);
       await b.evaluate((uid) => window.A.V.go('me', { uid }), me);
       await b.waitForSelector('#me-stats');
-      assert((await num(b, 'avg')) === '٣٠' && (await num(b, 'best')) === '٥٠', 'numbers on the friend’s view');
+      assert((await num(b, 'avg')) === '٢٥' && (await num(b, 'best')) === '٤٠', 'numbers on the friend’s view');
       assert(!(await b.$('.qn-entry')), 'the notebook card shows on someone else’s profile');
       await b.click('#me-stats [data-act="mst-period"][data-v="yr"]');
       const yr = await b.$$eval('#me-stats .mst-bar', (x) => x.reduce((s, e) => s + +e.dataset.v, 0));

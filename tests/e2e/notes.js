@@ -367,6 +367,41 @@ const closeAll = async (p) => {
       return warn ? 'offline note: ' + warn : 'no warning';
     });
 
+    await step('A chat message or a reply that cannot go out comes back in its box, with a warning each time', async () => {
+      const id6g = await a.evaluate(() => [...window.A.S.notes.values()].find((n) => n.text === 'من غير نت').id); // the note from the step before
+      const ctxA = a.context();
+      const warns = () => a.evaluate(() => [...document.querySelectorAll('.toast.warn')].length);
+      // chat
+      await closeAll(a);
+      await a.evaluate(() => window.A.V.go('circle', { seg: 'chat' }));
+      const box = '[data-send] textarea';
+      await a.waitForSelector(box);
+      const msg = 'رسالة من غير نت';
+      await a.fill(box, msg);
+      await ctxA.setOffline(true);
+      await a.click('[data-send] button[type=submit], [data-send] .btn');
+      await until(a, 'the message back in the box', (t) => document.querySelector('[data-send] textarea').value === t, msg, 8000);
+      assert(!(await a.evaluate((t) => window.A.S.msgs.some((m) => m.text === t), msg)), 'the unsent message is still listed');
+      const w1 = await warns();
+      assert(w1 >= 1, 'no warning for the unsent message');
+      // a reply, a moment later: warned again (not only once a minute)
+      await T(5500);
+      await a.evaluate((id) => window.A.V.openNote(id), id6g);
+      await a.waitForSelector('[data-reply] textarea');
+      const rep = 'رد من غير نت';
+      await a.fill('[data-reply] textarea', rep);
+      await a.click('[data-reply] button[type=submit], [data-reply] .btn');
+      await until(a, 'the reply back in the box', (t) => { const ta = document.querySelector('[data-reply] textarea'); return ta && ta.value === t; }, rep, 8000);
+      await until(a, 'a warning for the reply too', () => [...document.querySelectorAll('.toast.warn')].some((t) => /النت/.test(t.textContent)), null, 4000);
+      await ctxA.setOffline(false);
+      await T(500);
+      // back online: send it from the box as it is
+      await a.click('[data-reply] button[type=submit], [data-reply] .btn');
+      await until(a, 'the reply saved once online', ({ id, t }) => Object.values((window.A.S.notes.get(id) || {}).replies || {}).some((r) => r.text === t), { id: id6g, t: rep }, 10000);
+      await closeAll(a);
+      return 'kept both';
+    });
+
     await step('A visit to a note changes nothing of my reading: where I go on, «وقفت هنا», pages read, zoom', async () => {
       // I'm reading at p. 10 (a line placed there), zoom 1.4
       const setup = await a.evaluate(async (bk) => {

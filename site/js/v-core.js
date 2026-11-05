@@ -448,6 +448,18 @@
     }
   });
 
+  /* A message or reply that did not go out: its text goes back in the box (in front of anything typed since). */
+  V.restoreText = (ta, text) => {
+    if (!ta || !text) return;
+    const now = ta.value.trim();
+    if (now === text) return;
+    ta.value = now ? text + '\n' + ta.value : text;
+    ta.dispatchEvent(new Event('input', { bubbles: true })); // grows the box, keeps any draft in step
+    try {
+      ta.focus({ preventScroll: true });
+    } catch (e) {}
+  };
+
   V.sheet = ({ title = '', html = '', cls = '', onMount, onData, wide = false, top = false, side = '' }) => {
     const wrap = document.createElement('div');
     // top: drops down from the top (notifications); side 'l' | 'r': a panel down that side, the rest of the screen in view

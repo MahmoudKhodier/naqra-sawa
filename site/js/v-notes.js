@@ -361,7 +361,12 @@
           ta.value = '';
           ta.dataset.fresh = '1';
           setTimeout(() => delete ta.dataset.fresh, 400);
-          await D.update(`notes/${n.id}`, { replies: { [D.newId()]: { by: S.me, text, at: U.nowIso() } } });
+          try {
+            await D.update(`notes/${n.id}`, { replies: { [D.newId()]: { by: S.me, text, at: U.nowIso() } } });
+          } catch (err) {
+            // not sent: the reply goes back in the box (the sheet may have drawn a new one meanwhile)
+            return V.restoreText(el.querySelector('[data-reply] textarea') || ta, text);
+          }
           U.xpPop(G.XP.reply, L('رد', 'Reply'));
         });
         el.addEventListener('keydown', (e) => {

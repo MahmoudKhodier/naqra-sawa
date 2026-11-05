@@ -593,7 +593,13 @@
     const re = V.replyTo && V.replyTo.key === f.dataset.key ? V.replyTo.mid : '';
     V.replyTo = null;
     const id = D.newId();
-    await D.set(`msgs/${id}`, { b: f.dataset.b, ch: f.dataset.ch, by: S.me, text, at: U.nowIso(), re, react: {} });
+    try {
+      await D.set(`msgs/${id}`, { b: f.dataset.b, ch: f.dataset.ch, by: S.me, text, at: U.nowIso(), re, react: {} });
+    } catch (err) {
+      // not sent (no connection…): the text goes back in the box so nothing typed is lost (D.set already warned)
+      V.restoreText(document.querySelector(`[data-send][data-key="${CSS.escape(f.dataset.key)}"] textarea`) || ta, text);
+      return;
+    }
     const box = document.getElementById('msgs-' + f.dataset.key);
     if (box) box.scrollTop = box.scrollHeight;
   });

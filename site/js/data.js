@@ -182,7 +182,9 @@
       U.toast(L('المساحة المتاحة للحلقة خلصت. امسحوا حاجات قديمة وجرّبوا تاني', 'The circle is out of space. Delete some old items and try again', 'نفدت المساحة المتاحة للحلقة. احذفوا بعض العناصر القديمة وحاولوا مجددًا'), 'warn');
     } else if (code === 'resource_exhausted') {
       U.toast(L('براحة شوية… جرّب تاني بعد ثواني', 'Too fast — try again in a few seconds', 'مهلًا… حاول مجددًا بعد بضع ثوان'), 'warn');
-    } else if (Date.now() - (handleWriteError.last || 0) > 60000) {
+    } else if (Date.now() - (handleWriteError.last || 0) > 5000) {
+      // a few seconds apart at most, so a second lost save soon after is not silent (the toast itself skips a
+      // copy of the one already showing, so a burst of failing background saves still shows it once)
       handleWriteError.last = Date.now();
       U.toast(L('ماتحفظش. اتأكد من النت وجرّب تاني', 'Not saved. Check your connection and try again', 'لم يتم الحفظ. تأكد من اتصالك بالإنترنت وحاول مجددًا'), 'warn');
     }

@@ -57,16 +57,21 @@
     const today = U.today();
     const keys = Object.keys(days);
     const pages = keys.reduce((t, k) => t + days[k], 0);
-    // speed: only days with both pages and time recorded, and at least half an hour of them
-    let tp = 0, ts = 0;
-    for (const k of keys) if (secs[k]) (tp += days[k]), (ts += secs[k]);
-    const speed = ts >= 1800 && tp ? Math.round(tp / (ts / 3600)) : 0;
-    let bestDay = null;
-    for (const k of keys) if (!bestDay || days[k] > bestDay.n || (days[k] === bestDay.n && k > bestDay.k)) bestDay = { k, n: days[k] };
-    const wd = new Array(7).fill(0);
-    for (const k of keys) wd[U.parseD(k).getDay()] += days[k];
-    const top = Math.max(...wd);
-    const busiest = top ? wd.indexOf(top) : -1;
+    /* The numbers under the chart, over some of the days (ks). */
+    const numsOf = (ks) => {
+      const p = ks.reduce((t, k) => t + days[k], 0);
+      // speed: only days with both pages and time recorded, and at least half an hour of them
+      let tp = 0, ts = 0;
+      for (const k of ks) if (secs[k]) (tp += days[k]), (ts += secs[k]);
+      let bestDay = null;
+      for (const k of ks) if (!bestDay || days[k] > bestDay.n || (days[k] === bestDay.n && k > bestDay.k)) bestDay = { k, n: days[k] };
+      const wd = new Array(7).fill(0);
+      for (const k of ks) wd[U.parseD(k).getDay()] += days[k];
+      const top = Math.max(...wd);
+      return { avg: ks.length ? Math.round(p / ks.length) : 0, speed: ts >= 1800 && tp ? Math.round(tp / (ts / 3600)) : 0, bestDay, busiest: top ? wd.indexOf(top) : -1 };
+    };
+    const all = numsOf(keys);
+    const { speed, bestDay, busiest } = all;
     const d30 = [];
     for (let i = 29; i >= 0; i--) {
       const k = U.addDays(today, -i);
@@ -93,8 +98,14 @@
       for (const d of keys) if (d.startsWith(k)) p += days[d];
       yr.push({ k, pages: p, books: bm.months[i], future: k > today.slice(0, 7) });
     }
+    // the same numbers for each period of the chart, so the tiles match the switch above them
+    const per = {
+      d30: numsOf(keys.filter((k) => k >= d30[0].k && k <= today)),
+      w12: numsOf(keys.filter((k) => k >= w12[0].k && k <= today)),
+      yr: numsOf(keys.filter((k) => k.startsWith(year) && k <= today)),
+    };
     return {
-      pages, daysRead: keys.length, avg: keys.length ? Math.round(pages / keys.length) : 0, speed, bestDay,
+      pages, daysRead: keys.length, avg: all.avg, speed, bestDay, per,
       streakBest: s.best || 0, busiest, d30, w12, yr, year, noMonth: bm.noMonth, booksYear: bm.months.reduce((a, b) => a + b, 0) + bm.noMonth,
     };
   };
@@ -165,11 +176,12 @@
     const perName = { d30: L('٣٠ يوم', '30 days', '٣٠ يومًا'), w12: L('١٢ أسبوع', '12 weeks', '١٢ أسبوعًا'), yr: L('السنة دي', 'This year', 'هذا العام') };
     const seg = (act, cur, opts, label) => `<div class="seg sm" role="group" aria-label="${label}">${opts.map(([k, t]) => `<button type="button" class="${cur === k ? 'on' : ''}" data-act="${act}" data-v="${k}" aria-pressed="${cur === k}">${t}</button>`).join('')}</div>`;
     const nums = [];
-    nums.push(['avg', L.num(st.avg), L('صفحة في يوم القراية (متوسط)', 'pages per reading day (avg)', 'صفحة في يوم القراءة (متوسط)')]);
-    if (st.speed) nums.push(['speed', L.num(st.speed), L('صفحة في الساعة', 'pages an hour', 'صفحة في الساعة')]);
-    if (st.bestDay) nums.push(['best', L.num(st.bestDay.n), L(`أحسن يوم • ${L.dayShort(st.bestDay.k)}`, `best day • ${L.dayShort(st.bestDay.k)}`, `أفضل يوم • ${L.dayShort(st.bestDay.k)}`)]);
-    nums.push(['streak', L.num(st.streakBest), L('أطول سلسلة (يوم)', 'longest streak (days)', 'أطول سلسلة (أيام)')]);
-    if (st.busiest >= 0) nums.push(['wday', esc(weekdayLong(st.busiest)), L('أنشط يوم في الأسبوع', 'busiest weekday', 'أنشط أيام الأسبوع')]);
+    const pn = st.per[period] || st.per.d30; // the period chosen above: 30 days, 12 weeks or this year
+    nums.push(['avg', L.num(pn.avg), L('صفحة في يوم القراية (متوسط)', 'pages per reading day (avg)', 'صفحة في يوم القراءة (متوسط)')]);
+    if (pn.speed) nums.push(['speed', L.num(pn.speed), L('صفحة في الساعة', 'pages an hour', 'صفحة في الساعة')]);
+    if (pn.bestDay) nums.push(['best', L.num(pn.bestDay.n), L(`أحسن يوم • ${L.dayShort(pn.bestDay.k)}`, `best day • ${L.dayShort(pn.bestDay.k)}`, `أفضل يوم • ${L.dayShort(pn.bestDay.k)}`)]);
+    nums.push(['streak', L.num(st.streakBest), L('أطول سلسلة من الأول (يوم)', 'longest streak ever (days)', 'أطول سلسلة منذ البداية (أيام)')]);
+    if (pn.busiest >= 0) nums.push(['wday', esc(weekdayLong(pn.busiest)), L('أنشط يوم في الأسبوع', 'busiest weekday', 'أنشط أيام الأسبوع')]);
     return `<section class="card mst" id="me-stats" data-uid="${esc(uid)}">
       <header class="sec-h"><h2>${icon('target')}${L('إحصائيات القراية', 'Reading stats', 'إحصاءات القراءة')}</h2></header>
       <div class="mst-sub">${seg('mst-period', period, PERIODS.map((k) => [k, perName[k]]), L('الفترة', 'Period'))}${seg('mst-metric', met, mets.map((k) => [k, metName[k]]), L('المقياس', 'Measure'))}</div>

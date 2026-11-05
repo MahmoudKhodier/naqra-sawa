@@ -366,7 +366,7 @@ select t.login('B');
 select t.is((select data ->> 'title' from docs where circle_id = t.id('c1') and col = 'books' and id = 'b1'), 'كتاب',
             'docs: B reads A''s shared doc');
 select t.set('d0', updated_at::text) from docs where circle_id = t.id('c1') and col = 'books' and id = 'b1';
-select t.is(t.affected($$update docs set data = data || '{"pages": 300}'
+select t.is(t.affected($$update docs set data = data || '{"lang": "ar"}'
                           where circle_id = t.id('c1') and col = 'books' and id = 'b1'$$), 1::bigint,
             'docs: B updates a shared doc');
 select t.ok((select updated_at > t.v('d0')::timestamptz and updated_by = t.id('B')
