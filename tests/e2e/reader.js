@@ -87,10 +87,16 @@ async function tap(cdp, x, y) {
   await T(40);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
+/** Close the open sheets with Escape. Asks the app which sheets are still open: a closing one stays on the page a
+    moment, and an Escape with no sheet open closes the book (a busy machine got there and lost every later step). */
+async function closeSheets(p) {
+  const open = () => p.evaluate(() => !!(window.A && window.A.V && window.A.V.sheets && window.A.V.sheets.length));
+  for (let i = 0; i < 3 && (await open()); i++) await p.keyboard.press('Escape').then(() => T(300));
+}
 /** Make sure the reader's bars are showing (a middle tap toggles them). */
 async function showBars(p) {
   // a celebration (a new level…) may have come up meanwhile
-  for (let i = 0; i < 3 && (await p.$('.sheet-wrap .celeb, .sheet-wrap.celebrate, .sheet.celebrate')); i++) await p.keyboard.press('Escape').then(() => T(350));
+  for (let i = 0; i < 3 && (await p.evaluate(() => window.A.V.sheets.some((x) => x.el.closest('.sheet-wrap').matches('.celebrate, :has(.celeb), :has(.sheet.celebrate)')))); i++) await p.keyboard.press('Escape').then(() => T(350));
   if (await p.$('.rd.ui-off')) {
     const cdp = await p.context().newCDPSession(p);
     const vp = p.viewportSize();
@@ -101,7 +107,7 @@ async function showBars(p) {
 }
 async function menu(p, text) {
   // a celebration (a new level…) may have come up meanwhile
-  for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(350));
+  await closeSheets(p);
   await showBars(p);
   await p.click('.rd [data-act="more"]', { timeout: 8000 }).catch(async (e) => {
     await p.screenshot({ path: require('path').join(__dirname, 'shots', 'debug-more.png') });
@@ -167,7 +173,7 @@ async function pickOpt(p, act, v) {
 
     await step('Open the reader: first page painted quickly and sharp (2× screen)', async () => {
       await T(800);
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       await H.shot(p, 'r00-home');
       const t0 = Date.now();
       await p.locator('[data-act="read"]:visible').first().click({ timeout: 8000 });
@@ -307,7 +313,7 @@ async function pickOpt(p, act, v) {
     }, ['open', 'cdp']);
 
     await step('Pin a note with a tap (the note box stays open on a phone)', async () => {
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       await showBars(p);
       await p.click('[data-tool="pin"]');
       const c = await cur(p);
@@ -319,11 +325,11 @@ async function pickOpt(p, act, v) {
       await p.fill('#nk-text', 'سؤال؟');
       await p.click('.sheet [data-save]', { timeout: 6000 });
       await until(p, 'pin drawn', (pg) => !!document.querySelector(`.pg[data-p="${pg}"] .pinb`), c, 8000);
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
     }, ['open', 'cdp']);
 
     await step('A long note (2,700 characters) saves in full: shared, private, takeaway and chat; cards offer «اقرأ الباقي»', async () => {
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       const text = fs.readFileSync(path.join(H.FIXTURES, 'long-note-ar.txt'), 'utf8').trim();
       const c = await cur(p);
       const bid = ctx.book.id;
@@ -368,12 +374,12 @@ async function pickOpt(p, act, v) {
         return [...document.querySelectorAll('.toast')].some((t) => /أطول من المسموح/.test(t.textContent));
       });
       assert(warned, 'no warning for a paste that does not fit');
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       // the card shows the start and «اقرأ الباقي», which opens the whole note
       await showBars(p);
       await p.click('.rd [data-act="close"]');
       await T(700); // the session summary shows after closing the book
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       await p.evaluate((id) => window.A.V.go('book-' + id, { tab: 'notes' }), bid);
       await T(500);
       await p.click('.nc-more');
@@ -381,7 +387,7 @@ async function pickOpt(p, act, v) {
       const shown = await p.$eval('.nt-text', (e) => e.textContent.length);
       assert(shown === text.length, `the note sheet shows ${shown} characters`);
       await H.shot(p, 'r07b-long-note');
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       // a chat message and a takeaway of the same length
       await p.evaluate((id) => window.A.V.go('book-' + id, { tab: 'talk', ch: 'gen' }), bid);
       await T(400);
@@ -478,12 +484,12 @@ async function pickOpt(p, act, v) {
       await T(200);
       const kept = await p.evaluate(() => window.A.U.store.get('rdMarks'));
       assert(kept === 'all', 'preference not saved: ' + kept);
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       return `${before.all} marks → ${mine.all} (mine only) → 0 (clean) → ${back.all}`;
     }, ['open', 'cdp']);
 
     await step("Move notes: mine moves for everyone; someone else's only on my screen; hide for me and bring back", async () => {
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       const c = await cur(p);
       const hold = async (sel, dx, dy) => {
         await p.$eval(sel, (e) => e.scrollIntoView({ block: 'center' }));
@@ -542,7 +548,7 @@ async function pickOpt(p, act, v) {
     }, ['open', 'cdp']);
 
     await step('Portion progress while reading: bar fills, cheers at the start, half-way, last pages and the end', async () => {
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       const w = ctx.book.wirds[1];
       await p.evaluate((pg) => window.A.R.goTo(pg, false), w.from);
       await until(p, 'arrived at the portion', (pg) => window.A.R._state().cur === pg, w.from, 6000);
@@ -571,7 +577,7 @@ async function pickOpt(p, act, v) {
     }, ['open', 'cdp']);
 
     await step('Looking around does not count; «كمّل من هنا» counts again; un-count pages', async () => {
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       const s0 = await p.evaluate(() => window.A.R._state());
       const far = s0.front + 30;
       await p.evaluate((pg) => window.A.R.goTo(pg, false), far);
@@ -610,7 +616,7 @@ async function pickOpt(p, act, v) {
     }, ['open', 'cdp']);
 
     await step('A page counts once you go on from it, not when you get to it', async () => {
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       const s0 = await p.evaluate(() => window.A.R._state());
       const q = s0.front + 1;
       await p.evaluate((pg) => window.A.R.goTo(pg, false), q);
@@ -639,7 +645,7 @@ async function pickOpt(p, act, v) {
     }, ['open', 'cdp']);
 
     await step('«وقفت هنا»: a pill on the edge puts the line; book look pages alternate sides; bookmarks get names and slider marks', async () => {
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       await menu(p, 'صفحة صفحة');
       await T(800);
       const c = await cur(p);
@@ -683,7 +689,7 @@ async function pickOpt(p, act, v) {
       await showBars(p);
       await p.click('.rd [data-act="close"]');
       await T(600);
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       const reqs = [];
       const on = (r) => /storage\/v1\/object/.test(r.url()) && reqs.push(r.url());
       p.on('request', on);
@@ -764,7 +770,7 @@ async function pickOpt(p, act, v) {
         await showBars(p);
         await p.click('.rd [data-act="close"]');
         await until(p, 'pages wait in the outbox', () => Object.keys(localStorage).some((k) => k.startsWith('qs:outbox:') && localStorage.getItem(k).includes('110')), null, 8000);
-        for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+        await closeSheets(p);
       } finally {
         await ctxB.unroute(/\/rest\/v1\//);
       }
@@ -777,7 +783,7 @@ async function pickOpt(p, act, v) {
       assert(d1 === d0 + 3, `today's pages ${d0} → ${d1}`);
       assert(/110/.test(seen) || /\[1\d\d,\s*112\]/.test(seen), 'pages not in progress: ' + seen);
       await T(1200); // the pages that came in may bring a celebration
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(350));
+      await closeSheets(p);
       await p.locator('[data-act="read"]:visible').first().click({ timeout: 8000 });
       await until(p, 'painted', () => [...document.querySelectorAll('.pg canvas')].some((x) => x.width > 100), null, 20000);
       return `today ${d0} → ${d1}, seen ${seen}`;
@@ -819,17 +825,24 @@ async function pickOpt(p, act, v) {
     }, ['open', 'cdp']);
 
     await step('Double-tap zooms in at that spot, double-tap again fits the width', async () => {
-      const z0 = await p.evaluate(() => JSON.parse(localStorage.getItem('qs:readerPrefs')).zoom);
-      await tap(ctx.cdp, 200, 400);
-      await T(120);
-      await tap(ctx.cdp, 200, 400);
-      await T(1200);
-      const z1 = await p.evaluate(() => JSON.parse(localStorage.getItem('qs:readerPrefs')).zoom);
-      await tap(ctx.cdp, 200, 400);
-      await T(120);
-      await tap(ctx.cdp, 200, 400);
-      await T(1200);
-      const z2 = await p.evaluate(() => JSON.parse(localStorage.getItem('qs:readerPrefs')).zoom);
+      const zoom = () => p.evaluate(() => JSON.parse(localStorage.getItem('qs:readerPrefs')).zoom);
+      // two taps count as a double tap only within 300 ms; on a busy machine the second one can arrive later and
+      // then they are two single taps (the bars go and come back). Try the pair once more in that case.
+      const dbl = async (from) => {
+        for (let i = 0; i < 2; i++) {
+          await tap(ctx.cdp, 200, 400);
+          await T(60);
+          await tap(ctx.cdp, 200, 400);
+          await T(1200);
+          const z = await zoom();
+          if (z !== from) return z;
+          await T(400);
+        }
+        return zoom();
+      };
+      const z0 = await zoom();
+      const z1 = await dbl(z0);
+      const z2 = await dbl(z1);
       assert(z0 === 1 && z1 >= 1.8 && z2 === 1, `zoom ${z0} → ${z1} → ${z2}`);
       return `zoom ${z0} → ${z1} → ${z2}`;
     }, ['open', 'cdp']);
@@ -904,7 +917,7 @@ async function pickOpt(p, act, v) {
         await p.click('.rd [data-act="close"]');
         await T(600);
       }
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       const bid = ctx.book.id;
       await p.evaluate((id) => window.A.V.go('book-' + id, { tab: 'talk' }), bid);
       await T(500);
@@ -948,7 +961,7 @@ async function pickOpt(p, act, v) {
     }, ['open']);
 
     await step('Rename a book from the pencil by its title; the Reading settings change the reader', async () => {
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       const bid = ctx.book.id;
       await p.evaluate((id) => window.A.V.go('book-' + id), bid);
       await T(500);
@@ -976,12 +989,12 @@ async function pickOpt(p, act, v) {
     }, ['open']);
 
     await step('Landscape hint when opening upright; turn sideways; default orientation from Settings (stand-in Android layer)', async () => {
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       if (await p.evaluate(() => window.A.R.isOpen())) {
         await showBars(p);
         await p.click('.rd [data-act="close"]');
         await T(700);
-        for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+        await closeSheets(p);
       }
       await p.evaluate(() => {
         const A = window.A;
@@ -1004,7 +1017,7 @@ async function pickOpt(p, act, v) {
       await showBars(p);
       await p.click('.rd [data-act="close"]');
       await until(p, 'released on close', () => window.__or[window.__or.length - 1] === 'auto', null, 3000);
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       // once a day: no hint the second time
       await p.evaluate((id) => window.A.R.open(id), ctx.book.id);
       await T(2200);
@@ -1012,7 +1025,7 @@ async function pickOpt(p, act, v) {
       await showBars(p);
       await p.click('.rd [data-act="close"]');
       await T(500);
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       // Settings: always sideways
       await p.click('[data-go="settings"]');
       await T(400);
@@ -1033,12 +1046,12 @@ async function pickOpt(p, act, v) {
     }, ['open']);
 
     await step('Settings for the «وقفت هنا» dots: how many, line colour, only with the bars, off', async () => {
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       if (await p.evaluate(() => window.A.R.isOpen())) {
         await showBars(p);
         await p.click('.rd [data-act="close"]');
         await T(700);
-        for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+        await closeSheets(p);
       }
       await p.click('[data-go="settings"]');
       await T(400);
@@ -1053,7 +1066,7 @@ async function pickOpt(p, act, v) {
       await showBars(p);
       await p.click('.rd [data-act="close"]');
       await T(600);
-      for (let i = 0; i < 3 && (await p.$('.sheet-wrap')); i++) await p.keyboard.press('Escape').then(() => T(300));
+      await closeSheets(p);
       await p.click('[data-go="settings"]');
       await T(300);
       await pickOpt(p, 'rd-pillshow', 'off');
