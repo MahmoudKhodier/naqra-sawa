@@ -656,6 +656,9 @@ async function pickOpt(p, act, v) {
       await showBars(p);
       await p.click('#rd-bm');
       await until(p, 'bookmarked', ({ id, pg }) => !!((window.A.S.priv.marks || {})[id] || {})[pg], { id: ctx.book.id, pg: c }, 5000);
+      // the button and the slider draw a moment after the mark is saved (a fast machine checked too soon)
+      await p.waitForSelector('#rd-bm.on', { timeout: 3000 }).catch(() => {});
+      await p.waitForSelector('#rd-scrub .bm-tick', { timeout: 3000 }).catch(() => {});
       assert(await p.$('#rd-bm.on'), 'bookmark button not lit');
       assert(await p.$('#rd-scrub .bm-tick'), 'no bookmark mark on the slider');
       await p.click('.rd [data-act="panel"]');
