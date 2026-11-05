@@ -206,6 +206,8 @@ const views = (p, id) =>
       await until(a, 'back', (arg) => window.A.S.books.get(arg.id).wirds[3].start === arg.today, { id: bookId, today });
       const v = await views(a, bookId);
       assert(!v.gapToday && v.mineDue === today, 'views: ' + JSON.stringify(v));
+      // the calendar draws again; a click before that (fast machines) landed on the portion after
+      await a.waitForSelector(`.wcal .wc-c:not(.cont)[data-w="w4"][data-d="${today}"]`);
     });
 
     await step('«قسّم الباقي من هنا» from portion 4 at 6 pages a day: fewer portions, the first ids kept, the end earlier; everything follows', async () => {

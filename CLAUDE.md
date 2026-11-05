@@ -126,6 +126,18 @@ Android: no release-keystore secrets; `android.yml` signs with an app key it cre
 - `node tests/e2e/shelf.js` — Goodreads import, shelf search/sort/status moves, badge levels and details, the Android update prompt (stand-in native layer).
 - Supabase and most of the internet are not reachable from the cloud sandbox; test against the fakes, then verify live with the user.
 
+## Local development (Windows, since 2026-11-05)
+Development now happens on the owner's Windows 11 PC; the repo is `E:\Projects\Fun Apps\Niqraa Sawa\app` (beside it: `builds\` for APKs to try, `backups\`).
+- Git: the repo has `core.autocrlf=false`, `core.eol=lf` (local config) so files stay LF like on GitHub; CRLF breaks the bash scripts. The folder is in the global `safe.directory` list. `gh` is signed in as MahmoudKhodier (push works).
+- Tests run inside **WSL2 Ubuntu 24.04** against the same folder (`/mnt/e/Projects/Fun Apps/Niqraa Sawa/app`; fast enough, no copy needed). WSL has `postgresql-16` (apt; its own service is disabled, the tests start throwaway clusters), `poppler-utils` (`pdftoppm`, notebook/heads draw PDFs to pictures), Node 24 and Playwright 1.56.1 installed globally with its Chromium (`npm root -g` must be on `NODE_PATH`), and `tests/fake-supabase/node_modules` (`npm ci --prefix tests/fake-supabase`). Defaults fit: `PG_BIN=/usr/lib/postgresql/16/bin`, run as the normal user `mkhodier` so `PG_OS_USER`/runuser are never used. Root in WSL without a password: `wsl -u root`.
+- From PowerShell (Git Bash rewrites `/mnt/...` paths; use PowerShell or `MSYS_NO_PATHCONV=1`):
+  - `wsl -d Ubuntu -- bash -lc 'cd "/mnt/e/Projects/Fun Apps/Niqraa Sawa/app" && bash tests/sql/run.sh'`
+  - `wsl -d Ubuntu -- bash -lc 'cd "/mnt/e/Projects/Fun Apps/Niqraa Sawa/app" && NODE_PATH=$(npm root -g) node tests/e2e/smoke.js'`
+  - every suite (~5 min), logs in `/tmp/naqra-e2e/`: `wsl -d Ubuntu -- bash -lc 'cd "/mnt/e/Projects/Fun Apps/Niqraa Sawa/app" && bash tests/e2e/run-all.sh'` (`SUITES="plan heads"`, `N=1` to change). It runs smoke alone first (smoke empties `shots/`), then 3 at a time: more at once makes timing checks miss (slow-network paint, boss replay).
+  - This PC is faster than the cloud box: tests that tapped right after something re-drew were flaky here (fixed in the tests only: planedit.js waits for the calendar to re-draw; heads.js pauses before the tap that closes a heading card, which starts listening a tick after it shows). When a test flakes here, fix the test's timing; don't slow the app down.
+- Look at the site: `npm run serve` on Windows → http://localhost:8080 (talks to the live Supabase; sign-in sends real emails). For pictures against fake data use the e2e suites (`tests/e2e/screens.js`, the `*-options.js` mock-ups); shots land in `tests/e2e/shots/` (open from Windows at `E:\…\app\tests\e2e\shots`).
+- GitHub Actions still does the rest on push to `main`: `pages.yml` deploys Pages, `android.yml` builds the APK (`android-latest`), `migrate.yml` applies new migrations. A preview APK: `gh workflow run android.yml --ref <branch>` on a non-main branch → `android-preview` pre-release.
+
 ## Conventions
 - Commits with user-visible changes carry `Whats-New: مصري || English || فصحى` lines (فصحى optional); `android.yml` collects them since the last APK into the release notes, and the app's update prompt shows the ones newer than the installed build. Keep them short and friendly.
 - Three languages: مصري (default, `eg`), العربية فصحى (`ar`), English. All user-facing strings go through `L('مصري', 'English', 'فصحى')` (third optional, falls back to the first); style guide and fixed names in `docs/LANGUAGES.md`. Avoid gendered third-person verbs about other members (use nouns like «تشجيع من سارة»).

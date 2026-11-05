@@ -257,6 +257,9 @@ async function addHead(p, page, y) {
       await b.waitForSelector('.hd-pop');
       assert(!(await b.$('.hd-pop [data-hp="edit"]')), 'a member can fix someone else\'s');
       assert(/من محمود/.test(await b.textContent('.hd-pop')), 'who');
+      // the card listens for the tap that closes it a moment after it shows; on a fast machine
+      // a tap right away reached the page, hid the reader's bars, and «عنوان» was out of reach
+      await T(300);
       await b.mouse.click(30, 400);
       await T(300);
       const h = marks.heads.find((x) => x.l === 4 && x.p === 2);
