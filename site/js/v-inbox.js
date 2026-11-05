@@ -36,6 +36,24 @@
     const mine = new Set(S.msgs.filter((m) => m.by === me).map((m) => m.id));
     for (const m of S.msgs) if (m.re && mine.has(m.re) && m.by !== me) out.push({ t: m.at, kind: 'msgreply', who: m.by, b: m.b, ch: m.ch || 'gen', text: m.text });
     for (const b of S.books.values()) if (b.addedBy && b.addedBy !== me && b.addedAt) out.push({ t: b.addedAt, kind: 'book', who: b.addedBy, b: b.id, book: b });
+    // headings others put in a book's contents (one line per person, book and day), when I use «الفهرس»
+    if (A.Hd && A.Hd.on()) {
+      const g = new Map();
+      for (const h of (S.heads || new Map()).values()) {
+        if (!h || h.by === me || !h.at || !S.books.has(h.b)) continue;
+        const k = `${h.by}|${h.b}|${String(h.at).slice(0, 10)}`;
+        const x = g.get(k) || { t: h.at, kind: 'heads', who: h.by, b: h.b, book: S.books.get(h.b), n: 0, hs: [] };
+        x.n++;
+        if (h.at > x.t) x.t = h.at;
+        x.hs.push(h);
+        g.set(k, x);
+      }
+      for (const x of g.values()) {
+        x.text = x.hs.sort((a, c) => a.page - c.page || a.y - c.y).map((h) => A.Hd.get(h.b, h.id)).filter((h) => h && h.t).slice(0, 3).map((h) => A.Hd.short(A.Hd.title(h))).join(' • ');
+        delete x.hs;
+        out.push(x);
+      }
+    }
     for (const t of (S.throws || new Map()).values()) if (t.to === me && t.by !== me && A.Play) out.push({ t: t.at, kind: 'throw', who: t.by, it: t.it });
     if (A.Off) for (const o of A.Off.items()) if (o.by !== me) out.push({ t: o.at, kind: 'off', who: o.by, o });
     // reactions to my «خلّص الورد / الكتاب»
@@ -89,11 +107,12 @@
       case 'msgreply': return L(`رد من ${who} على رسالتك`, `${who} replied to your message`);
       case 'book': return L(`كتاب جديد في الحلقة من ${who}: ${title}`, `${who} added a new book: ${title}`);
       case 'off': return L(`${who}: ${A.Off.text(x.o)}`, `${who}: ${A.Off.text(x.o)}`);
+      case 'heads': return L(`في فهرس ${title}: ${L.count(x.n, 'heading')} من ${who}`, `${who} added ${L.count(x.n, 'heading')} to the contents of ${title}`, `في فهرس ${title}: ${L.count(x.n, 'heading')} من ${who}`);
       case 'throw': return L(`${A.Play.itemName(x.it)} ${A.Play.item(x.it)[1]} من ${who}`, `${A.Play.itemName(x.it)} ${A.Play.item(x.it)[1]} from ${who}`);
     }
     return '';
   };
-  const ICON = { reply: 'chat', thread: 'chat', like: 'heart', cheer: 'clap', poke: 'hand', msgreply: 'chat', book: 'books', throw: 'sparkle', off: 'calendar', rrx: 'heart', evrx: 'heart' };
+  const ICON = { heads: 'list', reply: 'chat', thread: 'chat', like: 'heart', cheer: 'clap', poke: 'hand', msgreply: 'chat', book: 'books', throw: 'sparkle', off: 'calendar', rrx: 'heart', evrx: 'heart' };
 
   V.openInbox = () => {
     const seen = seenAt();
@@ -131,6 +150,7 @@
           else if (x.kind === 'msgreply') x.b === '_c' ? V.go('circle', { seg: 'chat' }) : V.go('book-' + x.b, { tab: 'talk', ch: x.ch });
           else if (x.kind === 'poke' && x.b && S.books.has(x.b)) A.R.open(x.b);
           else if (x.kind === 'throw' && A.Play) A.Play.throwSheet(x.who);
+          else if (x.kind === 'heads' && A.Hd && D.book(x.b)) A.Hd.sheet(x.b);
           else if (x.kind === 'off') x.o && x.o.kind === 'plan' && S.books.has(x.o.b) ? V.go('book-' + x.o.b, { tab: 'plan' }) : V.offSheet();
           else if (x.b && S.books.has(x.b)) V.go('book-' + x.b);
           else V.go('home');

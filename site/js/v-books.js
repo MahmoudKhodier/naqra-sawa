@@ -54,15 +54,47 @@
     const by = (st) => all.filter((b) => (b.status || 'reading') === st);
     const sec = (title, list, empty, rows) =>
       `<section class="lib-sec"><h2>${title} <small class="muted">${L.num(list.length)}</small></h2>${list.length ? (rows ? `<div class="rcards">${list.map(rcard).join('')}</div>` : `<div class="tiles">${list.map(tile).join('')}</div>`) : `<p class="muted sm">${empty}</p>`}</section>`;
+    const q = String((V.state.opts || {}).q || '').trim();
+    const search = all.length ? `<label class="sh-search lib-search">${icon('search')}<input id="lib-q" type="search" dir="auto" enterkeyhint="search" autocomplete="off" placeholder="${L('دوّر على كتاب أو اسم فصل…', 'Search a book or a chapter’s name…', 'ابحث عن كتاب أو اسم فصل…')}" value="${esc(q)}" aria-label="${L('دوّر في كتبنا', 'Search our books', 'ابحث في كتبنا')}"></label>` : '';
     return `<div class="books">
       <header class="page-head"><div><h1>${L('كتبنا', 'Our books')}</h1><p class="muted">${L('الكتب اللي الحلقة بتقرأها أو هتقرأها', 'What the circle is reading and will read', 'الكتب التي تقرؤها الحلقة أو ستقرؤها')}</p></div>
         ${D.canWrite() ? `<button class="btn gold" data-act="add-book">${icon('upload')}${L('ضيف كتاب', 'Add a book', 'أضف كتابًا')}</button>` : ''}</header>
-      ${sec(L('بنقرأ دلوقتي', 'Reading now', 'نقرأ الآن'), by('reading'), L('مفيش كتاب شغال دلوقتي.', 'Nothing in progress right now.', 'لا يوجد كتاب قيد القراءة الآن.'), true)}
+      ${search}
+      ${q ? libFound(all, q) : `${sec(L('بنقرأ دلوقتي', 'Reading now', 'نقرأ الآن'), by('reading'), L('مفيش كتاب شغال دلوقتي.', 'Nothing in progress right now.', 'لا يوجد كتاب قيد القراءة الآن.'), true)}
       ${sec(L('الجاي', 'Up next', 'التالي'), by('planned'), L('ضيف كتاب واختار «بعدين».', 'Add a book and choose “Later”.', 'أضف كتابًا واختر «لاحقًا».'))}
       ${by('done').length ? sec(L('خلّصناها', 'Finished together', 'أنهيناها'), by('done'), '') : ''}
-      ${proposalsBlock()}
+      ${proposalsBlock()}`}
     </div>`;
   };
+  /* What the search on «كتبنا» found: books by title or author, and headings of their contents (the hand ones
+     and the files' own outlines) by name; a heading opens the book at its line. */
+  function libFound(all, q) {
+    const qn = arNorm(q);
+    if (!qn) return '';
+    const books = all.filter((b) => arNorm(`${b.title || ''} ${b.author || ''}`).includes(qn));
+    const groups = [];
+    let n = 0;
+    for (const b of all) {
+      if (!A.Hd || n >= 60) break;
+      const hs = A.Hd.list(b.id).filter((h) => arNorm(A.Hd.title(h)).includes(qn)).slice(0, 60 - n);
+      if (!hs.length) continue;
+      n += hs.length;
+      groups.push(`<section class="lib-hds"><header>${V.cover(b, 'xs')}<b dir="auto">${esc(b.title)}</b></header>${hs
+        .map((h) => {
+          const up = A.Hd.pathAt(b.id, h.p, h.y || 0).filter((x) => x.l < h.l).map((x) => A.Hd.short(A.Hd.title(x)));
+          return `<button class="lib-hd l${h.l}" data-act="hd-go" data-b="${esc(b.id)}" data-p="${h.p}" data-y="${h.y || 0}">${A.Hd.icon(h.l)}<span><b dir="auto">${esc(A.Hd.title(h))}</b>${up.length ? `<small dir="auto">${esc(up.join(' › '))}</small>` : ''}</span><small class="lib-p">${L('ص', 'p.')} ${L.num(h.p)}</small></button>`;
+        })
+        .join('')}</section>`);
+    }
+    if (!books.length && !groups.length) return `<p class="muted lib-none">${L(`مالقيتش كتاب ولا فصل فيه «${esc(q)}».`, `No book or chapter matches «${esc(q)}».`, `لم أجد كتابًا ولا فصلًا فيه «${esc(q)}».`)}</p>`;
+    return `${books.length ? `<section class="lib-sec"><h2>${L('كتب', 'Books', 'كتب')} <small class="muted">${L.num(books.length)}</small></h2><div class="rcards">${books.map(rcard).join('')}</div></section>` : ''}
+      ${groups.length ? `<section class="lib-sec"><h2>${L('في الفهارس', 'In the contents', 'في الفهارس')} <small class="muted">${L.num(n)}</small></h2>${groups.join('')}</section>` : ''}`;
+  }
+  document.addEventListener('input', (e) => {
+    if (e.target.id !== 'lib-q' || V.state.route !== 'books') return;
+    V.state.opts = Object.assign({}, V.state.opts, { q: e.target.value });
+    V.render();
+  });
 
   /* A book being read: cover, title, my current portion and progress. */
   function rcard(b) {
@@ -179,7 +211,7 @@
       ['notes', 'note', L('الملاحظات', 'Notes')],
       ['people', 'users', L('التقدّم', 'Progress')],
     ];
-    const talkUnread = ['gen', ...ws.map((w) => w.id)].reduce((s, ch) => s + V.unread(b.id, ch), 0);
+    const talkUnread = ['gen', ...ws.map((w) => w.id), ...chaptersOf(b).map((x) => 'hd-' + x.c.id)].reduce((s, ch) => s + V.unread(b.id, ch), 0);
     const noteCount = [...S.notes.values()].filter((n) => n.b === b.id && n.kind !== 'take').length;
     return `<div class="bookpage">
       <button class="back" data-go="books">${icon('back', 'flip')}<span>${L('كتبنا', 'Our books')}</span></button>
@@ -275,7 +307,7 @@
     const all = A.Hd ? A.Hd.list(b.id) : [];
     const chs = all.filter((h) => h.l === 1);
     if (!chs.length)
-      return `<div class="empty sm wch-empty"><span class="star8 faint"></span><p>${L('لسه مفيش فصول في فهرس الكتاب ده. وإنت بتقرا دوس «عنوان» جنب أول فصل واختار «فصل»، وهيظهر هنا بأوراده.', 'No chapters in this book’s contents yet. While reading, tap «Heading» beside a chapter and pick «Chapter»; it shows here with its portions.', 'لا فصول في فهرس هذا الكتاب بعد. أثناء القراءة اضغط «عنوان» بجانب أول فصل واختر «فصل»، وسيظهر هنا بأوراده.')}</p></div>`;
+      return `<div class="empty sm wch-empty"><span class="star8 faint"></span><p>${A.Hd ? A.Hd.emptyText('chapters') : ''}</p></div>`;
     const { prog, cls } = planCtx(b, members);
     const N = b.pages || (ws.length ? ws[ws.length - 1].to : 1);
     const at = new Map(D.bookProgs(b.id).filter((p) => p.u !== S.me && members.includes(p.u)).map((p) => [p.u, p.last || 0]));
@@ -602,13 +634,35 @@
   function talkTab(b, ch) {
     const ws = G.wirds(b);
     const gcur = G.groupCurrent(b);
+    // a discussion per chapter too («hd-<heading id>»), beside the one per portion
+    const chs = chaptersOf(b);
     ch = ch || (gcur ? gcur.id : 'gen');
-    if (ch !== 'gen' && !ws.find((w) => w.id === ch)) ch = 'gen';
+    const c = /^hd-/.test(ch) ? chs.find((x) => 'hd-' + x.c.id === ch) : null;
+    if (ch !== 'gen' && !c && !ws.find((w) => w.id === ch)) ch = 'gen';
     const w = ws.find((x) => x.id === ch);
-    const chips = [['gen', L('عام', 'General')], ...ws.map((x) => [x.id, L(`الورد ${L.num(x.n)}`, `Portion ${x.n}`)])];
+    const byCh = !!c;
+    const at = ((D.prog(b.id) || {}).last) || (G.myCurrent(b) || {}).from || 1;
+    const myCh = chs.find((x) => at >= x.from && at <= x.to) || chs[0];
+    const chUnread = chs.reduce((t, x) => t + V.unread(b.id, 'hd-' + x.c.id), 0);
+    const by = chs.length
+      ? `<div class="segs sm talk-by" role="tablist"><button type="button" class="${byCh ? '' : 'on'}" data-act="book-tab" data-b="${esc(b.id)}" data-tab="talk" data-ch="${esc(gcur ? gcur.id : 'gen')}">${icon('calendar')}${L('الأوراد', 'Portions', 'الأوراد')}</button><button type="button" class="${byCh ? 'on' : ''}" data-act="book-tab" data-b="${esc(b.id)}" data-tab="talk" data-ch="hd-${esc(myCh.c.id)}">${A.Hd.icon(1)}${L('الفصول', 'Chapters', 'الفصول')}${chUnread && !byCh ? `<i class="nv-b">${L.num(chUnread)}</i>` : ''}</button></div>`
+      : '';
+    const chips = byCh
+      ? chs.map((x) => ['hd-' + x.c.id, `${A.Hd.icon(1)}<span dir="auto">${esc(A.Hd.short(A.Hd.title(x.c)))}</span>`])
+      : [['gen', L('عام', 'General')], ...ws.map((x) => [x.id, L(`الورد ${L.num(x.n)}`, `Portion ${x.n}`)])];
     const takes = w ? [...S.notes.values()].filter((n) => n.b === b.id && n.kind === 'take' && n.wid === w.id).sort((x, y) => String(x.at).localeCompare(String(y.at))) : [];
     const myTake = takes.find((n) => n.by === S.me);
-    return `<div class="chips scroll talk-chips" role="tablist">${chips
+    if (byCh) {
+      const inside = ws.filter((x) => x.to >= c.from && x.from <= c.to);
+      const name = A.Hd.title(c.c);
+      return `${by}<div class="chips scroll talk-chips" role="tablist">${chips.map(([k, t]) => {
+        const u = V.unread(b.id, k);
+        return `<button class="chip${k === ch ? ' on' : ''}" data-act="book-tab" data-b="${esc(b.id)}" data-tab="talk" data-ch="${esc(k)}">${t}${u ? `<i class="nv-b">${L.num(u)}</i>` : ''}</button>`;
+      }).join('')}</div>
+        <p class="talk-chh">${A.Hd.icon(1)}<b dir="auto">${esc(name)}</b><small>${L('ص', 'p.')} ${L.num(c.from)}–${L.num(c.to)}${inside.length ? ` • ${inside.length === 1 ? L(`الورد ${L.num(inside[0].n)}`, `portion ${inside[0].n}`) : L(`الأوراد ${L.num(inside[0].n)}–${L.num(inside[inside.length - 1].n)}`, `portions ${inside[0].n}–${inside[inside.length - 1].n}`, `الأوراد ${L.num(inside[0].n)}–${L.num(inside[inside.length - 1].n)}`)}` : ''}</small></p>
+        ${V.thread(b.id, ch, { placeholder: L(`اكتب رأيك في «${A.Hd.short(name)}»…`, `Your thoughts on «${A.Hd.short(name)}»…`, `اكتب رأيك في «${A.Hd.short(name)}»…`), empty: L('لسه محدش كتب عن الفصل ده. قول رأيك!', 'Nothing about this chapter yet. Say something!', 'لم يكتب أحد عن هذا الفصل بعد. شارك برأيك!') })}`;
+    }
+    return `${by}<div class="chips scroll talk-chips" role="tablist">${chips
       .map(([k, t]) => {
         const u = V.unread(b.id, k);
         return `<button class="chip${k === ch ? ' on' : ''}${gcur && gcur.id === k ? ' cur' : ''}" data-act="book-tab" data-b="${esc(b.id)}" data-tab="talk" data-ch="${esc(k)}">${t}${u ? `<i class="nv-b">${L.num(u)}</i>` : ''}</button>`;

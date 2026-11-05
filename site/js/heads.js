@@ -20,8 +20,18 @@
   /* The small mark of a level: ◆ فصل, ● مبحث, ○ مطلب, • فرع (the same in lists and buttons). */
   Hd.icon = (l, cls = '') => `<i class="hd-i l${lv(l)}${cls ? ' ' + cls : ''}" aria-hidden="true"></i>`;
   Hd.col = (b) => (D.isPrivate(b) ? `data/users/${S.me}/my/heads` : 'heads');
-  Hd.canAdd = (b) => D.canWrite() && (D.isPrivate(b) || D.joined());
-  Hd.canFix = (h) => !!h && h.src === 'hand' && D.canWrite() && (h.by === S.me || D.isPrivate(h.b) || S.isOwner || S.canEdit);
+  /* Putting headings in is off until turned on in Settings (this phone): many readers don't need it. Headings
+     others put in still show (marks, contents, «إنت فين»). */
+  Hd.on = () => U.store.get('hdOn', false) === true;
+  Hd.canAdd = (b) => Hd.on() && D.canWrite() && (D.isPrivate(b) || D.joined());
+  Hd.canFix = (h) => Hd.on() && !!h && h.src === 'hand' && D.canWrite() && (h.by === S.me || D.isPrivate(h.b) || S.isOwner || S.canEdit);
+  /* What an empty contents says: how to add one, or where to turn it on. */
+  Hd.emptyText = (where) =>
+    !Hd.on()
+      ? L('لسه مفيش عناوين في الكتاب ده. لو عايز تعمل فهرس ليه، شغّل «الفهرس» من الإعدادات ← القراءة.', 'No headings in this book yet. To make its contents, turn on «Contents» in Settings → Reading.', 'لا عناوين في هذا الكتاب بعد. لتصنع فهرسه، فعّل «الفهرس» من الإعدادات ← القراءة.')
+      : where === 'chapters'
+        ? L('لسه مفيش فصول في فهرس الكتاب ده. وإنت بتقرا دوس «عنوان» جنب أول فصل واختار «فصل»، وهيظهر هنا بأوراده.', 'No chapters in this book’s contents yet. While reading, tap «Heading» beside a chapter and pick «Chapter»; it shows here with its portions.', 'لا فصول في فهرس هذا الكتاب بعد. أثناء القراءة اضغط «عنوان» بجانب أول فصل واختر «فصل»، وسيظهر هنا بأوراده.')
+        : L('لسه مفيش عناوين في الكتاب ده. وإنت بتقرا استخدم «عنوان» تحت ودوس جنب أول عنوان تقابله، وهيظهر هنا للحلقة كلها.', 'No headings in this book yet. While reading, use «Heading» below and tap beside the first one you meet; it shows here for the whole circle.', 'لا عناوين في هذا الكتاب بعد. أثناء القراءة استخدم «عنوان» في الأسفل واضغط بجانب أول عنوان تقابله، وسيظهر هنا للحلقة كلها.');
   const short = (t) => {
     const s = String(t || '').trim();
     const i = s.indexOf(':');
@@ -124,12 +134,21 @@
       })() : ''}</div>`;
   };
   /* The contents as rows (the reader's tab, the book's sheet). cur = {p, y}: «إنت هنا». */
+  const norm = (t) => (V._arNorm ? V._arNorm(t) : String(t || '').toLowerCase());
+  /* A box over a long contents: typing a few letters of a name keeps only the headings that have them. */
+  Hd.findBox = () => `<label class="sh-search hd-find">${icon('search')}<input type="search" class="hd-find-in" dir="auto" autocomplete="off" placeholder="${L('دوّر على عنوان…', 'Find a heading…', 'ابحث عن عنوان…')}" aria-label="${L('دوّر في الفهرس', 'Search the contents', 'ابحث في الفهرس')}"></label>`;
+  document.addEventListener('input', (e) => {
+    if (!e.target.matches || !e.target.matches('.hd-find-in')) return;
+    const box = e.target.closest('.rd-panel, .sh-body') || document;
+    const q = norm(e.target.value);
+    box.querySelectorAll('.hd-row').forEach((r) => (r.hidden = !!q && !String(r.dataset.q || '').includes(q)));
+  });
   Hd.rowsHtml = (b, cur) => {
     const list = Hd.list(b);
     const here = cur ? Hd.pathAt(b, cur.p, cur.y).pop() : null;
     return list
       .map(
-        (h) => `<button type="button" class="hd-row l${h.l}${here && h.id === here.id ? ' on' : ''}" data-act="hd-go" data-b="${esc(b)}" data-p="${h.p}" data-y="${h.y}" data-hid="${esc(h.id)}">${Hd.icon(h.l)}<span class="t" dir="auto">${esc(Hd.title(h))}</span>${here && h.id === here.id ? `<span class="hd-here">${L('إنت هنا', 'You are here', 'أنت هنا')}</span>` : ''}<span class="p">${L.num(h.p)}</span></button>`,
+        (h) => `<button type="button" class="hd-row l${h.l}${here && h.id === here.id ? ' on' : ''}" data-act="hd-go" data-b="${esc(b)}" data-p="${h.p}" data-y="${h.y}" data-hid="${esc(h.id)}" data-q="${esc(norm(Hd.title(h)))}">${Hd.icon(h.l)}<span class="t" dir="auto">${esc(Hd.title(h))}</span>${here && h.id === here.id ? `<span class="hd-here">${L('إنت هنا', 'You are here', 'أنت هنا')}</span>` : ''}<span class="p">${L.num(h.p)}</span></button>`,
       )
       .join('');
   };
@@ -310,8 +329,8 @@
     V.sheet({
       title: `${icon('list')} ${L('الفهرس', 'Contents')}`,
       html: list.length
-        ? `<div class="hd-rows">${Hd.rowsHtml(b, cur)}</div>`
-        : `<div class="empty sm"><span class="star8 faint"></span><p>${L('لسه مفيش عناوين. وإنت بتقرا، استخدم «عنوان» تحت ودوس جنب أول عنوان تقابله.', 'No headings yet. While reading, use «Heading» below and tap beside the first one you meet.', 'لا عناوين بعد. أثناء القراءة، استخدم «عنوان» في الأسفل واضغط بجانب أول عنوان تقابله.')}</p></div>`,
+        ? `${list.length > 12 ? Hd.findBox() : ''}<div class="hd-rows">${Hd.rowsHtml(b, cur)}</div>`
+        : `<div class="empty sm"><span class="star8 faint"></span><p>${Hd.emptyText('sheet')}</p></div>`,
     });
   };
   V.actions['hd-go'] = (a) => {

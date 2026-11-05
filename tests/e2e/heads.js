@@ -124,6 +124,7 @@ async function addHead(p, page, y) {
       await b.evaluate(() => {
         window.A.Goals && (window.A.Goals.off = true);
         window.A.U.store.set('rdFocusOffered', window.A.U.today());
+        window.A.U.store.set('hdOn', true); // she put «الفهرس» on in Settings
       });
       bUid = await b.evaluate(() => window.A.S.me);
       await until(a, 'two members', () => window.A.S.members.size === 2);
@@ -135,6 +136,27 @@ async function addHead(p, page, y) {
 
     const H1 = () => marks.heads.find((h) => h.l === 1);
     const yc = (h) => h.y + h.h / 2;
+
+    await step('«الفهرس» is off until turned on in Settings: no «عنوان» tool, the contents say where to turn it on', async () => {
+      await a.evaluate((id) => window.A.R.open(id, { page: 1 }), bookId);
+      await a.waitForSelector('.pg[data-p="1"] canvas', { timeout: 20000 });
+      await T(800);
+      assert(!(await a.$('.rd-tools [data-tool="head"]')), 'the tool shows while off');
+      await a.evaluate(() => window.A.R.showContents());
+      await a.waitForSelector('#rd-panel .empty');
+      const t = await a.textContent('#rd-panel .empty');
+      assert(/الإعدادات/.test(t) && !(await a.$('#rd-panel [data-act="hd-add"]')), 'contents: ' + t);
+      await a.evaluate(() => window.A.R.close());
+      await a.evaluate(() => window.A.V.go('settings'));
+      await a.waitForSelector('#set-hdon');
+      assert(!(await a.$eval('#set-hdon', (e) => e.checked)), 'on by default');
+      await a.locator('#set-hdon').scrollIntoViewIfNeeded();
+      await shot(a, 'hd2-0-settings');
+      await a.locator('label.switch:has(#set-hdon)').click();
+      await until(a, 'on', () => window.A.Hd.on());
+      await a.evaluate(() => window.A.V.go('home'));
+      await T(300);
+    });
 
     await step('The tool «عنوان»: a tap beside the chapter line opens the sheet with the line, «فصل» suggested and the name read from the page', async () => {
       await a.evaluate((id) => window.A.R.open(id, { page: 1 }), bookId);
@@ -242,6 +264,25 @@ async function addHead(p, page, y) {
       assert((await b.$eval('.sheet .hd-lv .on', (e) => e.dataset.l)) === '4', 'level after a فرع');
       await b.click('.sheet [data-save]');
       await until(a, 'he sees it', () => window.A.S.heads.size === 5);
+    });
+
+    await step('«الجديد ليك»: one line for the headings she put in today; a tap opens the contents (and nothing while «الفهرس» is off)', async () => {
+      await a.evaluate(() => window.A.R.close());
+      const it = await a.evaluate((u) => window.A.V.inboxItems().filter((x) => x.kind === 'heads' && x.who === u).map((x) => ({ n: x.n, text: x.text })), bUid);
+      assert(it.length === 1 && it[0].n === 1 && /الفرع الثاني/.test(it[0].text), 'items: ' + JSON.stringify(it));
+      await a.evaluate(() => window.A.V.openInbox());
+      await a.waitForSelector('.inbox .ib-ic.k-heads');
+      const li = await a.evaluate(() => document.querySelector('.inbox .ib-ic.k-heads').closest('li').textContent);
+      assert(/في فهرس/.test(li) && /عنوان واحد/.test(li) && /سارة/.test(li), 'line: ' + li);
+      await shot(a, 'hd2-15-inbox');
+      await a.evaluate(() => document.querySelector('.inbox .ib-ic.k-heads').closest('button').click());
+      await a.waitForSelector('.sheet .hd-rows .hd-row');
+      await closeAll(a);
+      await a.evaluate(() => window.A.U.store.set('hdOn', false));
+      const off = await a.evaluate(() => window.A.V.inboxItems().filter((x) => x.kind === 'heads').length);
+      assert(off === 0, 'lines while off: ' + off);
+      await a.evaluate(() => window.A.U.store.set('hdOn', true));
+      return li.replace(/\s+/g, ' ').trim();
     });
 
     await step('The database keeps someone else\'s heading as it is (the member)', async () => {
@@ -443,6 +484,59 @@ async function addHead(p, page, y) {
       }, [bookId, wirds0]);
       await until(a, 'cleaned', () => !window.A.S.heads.has('hch4') && !window.A.S.notes.has('nc1'));
       return `counted before: [${before}]; ${news}`;
+    });
+
+    await step('Search on «كتبنا»: a chapter\'s name finds its heading (with the path above it) and opens the book at its line', async () => {
+      await a.evaluate(() => window.A.V.go('books'));
+      await a.waitForSelector('#lib-q');
+      await a.fill('#lib-q', 'سقيفه'); // ة / ه, no diacritics
+      await a.waitForSelector('.lib-hd');
+      const rows = await a.$$eval('.lib-hd', (x) => x.map((e) => e.textContent.replace(/\s+/g, ' ').trim()));
+      assert(rows.length === 1 && /المطلب الأول/.test(rows[0]) && /الفصل الثالث/.test(rows[0]), 'rows: ' + rows);
+      await shot(a, 'hd2-16-search');
+      await a.fill('#lib-q', 'الخلافة');
+      await a.waitForSelector('.lib-sec .rcard');
+      await a.fill('#lib-q', 'سقيفه');
+      await a.waitForSelector('.lib-hd');
+      await a.click('.lib-hd');
+      await a.waitForSelector('.pg[data-p="1"] canvas', { timeout: 20000 });
+      await T(600);
+      const cur = await a.evaluate(() => window.A.R.current().page);
+      assert(cur === 1, 'page ' + cur);
+      await a.evaluate(() => window.A.R.close());
+      await a.fill('#lib-q', 'ما فيش حاجة كده');
+      await a.waitForSelector('.lib-none');
+      await a.fill('#lib-q', '');
+      await a.waitForSelector('.books .lib-sec h2');
+      return rows[0];
+    });
+
+    await step('A discussion per chapter: «الأوراد / الفصول» in «النقاش», a message in a chapter\'s, unread on her phone', async () => {
+      await a.evaluate((id) => window.A.D.set('heads/hch5', { b: id, page: 3, y: 0.5, l: 1, t: 'الفصل الرابع: خلافة عمر', by: window.A.S.me, at: new Date().toISOString() }), bookId);
+      await until(a, 'two chapters', (id) => window.A.V.chaptersOf(window.A.S.books.get(id)).length === 2, bookId);
+      await a.evaluate((id) => window.A.V.go('book-' + id, { tab: 'talk' }), bookId);
+      await a.waitForSelector('.talk-by');
+      await a.click('.talk-by button:nth-child(2)');
+      await a.waitForSelector('.talk-chh');
+      const chips = await a.$$eval('.talk-chips .chip', (x) => x.map((e) => e.textContent.trim()));
+      assert(chips.length === 2 && /الفصل الثالث/.test(chips[0]) && /الفصل الرابع/.test(chips[1]), 'chips: ' + chips);
+      await a.click('.talk-chips .chip:nth-child(2)');
+      await until(a, 'chapter 4', () => /الفصل الرابع/.test(document.querySelector('.talk-chh').textContent));
+      // she has looked at that chapter's discussion once (unread counts start from there, as for portions), then went back to the portions
+      await until(b, 'two chapters on her phone', (id) => window.A.V.chaptersOf(window.A.S.books.get(id)).length === 2, bookId);
+      await b.evaluate((id) => window.A.V.go('book-' + id, { tab: 'talk', ch: 'hd-hch5' }), bookId);
+      await b.waitForSelector('.talk-chh');
+      await T(300);
+      await b.evaluate((id) => window.A.V.go('book-' + id, { tab: 'talk', ch: 'gen' }), bookId);
+      await a.fill('.composer textarea', 'الفصل ده فيه تفاصيل حلوة عن الفتوحات');
+      await a.click('.composer button');
+      await until(a, 'sent', () => window.A.S.msgs.some((m) => m.ch === 'hd-hch5'));
+      await shot(a, 'hd2-17-chtalk');
+      await until(b, 'unread on her phone', (id) => window.A.V.unread(id, 'hd-hch5') === 1, bookId, 10000);
+      await b.waitForSelector('.talk-by button:nth-child(2) .nv-b', { timeout: 8000 });
+      await a.evaluate(() => window.A.D.del('heads/hch5'));
+      await until(a, 'one chapter again', (id) => window.A.V.chaptersOf(window.A.S.books.get(id)).length === 1, bookId);
+      await a.evaluate(() => window.A.V.go('home'));
     });
 
     await step('Held sideways: the heading sheet is a panel down the side, the page in view with its line marked (no picture, no scrolling)', async () => {

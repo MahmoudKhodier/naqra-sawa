@@ -82,6 +82,11 @@
       ar: { one: 'فصل واحد', two: 'فصلين', two_nom: 'فصلان', few: '{n} فصول', many: '{n} فصلًا', other: '{n} فصل' },
       en: { one: '1 chapter', other: '{n} chapters' },
     },
+    heading: {
+      eg: { one: 'عنوان واحد', two: 'عنوانين', few: '{n} عناوين', other: '{n} عنوان' },
+      ar: { one: 'عنوان واحد', two: 'عنوانين', two_nom: 'عنوانان', few: '{n} عناوين', many: '{n} عنوانًا', other: '{n} عنوان' },
+      en: { one: '1 heading', other: '{n} headings' },
+    },
     note: {
       eg: { one: 'ملاحظة واحدة', two: 'ملاحظتين', few: '{n} ملاحظات', other: '{n} ملاحظة' },
       ar: { one: 'ملاحظة واحدة', two: 'ملاحظتين', two_nom: 'ملاحظتان', few: '{n} ملاحظات', other: '{n} ملاحظة' },

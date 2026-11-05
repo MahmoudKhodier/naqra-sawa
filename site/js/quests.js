@@ -94,7 +94,7 @@
     const where = mp ? { b: mp.b.id, w: mp.w.id } : {};
     out.push(Object.assign({ k: 'hlW' }, where), Object.assign({ k: 'askW' }, where));
     // «الفهرس»: today's portion has no heading of its own yet (from the day this shipped: older apps can't show it)
-    if (mp && A.Hd && today() >= G.HEAD_Q && !A.Hd.cover(mp.b.id, mp.w).inside.length) out.push(Object.assign({ k: 'headW' }, where));
+    if (mp && A.Hd && A.Hd.on() && today() >= G.HEAD_Q && !A.Hd.cover(mp.b.id, mp.w).inside.length) out.push(Object.assign({ k: 'headW' }, where));
     return out;
   }
   function bonusQuest(r) {

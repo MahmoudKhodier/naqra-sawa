@@ -2454,7 +2454,7 @@
         const a = anchorAt(st.sc.clientWidth / 2, st.sc.clientHeight * 0.3);
         if (a && a.p) cur = { p: a.p, y: U.clamp(a.fy, 0, 1) };
       }
-      el.innerHTML = `${head}<div class="rp-list hd-rows">${list.length ? A.Hd.rowsHtml(st.bookId, cur) : `<div class="empty sm"><span class="star8 faint"></span><p>${L('لسه مفيش عناوين في الكتاب ده. استخدم «عنوان» تحت ودوس جنب أول عنوان تقابله، وهيظهر هنا للحلقة كلها.', 'No headings in this book yet. Use «Heading» below and tap beside the first one you meet; it shows here for the whole circle.', 'لا عناوين في هذا الكتاب بعد. استخدم «عنوان» في الأسفل واضغط بجانب أول عنوان تقابله، وسيظهر هنا للحلقة كلها.')}</p></div>`}</div>
+      el.innerHTML = `${head}${list.length > 12 ? A.Hd.findBox() : ''}<div class="rp-list hd-rows">${list.length ? A.Hd.rowsHtml(st.bookId, cur) : `<div class="empty sm"><span class="star8 faint"></span><p>${A.Hd.emptyText('reader')}</p></div>`}</div>
         ${A.Hd.canAdd(st.bookId) ? `<div class="rp-foot"><button class="btn ghost" data-act="hd-add">${U.icon('plus')}${L('حط عنوان', 'Add a heading', 'أضف عنوانًا')}</button></div>` : ''}`;
       const on = el.querySelector('.hd-row.on');
       if (on) setTimeout(() => on.scrollIntoView({ block: 'center' }), 40);
